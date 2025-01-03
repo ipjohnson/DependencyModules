@@ -8,6 +8,13 @@
         <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
         <IsPackable>True</IsPackable>
         <Nullable>enable</Nullable>
+        <PackageId>DependencyModules.SourceGenerator.Impl</PackageId>
+        <Authors>Ian Johnson</Authors>
+        <PackageTags>dependency injection</PackageTags>
+        <PackageProjectUrl>https://github.com/ipjohnson/DependencyModules</PackageProjectUrl>
+        <PackageLicenseUrl>https://github.com/ipjohnson/DependencyModules/blob/main/LICENSE</PackageLicenseUrl>
+        <RepositoryType>git</RepositoryType>
+        <RepositoryUrl>https://github.com/ipjohnson/DependencyModules</RepositoryUrl>
     </PropertyGroup>
 
     <ItemGroup>
@@ -15,6 +22,20 @@
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>build</IncludeAssets>
         </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Remove="Package\CSharpAuthor.*" />
+        <Content Include="Package\CSharpAuthor.*">
+            <Pack>true</Pack>
+            <PackagePath>build\</PackagePath>
+            <PackageCopyToOutput>true</PackageCopyToOutput>
+        </Content>
+        <Content Include="**\*.cs" Exclude="**\obj\**;**\bin\**" Visible="true">
+            <Pack>true</Pack>
+            <PackagePath>src\DependencyModules.SourceGenerator.Impl\</PackagePath>
+            <PackageCopyToOutput>true</PackageCopyToOutput>
+        </Content>
     </ItemGroup>
 
     <ItemGroup>
@@ -27,10 +48,6 @@
         <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.10.0" />
     </ItemGroup>
 
-    <ItemGroup>
-        <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false"/>
-    </ItemGroup>
-
     <PropertyGroup>
         <IncludeBuildOutput>false</IncludeBuildOutput>
     </PropertyGroup>
@@ -38,7 +55,5 @@
     <PropertyGroup>
         <PackageCSharpAuthorIncludeSource>true</PackageCSharpAuthorIncludeSource>
     </PropertyGroup>
-
-
 
 </Project>

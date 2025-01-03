@@ -17,7 +17,9 @@ public class ModuleTestCase : XunitTestCase {
     private Dictionary<ParameterInfo, List<ITestParameterValueProvider>> _knownValues = new();
     private List<ITestStartupAttribute> _startupAttributes = new();
 
+#pragma warning disable CS0618 // Type or member is obsolete
     public ModuleTestCase() { }
+#pragma warning restore CS0618 // Type or member is obsolete
 
     public ModuleTestCase(
         IXunitTestMethod testMethod,

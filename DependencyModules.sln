@@ -6,8 +6,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DependencyModules.SourceGen
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DependencyModules.SourceGenerator.Impl", "DependencyModules.SourceGenerator.Impl\DependencyModules.SourceGenerator.Impl.csproj", "{7974E141-9D8C-43DC-962B-05111141C784}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DependencyModules.SourceGenerator.Impl.Tests", "DependencyModules.SourceGenerator.Impl.Tests\DependencyModules.SourceGenerator.Impl.Tests.csproj", "{82C9D1D0-885C-427E-86A0-ECAE596773D5}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SutProject", "SutProject\SutProject.csproj", "{88FAF6BF-26AE-4892-BF0A-90B87C6AF3AD}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SutProject.Tests", "SutProject.Tests\SutProject.Tests.csproj", "{8474A1E7-683C-4957-B1B8-BDFB833F9136}"
@@ -36,10 +34,6 @@ Global
 		{7974E141-9D8C-43DC-962B-05111141C784}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7974E141-9D8C-43DC-962B-05111141C784}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7974E141-9D8C-43DC-962B-05111141C784}.Release|Any CPU.Build.0 = Release|Any CPU
-		{82C9D1D0-885C-427E-86A0-ECAE596773D5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{82C9D1D0-885C-427E-86A0-ECAE596773D5}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{82C9D1D0-885C-427E-86A0-ECAE596773D5}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{82C9D1D0-885C-427E-86A0-ECAE596773D5}.Release|Any CPU.Build.0 = Release|Any CPU
 		{88FAF6BF-26AE-4892-BF0A-90B87C6AF3AD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{88FAF6BF-26AE-4892-BF0A-90B87C6AF3AD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{88FAF6BF-26AE-4892-BF0A-90B87C6AF3AD}.Release|Any CPU.ActiveCfg = Release|Any CPU

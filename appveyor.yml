@@ -1,0 +1,26 @@
+environment:
+  build_version: 1.0.0
+  Version: $(build_version)
+version: $(build_version)-{build}-RC%APPVEYOR_BUILD_NUMBER%
+configuration: Release
+assembly_info:
+  patch: true
+  file: '**\AssemblyInfo.*'
+  assembly_version: '$(build_version).0'
+  assembly_file_version: '$(build_version).{build}'
+  assembly_informational_version: '$(build_version)'
+before_build:
+ - cmd: nuget restore DependencyModules.sln
+build:
+  project: DependencyModules.sln
+  publish_nuget: true
+  verbosity: minimal
+test:
+  assemblies:
+    only:
+      - '**\*.tests.dll'
+artifacts:
+- path: DependencyModules*.nupkg
+  name: DependencyModules
+image:
+- Visual Studio 2022
