@@ -1,7 +1,7 @@
 environment:
   build_version: 1.0.0
-  Version: $(build_version)
-version: $(build_version)-{build}-RC%APPVEYOR_BUILD_NUMBER%
+  Version: $(build_version)-RC%APPVEYOR_BUILD_NUMBER%
+version: $(build_version)-{build}
 configuration: Release
 assembly_info:
   patch: true
