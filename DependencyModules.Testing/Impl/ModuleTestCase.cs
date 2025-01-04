@@ -55,6 +55,8 @@ public class ModuleTestCase : XunitTestCase {
 
     private void SetupServiceCollection() {
         var serviceCollection = new ServiceCollection();
+        _knownValues = new Dictionary<ParameterInfo, List<ITestParameterValueProvider>>();
+        _startupAttributes = new List<ITestStartupAttribute>();
 
         SetupModules(serviceCollection);
 
@@ -123,8 +125,51 @@ public class ModuleTestCase : XunitTestCase {
     /// </remarks>
     /// <inheritdoc/>
     public override async ValueTask<IReadOnlyCollection<IXunitTest>> CreateTests() {
-        SetupServiceCollection();
+        var dataAttributes = 
+            TestMethod.Method.GetTestAttributes<IDataAttribute>().ToArray();
+
+        if (dataAttributes.Length == 0) {
+            return await UnitTestWithNoDataAttributes();
+        }
+        else {
+            return await UnitTestFromDataAttributes(dataAttributes);
+        }
+    }
+
+    private async Task<IReadOnlyCollection<IXunitTest>> UnitTestFromDataAttributes(IDataAttribute[] dataAttributes) {
+        var unitTests = new List<IXunitTest>();
+
+        foreach (var dataAttribute in dataAttributes) {
+            var dataRowCollection = 
+                await dataAttribute.GetData(TestMethod.Method, DisposalTracker);
+
+            foreach (var theoryDataRow in dataRowCollection) {
+                var data = theoryDataRow.GetData();
+                
+                SetupServiceCollection();
+                
+                unitTests.Add(
+                    new XunitTest(
+                        this,
+                        TestMethod,
+                        Explicit,
+                        theoryDataRow.Skip ?? SkipReason,
+                        TestCaseDisplayName,
+                        testIndex: unitTests.Count,
+                        theoryDataRow.Traits?.ToReadOnly() ?? Traits.ToReadOnly(),
+                        theoryDataRow.Timeout ?? Timeout,
+                        await ResolveArguments(data)
+                    )
+                    );
+            }
+        }
         
+        return unitTests;
+    }
+
+    private async Task<IReadOnlyCollection<IXunitTest>> UnitTestWithNoDataAttributes() {
+        SetupServiceCollection();
+
         return [
             new XunitTest(
                 this,
@@ -135,19 +180,23 @@ public class ModuleTestCase : XunitTestCase {
                 testIndex: 0,
                 Traits.ToReadOnly(),
                 Timeout,
-                await ResolveArguments()
+                await ResolveArguments([])
             )
         ];
     }
 
-    private async Task<object?[]> ResolveArguments() {
-        var parameters = new List<object?>();
+    private async Task<object?[]> ResolveArguments(object?[] data) {
+        var parameters = new List<object?>(data);
+        
+        var parameterList = TestMethod.Method.GetParameters();
 
-        foreach (var parameterInfo in TestMethod.Method.GetParameters()) {
+        for (var i = data.Length; i < parameterList.Length; i++) {
+            var parameterInfo = parameterList[i];
             var value = await ResolveParameter(parameterInfo);
 
             parameters.Add(value ?? ResolveArgumentFromProvider(parameterInfo));
         }
+        
 
         return parameters.ToArray();
     }
@@ -167,6 +216,7 @@ public class ModuleTestCase : XunitTestCase {
                 }
             }
         }
+        
         return value;
     }
 
