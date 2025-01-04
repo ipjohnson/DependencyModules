@@ -35,8 +35,8 @@
     </ItemGroup>
     
     <ItemGroup>
-        <None Remove="Package\DependencyModule.*" />
-        <Content Include="Package\DependencyModule.*">
+        <None Remove="Package\DependencyModules.*" />
+        <Content Include="Package\DependencyModules.*">
             <Pack>true</Pack>
             <PackagePath>build\</PackagePath>
             <PackageCopyToOutput>true</PackageCopyToOutput>
