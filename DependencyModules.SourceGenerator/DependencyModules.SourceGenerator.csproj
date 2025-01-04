@@ -15,6 +15,7 @@
         <PackageLicenseUrl>https://github.com/ipjohnson/DependencyModules/blob/main/LICENSE</PackageLicenseUrl>
         <RepositoryType>git</RepositoryType>
         <RepositoryUrl>https://github.com/ipjohnson/DependencyModules</RepositoryUrl>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
     </PropertyGroup>
 
     <PropertyGroup>
@@ -48,6 +49,15 @@
 
     <ItemGroup>
         <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false"/>
+    </ItemGroup>
+    
+    <ItemGroup>
+        <None Remove="docs\*.*" />
+        <Content Include="..\*.md" Visible="true">
+            <Pack>true</Pack>
+            <PackagePath>docs\</PackagePath>
+            <PackageCopyToOutput>true</PackageCopyToOutput>
+        </Content>
     </ItemGroup>
     
     <ItemGroup>
