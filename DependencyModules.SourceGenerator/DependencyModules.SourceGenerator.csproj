@@ -39,6 +39,10 @@
     </ItemGroup>
 
     <ItemGroup>
+        <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false"/>
+    </ItemGroup>
+    
+    <ItemGroup>
         <Compile Include="../DependencyModules.SourceGenerator.Impl/**/*.cs" Exclude="../DependencyModules.SourceGenerator.Impl/obj/**/*">
             <Link>Impl\%(RecursiveDir)/%(FileName)%(Extension)</Link>
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
