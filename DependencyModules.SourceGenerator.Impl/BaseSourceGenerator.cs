@@ -33,7 +33,7 @@ public abstract class BaseSourceGenerator  : IIncrementalGenerator {
             }
             
             return new DependencyModuleConfigurationModel(defaultUseTry);
-        });
+        }).WithComparer(new DependencyModuleConfigurationModelComparer());
     }
 
     protected virtual void SetupRootGenerator(IncrementalGeneratorInitializationContext context, IncrementalValuesProvider<ModuleEntryPointModel> incrementalValueProvider) {

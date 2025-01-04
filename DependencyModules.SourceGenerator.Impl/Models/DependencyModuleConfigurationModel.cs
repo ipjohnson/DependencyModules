@@ -7,3 +7,19 @@ namespace DependencyModules.SourceGenerator.Impl.Models;
 public record DependencyModuleConfigurationModel(
     bool DefaultUseTry
     );
+
+public class DependencyModuleConfigurationModelComparer : 
+    IEqualityComparer<DependencyModuleConfigurationModel> {
+
+    public bool Equals(DependencyModuleConfigurationModel? x, DependencyModuleConfigurationModel? y) {
+        if (ReferenceEquals(x, y)) return true;
+        if (x is null) return false;
+        if (y is null) return false;
+        if (x.GetType() != y.GetType()) return false;
+        return x.DefaultUseTry == y.DefaultUseTry;
+    }
+
+    public int GetHashCode(DependencyModuleConfigurationModel obj) {
+        return obj.GetHashCode();
+    }
+}

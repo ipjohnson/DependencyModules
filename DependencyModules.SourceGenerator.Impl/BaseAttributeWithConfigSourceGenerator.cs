@@ -8,12 +8,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace DependencyModules.SourceGenerator.Impl;
 
-public interface ISourceGenerator {
-    void SetupGenerator(IncrementalGeneratorInitializationContext context,
-        IncrementalValuesProvider<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> incrementalValueProvider);
-}
 
-public abstract class BaseAttributeSourceGenerator<T> : ISourceGenerator {
+public abstract class BaseAttributeWithConfigSourceGenerator<TModel,TConfig> : ISourceGenerator {
     protected abstract IEnumerable<ITypeDefinition> AttributeTypes();
 
     public void SetupGenerator(IncrementalGeneratorInitializationContext context, 
@@ -28,15 +24,25 @@ public abstract class BaseAttributeSourceGenerator<T> : ISourceGenerator {
         var collection =
             serviceModelProvider.Collect();
 
+
+        var config = 
+            context.AnalyzerConfigOptionsProvider.Select(GenerateConfigAttributeModel).WithComparer(GetConfigComparer());
+
+        var valuesProvider = incrementalValueProvider.Combine(config);
+        
         context.RegisterSourceOutput(
-            incrementalValueProvider.Combine(collection),
+            valuesProvider.Combine(collection),
             GenerateSourceOutput
         );
     }
 
-    protected abstract void GenerateSourceOutput(SourceProductionContext arg1, ((ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right) Left, ImmutableArray<T> Right) arg2);
+    protected abstract void GenerateSourceOutput(SourceProductionContext arg1, (((ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right) Left, TConfig Right) Left, ImmutableArray<TModel> Right) arg2);
+    
+    protected abstract TConfig GenerateConfigAttributeModel(AnalyzerConfigOptionsProvider arg1, CancellationToken arg2);
 
-    protected abstract IEqualityComparer<T> GetComparer();
+    protected abstract IEqualityComparer<TModel> GetComparer();
 
-    protected abstract T GenerateAttributeModel(GeneratorSyntaxContext arg1, CancellationToken arg2);
+    protected abstract TModel GenerateAttributeModel(GeneratorSyntaxContext arg1, CancellationToken arg2);
+    
+    protected abstract IEqualityComparer<TConfig> GetConfigComparer();
 }
