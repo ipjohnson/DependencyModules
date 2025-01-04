@@ -12,7 +12,6 @@
         <Authors>Ian Johnson</Authors>
         <PackageTags>dependency injection</PackageTags>
         <PackageProjectUrl>https://github.com/ipjohnson/DependencyModules</PackageProjectUrl>
-        <PackageLicenseUrl>https://github.com/ipjohnson/DependencyModules/blob/main/LICENSE</PackageLicenseUrl>
         <RepositoryType>git</RepositoryType>
         <RepositoryUrl>https://github.com/ipjohnson/DependencyModules</RepositoryUrl>
         <PackageReadmeFile>README.md</PackageReadmeFile>
