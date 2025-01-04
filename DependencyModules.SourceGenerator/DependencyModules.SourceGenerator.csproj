@@ -50,7 +50,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="CSharpAuthor" Version="0.2.0-RC972">
+        <PackageReference Include="CSharpAuthor" Version="1.0.1">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>build</IncludeAssets>
         </PackageReference>

@@ -1,3 +1,4 @@
+using System.CodeDom.Compiler;
 using CSharpAuthor;
 using static CSharpAuthor.SyntaxHelpers;
 using DependencyModules.SourceGenerator.Impl;

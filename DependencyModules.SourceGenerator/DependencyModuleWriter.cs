@@ -1,3 +1,4 @@
+using System.CodeDom.Compiler;
 using CSharpAuthor;
 using static CSharpAuthor.SyntaxHelpers;
 using DependencyModules.SourceGenerator.Impl;
@@ -18,7 +19,7 @@ public class DependencyModuleWriter {
 
         csharpFile.WriteOutput(outputContext);
 
-        context.AddSource(model.EntryPointType.Name + ".Module.cs", outputContext.Output());
+        context.AddSource(model.EntryPointType.Name + ".Module.g.cs", outputContext.Output());
     }
 
     private void GenerateModuleClass(ModuleEntryPointModel model, CSharpFileDefinition csharpFile) {
@@ -61,7 +62,7 @@ public class DependencyModuleWriter {
         equalMethod.Modifiers |= ComponentModifier.Override;
         equalMethod.SetReturnType(typeof(bool));
 
-        equalMethod.AddParameter(TypeDefinition.Get(typeof(object)).MakeNullable(), "obj");
+        equalMethod.AddParameter(TypeDefinition.Get(typeof(object)), "obj");
 
         equalMethod.Return($"obj is {model.EntryPointType.Name}");
     }
@@ -69,8 +70,9 @@ public class DependencyModuleWriter {
     private void GetModulesMethod(ClassDefinition classDefinition, ModuleEntryPointModel model) {
         var loadDependenciesMethod = classDefinition.AddMethod("GetDependentModules");
 
+        loadDependenciesMethod.InterfaceImplementation = KnownTypes.DependencyModules.Interfaces.IDependencyModule;
         loadDependenciesMethod.SetReturnType(TypeDefinition.Get(typeof(IEnumerable<object>)));
-
+        
         foreach (var modelAttributeModel in model.AttributeModels) {
             if (modelAttributeModel.TypeDefinition.Name == "DependencyModuleAttribute") {
                 continue;
@@ -95,6 +97,9 @@ public class DependencyModuleWriter {
 
         var loadDependenciesMethod = classDefinition.AddMethod("ApplyServices");
 
+        loadDependenciesMethod.InterfaceImplementation = 
+            KnownTypes.DependencyModules.Interfaces.IDependencyModule;
+        
         var parameter =
             loadDependenciesMethod.AddParameter(
                 KnownTypes.Microsoft.DependencyInjection.IServiceCollection, "services");

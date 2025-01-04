@@ -1,3 +1,4 @@
+using System.CodeDom.Compiler;
 using CSharpAuthor;
 
 namespace DependencyModules.SourceGenerator.Impl;
