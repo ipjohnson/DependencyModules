@@ -9,37 +9,33 @@ namespace DependencyModules.SourceGenerator;
 public class DependencyModuleWriter {
 
     public void GenerateSource(SourceProductionContext context, ModuleEntryPointModel model) {
-        try {
-            var csharpFile = new CSharpFileDefinition(model.EntryPointType.Namespace);
 
-            GenerateModuleClass(model, csharpFile);
-            
-            var outputContext = new OutputContext();
+        var csharpFile = new CSharpFileDefinition(model.EntryPointType.Namespace);
 
-            csharpFile.WriteOutput(outputContext);
+        GenerateModuleClass(model, csharpFile);
 
-            context.AddSource(model.EntryPointType.Name + ".Module.cs", outputContext.Output());
-        }
-        catch (Exception exp) {
-            
-        }
+        var outputContext = new OutputContext();
+
+        csharpFile.WriteOutput(outputContext);
+
+        context.AddSource(model.EntryPointType.Name + ".Module.cs", outputContext.Output());
     }
 
     private void GenerateModuleClass(ModuleEntryPointModel model, CSharpFileDefinition csharpFile) {
         var classDefinition = csharpFile.AddClass(model.EntryPointType.Name);
 
         classDefinition.Modifiers |= ComponentModifier.Partial;
-        
+
         var attributeGenerator = new ModuleAttributeGenerator();
-        
+
         attributeGenerator.Generate(model, classDefinition);
 
         SetupStaticConstructor(classDefinition);
-        
+
         PopulateServiceCollectionMethod(classDefinition, model);
-        
+
         ApplyServicesMethod(classDefinition, model);
-        
+
         GetModulesMethod(classDefinition, model);
 
         if (!model.ImplementsEquals) {
@@ -55,18 +51,18 @@ public class DependencyModuleWriter {
 
         hashMethod.Modifiers |= ComponentModifier.Override;
         hashMethod.SetReturnType(typeof(int));
-        
+
         hashMethod.Return("HashCode.Combine(base.GetHashCode())");
     }
 
     private void EqualMethod(ClassDefinition classDefinition, ModuleEntryPointModel model) {
         var equalMethod = classDefinition.AddMethod("Equals");
-        
+
         equalMethod.Modifiers |= ComponentModifier.Override;
         equalMethod.SetReturnType(typeof(bool));
-        
+
         equalMethod.AddParameter(TypeDefinition.Get(typeof(object)).MakeNullable(), "obj");
-        
+
         equalMethod.Return($"obj is {model.EntryPointType.Name}");
     }
 
@@ -84,7 +80,7 @@ public class DependencyModuleWriter {
             if (!string.IsNullOrEmpty(modelAttributeModel.PropertyAssignment)) {
                 newStatement.AddInitValue(modelAttributeModel.PropertyAssignment);
             }
-            
+
             loadDependenciesMethod.AddIndentedStatement(YieldReturn(newStatement));
         }
 
@@ -94,49 +90,57 @@ public class DependencyModuleWriter {
     }
 
     private void ApplyServicesMethod(
-        ClassDefinition classDefinition, 
+        ClassDefinition classDefinition,
         ModuleEntryPointModel model) {
-        
+
         var loadDependenciesMethod = classDefinition.AddMethod("ApplyServices");
-        
-        var parameter = 
+
+        var parameter =
             loadDependenciesMethod.AddParameter(
                 KnownTypes.Microsoft.DependencyInjection.IServiceCollection, "services");
-        
+
         var closedType = new GenericTypeDefinition(
-            TypeDefinitionEnum.ClassDefinition, KnownTypes.DependencyModules.Helpers.Namespace, "DependencyRegistry", new []{model.EntryPointType});
-        
+            TypeDefinitionEnum.ClassDefinition, KnownTypes.DependencyModules.Helpers.Namespace, "DependencyRegistry", new[] {
+                model.EntryPointType
+            });
+
         loadDependenciesMethod.AddIndentedStatement(
             new StaticInvokeStatement(
-                closedType, 
-                "ApplyServices", 
-                new IOutputComponent[]{parameter}) {
+                closedType,
+                "ApplyServices",
+                new IOutputComponent[] {
+                    parameter
+                }) {
                 Indented = false
             });
     }
 
     private void PopulateServiceCollectionMethod(ClassDefinition classDefinition, ModuleEntryPointModel model) {
         classDefinition.AddBaseType(KnownTypes.DependencyModules.Interfaces.IDependencyModule);
-        
+
         var loadDependenciesMethod = classDefinition.AddMethod("PopulateServiceCollection");
-        
-        var parameter = 
+
+        var parameter =
             loadDependenciesMethod.AddParameter(
                 KnownTypes.Microsoft.DependencyInjection.IServiceCollection, "services");
-        
+
         var closedType = new GenericTypeDefinition(
-            TypeDefinitionEnum.ClassDefinition, 
-            KnownTypes.DependencyModules.Helpers.Namespace, 
-            "DependencyRegistry", 
-            new []{model.EntryPointType});
-        
+            TypeDefinitionEnum.ClassDefinition,
+            KnownTypes.DependencyModules.Helpers.Namespace,
+            "DependencyRegistry",
+            new[] {
+                model.EntryPointType
+            });
+
         loadDependenciesMethod.AddIndentedStatement(
             new StaticInvokeStatement(
-                closedType, 
-                "LoadModules", 
+                closedType,
+                "LoadModules",
                 new IOutputComponent[] {
-                    parameter, 
-                    new CodeOutputComponent("this") {Indented = false}
+                    parameter,
+                    new CodeOutputComponent("this") {
+                        Indented = false
+                    }
                 }) {
                 Indented = false
             });

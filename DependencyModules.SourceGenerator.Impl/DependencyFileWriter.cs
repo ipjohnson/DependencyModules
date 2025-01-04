@@ -9,13 +9,14 @@ namespace DependencyModules.SourceGenerator.Impl;
 
 public class DependencyFileWriter {
     public string Write(
-        ModuleEntryPointModel entryPointModel, 
+        ModuleEntryPointModel entryPointModel,
+        DependencyModuleConfigurationModel configurationModel,
         IEnumerable<ServiceModel> serviceModels,
         string uniqueId) {
         
         var csharpFile = new CSharpFileDefinition(entryPointModel.EntryPointType.Namespace);
 
-        GenerateClass(entryPointModel, serviceModels, csharpFile, uniqueId);
+        GenerateClass(entryPointModel,configurationModel, serviceModels, csharpFile, uniqueId);
         
         var output = new OutputContext();
         
@@ -24,17 +25,17 @@ public class DependencyFileWriter {
         return output.Output();
     }
 
-    private void GenerateClass(
-        ModuleEntryPointModel entryPointModel, 
-        IEnumerable<ServiceModel> serviceModels, 
-        CSharpFileDefinition csharpFile, 
+    private void GenerateClass(ModuleEntryPointModel entryPointModel,
+        DependencyModuleConfigurationModel configurationModel,
+        IEnumerable<ServiceModel> serviceModels,
+        CSharpFileDefinition csharpFile,
         string uniqueId) {
         
         var classDefinition = csharpFile.AddClass(entryPointModel.EntryPointType.Name);
 
         classDefinition.Modifiers |= ComponentModifier.Partial;
 
-        var methodName = GenerateDependencyMethod(entryPointModel, serviceModels, classDefinition, uniqueId);
+        var methodName = GenerateDependencyMethod(entryPointModel, configurationModel, serviceModels, classDefinition, uniqueId);
         
         CreateInvokeStatement(entryPointModel, methodName, classDefinition, uniqueId);
     }
@@ -56,7 +57,8 @@ public class DependencyFileWriter {
         field.InitializeValue = invokeStatement;
     }
 
-    private string GenerateDependencyMethod(ModuleEntryPointModel entryPointModel, 
+    private string GenerateDependencyMethod(ModuleEntryPointModel entryPointModel,
+        DependencyModuleConfigurationModel configurationModel,
         IEnumerable<ServiceModel> serviceModels, ClassDefinition classDefinition, string uniqueId) {
         
         classDefinition.AddUsingNamespace("Microsoft.Extensions.DependencyInjection.Extensions");
@@ -81,7 +83,8 @@ public class DependencyFileWriter {
 
                 stringBuilder.Length = 0;
 
-                if (registrationModel.RegisterWithTry) {
+                if (registrationModel.RegisterWithTry == true ||
+                    configurationModel.DefaultUseTry) {
                     stringBuilder.Append("Try");
                 }
 

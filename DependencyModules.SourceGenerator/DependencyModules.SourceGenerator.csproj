@@ -20,6 +20,14 @@
     <PropertyGroup>
         <PackageCSharpAuthorIncludeSource>true</PackageCSharpAuthorIncludeSource>
     </PropertyGroup>
+
+    <ItemGroup>
+        <Content Include="Package\DependencySourceGenerator.*">
+            <Pack>true</Pack>
+            <PackagePath>build\</PackagePath>
+            <PackageCopyToOutput>true</PackageCopyToOutput>
+        </Content>
+    </ItemGroup>
     
     <ItemGroup>
         <PackageReference Include="Microsoft.Extensions.Primitives" Version="8.0.0" />
@@ -48,4 +56,6 @@
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Compile>
     </ItemGroup>
+    
+    
 </Project>

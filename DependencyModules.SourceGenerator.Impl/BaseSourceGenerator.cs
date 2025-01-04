@@ -12,20 +12,35 @@ public abstract class BaseSourceGenerator  : IIncrementalGenerator {
     protected abstract IEnumerable<ISourceGenerator> AttributeSourceGenerators();
 
     public void Initialize(IncrementalGeneratorInitializationContext context) {
-        var incrementalValueProvider = CreateValueProvider(context);
+        var incrementalValueProvider = CreateSourceValueProvider(context);
+        var dependencyConfigurationProvider = CreateConfigurationValueProvider(context);
+
+        var valuesProvider = incrementalValueProvider.Combine(dependencyConfigurationProvider);
         
         foreach (var attributeSourceGenerator in AttributeSourceGenerators()) {
-            attributeSourceGenerator.SetupGenerator(context, incrementalValueProvider);
+            attributeSourceGenerator.SetupGenerator(context, valuesProvider);
         }
         
         SetupRootGenerator(context, incrementalValueProvider);
+    }
+
+    private IncrementalValueProvider<DependencyModuleConfigurationModel> CreateConfigurationValueProvider(IncrementalGeneratorInitializationContext context) {
+        return context.AnalyzerConfigOptionsProvider.Select((options, _) => {
+            var defaultUseTry = false;
+
+            if (options.GlobalOptions.TryGetValue("build_property.DependencyModules_DefaultUseTry", out var value)) {
+                defaultUseTry = value.ToLowerInvariant() == "true";
+            }
+            
+            return new DependencyModuleConfigurationModel(defaultUseTry);
+        });
     }
 
     protected virtual void SetupRootGenerator(IncrementalGeneratorInitializationContext context, IncrementalValuesProvider<ModuleEntryPointModel> incrementalValueProvider) {
         
     }
 
-    private IncrementalValuesProvider<ModuleEntryPointModel> CreateValueProvider(IncrementalGeneratorInitializationContext context) {
+    private IncrementalValuesProvider<ModuleEntryPointModel> CreateSourceValueProvider(IncrementalGeneratorInitializationContext context) {
         var classSelector = new SyntaxSelector<ClassDeclarationSyntax>(KnownTypes.DependencyModules.Attributes.DependencyModuleAttribute);
 
         return context.SyntaxProvider.CreateSyntaxProvider(

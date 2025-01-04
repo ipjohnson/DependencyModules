@@ -7,8 +7,6 @@ public static class KnownTypes {
             // ReSharper disable once InconsistentNaming
             public static readonly ITypeDefinition IServiceCollection = 
                 TypeDefinition.Get(TypeDefinitionEnum.InterfaceDefinition, "Microsoft.Extensions.DependencyInjection", "IServiceCollection");
-            
-            
         }
     }
     

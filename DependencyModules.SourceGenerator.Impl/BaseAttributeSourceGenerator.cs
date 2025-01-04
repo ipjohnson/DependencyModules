@@ -9,14 +9,14 @@ namespace DependencyModules.SourceGenerator.Impl;
 
 public interface ISourceGenerator {
     void SetupGenerator(IncrementalGeneratorInitializationContext context,
-        IncrementalValuesProvider<ModuleEntryPointModel> incrementalValueProvider);
+        IncrementalValuesProvider<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> incrementalValueProvider);
 }
 
 public abstract class BaseAttributeSourceGenerator<T> : ISourceGenerator {
     protected abstract IEnumerable<ITypeDefinition> AttributeTypes();
 
     public void SetupGenerator(IncrementalGeneratorInitializationContext context, 
-        IncrementalValuesProvider<ModuleEntryPointModel> incrementalValueProvider) {
+        IncrementalValuesProvider<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> incrementalValueProvider) {
         var classSelector = new SyntaxSelector<ClassDeclarationSyntax>(AttributeTypes().ToArray());
 
         var serviceModelProvider = context.SyntaxProvider.CreateSyntaxProvider(
@@ -33,7 +33,7 @@ public abstract class BaseAttributeSourceGenerator<T> : ISourceGenerator {
         );
     }
 
-    protected abstract void GenerateSourceOutput(SourceProductionContext arg1, (ModuleEntryPointModel Left, ImmutableArray<T> Right) arg2);
+    protected abstract void GenerateSourceOutput(SourceProductionContext arg1, ((ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right) Left, ImmutableArray<T> Right) arg2);
 
     protected abstract IEqualityComparer<T> GetComparer();
 

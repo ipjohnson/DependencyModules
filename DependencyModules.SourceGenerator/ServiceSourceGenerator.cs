@@ -20,14 +20,14 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
     protected override IEnumerable<ITypeDefinition> AttributeTypes() => _attributeTypes;
 
     protected override void GenerateSourceOutput(
-        SourceProductionContext arg1, 
-        (ModuleEntryPointModel Left, ImmutableArray<ServiceModel> Right) arg2) {
+        SourceProductionContext context, 
+        ((ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right) Left, ImmutableArray<ServiceModel> Right) inputData) {
         
         var writer = new DependencyFileWriter();
         
-        var output = writer.Write(arg2.Left, arg2.Right, "Module");
+        var output = writer.Write(inputData.Left.Left, inputData.Left.Right, inputData.Right, "Module");
         
-        arg1.AddSource(arg2.Left.EntryPointType.Name + ".Dependencies.cs", output);
+        context.AddSource(inputData.Left.Left.EntryPointType.Name + ".Dependencies.cs", output);
     }
 
     protected override IEqualityComparer<ServiceModel> GetComparer() {
@@ -74,15 +74,13 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
         }
         
         ITypeDefinition? registration = null;
-        bool registerWithTry = true;
-        bool routedRegistration = false;
+        bool? registerWithTry = null;
         ITypeDefinition? realm = null;
         object? key = null;
 
         if (attributeSyntax.ArgumentList != null) {
             foreach (var argumentSyntax in attributeSyntax.ArgumentList.Arguments) {
                 if (argumentSyntax.NameEquals != null) {
-                    
                     switch (argumentSyntax.NameEquals.Name.ToString()) {
                         case "Key":
                             key = argumentSyntax.Expression.ToString();
@@ -100,9 +98,6 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
                                 realm = realmType.Type.GetTypeDefinition(context);
                             }
                             break;
-                        case "RoutedRegistration":
-                            routedRegistration = argumentSyntax.Expression.ToString() == "true";
-                            break;
                     }
                 }
             }
@@ -112,7 +107,6 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
             registration ?? classDefinition,
             registrationType,
             registerWithTry,
-            routedRegistration,
             realm,
             key
         );
