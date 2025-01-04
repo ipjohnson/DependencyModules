@@ -16,12 +16,22 @@
         <RepositoryType>git</RepositoryType>
         <RepositoryUrl>https://github.com/ipjohnson/DependencyModules</RepositoryUrl>
         <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
     </PropertyGroup>
 
     <PropertyGroup>
         <PackageCSharpAuthorIncludeSource>true</PackageCSharpAuthorIncludeSource>
     </PropertyGroup>
 
+    <ItemGroup>
+        <None Include="..\README.md" Pack="true" PackagePath="">
+            <Link>Properties\README.md</Link>
+        </None>
+        <None Include="..\LICENSE.txt" Pack="true" PackagePath="">
+            <Link>Properties\License.txt</Link>
+        </None>
+    </ItemGroup>
+    
     <ItemGroup>
         <Content Include="Package\DependencySourceGenerator.*">
             <Pack>true</Pack>
@@ -49,15 +59,6 @@
 
     <ItemGroup>
         <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false"/>
-    </ItemGroup>
-    
-    <ItemGroup>
-        <None Remove="docs\*.*" />
-        <Content Include="..\*.md" Visible="true">
-            <Pack>true</Pack>
-            <PackagePath>docs\</PackagePath>
-            <PackageCopyToOutput>true</PackageCopyToOutput>
-        </Content>
     </ItemGroup>
     
     <ItemGroup>
