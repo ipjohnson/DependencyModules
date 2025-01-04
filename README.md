@@ -5,20 +5,20 @@
 * xUnit attributes that allow for easy unit testing and mocking
 
 ```
+// Registration example
 [DependencyModule]
 public partial class Module { }
 
 [SingletonService(ServiceType = typeof(ISomeService)]
-public class SomeClass { }
+public class SomeClass : ISomeService { }
 
 [TransientService]
 public class OtherService
 {
-  public OtherService(ISomeService service) { }
+  public OtherService(ISomeService service) { ... }
 }
 
-****************
-
+// Module usage example
 var serviceCollection = new ServiceCollection();
 
 serviceCollection.AddModule<Module>();
@@ -29,13 +29,14 @@ var service = provider.GetService<OtherService>();
 ```
 
 ```
-// unit tests
+// unit tests example
 [assemlby: LoadModules(typeof(Module))]
+[assembly: NSubstituteSupport()]
 
-public class SomeClassTests 
+public class OtherServiceTests 
 {
   [ModuleTest]
-  public void SomeTest(OtherService test)
+  public void SomeTest(OtherService test, [Mock]ISomeService service)
   {
      // assert implementation
   }
