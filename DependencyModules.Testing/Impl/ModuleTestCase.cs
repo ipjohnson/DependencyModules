@@ -144,8 +144,21 @@ public class ModuleTestCase : XunitTestCase {
         var parameters = new List<object?>();
 
         foreach (var parameterInfo in TestMethod.Method.GetParameters()) {
-            object? value = null;
+            var value = await ResolveParameter(parameterInfo);
 
+            parameters.Add(value ?? ResolveArgumentFromProvider(parameterInfo));
+        }
+
+        return parameters.ToArray();
+    }
+
+    private async Task<object?> ResolveParameter(ParameterInfo parameterInfo) {
+        object? value = null;
+
+        if (parameterInfo.ParameterType == typeof(IServiceProvider)) {
+            value = _serviceProvider;
+        }
+        else {
             foreach (var valueProvider in _knownValues[parameterInfo]) {
                 value = await valueProvider.GetParameterValueAsync(TestMethod, _serviceProvider!, parameterInfo);
 
@@ -153,11 +166,8 @@ public class ModuleTestCase : XunitTestCase {
                     break;
                 }
             }
-
-            parameters.Add(value ?? ResolveArgumentFromProvider(parameterInfo));
         }
-
-        return parameters.ToArray();
+        return value;
     }
 
     private object? ResolveArgumentFromProvider(ParameterInfo parameterInfo) {
