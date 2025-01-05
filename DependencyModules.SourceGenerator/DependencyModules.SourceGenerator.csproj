@@ -32,7 +32,7 @@
     </ItemGroup>
     
     <ItemGroup>
-        <Content Include="Package\DependencySourceGenerator.*">
+        <Content Include="Package\DependencyModules.SourceGenerator.*">
             <Pack>true</Pack>
             <PackagePath>build\</PackagePath>
             <PackageCopyToOutput>true</PackageCopyToOutput>
