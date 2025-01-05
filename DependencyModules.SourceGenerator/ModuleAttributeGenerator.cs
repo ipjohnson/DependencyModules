@@ -51,11 +51,19 @@ public class ModuleAttributeGenerator {
                 New(model.EntryPointType, 
                     attributeClass.Fields.Select(f => f.Instance).
                         OfType<object>().ToArray())).ToVar("newModule");
-        
+
         foreach (var propertyInfoModel in model.PropertyInfoModels) {
-            method.Assign(propertyInfoModel.PropertyName).To(newModule.Property(propertyInfoModel.PropertyName));
+            BaseBlockDefinition block = method;
+            
+            if (propertyInfoModel.PropertyType.IsNullable) {
+                block = 
+                    method.If(NotEquals(propertyInfoModel.PropertyName, Null()));
+                
+            }
+            
+            block.Assign(propertyInfoModel.PropertyName).To(newModule.Property(propertyInfoModel.PropertyName));
         }
-        
+
         method.Return(newModule);
     }
 }
