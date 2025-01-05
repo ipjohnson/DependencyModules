@@ -13,6 +13,7 @@ public class DependencyModuleWriter {
 
         var csharpFile = new CSharpFileDefinition(model.EntryPointType.Namespace);
 
+        csharpFile.AddComponent(CodeOutputComponent.Get("#nullable enable"));
         GenerateModuleClass(model, csharpFile);
 
         var outputContext = new OutputContext();
@@ -62,7 +63,7 @@ public class DependencyModuleWriter {
         equalMethod.Modifiers |= ComponentModifier.Override;
         equalMethod.SetReturnType(typeof(bool));
 
-        equalMethod.AddParameter(TypeDefinition.Get(typeof(object)), "obj");
+        equalMethod.AddParameter(TypeDefinition.Get(typeof(object)).MakeNullable(), "obj");
 
         equalMethod.Return($"obj is {model.EntryPointType.Name}");
     }

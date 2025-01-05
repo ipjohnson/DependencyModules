@@ -8,6 +8,7 @@ public record ModuleEntryPointModel(
     bool OnlyRealm,
     List<ParameterInfoModel> Parameters,
     bool ImplementsEquals,
+    IReadOnlyList<PropertyInfoModel> PropertyInfoModels,
     IReadOnlyList<AttributeModel> AttributeModels);
 
 
@@ -26,6 +27,8 @@ public bool Equals(ModuleEntryPointModel? x, ModuleEntryPointModel? y)
         
         return x.EntryPointType.Equals(y.EntryPointType) &&
                x.OnlyRealm == y.OnlyRealm &&
+               x.Parameters.SequenceEqual(y.Parameters) &&
+               x.Parameters.SequenceEqual(y.Parameters) &&
                x.AttributeModels.SequenceEqual(y.AttributeModels);
     }
 

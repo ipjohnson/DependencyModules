@@ -7,7 +7,6 @@ using DependencyModules.SourceGenerator.Impl.Models;
 namespace DependencyModules.SourceGenerator;
 
 public class ModuleAttributeGenerator {
-
     public void Generate(ModuleEntryPointModel model, ClassDefinition classDefinition) {
         var attributeClass = classDefinition.AddClass("ModuleAttribute");
         
@@ -27,6 +26,17 @@ public class ModuleAttributeGenerator {
                 constructor.Assign(parameter).To(field.Name);
             }
         }
+
+        foreach (var propertyInfoModel in model.PropertyInfoModels) {
+            if (propertyInfoModel.IsReadOnly) {
+                continue;
+            }
+
+            var propertyType = propertyInfoModel.PropertyType;
+            
+            var property = attributeClass.AddProperty(propertyType, propertyInfoModel.PropertyName);
+            
+        }
         
         SetupProviderMethod(model, attributeClass);
     }
@@ -35,8 +45,17 @@ public class ModuleAttributeGenerator {
         var method = attributeClass.AddMethod("GetModule");
 
         method.SetReturnType(KnownTypes.DependencyModules.Interfaces.IDependencyModule);
+
+        var newModule = 
+            method.Assign(
+                New(model.EntryPointType, 
+                    attributeClass.Fields.Select(f => f.Instance).
+                        OfType<object>().ToArray())).ToVar("newModule");
         
-        method.Return(New(model.EntryPointType, 
-            attributeClass.Fields.Select(f => f.Instance).OfType<object>().ToArray()));
+        foreach (var propertyInfoModel in model.PropertyInfoModels) {
+            method.Assign(propertyInfoModel.PropertyName).To(newModule.Property(propertyInfoModel.PropertyName));
+        }
+        
+        method.Return(newModule);
     }
 }

@@ -12,4 +12,12 @@ public class SimpleResolveTests {
         Assert.NotNull(dependencyOne.SingletonService);
         Assert.NotNull(dependencyOne.ScopedService);
     }
+
+    
+    [ModuleTest]
+    [LoadModules(typeof(SutModule))]
+    public void ResolveServiceProvider(IDependencyOne dependencyOne, IServiceProvider serviceProvider) {
+        Assert.NotNull(dependencyOne);
+        Assert.NotNull(serviceProvider);
+    }
 }

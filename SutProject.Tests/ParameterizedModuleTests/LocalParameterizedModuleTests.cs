@@ -10,5 +10,6 @@ public class LocalParameterizedModuleTests {
     public void ParameterTest(SomeRuntimeDependency someRuntimeDependency) {
         Assert.Equal("local-string", someRuntimeDependency.SomeDependency);
         Assert.Equal(20, someRuntimeDependency.IntDependency);
+        Assert.Equal("CValue", someRuntimeDependency.CValue);
     }
 }

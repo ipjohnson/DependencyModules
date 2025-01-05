@@ -3,6 +3,7 @@ using CSharpAuthor;
 using DependencyModules.SourceGenerator.Impl.Models;
 using DependencyModules.SourceGenerator.Impl.Utilities;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace DependencyModules.SourceGenerator.Impl;
@@ -63,13 +64,38 @@ public abstract class BaseSourceGenerator  : IIncrementalGenerator {
         var realmOnly = GetRealmOnlyFlag(context);
         var implementsEqualsFlag = GetEqualsFlag(context);
         var parameters = GetConstructorParameters(context);
+        var properties = GetProperties(context);
         
         return new ModuleEntryPointModel(
             ((ClassDeclarationSyntax)context.Node).GetTypeDefinition(), 
             realmOnly,
             parameters,
             implementsEqualsFlag,
+            properties,
             attributes);
+    }
+
+    private List<PropertyInfoModel> GetProperties(GeneratorSyntaxContext context) {
+        var propertyList = new List<PropertyInfoModel>();
+
+        foreach (var propertyDeclarationSyntax in 
+                 context.Node.DescendantNodes().OfType<PropertyDeclarationSyntax>().ToList()) {
+            var setter = 
+                propertyDeclarationSyntax.AccessorList?.Accessors.FirstOrDefault(
+                    x => x.IsKind(SyntaxKind.SetAccessorDeclaration));
+            
+            var propertyType = 
+                propertyDeclarationSyntax.Type.GetTypeDefinition(context);
+
+            if (propertyType != null) {
+                propertyList.Add(new PropertyInfoModel(propertyType,
+                    propertyDeclarationSyntax.Identifier.ToString(),
+                    setter == null
+                ));
+            }
+        }
+        
+        return propertyList;
     }
 
     private List<ParameterInfoModel> GetConstructorParameters(GeneratorSyntaxContext context) {
