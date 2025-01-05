@@ -1,5 +1,4 @@
 using CSharpAuthor;
-using Microsoft.CodeAnalysis;
 
 namespace DependencyModules.SourceGenerator.Impl.Models;
 
@@ -32,6 +31,10 @@ public class ServiceModelComparer : IEqualityComparer<ServiceModel> {
             CompareRegistrations(x.Registrations, y.Registrations);
     }
 
+    public int GetHashCode(ServiceModel obj) {
+        return obj.ImplementationType.GetHashCode();
+    }
+
     private bool CompareRegistrations(IReadOnlyList<ServiceRegistrationModel> xRegistrations, IReadOnlyList<ServiceRegistrationModel> yRegistrations) {
         if (xRegistrations.Count != yRegistrations.Count) {
             return false;
@@ -55,11 +58,5 @@ public class ServiceModelComparer : IEqualityComparer<ServiceModel> {
                x.RegisterWithTry == y.RegisterWithTry &&
                Equals(x.Realm, y.Realm) &&
                Equals(x.Key, y.Key);
-    }
-
-    public int GetHashCode(ServiceModel obj) {
-        unchecked {
-            return obj.ImplementationType.GetHashCode();
-        }
     }
 }

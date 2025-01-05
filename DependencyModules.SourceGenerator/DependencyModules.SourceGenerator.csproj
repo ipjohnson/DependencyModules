@@ -30,7 +30,7 @@
             <Link>Properties\License.txt</Link>
         </None>
     </ItemGroup>
-    
+
     <ItemGroup>
         <Content Include="Package\DependencyModules.SourceGenerator.*">
             <Pack>true</Pack>
@@ -38,15 +38,15 @@
             <PackageCopyToOutput>true</PackageCopyToOutput>
         </Content>
     </ItemGroup>
-    
+
     <ItemGroup>
-        <PackageReference Include="Microsoft.Extensions.Primitives" Version="8.0.0" />
-        <PackageReference Include="System.Memory" Version="4.5.5" />
+        <PackageReference Include="Microsoft.Extensions.Primitives" Version="8.0.0"/>
+        <PackageReference Include="System.Memory" Version="4.5.5"/>
         <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.10.0" />
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.10.0"/>
     </ItemGroup>
 
     <ItemGroup>
@@ -59,7 +59,7 @@
     <ItemGroup>
         <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false"/>
     </ItemGroup>
-    
+
     <ItemGroup>
         <Compile Include="../DependencyModules.SourceGenerator.Impl/**/*.cs" Exclude="../DependencyModules.SourceGenerator.Impl/obj/**/*">
             <Link>Impl\%(RecursiveDir)/%(FileName)%(Extension)</Link>

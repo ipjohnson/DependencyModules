@@ -1,4 +1,3 @@
-using System.Reflection;
 using DependencyModules.Testing.Attributes.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit.v3;
@@ -6,21 +5,21 @@ using Xunit.v3;
 namespace DependencyModules.Testing.Attributes;
 
 /// <summary>
-/// Export type for test purposes
+///     Export type for test purposes
 /// </summary>
 [AttributeUsage(
-    AttributeTargets.Assembly | 
-    AttributeTargets.Class | 
+    AttributeTargets.Assembly |
+    AttributeTargets.Class |
     AttributeTargets.Method,
     AllowMultiple = true)]
-public class TestExportAttribute: Attribute, ITestStartupAttribute {
+public class TestExportAttribute : Attribute, ITestStartupAttribute {
     public TestExportAttribute(Type service) {
         Service = service;
     }
-    
+
     public Type Service {
         get;
-    } 
+    }
 
     public Type? Implementation {
         get;
@@ -32,19 +31,19 @@ public class TestExportAttribute: Attribute, ITestStartupAttribute {
         set;
     } = ServiceLifetime.Transient;
 
-    
+
     public void SetupServiceCollection(IXunitTestMethod testMethod, IServiceCollection serviceCollection) {
         var implementation = Implementation ?? Service;
-        
+
         switch (Lifetime) {
             case ServiceLifetime.Singleton:
-                serviceCollection.AddSingleton(Service, implementation);        
+                serviceCollection.AddSingleton(Service, implementation);
                 break;
             case ServiceLifetime.Scoped:
-                serviceCollection.AddScoped(Service, implementation);  
+                serviceCollection.AddScoped(Service, implementation);
                 break;
             case ServiceLifetime.Transient:
-                serviceCollection.AddTransient(Service, implementation);  
+                serviceCollection.AddTransient(Service, implementation);
                 break;
         }
     }

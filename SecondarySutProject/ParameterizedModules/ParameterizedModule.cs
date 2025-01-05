@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace SecondarySutProject.ParameterizedModules;
 
 [DependencyModule(OnlyRealm = true)]
-public partial class ParameterizedModule : IServiceCollectionConfiguration{
+public partial class ParameterizedModule : IServiceCollectionConfiguration {
     private readonly string _a;
     private readonly int _b;
 
@@ -13,7 +13,7 @@ public partial class ParameterizedModule : IServiceCollectionConfiguration{
         _a = a;
         _b = b;
     }
-    
+
     public string? C { get; set; }
 
     public void ConfigureServices(IServiceCollection services) {

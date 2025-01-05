@@ -16,10 +16,10 @@ public class SourceGenerator : BaseSourceGenerator {
         IncrementalGeneratorInitializationContext context,
         IncrementalValuesProvider<ModuleEntryPointModel> incrementalValueProvider) {
         var moduleWriter = new DependencyModuleWriter();
-        
+
         context.RegisterSourceOutput(
             incrementalValueProvider,
             moduleWriter.GenerateSource
-            );
+        );
     }
 }

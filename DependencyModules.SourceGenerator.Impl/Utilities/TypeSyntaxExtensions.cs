@@ -3,7 +3,6 @@ using Microsoft.CodeAnalysis;
 
 namespace DependencyModules.SourceGenerator.Impl.Utilities;
 
-
 public static class TypeSyntaxExtensions {
     public static ITypeDefinition? GetTypeDefinition(this SyntaxNode typeSyntax,
         GeneratorSyntaxContext generatorSyntaxContext) {
@@ -72,7 +71,7 @@ public static class TypeSyntaxExtensions {
     }
 
     private static ITypeDefinition? GetTypeDefinitionFromNamedSymbol(INamedTypeSymbol namedTypeSymbol) {
-        
+
         if (namedTypeSymbol.IsGenericType) {
             if (namedTypeSymbol.Name == "Nullable") {
                 var baseType = namedTypeSymbol.TypeArguments.First();
@@ -80,12 +79,12 @@ public static class TypeSyntaxExtensions {
             }
 
             var closingTypeSymbols = namedTypeSymbol.TypeArguments;
-            
+
             var closingTypes = new List<ITypeDefinition>();
 
             foreach (var typeSymbol in closingTypeSymbols) {
                 var finalType = GetTypeDefinitionFromType(typeSymbol);
-                
+
                 closingTypes.Add(finalType);
             }
 
@@ -95,14 +94,14 @@ public static class TypeSyntaxExtensions {
                 GetTypeName(namedTypeSymbol),
                 closingTypes
             );
-            
+
             if (namedTypeSymbol.NullableAnnotation == NullableAnnotation.Annotated) {
                 return genericType.MakeNullable();
             }
 
             return genericType;
         }
-        else if (IsKnownType(namedTypeSymbol.Name)) { }
+        if (IsKnownType(namedTypeSymbol.Name)) { }
 
         var ns = namedTypeSymbol.ContainingNamespace.GetFullName();
         var getName = GetTypeName(namedTypeSymbol);

@@ -5,6 +5,4 @@ namespace SecondarySutProject;
 
 [DependencyModule]
 [SutModule.Module]
-public partial class SecondarySutModule {
-    
-}
+public partial class SecondarySutModule { }

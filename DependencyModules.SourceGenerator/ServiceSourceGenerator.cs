@@ -9,24 +9,25 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace DependencyModules.SourceGenerator;
 
 public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel> {
+
+    private static readonly ITypeDefinition[] _attributeTypes = {
+        KnownTypes.DependencyModules.Attributes.TransientServiceAttribute, KnownTypes.DependencyModules.Attributes.ScopedServiceAttribute, KnownTypes.DependencyModules.Attributes.SingletonServiceAttribute
+    };
+
     private readonly IEqualityComparer<ServiceModel> _serviceEqualityComparer = new ServiceModelComparer();
 
-    private static ITypeDefinition[] _attributeTypes = {
-        KnownTypes.DependencyModules.Attributes.TransientServiceAttribute,
-        KnownTypes.DependencyModules.Attributes.ScopedServiceAttribute,
-        KnownTypes.DependencyModules.Attributes.SingletonServiceAttribute
-    };
-    
-    protected override IEnumerable<ITypeDefinition> AttributeTypes() => _attributeTypes;
+    protected override IEnumerable<ITypeDefinition> AttributeTypes() {
+        return _attributeTypes;
+    }
 
     protected override void GenerateSourceOutput(
-        SourceProductionContext context, 
+        SourceProductionContext context,
         ((ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right) Left, ImmutableArray<ServiceModel> Right) inputData) {
-        
+
         var writer = new DependencyFileWriter();
-        
+
         var output = writer.Write(inputData.Left.Left, inputData.Left.Right, inputData.Right, "Module");
-        
+
         context.AddSource(inputData.Left.Left.EntryPointType.Name + ".Dependencies.g.cs", output);
     }
 
@@ -40,7 +41,7 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
         var classDefinition = GetClassDefinition(context);
 
         var registrations = GetRegistrations(context, classDefinition, cancellationToken);
-        
+
         return new ServiceModel(classDefinition, registrations);
     }
 
@@ -48,18 +49,18 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
         GeneratorSyntaxContext context, ITypeDefinition classDefinition, CancellationToken cancellationToken) {
         var list = new List<ServiceRegistrationModel>();
 
-        foreach (var attributeSyntax in 
-            context.Node.DescendantNodes().OfType<AttributeSyntax>()) {
+        foreach (var attributeSyntax in
+                 context.Node.DescendantNodes().OfType<AttributeSyntax>()) {
             foreach (var typeDefinition in _attributeTypes) {
                 cancellationToken.ThrowIfCancellationRequested();
-                
+
                 if (attributeSyntax.Name.ToString() == typeDefinition.Name ||
                     attributeSyntax.Name + "Attribute" == typeDefinition.Name) {
                     list.Add(GetServiceRegistration(context, attributeSyntax, classDefinition));
                 }
             }
         }
-        
+
         return list;
     }
 
@@ -72,7 +73,7 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
         else if (attributeSyntax.Name.ToString().StartsWith("Scoped")) {
             registrationType = ServiceLifestyle.Scoped;
         }
-        
+
         ITypeDefinition? registration = null;
         bool? registerWithTry = null;
         ITypeDefinition? realm = null;
@@ -88,6 +89,7 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
                         case "UseTry":
                             registerWithTry = argumentSyntax.Expression.ToString() == "true";
                             break;
+
                         case "ServiceType":
                             if (argumentSyntax.Expression is TypeOfExpressionSyntax typeOfExpression) {
                                 registration = typeOfExpression.Type.GetTypeDefinition(context);
@@ -97,12 +99,12 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
                                         registration.TypeDefinitionEnum,
                                         registration.Namespace,
                                         registration.Name,
-                                        registration.TypeArguments.
-                                            Select(_ => TypeDefinition.Get("", "")).ToArray()
+                                        registration.TypeArguments.Select(_ => TypeDefinition.Get("", "")).ToArray()
                                     );
-                                } 
+                                }
                             }
                             break;
+
                         case "Realm":
                             if (argumentSyntax.Expression is TypeOfExpressionSyntax realmType) {
                                 realm = realmType.Type.GetTypeDefinition(context);
@@ -112,7 +114,7 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
                 }
             }
         }
-        
+
         return new ServiceRegistrationModel(
             registration ?? classDefinition,
             registrationType,
@@ -124,7 +126,7 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
 
     private ITypeDefinition GetClassDefinition(GeneratorSyntaxContext context) {
         ITypeDefinition classTypeDefinition;
-        
+
         var classDeclarationSyntax = (ClassDeclarationSyntax)context.Node;
         if (classDeclarationSyntax.TypeParameterList is { Parameters.Count: > 0 }) {
             classTypeDefinition =
@@ -140,7 +142,7 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
             classTypeDefinition = TypeDefinition.Get(classDeclarationSyntax.GetNamespace(),
                 classDeclarationSyntax.Identifier.ToString());
         }
-        
+
         return classTypeDefinition;
     }
 }

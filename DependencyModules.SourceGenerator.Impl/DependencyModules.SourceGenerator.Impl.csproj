@@ -33,9 +33,9 @@
             <Link>Properties\License.txt</Link>
         </None>
     </ItemGroup>
-    
+
     <ItemGroup>
-        <None Remove="Package\DependencyModules.*" />
+        <None Remove="Package\DependencyModules.*"/>
         <Content Include="Package\DependencyModules.*">
             <Pack>true</Pack>
             <PackagePath>build\</PackagePath>
@@ -47,15 +47,15 @@
             <PackageCopyToOutput>true</PackageCopyToOutput>
         </Content>
     </ItemGroup>
-    
+
     <ItemGroup>
-        <PackageReference Include="Microsoft.Extensions.Primitives" Version="8.0.0" />
-        <PackageReference Include="System.Memory" Version="4.5.5" />
+        <PackageReference Include="Microsoft.Extensions.Primitives" Version="8.0.0"/>
+        <PackageReference Include="System.Memory" Version="4.5.5"/>
         <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.10.0" />
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.10.0"/>
     </ItemGroup>
 
     <PropertyGroup>

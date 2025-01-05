@@ -1,9 +1,8 @@
-using System.CodeDom.Compiler;
 using CSharpAuthor;
-using static CSharpAuthor.SyntaxHelpers;
 using DependencyModules.SourceGenerator.Impl;
 using DependencyModules.SourceGenerator.Impl.Models;
 using Microsoft.CodeAnalysis;
+using static CSharpAuthor.SyntaxHelpers;
 
 namespace DependencyModules.SourceGenerator;
 
@@ -73,7 +72,7 @@ public class DependencyModuleWriter {
 
         loadDependenciesMethod.InterfaceImplementation = KnownTypes.DependencyModules.Interfaces.IDependencyModule;
         loadDependenciesMethod.SetReturnType(TypeDefinition.Get(typeof(IEnumerable<object>)));
-        
+
         foreach (var modelAttributeModel in model.AttributeModels) {
             if (modelAttributeModel.TypeDefinition.Name == "DependencyModuleAttribute") {
                 continue;
@@ -98,9 +97,9 @@ public class DependencyModuleWriter {
 
         var loadDependenciesMethod = classDefinition.AddMethod("ApplyServices");
 
-        loadDependenciesMethod.InterfaceImplementation = 
+        loadDependenciesMethod.InterfaceImplementation =
             KnownTypes.DependencyModules.Interfaces.IDependencyModule;
-        
+
         var parameter =
             loadDependenciesMethod.AddParameter(
                 KnownTypes.Microsoft.DependencyInjection.IServiceCollection, "services");

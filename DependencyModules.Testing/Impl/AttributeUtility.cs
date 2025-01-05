@@ -2,10 +2,9 @@ using System.Reflection;
 
 namespace DependencyModules.Testing.Impl;
 
-
 public static class AttributeUtility {
     /// <summary>
-    /// Get attribute on a method, looks on method, then class, then assembly
+    ///     Get attribute on a method, looks on method, then class, then assembly
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <param name="methodInfo"></param>
@@ -22,7 +21,7 @@ public static class AttributeUtility {
 
 
     /// <summary>
-    /// Get attribute on a method, looks on method, then class, then assembly
+    ///     Get attribute on a method, looks on method, then class, then assembly
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <param name="parameterInfo"></param>
@@ -46,7 +45,7 @@ public static class AttributeUtility {
     }
 
     /// <summary>
-    /// Gets attributes from method, class, then assembly
+    ///     Gets attributes from method, class, then assembly
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <param name="methodInfo"></param>
@@ -66,7 +65,7 @@ public static class AttributeUtility {
     }
 
     /// <summary>
-    /// Gets attributes from method, class, then assembly
+    ///     Gets attributes from method, class, then assembly
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <param name="parameterInfo"></param>

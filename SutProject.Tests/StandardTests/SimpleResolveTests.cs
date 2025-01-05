@@ -1,5 +1,4 @@
 using DependencyModules.Testing.Attributes;
-using NSubstitute;
 using Xunit;
 
 namespace SutProject.Tests.StandardTests;
@@ -13,7 +12,7 @@ public class SimpleResolveTests {
         Assert.NotNull(dependencyOne.ScopedService);
     }
 
-    
+
     [ModuleTest]
     [LoadModules(typeof(SutModule))]
     public void ResolveServiceProvider(IDependencyOne dependencyOne, IServiceProvider serviceProvider) {

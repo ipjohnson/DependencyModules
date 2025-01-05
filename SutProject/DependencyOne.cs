@@ -9,12 +9,13 @@ public interface IDependencyOne {
 
 [TransientService(ServiceType = typeof(IDependencyOne))]
 public class DependencyOne : IDependencyOne {
-    public ISingletonService SingletonService { get; }
-    public IScopedService ScopedService { get; }
 
     public DependencyOne(ISingletonService singletonService,
         IScopedService scopedService) {
         SingletonService = singletonService;
         ScopedService = scopedService;
     }
+
+    public ISingletonService SingletonService { get; }
+    public IScopedService ScopedService { get; }
 }

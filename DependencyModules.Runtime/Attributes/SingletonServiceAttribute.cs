@@ -1,9 +1,7 @@
 namespace DependencyModules.Runtime.Attributes;
 
 /// <summary>
-/// Register service as singleton
+///     Register service as singleton
 /// </summary>
 [AttributeUsage(AttributeTargets.Class)]
-public class SingletonServiceAttribute : BaseServiceAttribute {
-    
-}
+public class SingletonServiceAttribute : BaseServiceAttribute { }

@@ -16,16 +16,16 @@ public class SyntaxSelector<T> where T : SyntaxNode {
         var returnList = new List<string>();
 
         foreach (var attribute in attributes) {
-            returnList.Add( attribute.Name );
-            returnList.Add( attribute.Namespace + "." + attribute.Name);
-            
+            returnList.Add(attribute.Name);
+            returnList.Add(attribute.Namespace + "." + attribute.Name);
+
             if (attribute.Name.EndsWith(_attributeString)) {
                 var simpleName = attribute.Name.Substring(0, attribute.Name.Length - _attributeString.Length);
 
                 returnList.Add(simpleName);
             }
         }
-        
+
         return returnList;
     }
 

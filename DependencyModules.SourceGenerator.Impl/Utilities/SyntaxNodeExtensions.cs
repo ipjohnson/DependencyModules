@@ -5,7 +5,6 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace DependencyModules.SourceGenerator.Impl.Utilities;
 
-
 public static class SyntaxNodeExtensions {
     public static string GetNamespace(this BaseTypeDeclarationSyntax syntax) {
         var parentSyntaxNode = syntax.Parent;

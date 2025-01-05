@@ -28,12 +28,10 @@ public static class AttributeModelHelper {
 
     public static AttributeModel? GetAttribute(GeneratorSyntaxContext context, AttributeSyntax attribute) {
         var operation = context.SemanticModel.GetTypeInfo(attribute);
-        
-        return operation.Type != null ? 
-            InternalAttributeModel(attribute, operation) : 
-            null;
+
+        return operation.Type != null ? InternalAttributeModel(attribute, operation) : null;
     }
-    
+
     private static AttributeModel InternalAttributeModel(AttributeSyntax attribute, TypeInfo operation) {
         var arguments = "";
         var propertyAssignment = "";
@@ -61,13 +59,13 @@ public static class AttributeModelHelper {
         if (operation.Type == null) {
             throw new ArgumentNullException("operation.Type", "The type argument cannot be null.");
         }
-        
+
         var type = operation.Type.GetTypeDefinition();
 
         if (!type.Name.EndsWith("Attribute")) {
             type = TypeDefinition.Get(type.Namespace, type.Name + "Attribute");
         }
-                        
+
         return new AttributeModel(type,
             arguments,
             propertyAssignment);

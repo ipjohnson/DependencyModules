@@ -6,15 +6,15 @@ namespace DependencyModules.Runtime.Helpers;
 public delegate void RegistryFunc(IServiceCollection serviceCollection);
 
 /// <summary>
-/// Static class used to store dependency registration functions
-/// per type
+///     Static class used to store dependency registration functions
+///     per type
 /// </summary>
 /// <typeparam name="T"></typeparam>
 public class DependencyRegistry<T> {
     private static readonly List<RegistryFunc> _registryFuncs = [];
 
     /// <summary>
-    /// Add registration func
+    ///     Add registration func
     /// </summary>
     /// <param name="registryFunc"></param>
     /// <returns></returns>
@@ -25,7 +25,7 @@ public class DependencyRegistry<T> {
     }
 
     /// <summary>
-    /// Load modules into service collection
+    ///     Load modules into service collection
     /// </summary>
     /// <param name="serviceCollection"></param>
     /// <param name="dependencyModules"></param>
@@ -40,7 +40,7 @@ public class DependencyRegistry<T> {
     }
 
     /// <summary>
-    /// Get list of modules from module. Inclusive
+    ///     Get list of modules from module. Inclusive
     /// </summary>
     /// <param name="dependencyModules"></param>
     /// <returns></returns>
@@ -50,7 +50,7 @@ public class DependencyRegistry<T> {
         foreach (var dependencyModule in dependencyModules) {
             InternalGetModules(dependencyModule, list);
         }
-        
+
         return list;
     }
 
@@ -58,21 +58,22 @@ public class DependencyRegistry<T> {
         if (dependencyModules.Contains(dependencyModule)) {
             return;
         }
-        
+
         dependencyModules.Insert(0, dependencyModule);
 
         foreach (var dependentModule in dependencyModule.GetDependentModules()) {
             if (dependentModule is IDependencyModuleProvider moduleProvider) {
                 var dep = moduleProvider.GetModule();
                 InternalGetModules(dep, dependencyModules);
-            } else if (dependencyModule is IDependencyModule module) {
+            }
+            else if (dependencyModule is IDependencyModule module) {
                 InternalGetModules(module, dependencyModules);
             }
         }
     }
 
     /// <summary>
-    /// Apply all registration for a given type to the service collection
+    ///     Apply all registration for a given type to the service collection
     /// </summary>
     /// <param name="serviceCollection"></param>
     public static void ApplyServices(IServiceCollection serviceCollection) {

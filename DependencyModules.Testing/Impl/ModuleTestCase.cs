@@ -1,5 +1,4 @@
 using System.Reflection;
-using System.Security.Authentication.ExtendedProtection;
 using DependencyModules.Runtime.Interfaces;
 using DependencyModules.Testing.Attributes;
 using DependencyModules.Testing.Attributes.Interfaces;
@@ -10,11 +9,11 @@ using Xunit.v3;
 namespace DependencyModules.Testing.Impl;
 
 /// <summary>
-/// xUnit test case implementation
+///     xUnit test case implementation
 /// </summary>
 public class ModuleTestCase : XunitTestCase {
-    private IServiceProvider? _serviceProvider;
     private Dictionary<ParameterInfo, List<ITestParameterValueProvider>> _knownValues = new();
+    private IServiceProvider? _serviceProvider;
     private List<ITestStartupAttribute> _startupAttributes = new();
 
 #pragma warning disable CS0618 // Type or member is obsolete
@@ -49,9 +48,7 @@ public class ModuleTestCase : XunitTestCase {
         sourceLineNumber,
         timeout) { }
 
-    public override void PreInvoke() {
-
-    }
+    public override void PreInvoke() { }
 
     private void SetupServiceCollection() {
         var serviceCollection = new ServiceCollection();
@@ -93,7 +90,7 @@ public class ModuleTestCase : XunitTestCase {
         var modules = new List<IDependencyModule>();
 
         foreach (var loadModuleAttribute in
-            TestMethod.Method.GetTestAttributes<LoadModulesAttribute>()) {
+                 TestMethod.Method.GetTestAttributes<LoadModulesAttribute>()) {
 
             var moduleTypes = loadModuleAttribute.ModuleType;
 
@@ -107,7 +104,7 @@ public class ModuleTestCase : XunitTestCase {
         var testAttribute = TestMethod.Method.GetTestAttribute<ModuleTestAttribute>();
 
         if (testAttribute != null) {
-            int count = 0;
+            var count = 0;
             foreach (var moduleType in testAttribute.ModuleTypes) {
                 if (Activator.CreateInstance(moduleType, []) is IDependencyModule moduleInstance) {
                     modules.Insert(count++, moduleInstance);
@@ -119,35 +116,33 @@ public class ModuleTestCase : XunitTestCase {
     }
 
     /// <remarks>
-    /// By default, this method returns a single <see cref="XunitTest"/> that is appropriate
-    /// for a one-to-one mapping between test and test case. Override this method to change the
-    /// tests that are associated with this test case.
+    ///     By default, this method returns a single <see cref="XunitTest" /> that is appropriate
+    ///     for a one-to-one mapping between test and test case. Override this method to change the
+    ///     tests that are associated with this test case.
     /// </remarks>
-    /// <inheritdoc/>
+    /// <inheritdoc />
     public override async ValueTask<IReadOnlyCollection<IXunitTest>> CreateTests() {
-        var dataAttributes = 
+        var dataAttributes =
             TestMethod.Method.GetTestAttributes<IDataAttribute>().ToArray();
 
         if (dataAttributes.Length == 0) {
             return await UnitTestWithNoDataAttributes();
         }
-        else {
-            return await UnitTestFromDataAttributes(dataAttributes);
-        }
+        return await UnitTestFromDataAttributes(dataAttributes);
     }
 
     private async Task<IReadOnlyCollection<IXunitTest>> UnitTestFromDataAttributes(IDataAttribute[] dataAttributes) {
         var unitTests = new List<IXunitTest>();
 
         foreach (var dataAttribute in dataAttributes) {
-            var dataRowCollection = 
+            var dataRowCollection =
                 await dataAttribute.GetData(TestMethod.Method, DisposalTracker);
 
             foreach (var theoryDataRow in dataRowCollection) {
                 var data = theoryDataRow.GetData();
-                
+
                 SetupServiceCollection();
-                
+
                 unitTests.Add(
                     new XunitTest(
                         this,
@@ -155,15 +150,15 @@ public class ModuleTestCase : XunitTestCase {
                         Explicit,
                         theoryDataRow.Skip ?? SkipReason,
                         TestCaseDisplayName,
-                        testIndex: unitTests.Count,
+                        unitTests.Count,
                         theoryDataRow.Traits?.ToReadOnly() ?? Traits.ToReadOnly(),
                         theoryDataRow.Timeout ?? Timeout,
                         await ResolveArguments(data)
                     )
-                    );
+                );
             }
         }
-        
+
         return unitTests;
     }
 
@@ -177,7 +172,7 @@ public class ModuleTestCase : XunitTestCase {
                 Explicit,
                 SkipReason,
                 TestCaseDisplayName,
-                testIndex: 0,
+                0,
                 Traits.ToReadOnly(),
                 Timeout,
                 await ResolveArguments([])
@@ -187,7 +182,7 @@ public class ModuleTestCase : XunitTestCase {
 
     private async Task<object?[]> ResolveArguments(object?[] data) {
         var parameters = new List<object?>(data);
-        
+
         var parameterList = TestMethod.Method.GetParameters();
 
         for (var i = data.Length; i < parameterList.Length; i++) {
@@ -196,7 +191,7 @@ public class ModuleTestCase : XunitTestCase {
 
             parameters.Add(value ?? ResolveArgumentFromProvider(parameterInfo));
         }
-        
+
 
         return parameters.ToArray();
     }
@@ -216,17 +211,17 @@ public class ModuleTestCase : XunitTestCase {
                 }
             }
         }
-        
+
         return value;
     }
 
     private object? ResolveArgumentFromProvider(ParameterInfo parameterInfo) {
         var value = _serviceProvider!.GetService(parameterInfo.ParameterType);
-        
+
         if (value != null) {
             return value;
         }
-        
+
         return ConstructValueFromType(parameterInfo);
     }
 
@@ -237,7 +232,7 @@ public class ModuleTestCase : XunitTestCase {
     private void ApplyAllModules(IServiceCollection serviceCollection, IDependencyModule[] dependencyModules) {
         foreach (var dependencyModule in GetAllModules(dependencyModules)) {
             dependencyModule.ApplyServices(serviceCollection);
-            
+
             if (dependencyModule is IServiceCollectionConfiguration serviceCollectionConfigure) {
                 serviceCollectionConfigure.ConfigureServices(serviceCollection);
             }

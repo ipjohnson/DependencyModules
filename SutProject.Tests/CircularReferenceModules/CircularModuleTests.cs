@@ -13,17 +13,17 @@ public class CircularModuleTests {
         Assert.NotNull(serviceB);
     }
 
-    
+
     [ModuleTest]
     [LoadModules(typeof(ModuleB))]
     public void LoadModuleBTest(ServiceA serviceA, ServiceB serviceB) {
         Assert.NotNull(serviceA);
         Assert.NotNull(serviceB);
     }
-    
-        
+
+
     [ModuleTest]
-    [LoadModules(typeof(ModuleA),typeof(ModuleB))]
+    [LoadModules(typeof(ModuleA), typeof(ModuleB))]
     public void LoadModuleBothTest(ServiceA serviceA, ServiceB serviceB) {
         Assert.NotNull(serviceA);
         Assert.NotNull(serviceB);

@@ -7,10 +7,10 @@ using Xunit.v3;
 namespace DependencyModules.Testing.Attributes;
 
 /// <summary>
-/// Mock service and pass it as parameter to method
+///     Mock service and pass it as parameter to method
 /// </summary>
 [AttributeUsage(
-    AttributeTargets.Parameter, 
+    AttributeTargets.Parameter,
     AllowMultiple = true)]
 public class MockAttribute : Attribute, ITestParameterValueProvider {
 
@@ -20,9 +20,9 @@ public class MockAttribute : Attribute, ITestParameterValueProvider {
         if (mockAttribute == null) {
             throw new Exception("Mock library not found, please ensure the Type or Assembly is attributed correctly.");
         }
-        
+
         var mockedValue = mockAttribute.ProvideMock(parameter.ParameterType);
-        
+
         serviceCollection.AddSingleton(parameter.ParameterType, _ => mockedValue);
     }
 

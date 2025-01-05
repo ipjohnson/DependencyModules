@@ -2,7 +2,6 @@ using DependencyModules.Runtime.Attributes;
 
 namespace SutProject;
 
-
 public interface ISingletonService {
     string GetName();
 }

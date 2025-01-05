@@ -4,7 +4,7 @@ using Xunit;
 namespace SutProject.Tests.DataTests;
 
 public class InlineDataTests {
-    
+
     [ModuleTest]
     [InlineData("Hello World")]
     [LoadModules(typeof(SutModule))]

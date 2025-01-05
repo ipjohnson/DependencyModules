@@ -1,4 +1,3 @@
-using DependencyModules.Runtime.Attributes;
 using DependencyModules.Testing.Attributes;
 using SecondarySutProject.ParameterizedModules;
 using Xunit;
