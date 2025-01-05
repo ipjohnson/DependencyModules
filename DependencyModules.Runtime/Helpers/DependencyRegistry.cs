@@ -31,7 +31,7 @@ public class DependencyRegistry<T> {
     /// <param name="dependencyModules"></param>
     public static void LoadModules(IServiceCollection serviceCollection, params IDependencyModule[] dependencyModules) {
         foreach (var module in GetAllModules(dependencyModules)) {
-            module.ApplyServices(serviceCollection);
+            module.InternalApplyServices(serviceCollection);
 
             if (module is IServiceCollectionConfiguration serviceCollectionConfigure) {
                 serviceCollectionConfigure.ConfigureServices(serviceCollection);
@@ -61,7 +61,7 @@ public class DependencyRegistry<T> {
 
         dependencyModules.Insert(0, dependencyModule);
 
-        foreach (var dependentModule in dependencyModule.GetDependentModules()) {
+        foreach (var dependentModule in dependencyModule.InternalGetModules()) {
             if (dependentModule is IDependencyModuleProvider moduleProvider) {
                 var dep = moduleProvider.GetModule();
                 InternalGetModules(dep, dependencyModules);
@@ -70,6 +70,10 @@ public class DependencyRegistry<T> {
                 InternalGetModules(module, dependencyModules);
             }
         }
+        
+        foreach (var module in dependencyModule.GetModules()) {
+            InternalGetModules(module, dependencyModules);
+        } 
     }
 
     /// <summary>

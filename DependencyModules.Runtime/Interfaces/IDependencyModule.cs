@@ -6,9 +6,30 @@ namespace DependencyModules.Runtime.Interfaces;
 ///     Internal interface not intended to be consumed by developers
 /// </summary>
 public interface IDependencyModule {
+    /// <summary>
+    /// Populate a service collection with registrations
+    /// </summary>
+    /// <param name="serviceCollection"></param>
     void PopulateServiceCollection(IServiceCollection serviceCollection);
 
-    IEnumerable<object> GetDependentModules();
+    /// <summary>
+    /// Intended for developers to override and provide their own IDependencyModules
+    /// </summary>
+    /// <returns></returns>
+    IEnumerable<IDependencyModule> GetModules() {
+        return ArraySegment<IDependencyModule>.Empty;
+    }
+    
+    /// <summary>
+    /// Internal method not intended to be called by general developers
+    /// </summary>
+    /// <returns></returns>
+    IEnumerable<object> InternalGetModules();
 
-    void ApplyServices(IServiceCollection serviceCollection);
+    /// <summary>
+    /// Internal method not intended to be called by general developers
+    /// </summary>
+    /// <param name="serviceCollection"></param>
+    void InternalApplyServices(IServiceCollection serviceCollection);
+
 }

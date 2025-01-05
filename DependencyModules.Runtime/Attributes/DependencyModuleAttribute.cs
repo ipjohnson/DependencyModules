@@ -13,5 +13,10 @@ public class DependencyModuleAttribute : Attribute {
     /// <summary>
     ///     Use try when registering, default is false
     /// </summary>
-    public bool? UseTry { get; set; }
+    public bool UseTry { get; set; }
+    
+    /// <summary>
+    /// Generate Module attribute, true by default
+    /// </summary>
+    public bool GenerateAttribute { get; set; }
 }

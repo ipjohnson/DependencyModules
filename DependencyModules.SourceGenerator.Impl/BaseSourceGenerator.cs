@@ -58,7 +58,7 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
                 .ToList();
         }
 
-        var (onlyRealm, useTry) = GetDependencyFlags(context);
+        var (onlyRealm, useTry, generateAttribute) = GetDependencyFlags(context);
         var implementsEqualsFlag = GetEqualsFlag(context);
         var parameters = GetConstructorParameters(context);
         var properties = GetProperties(context);
@@ -67,10 +67,11 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
             ((ClassDeclarationSyntax)context.Node).GetTypeDefinition(),
             onlyRealm,
             useTry,
+            generateAttribute,
             parameters,
             implementsEqualsFlag,
             properties,
-            attributes ?? new ());
+            attributes ?? new());
     }
 
     private List<PropertyInfoModel> GetProperties(GeneratorSyntaxContext context) {
@@ -121,9 +122,10 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
         return context.Node.DescendantNodes().OfType<MethodDeclarationSyntax>().Any(m => m.Identifier.ToString().Equals("Equals"));
     }
 
-    private (bool onlyRealm, bool? useTry) GetDependencyFlags(GeneratorSyntaxContext context) {
+    private (bool onlyRealm, bool? useTry, bool? generateAttribute) GetDependencyFlags(GeneratorSyntaxContext context) {
         var onlyRealm = false;
         bool? useTry = null;
+        bool? generateAttribute = null;
         if (context.Node is ClassDeclarationSyntax classDeclarationSyntax) {
             var module = classDeclarationSyntax.DescendantNodes().OfType<AttributeSyntax>().FirstOrDefault(attr => attr.Name.ToString().StartsWith("DependencyModule"));
 
@@ -138,11 +140,13 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
                         case "UseTry":
                             useTry = argumentSyntax.Expression.ToString() == "true";
                             break;
-
+                        case "GenerateAttribute":
+                            generateAttribute = argumentSyntax.Expression.ToString() == "true";
+                            break;
                     }
                 }
             }
         }
-        return (onlyRealm, useTry);
+        return (onlyRealm, useTry, generateAttribute);
     }
 }

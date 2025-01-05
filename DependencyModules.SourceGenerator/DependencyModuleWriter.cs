@@ -27,17 +27,19 @@ public class DependencyModuleWriter {
 
         classDefinition.Modifiers |= ComponentModifier.Partial;
 
-        var attributeGenerator = new ModuleAttributeGenerator();
+        if (model.GenerateAttribute != false) {
+            var attributeGenerator = new ModuleAttributeGenerator();
 
-        attributeGenerator.Generate(model, classDefinition);
-
+            attributeGenerator.Generate(model, classDefinition);
+        }
+        
         SetupStaticConstructor(classDefinition);
 
         PopulateServiceCollectionMethod(classDefinition, model);
 
-        ApplyServicesMethod(classDefinition, model);
+        InternalApplyServicesMethod(classDefinition, model);
 
-        GetModulesMethod(classDefinition, model);
+        InternalGetModulesMethod(classDefinition, model);
 
         if (!model.ImplementsEquals) {
             EqualMethod(classDefinition, model);
@@ -67,8 +69,8 @@ public class DependencyModuleWriter {
         equalMethod.Return($"obj is {model.EntryPointType.Name}");
     }
 
-    private void GetModulesMethod(ClassDefinition classDefinition, ModuleEntryPointModel model) {
-        var loadDependenciesMethod = classDefinition.AddMethod("GetDependentModules");
+    private void InternalGetModulesMethod(ClassDefinition classDefinition, ModuleEntryPointModel model) {
+        var loadDependenciesMethod = classDefinition.AddMethod("InternalGetModules");
 
         loadDependenciesMethod.InterfaceImplementation = KnownTypes.DependencyModules.Interfaces.IDependencyModule;
         loadDependenciesMethod.SetReturnType(TypeDefinition.Get(typeof(IEnumerable<object>)));
@@ -91,11 +93,11 @@ public class DependencyModuleWriter {
         }
     }
 
-    private void ApplyServicesMethod(
+    private void InternalApplyServicesMethod(
         ClassDefinition classDefinition,
         ModuleEntryPointModel model) {
 
-        var loadDependenciesMethod = classDefinition.AddMethod("ApplyServices");
+        var loadDependenciesMethod = classDefinition.AddMethod("InternalApplyServices");
 
         loadDependenciesMethod.InterfaceImplementation =
             KnownTypes.DependencyModules.Interfaces.IDependencyModule;

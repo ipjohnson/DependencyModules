@@ -231,7 +231,7 @@ public class ModuleTestCase : XunitTestCase {
 
     private void ApplyAllModules(IServiceCollection serviceCollection, IDependencyModule[] dependencyModules) {
         foreach (var dependencyModule in GetAllModules(dependencyModules)) {
-            dependencyModule.ApplyServices(serviceCollection);
+            dependencyModule.InternalApplyServices(serviceCollection);
 
             if (dependencyModule is IServiceCollectionConfiguration serviceCollectionConfigure) {
                 serviceCollectionConfigure.ConfigureServices(serviceCollection);
@@ -256,7 +256,7 @@ public class ModuleTestCase : XunitTestCase {
 
         dependencyModules.Insert(0, dependencyModule);
 
-        foreach (var dependentModule in dependencyModule.GetDependentModules()) {
+        foreach (var dependentModule in dependencyModule.InternalGetModules()) {
             if (dependentModule is IDependencyModuleProvider moduleProvider) {
                 var dep = moduleProvider.GetModule();
                 InternalGetModules(dep, dependencyModules);

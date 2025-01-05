@@ -6,6 +6,7 @@ public record ModuleEntryPointModel(
     ITypeDefinition EntryPointType,
     bool OnlyRealm,
     bool? UseTry,
+    bool? GenerateAttribute,
     List<ParameterInfoModel> Parameters,
     bool ImplementsEquals,
     List<PropertyInfoModel> PropertyInfoModels,
@@ -20,6 +21,7 @@ public class ModuleEntryPointModelComparer : IEqualityComparer<ModuleEntryPointM
         return x.EntryPointType.Equals(y.EntryPointType) &&
                x.OnlyRealm == y.OnlyRealm &&
                x.UseTry == y.UseTry &&
+               x.GenerateAttribute == y.GenerateAttribute &&
                x.Parameters.SequenceEqual(y.Parameters) &&
                x.PropertyInfoModels.SequenceEqual(y.PropertyInfoModels) &&
                x.AttributeModels.SequenceEqual(y.AttributeModels);
@@ -31,6 +33,9 @@ public class ModuleEntryPointModelComparer : IEqualityComparer<ModuleEntryPointM
             hash = hash * 31 + obj.EntryPointType.GetHashCode();
             if (obj.UseTry.HasValue) {
                 hash = hash * 31 + obj.UseTry.Value.GetHashCode();
+            }
+            if (obj.GenerateAttribute.HasValue) {
+                hash = hash * 31 + obj.GenerateAttribute.Value.GetHashCode();
             }
             hash = hash * 31 + obj.OnlyRealm.GetHashCode();
             hash = GetListHashCode(obj.Parameters, hash);
