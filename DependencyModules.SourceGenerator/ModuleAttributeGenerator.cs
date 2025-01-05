@@ -33,8 +33,14 @@ public class ModuleAttributeGenerator {
 
             var propertyType = propertyInfoModel.PropertyType;
 
+            if (propertyType.IsNullable) {
+                propertyType = TypeDefinition.Get(propertyType.TypeDefinitionEnum, propertyType.Namespace, propertyType.Name);
+            }
+
             var property = attributeClass.AddProperty(propertyType, propertyInfoModel.PropertyName);
 
+            property.DefaultValue = 
+                new WrapStatement(CodeOutputComponent.Get(propertyType.Name), "default(", ")!");
         }
 
         SetupProviderMethod(model, attributeClass);
