@@ -50,7 +50,7 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
     protected virtual ModuleEntryPointModel GenerateEntryPointModel(GeneratorSyntaxContext context, CancellationToken cancellation) {
         cancellation.ThrowIfCancellationRequested();
 
-        IReadOnlyList<AttributeModel> attributes = Array.Empty<AttributeModel>();
+        List<AttributeModel>? attributes = null;
 
         if (context.Node is ClassDeclarationSyntax classDeclarationSyntax) {
             attributes = AttributeModelHelper
@@ -70,7 +70,7 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
             parameters,
             implementsEqualsFlag,
             properties,
-            attributes);
+            attributes ?? new ());
     }
 
     private List<PropertyInfoModel> GetProperties(GeneratorSyntaxContext context) {

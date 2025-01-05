@@ -8,8 +8,8 @@ public record ModuleEntryPointModel(
     bool? UseTry,
     List<ParameterInfoModel> Parameters,
     bool ImplementsEquals,
-    IReadOnlyList<PropertyInfoModel> PropertyInfoModels,
-    IReadOnlyList<AttributeModel> AttributeModels);
+    List<PropertyInfoModel> PropertyInfoModels,
+    List<AttributeModel> AttributeModels);
 
 public class ModuleEntryPointModelComparer : IEqualityComparer<ModuleEntryPointModel> {
 
@@ -17,17 +17,11 @@ public class ModuleEntryPointModelComparer : IEqualityComparer<ModuleEntryPointM
         if (x is null && y is null) return true;
         if (x is null || y is null) return false;
 
-        if (x.Parameters.Count != y.Parameters.Count) return false;
-
-        for (var i = 0; i < x.Parameters.Count; i++) {
-            if (!x.Parameters[i].Equals(y.Parameters[i])) return false;
-        }
-
         return x.EntryPointType.Equals(y.EntryPointType) &&
                x.OnlyRealm == y.OnlyRealm &&
                x.UseTry == y.UseTry &&
                x.Parameters.SequenceEqual(y.Parameters) &&
-               x.Parameters.SequenceEqual(y.Parameters) &&
+               x.PropertyInfoModels.SequenceEqual(y.PropertyInfoModels) &&
                x.AttributeModels.SequenceEqual(y.AttributeModels);
     }
 
@@ -35,11 +29,25 @@ public class ModuleEntryPointModelComparer : IEqualityComparer<ModuleEntryPointM
         unchecked {
             var hash = 17;
             hash = hash * 31 + obj.EntryPointType.GetHashCode();
-            hash = hash * 31 + obj.OnlyRealm.GetHashCode();
-            foreach (var attribute in obj.AttributeModels) {
-                hash = hash * 31 + attribute.GetHashCode();
+            if (obj.UseTry.HasValue) {
+                hash = hash * 31 + obj.UseTry.Value.GetHashCode();
             }
+            hash = hash * 31 + obj.OnlyRealm.GetHashCode();
+            hash = GetListHashCode(obj.Parameters, hash);
+            hash = GetListHashCode(obj.PropertyInfoModels, hash);
+            hash = GetListHashCode(obj.AttributeModels, hash);
+            
             return hash;
         }
+    }
+
+    private int GetListHashCode<T>(IEnumerable<T> list, int hashSeed) {
+        int hash = hashSeed;
+        unchecked {
+            foreach (var obj in list) {
+                hash = hash * 31 + (obj?.GetHashCode() ?? 1);
+            }
+        }
+        return hash;
     }
 }
