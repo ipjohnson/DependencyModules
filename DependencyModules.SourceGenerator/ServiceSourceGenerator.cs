@@ -91,6 +91,16 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
                         case "ServiceType":
                             if (argumentSyntax.Expression is TypeOfExpressionSyntax typeOfExpression) {
                                 registration = typeOfExpression.Type.GetTypeDefinition(context);
+
+                                if (registration is GenericTypeDefinition) {
+                                    registration = new GenericTypeDefinition(
+                                        registration.TypeDefinitionEnum,
+                                        registration.Namespace,
+                                        registration.Name,
+                                        registration.TypeArguments.
+                                            Select(_ => TypeDefinition.Get("", "")).ToArray()
+                                    );
+                                } 
                             }
                             break;
                         case "Realm":
