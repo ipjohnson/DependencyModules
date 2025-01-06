@@ -5,9 +5,11 @@ namespace DependencyModules.SourceGenerator.Impl;
 public static class KnownTypes {
     public static class Microsoft {
         public static class DependencyInjection {
+            
+            public const string Namespace = "Microsoft.Extensions.DependencyInjection";
             // ReSharper disable once InconsistentNaming
             public static readonly ITypeDefinition IServiceCollection =
-                TypeDefinition.Get(TypeDefinitionEnum.InterfaceDefinition, "Microsoft.Extensions.DependencyInjection", "IServiceCollection");
+                TypeDefinition.Get(TypeDefinitionEnum.InterfaceDefinition, Namespace, "IServiceCollection");
         }
     }
 

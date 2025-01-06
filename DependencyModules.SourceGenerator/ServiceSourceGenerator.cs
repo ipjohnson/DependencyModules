@@ -4,6 +4,7 @@ using DependencyModules.SourceGenerator.Impl;
 using DependencyModules.SourceGenerator.Impl.Models;
 using DependencyModules.SourceGenerator.Impl.Utilities;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace DependencyModules.SourceGenerator;
@@ -48,7 +49,7 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
     private static List<ServiceRegistrationModel> GetRegistrations(
         GeneratorSyntaxContext context, ITypeDefinition classDefinition, CancellationToken cancellationToken) {
         var list = new List<ServiceRegistrationModel>();
-
+        
         foreach (var attributeSyntax in
                  context.Node.DescendantNodes().OfType<AttributeSyntax>()) {
             foreach (var typeDefinition in _attributeTypes) {
