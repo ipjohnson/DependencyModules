@@ -12,13 +12,13 @@ public class SourceGenerator : BaseSourceGenerator {
         yield return new ServiceSourceGenerator();
     }
 
-    protected override void SetupRootGenerator(
-        IncrementalGeneratorInitializationContext context,
-        IncrementalValuesProvider<ModuleEntryPointModel> incrementalValueProvider) {
+    protected override void SetupRootGenerator(IncrementalGeneratorInitializationContext context,
+        IncrementalValuesProvider<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> valuesProvider) {
+     
         var moduleWriter = new DependencyModuleWriter();
 
         context.RegisterSourceOutput(
-            incrementalValueProvider,
+            valuesProvider,
             moduleWriter.GenerateSource
         );
     }

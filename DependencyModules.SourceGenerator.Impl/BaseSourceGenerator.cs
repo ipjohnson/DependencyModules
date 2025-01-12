@@ -19,7 +19,7 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
             attributeSourceGenerator.SetupGenerator(context, valuesProvider);
         }
 
-        SetupRootGenerator(context, incrementalValueProvider);
+        SetupRootGenerator(context, valuesProvider);
     }
 
     protected abstract IEnumerable<ISourceGenerator> AttributeSourceGenerators();
@@ -36,7 +36,7 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
         }).WithComparer(new DependencyModuleConfigurationModelComparer());
     }
 
-    protected virtual void SetupRootGenerator(IncrementalGeneratorInitializationContext context, IncrementalValuesProvider<ModuleEntryPointModel> incrementalValueProvider) { }
+    protected virtual void SetupRootGenerator(IncrementalGeneratorInitializationContext context, IncrementalValuesProvider<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> valuesProvider) { }
 
     private IncrementalValuesProvider<ModuleEntryPointModel> CreateSourceValueProvider(IncrementalGeneratorInitializationContext context) {
         var classSelector = new SyntaxSelector<ClassDeclarationSyntax>(KnownTypes.DependencyModules.Attributes.DependencyModuleAttribute);

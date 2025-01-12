@@ -8,7 +8,9 @@ namespace DependencyModules.SourceGenerator;
 
 public class DependencyModuleWriter {
 
-    public void GenerateSource(SourceProductionContext context, ModuleEntryPointModel model) {
+    public void GenerateSource(SourceProductionContext context, 
+        (ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right) models) {
+        var model = models.Left;
 
         var csharpFile = new CSharpFileDefinition(model.EntryPointType.Namespace);
 
@@ -156,4 +158,5 @@ public class DependencyModuleWriter {
     private void SetupStaticConstructor(ClassDefinition classDefinition) {
         classDefinition.AddConstructor().Modifiers = ComponentModifier.Static;
     }
+
 }
