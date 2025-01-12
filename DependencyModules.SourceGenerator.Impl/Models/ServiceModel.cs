@@ -11,7 +11,7 @@ public enum ServiceLifestyle {
 public record ServiceRegistrationModel(
     ITypeDefinition ServiceType,
     ServiceLifestyle Lifestyle,
-    bool? RegisterWithTry,
+    bool? RegisterWithTry = null,
     ITypeDefinition? Realm = null,
     object? Key = null);
 
