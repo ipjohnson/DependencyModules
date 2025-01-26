@@ -141,8 +141,16 @@ public static class TypeSyntaxExtensions {
                 return TypeDefinition.Get(typeof(string));
         }
 
-        if (typeSymbol is ITypeParameterSymbol typeParameterSymbol) {
-            return TypeDefinition.Get("", typeParameterSymbol.Name);
+#pragma warning disable RS1035
+        File.AppendAllText("/tmp/output.txt", $"{typeSymbol.Name} {typeSymbol.GetType().Name}\n");
+#pragma warning restore RS1035
+        
+        if (typeSymbol is ITypeParameterSymbol || typeSymbol is IErrorTypeSymbol) {
+            return new TypeParameterDefinition(
+                TypeDefinitionEnum.ClassDefinition, 
+                false, 
+                false, 
+                typeSymbol.Name);
         }
 
         if (typeSymbol is IArrayTypeSymbol arrayTypeSymbol) {

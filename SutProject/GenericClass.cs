@@ -16,3 +16,9 @@ public class GenericClass<T> : IGenericInterface<T> {
         get;
     }
 }
+
+[SingletonService(ServiceType = typeof(IGenericInterface<string>))]
+public class StringGeneric : IGenericInterface<string> {
+    
+    public string Value => "Hello World";
+}

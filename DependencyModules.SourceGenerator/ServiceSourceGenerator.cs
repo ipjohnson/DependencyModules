@@ -96,11 +96,16 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
                                 registration = typeOfExpression.Type.GetTypeDefinition(context);
 
                                 if (registration is GenericTypeDefinition) {
+                                    var argumentTypes =
+                                        registration.TypeArguments.Select(
+                                            _ => _ is TypeParameterDefinition ? 
+                                                TypeDefinition.Get("", "") : _).ToArray();
+                                    
                                     registration = new GenericTypeDefinition(
                                         registration.TypeDefinitionEnum,
                                         registration.Namespace,
                                         registration.Name,
-                                        registration.TypeArguments.Select(_ => TypeDefinition.Get("", "")).ToArray()
+                                        argumentTypes
                                     );
                                 }
                             }
