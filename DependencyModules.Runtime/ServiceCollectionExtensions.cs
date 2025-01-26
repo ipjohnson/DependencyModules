@@ -10,7 +10,7 @@ public static class ServiceCollectionExtensions {
     /// <param name="services"></param>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
-    public static IServiceCollection AddyModule<T>(this IServiceCollection services)
+    public static IServiceCollection AddModule<T>(this IServiceCollection services)
         where T : IDependencyModule, new() {
         return AddModule(services, new T());
     }
