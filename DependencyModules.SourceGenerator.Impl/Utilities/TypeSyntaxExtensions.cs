@@ -140,10 +140,6 @@ public static class TypeSyntaxExtensions {
             case SpecialType.System_String:
                 return TypeDefinition.Get(typeof(string));
         }
-
-#pragma warning disable RS1035
-        File.AppendAllText("/tmp/output.txt", $"{typeSymbol.Name} {typeSymbol.GetType().Name}\n");
-#pragma warning restore RS1035
         
         if (typeSymbol is ITypeParameterSymbol || typeSymbol is IErrorTypeSymbol) {
             return new TypeParameterDefinition(
