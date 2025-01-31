@@ -7,7 +7,7 @@ public class InlineDataTests {
 
     [ModuleTest]
     [InlineData("Hello World")]
-    [LoadModules(typeof(SutModule))]
+    [SutModule.Module]
     public void SimpleValueTests(string value, IDependencyOne one) {
         Assert.Equal("Hello World", value);
         Assert.NotNull(one);

@@ -6,7 +6,7 @@ namespace SutProject.Tests.StandardTests;
 
 public class SecondarySutProjectTests {
     [ModuleTest]
-    [LoadModules(typeof(SecondarySutModule))]
+    [SecondarySutModule.Module]
     public void OverrideDependency(IDependencyOne dependencyOne) {
         Assert.IsType<BetterDependencyOne>(dependencyOne);
     }

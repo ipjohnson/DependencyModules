@@ -4,7 +4,7 @@ using Xunit;
 namespace SutProject.Tests.GenericTests;
 
 
-[LoadModules(typeof(SutModule))]
+[SutModule.Module]
 public class ResolveGenericTypeTests {
     [ModuleTest]
     public void ResolveGenericType(IGenericInterface<IDependencyOne> genericInterface) {

@@ -5,8 +5,10 @@ namespace SutProject.Tests.StandardTests;
 
 public class SingletonTests {
     [ModuleTest]
-    [LoadModules(typeof(SutModule))]
-    public void ResolveSingleton(ISingletonService singletonService) {
+    [SutModule.Module]
+    public void ResolveSingleton(ISingletonService singletonService, ISingletonService otherSingletonService) {
         Assert.NotNull(singletonService);
+        Assert.NotNull(otherSingletonService);
+        Assert.Same(singletonService, otherSingletonService);
     }
 }

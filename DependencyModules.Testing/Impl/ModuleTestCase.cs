@@ -62,7 +62,7 @@ public class ModuleTestCase : XunitTestCase {
         SetupStartupAttributes(serviceCollection);
 
         _serviceProvider = serviceCollection.BuildServiceProvider();
-
+        
         DisposalTracker.Add(_serviceProvider);
     }
 
@@ -90,15 +90,11 @@ public class ModuleTestCase : XunitTestCase {
         var modules = new List<IDependencyModule>();
 
         foreach (var loadModuleAttribute in
-                 TestMethod.Method.GetTestAttributes<LoadModulesAttribute>()) {
+                 TestMethod.Method.GetTestAttributes<IDependencyModuleProvider>()) {
 
-            var moduleTypes = loadModuleAttribute.ModuleType;
-
-            foreach (var moduleType in moduleTypes) {
-                if (Activator.CreateInstance(moduleType, loadModuleAttribute.Parameters) is IDependencyModule moduleInstance) {
-                    modules.Add(moduleInstance);
-                }
-            }
+            var moduleTypes = loadModuleAttribute.GetModule();
+            
+            modules.Add(moduleTypes);
         }
 
         var testAttribute = TestMethod.Method.GetTestAttribute<ModuleTestAttribute>();

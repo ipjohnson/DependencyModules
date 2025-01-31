@@ -2,14 +2,18 @@ using CSharpAuthor;
 
 namespace DependencyModules.SourceGenerator.Impl;
 
+// ReSharper disable InconsistentNaming
 public static class KnownTypes {
     public static class Microsoft {
         public static class DependencyInjection {
             
             public const string Namespace = "Microsoft.Extensions.DependencyInjection";
-            // ReSharper disable once InconsistentNaming
+
             public static readonly ITypeDefinition IServiceCollection =
                 TypeDefinition.Get(TypeDefinitionEnum.InterfaceDefinition, Namespace, "IServiceCollection");
+            
+            public static readonly ITypeDefinition IServiceProvider =
+                TypeDefinition.Get(TypeDefinitionEnum.InterfaceDefinition, Namespace, "IServiceProvider");
         }
     }
 
