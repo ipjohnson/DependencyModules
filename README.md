@@ -7,7 +7,7 @@
 ```
 // Registration example
 [DependencyModule]
-public partial class Module { }
+public partial class MyDeps { }
 
 [SingletonService(ServiceType = typeof(ISomeService)]
 public class SomeClass : ISomeService { }
@@ -21,7 +21,7 @@ public class OtherService
 // Module usage example
 var serviceCollection = new ServiceCollection();
 
-serviceCollection.AddModule<Module>();
+serviceCollection.AddModule<MyDeps>();
 
 var provider = serviceCollection.BuildServiceProvider();
 
@@ -29,9 +29,16 @@ var service = provider.GetService<OtherService>();
 ```
 
 ```
+// Modules can be re-used with the generated attributes
+[DependencyModule]
+[MyDeps.Module]
+public partial class AnotherModule { }
+```
+
+```
 // unit tests example
-[assemlby: LoadModules(typeof(Module))]
-[assembly: NSubstituteSupport()]
+[assemlby: MyDeps.Module]
+[assembly: NSubstituteSupport]
 
 public class OtherServiceTests 
 {
