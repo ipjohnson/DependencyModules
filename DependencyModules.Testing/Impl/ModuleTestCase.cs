@@ -61,9 +61,19 @@ public class ModuleTestCase : XunitTestCase {
 
         SetupStartupAttributes(serviceCollection);
 
-        _serviceProvider = serviceCollection.BuildServiceProvider();
+        _serviceProvider = BuildServiceProvider(serviceCollection);
         
         DisposalTracker.Add(_serviceProvider);
+    }
+
+    private IServiceProvider BuildServiceProvider(ServiceCollection serviceCollection) {
+        var serviceProviderBuilderAttribute = TestMethod.Method.GetTestAttribute<IServiceProviderBuilderAttribute>();
+
+        if (serviceProviderBuilderAttribute != null) {
+            return serviceProviderBuilderAttribute.BuildServiceProvider(TestMethod, serviceCollection);
+        }
+        
+        return serviceCollection.BuildServiceProvider();
     }
 
     private void SetupStartupAttributes(ServiceCollection serviceCollection) {
