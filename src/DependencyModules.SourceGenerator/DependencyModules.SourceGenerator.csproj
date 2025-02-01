@@ -6,31 +6,16 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <IsRoslynComponent>true</IsRoslynComponent>
         <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
-        <IsPackable>True</IsPackable>
         <Nullable>enable</Nullable>
         <PackageId>DependencyModules.SourceGenerator</PackageId>
-        <Authors>Ian Johnson</Authors>
-        <PackageTags>dependency injection</PackageTags>
-        <PackageProjectUrl>https://github.com/ipjohnson/DependencyModules</PackageProjectUrl>
-        <RepositoryType>git</RepositoryType>
-        <RepositoryUrl>https://github.com/ipjohnson/DependencyModules</RepositoryUrl>
-        <PackageReadmeFile>README.md</PackageReadmeFile>
-        <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
     </PropertyGroup>
 
     <PropertyGroup>
         <PackageCSharpAuthorIncludeSource>true</PackageCSharpAuthorIncludeSource>
     </PropertyGroup>
-
-    <ItemGroup>
-        <None Include="..\README.md" Pack="true" PackagePath="">
-            <Link>Properties\README.md</Link>
-        </None>
-        <None Include="..\LICENSE.txt" Pack="true" PackagePath="">
-            <Link>Properties\License.txt</Link>
-        </None>
-    </ItemGroup>
-
+    
+    <Import Project="../nuget.props"/>
+    
     <ItemGroup>
         <Content Include="Package\DependencyModules.SourceGenerator.*">
             <Pack>true</Pack>

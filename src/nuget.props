@@ -1,0 +1,21 @@
+<Project>
+    <PropertyGroup>
+        <IsPackable>True</IsPackable>
+        <Authors>Ian Johnson</Authors>
+        <PackageTags>dependency injection</PackageTags>
+        <PackageProjectUrl>https://github.com/ipjohnson/DependencyModules</PackageProjectUrl>
+        <RepositoryType>git</RepositoryType>
+        <RepositoryUrl>https://github.com/ipjohnson/DependencyModules</RepositoryUrl>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="..\..\README.md" Pack="true" PackagePath="">
+            <Link>Properties\README.md</Link>
+        </None>
+        <None Include="..\..\LICENSE.txt" Pack="true" PackagePath="">
+            <Link>Properties\License.txt</Link>
+        </None>
+    </ItemGroup>
+</Project>

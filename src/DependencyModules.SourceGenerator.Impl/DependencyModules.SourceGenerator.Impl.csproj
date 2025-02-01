@@ -6,16 +6,8 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <IsRoslynComponent>true</IsRoslynComponent>
         <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
-        <IsPackable>True</IsPackable>
         <Nullable>enable</Nullable>
         <PackageId>DependencyModules.SourceGenerator.Impl</PackageId>
-        <Authors>Ian Johnson</Authors>
-        <PackageTags>dependency injection</PackageTags>
-        <PackageProjectUrl>https://github.com/ipjohnson/DependencyModules</PackageProjectUrl>
-        <RepositoryType>git</RepositoryType>
-        <RepositoryUrl>https://github.com/ipjohnson/DependencyModules</RepositoryUrl>
-        <PackageReadmeFile>README.md</PackageReadmeFile>
-        <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
     </PropertyGroup>
 
     <ItemGroup>
@@ -25,15 +17,8 @@
         </PackageReference>
     </ItemGroup>
 
-    <ItemGroup>
-        <None Include="..\README.md" Pack="true" PackagePath="">
-            <Link>Properties\README.md</Link>
-        </None>
-        <None Include="..\LICENSE.txt" Pack="true" PackagePath="">
-            <Link>Properties\License.txt</Link>
-        </None>
-    </ItemGroup>
-
+    <Import Project="../nuget.props"/>
+    
     <ItemGroup>
         <None Remove="Package\DependencyModules.*"/>
         <Content Include="Package\DependencyModules.*">

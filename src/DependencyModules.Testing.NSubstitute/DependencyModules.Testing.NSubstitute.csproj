@@ -4,15 +4,7 @@
         <TargetFramework>net8.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <IsPackable>True</IsPackable>
         <PackageId>DependencyModules.Testing.NSubstitute</PackageId>
-        <Authors>Ian Johnson</Authors>
-        <PackageTags>dependency injection</PackageTags>
-        <PackageProjectUrl>https://github.com/ipjohnson/DependencyModules</PackageProjectUrl>
-        <RepositoryType>git</RepositoryType>
-        <RepositoryUrl>https://github.com/ipjohnson/DependencyModules</RepositoryUrl>
-        <PackageReadmeFile>README.md</PackageReadmeFile>
-        <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
     </PropertyGroup>
 
     <ItemGroup>
@@ -27,12 +19,5 @@
         <ProjectReference Include="..\DependencyModules.Testing\DependencyModules.Testing.csproj"/>
     </ItemGroup>
 
-    <ItemGroup>
-        <None Include="..\README.md" Pack="true" PackagePath="">
-            <Link>Properties\README.md</Link>
-        </None>
-        <None Include="..\LICENSE.txt" Pack="true" PackagePath="">
-            <Link>Properties\License.txt</Link>
-        </None>
-    </ItemGroup>
+    <Import Project="../nuget.props"/>
 </Project>
