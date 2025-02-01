@@ -20,7 +20,7 @@ test:
     only:
       - '**\*.tests.dll'
 artifacts:
-- path: src\DependencyModules*.nupkg
+- path: src\**\DependencyModules*.nupkg
   name: DependencyModules
 image:
 - Visual Studio 2022
