@@ -6,6 +6,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <IsRoslynComponent>true</IsRoslynComponent>
         <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+        <IsPackable>True</IsPackable>
         <Nullable>enable</Nullable>
         <PackageId>DependencyModules.SourceGenerator.Impl</PackageId>
     </PropertyGroup>

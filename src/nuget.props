@@ -1,6 +1,5 @@
 <Project>
     <PropertyGroup>
-        <IsPackable>True</IsPackable>
         <Authors>Ian Johnson</Authors>
         <PackageTags>dependency injection</PackageTags>
         <PackageProjectUrl>https://github.com/ipjohnson/DependencyModules</PackageProjectUrl>
