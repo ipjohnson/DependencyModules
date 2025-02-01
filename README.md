@@ -13,7 +13,7 @@ dotnet add package DependencyModules.SourceGenerator
 
 ### Service Attributes 
 
-* `[DependencyModule]` - used to attribute class that will become dependency module
+* `[DependencyModule]` - used to attribute class that will become dependency module (must be partial)
 * `[SingletonService]` - registers service as `AddSingleton`
 * `[ScopedService]` - registers service as `AdddScoped`
 * `[TransientService]` - registers service as `AddTransient`
