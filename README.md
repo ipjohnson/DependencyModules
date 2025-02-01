@@ -4,14 +4,14 @@ DependencyModules is a C# source generator package that uses attributes to creat
 dependency injection registration modules. These packages can then be used to populate 
 an IServiceCollection instance.
 
-### Installation
+## Installation
 
 ```csharp
 dotnet add package DependencyModules.Runtime
 dotnet add package DependencyModules.SourceGenerator
 ```
 
-### Service Attributes 
+## Service Attributes 
 
 * `[DependencyModule]` - used to attribute class that will become dependency module (must be partial)
 * `[SingletonService]` - registers service as `AddSingleton`
@@ -35,7 +35,7 @@ public class OtherService
   public OtherService(ISomeService service) { ... }
 }
 ```
-### Container Instantiation
+## Container Instantiation
 
 `AddModule` - method adds modules to service collection
 
@@ -49,7 +49,7 @@ var provider = serviceCollection.BuildServiceProvider();
 var service = provider.GetService<OtherService>();
 ```
 
-### Module Re-use
+## Module Re-use
 
 DependencyModules creates a `ModuleAttribute` class that can be used to apply sub dependencies.
 
@@ -60,7 +60,7 @@ DependencyModules creates a `ModuleAttribute` class that can be used to apply su
 public partial class AnotherModule { }
 ```
 
-### Parameters
+## Parameters
 
 Sometimes you want to provide extra registration for your module. 
 This can be achieved by adding a constructor to your module or optional properties. 
@@ -95,7 +95,7 @@ public partial class SomeOtherModule
 }
 ```
 
-### Realm
+## Realm
 
 By default, all dependencies are registered in all modules within the same assembly. 
 The realm allows the developer to scope down the registration within a given module.
@@ -110,7 +110,7 @@ public partial class AnotherModule { }
 public class SomeDep : ISomeInterface { }
 ```
 
-### Unit testing & Mocking
+## Unit testing & Mocking
 
 DependencyModules provides an xUnit extension to make testing much easier. 
 It handles the population and construction of a service provider using specified modules.
