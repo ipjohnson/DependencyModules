@@ -57,6 +57,21 @@ DependencyModules creates a `ModuleAttribute` class that can be used to apply su
 public partial class AnotherModule { }
 ```
 
+### Realm
+
+By default all dependencies are registered in all modules within the same assembly. 
+The realm allows the developer to scope down the registration within a given module.
+
+```
+// register only dependencies specifically marked for this realm
+[DependencyModule(OnlyRealm = true)]
+public partial class AnotherModule { }
+
+[SingletonService(ServiceType = typeof(ISomeInterface), 
+  Realm = typeof(AnotherModule))]
+public class SomeDep : ISomeInterface { }
+```
+
 ### Unit testing & Mocking
 
 DependencyModules provides an xUnit extension to make testing much easier. 
