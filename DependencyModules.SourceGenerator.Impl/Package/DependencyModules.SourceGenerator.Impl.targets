@@ -1,5 +1,0 @@
-<Project>
-    <ItemGroup Condition="'$(PackageDependencyModuleIncludeSource)' == 'true'">
-        <Compile Include="$(MSBuildThisFileDirectory)../src/**/*.cs" Visible="false"/>
-    </ItemGroup>
-</Project>
