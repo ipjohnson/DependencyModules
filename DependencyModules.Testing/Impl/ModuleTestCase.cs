@@ -246,30 +246,37 @@ public class ModuleTestCase : XunitTestCase {
     }
 
     private IEnumerable<IDependencyModule> GetAllModules(IDependencyModule[] dependencyModules) {
+        var knownModules = new List<IDependencyModule>();
         var list = new List<IDependencyModule>();
-
+        
         foreach (var dependencyModule in dependencyModules) {
-            InternalGetModules(dependencyModule, list);
+            list.AddRange(InternalGetModules(dependencyModule, knownModules));
         }
-
+        
         return list;
     }
 
-    private void InternalGetModules(IDependencyModule dependencyModule, List<IDependencyModule> dependencyModules) {
-        if (dependencyModules.Contains(dependencyModule)) {
-            return;
+    private IEnumerable<IDependencyModule> InternalGetModules(IDependencyModule dependencyModule, List<IDependencyModule> knownModules) {
+        if (knownModules.Contains(dependencyModule)) {
+            yield break;
         }
-
-        dependencyModules.Insert(0, dependencyModule);
-
+        
+        knownModules.Add(dependencyModule);
+        
         foreach (var dependentModule in dependencyModule.InternalGetModules()) {
             if (dependentModule is IDependencyModuleProvider moduleProvider) {
                 var dep = moduleProvider.GetModule();
-                InternalGetModules(dep, dependencyModules);
+                foreach (var module in InternalGetModules(dep, knownModules)) {
+                    yield return module;
+                }
             }
-            else if (dependencyModule is IDependencyModule module) {
-                InternalGetModules(module, dependencyModules);
+            else if (dependencyModule is IDependencyModule dep) {
+                foreach (var module in InternalGetModules(dep, knownModules)) {
+                    yield return module;
+                }
             }
         }
+        
+        yield return dependencyModule;
     }
 }
