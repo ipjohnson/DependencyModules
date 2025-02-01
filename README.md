@@ -24,7 +24,10 @@ dotnet add package DependencyModules.SourceGenerator
 public partial class MyDeps { }
 
 [SingletonService(ServiceType = typeof(ISomeService)]
-public class SomeClass : ISomeService { }
+public class SomeClass : ISomeService 
+{ 
+  public string SomeProp { get; }
+}
 
 [TransientService]
 public class OtherService
@@ -57,9 +60,44 @@ DependencyModules creates a `ModuleAttribute` class that can be used to apply su
 public partial class AnotherModule { }
 ```
 
+### Parameters
+
+Sometimes you want to provide extra registration for your module. 
+This can be achieved by adding a constructor to your module or optional properties. 
+Note these parameters and properties will be correspondingly implemented in the module attribute.
+
+```
+[DependencyModule]
+public partial class SomeProject : IServiceCollectionConfiguration 
+{
+  private bool _someFlag;
+  public SomeProject(bool someFlag = false)
+  {
+    _someFlag = someFlag;
+  }
+  
+  public string OptionalString { get; set; } = "";
+  
+  public void ConfigureServices(IServiceCollection services) 
+  {
+    if (_someFlag) 
+    {
+      // custom registration
+    } 
+  }
+}
+
+[DependencyModule]
+[SomeProject.Module(true, OptionalString = "otherString")]
+public partial class SomeOtherModule 
+{
+
+}
+```
+
 ### Realm
 
-By default all dependencies are registered in all modules within the same assembly. 
+By default, all dependencies are registered in all modules within the same assembly. 
 The realm allows the developer to scope down the registration within a given module.
 
 ```
@@ -90,7 +128,8 @@ public class OtherServiceTests
   [ModuleTest]
   public void SomeTest(OtherService test, [Mock]ISomeService service)
   {
-     // assert implementation
+     service.SomeProp.Returns("some mock value");
+     ...
   }
 }
 ```
