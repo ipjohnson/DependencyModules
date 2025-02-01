@@ -1,6 +1,7 @@
 using CSharpAuthor;
 using DependencyModules.SourceGenerator.Impl;
 using DependencyModules.SourceGenerator.Impl.Models;
+using DependencyModules.SourceGenerator.Impl.Utilities;
 using Microsoft.CodeAnalysis;
 using static CSharpAuthor.SyntaxHelpers;
 
@@ -14,7 +15,6 @@ public class DependencyModuleWriter {
 
         var csharpFile = new CSharpFileDefinition(model.EntryPointType.Namespace);
 
-        csharpFile.AddComponent(CodeOutputComponent.Get("#nullable enable"));
         GenerateModuleClass(model, csharpFile);
 
         var outputContext = new OutputContext();
@@ -27,6 +27,7 @@ public class DependencyModuleWriter {
     private void GenerateModuleClass(ModuleEntryPointModel model, CSharpFileDefinition csharpFile) {
         var classDefinition = csharpFile.AddClass(model.EntryPointType.Name);
 
+        classDefinition.NullableEnable();
         classDefinition.Modifiers |= ComponentModifier.Partial;
 
         if (model.GenerateAttribute != false) {
