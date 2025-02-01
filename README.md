@@ -6,7 +6,7 @@ an IServiceCollection instance.
 
 ### Installation
 
-```
+```csharp
 dotnet add package DependencyModules.Runtime
 dotnet add package DependencyModules.SourceGenerator
 ```
@@ -18,7 +18,7 @@ dotnet add package DependencyModules.SourceGenerator
 * `[ScopedService]` - registers service as `AdddScoped`
 * `[TransientService]` - registers service as `AddTransient`
 
-```
+```csharp
 // Registration example
 [DependencyModule]
 public partial class MyDeps { }
@@ -39,7 +39,7 @@ public class OtherService
 
 `AddModule` - method adds modules to service collection
 
-```
+```csharp
 var serviceCollection = new ServiceCollection();
 
 serviceCollection.AddModule<MyDeps>();
@@ -53,7 +53,7 @@ var service = provider.GetService<OtherService>();
 
 DependencyModules creates a `ModuleAttribute` class that can be used to apply sub dependencies.
 
-```
+```csharp
 // Modules can be re-used with the generated attributes
 [DependencyModule]
 [MyDeps.Module]
@@ -66,7 +66,7 @@ Sometimes you want to provide extra registration for your module.
 This can be achieved by adding a constructor to your module or optional properties. 
 Note these parameters and properties will be correspondingly implemented in the module attribute.
 
-```
+```csharp
 [DependencyModule]
 public partial class SomeProject : IServiceCollectionConfiguration 
 {
@@ -100,7 +100,7 @@ public partial class SomeOtherModule
 By default, all dependencies are registered in all modules within the same assembly. 
 The realm allows the developer to scope down the registration within a given module.
 
-```
+```csharp
 // register only dependencies specifically marked for this realm
 [DependencyModule(OnlyRealm = true)]
 public partial class AnotherModule { }
@@ -115,7 +115,7 @@ public class SomeDep : ISomeInterface { }
 DependencyModules provides an xUnit extension to make testing much easier. 
 It handles the population and construction of a service provider using specified modules.
 
-```
+```csharp
 > dotnet add package DependencyModules.Testing
 > dotnet add package DependencyModules.Testing.NSubstitute
 
