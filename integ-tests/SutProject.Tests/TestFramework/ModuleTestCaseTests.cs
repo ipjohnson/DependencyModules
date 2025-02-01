@@ -10,7 +10,7 @@ namespace SutProject.Tests.TestFramework;
 
 public class AssemblyTestCaseTests {
     [ModuleTest]
-    public void Test(ITestRealmService service) {
+    public void AssemblyTest(ITestRealmService service) {
         Assert.IsType<AssemblyTestCaseService>(service);
     }
 }
