@@ -25,14 +25,18 @@ public partial class MyDeps { }
 
 [SingletonService(ServiceType = typeof(ISomeService)]
 public class SomeClass : ISomeService 
-{ 
-  public string SomeProp { get; }
+{
+  public string SomeProp => "SomeString";
 }
 
 [TransientService]
 public class OtherService
 {
-  public OtherService(ISomeService service) { ... }
+  public OtherService(ISomeService service)
+  { 
+    SomeProp = service.SomeProp;
+  }
+  public string SomeProp { get; }
 }
 ```
 ## Container Instantiation
@@ -120,6 +124,7 @@ It handles the population and construction of a service provider using specified
 > dotnet add package DependencyModules.Testing.NSubstitute
 
 // applies module & nsubstitute support to all tests.
+// test attributes can be applied at the assembly, class, and test method level
 [assemlby: MyDeps.Module]
 [assembly: NSubstituteSupport]
 
@@ -129,7 +134,7 @@ public class OtherServiceTests
   public void SomeTest(OtherService test, [Mock]ISomeService service)
   {
      service.SomeProp.Returns("some mock value");
-     ...
+     Assert.Equals("some mock value", test.SomeProp);
   }
 }
 ```
