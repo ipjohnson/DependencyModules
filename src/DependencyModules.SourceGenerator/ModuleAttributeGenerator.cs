@@ -5,12 +5,30 @@ using static CSharpAuthor.SyntaxHelpers;
 
 namespace DependencyModules.SourceGenerator;
 
+public class UsageAttributeComponent : BaseOutputComponent
+{
+    private readonly string _usage;
+
+    public UsageAttributeComponent(string usage) {
+        _usage = usage;
+    }
+
+    protected override void WriteComponentOutput(IOutputContext outputContext)
+    {
+        outputContext.WriteIndent();
+        outputContext.WriteLine(_usage);
+    }
+}
+
 public class ModuleAttributeGenerator {
     public void Generate(ModuleEntryPointModel model, ClassDefinition classDefinition) {
         var attributeClass = classDefinition.AddClass("Attribute");
-
+        
         attributeClass.AddBaseType(TypeDefinition.Get("BaseAttribute = System.Attribute","BaseAttribute"));
         attributeClass.AddBaseType(KnownTypes.DependencyModules.Interfaces.IDependencyModuleProvider);
+        attributeClass.AddLeadingTrait(
+            new UsageAttributeComponent(
+                "[AttributeUsage(AttributeTargets.Class | AttributeTargets.Assembly | AttributeTargets.Method | AttributeTargets.Parameter, AllowMultiple = true)]"));
 
         if (model.Parameters.Count > 0) {
             var constructor = attributeClass.AddConstructor();
