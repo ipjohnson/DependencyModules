@@ -27,4 +27,19 @@ public static class ServiceCollectionExtensions {
 
         return services;
     }
+    
+    
+    /// <summary>
+    ///     Add dependency modules to service collection
+    /// </summary>
+    /// <param name="services"></param>
+    /// <param name="modules"></param>
+    /// <returns></returns>
+    public static IServiceCollection AddModules(this IServiceCollection services, params IDependencyModule[] modules) {
+        for (var i = 0; i < modules.Length; i++) {
+            modules[i].PopulateServiceCollection(services);
+        }
+
+        return services;
+    }
 }

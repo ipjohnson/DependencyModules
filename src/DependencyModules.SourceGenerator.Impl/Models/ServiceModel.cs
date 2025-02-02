@@ -8,10 +8,17 @@ public enum ServiceLifestyle {
     Singleton
 }
 
+public enum RegistrationType {
+    Add,
+    Try,
+    TryEnumerable,
+    Replace
+}
+
 public record ServiceRegistrationModel(
     ITypeDefinition ServiceType,
     ServiceLifestyle Lifestyle,
-    bool? RegisterWithTry = null,
+    RegistrationType? RegistrationType = null,
     ITypeDefinition? Realm = null,
     object? Key = null);
 
@@ -55,7 +62,7 @@ public class ServiceModelComparer : IEqualityComparer<ServiceModel> {
     private bool CompareRegistration(ServiceRegistrationModel x, ServiceRegistrationModel y) {
         return x.ServiceType.Equals(y.ServiceType) &&
                x.Lifestyle == y.Lifestyle &&
-               x.RegisterWithTry == y.RegisterWithTry &&
+               x.RegistrationType == y.RegistrationType &&
                Equals(x.Realm, y.Realm) &&
                Equals(x.Key, y.Key);
     }

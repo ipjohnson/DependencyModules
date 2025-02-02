@@ -4,5 +4,5 @@ namespace SutProject;
 
 public interface IScopedService { }
 
-[ScopedService(ServiceType = typeof(IScopedService))]
+[ScopedService]
 public class ScopedService : IScopedService { }

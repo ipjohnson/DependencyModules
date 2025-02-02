@@ -21,14 +21,16 @@ dotnet add package DependencyModules.SourceGenerator
 ```csharp
 // Registration example
 [DependencyModule]
-public partial class MyDeps { }
+public partial class MyModule { }
 
-[SingletonService(ServiceType = typeof(ISomeService)]
+// registers SomeClass implementation for ISomeService
+[SingletonService]
 public class SomeClass : ISomeService 
 {
   public string SomeProp => "SomeString";
 }
 
+// registers OtherSerice implementation
 [TransientService]
 public class OtherService
 {
@@ -46,7 +48,7 @@ public class OtherService
 ```csharp
 var serviceCollection = new ServiceCollection();
 
-serviceCollection.AddModule<MyDeps>();
+serviceCollection.AddModule<MyModule>();
 
 var provider = serviceCollection.BuildServiceProvider();
 
@@ -60,7 +62,7 @@ DependencyModules creates a `ModuleAttribute` class that can be used to apply su
 ```csharp
 // Modules can be re-used with the generated attributes
 [DependencyModule]
-[MyDeps.Module]
+[MyModule.Attribute]
 public partial class AnotherModule { }
 ```
 
@@ -72,10 +74,10 @@ Note these parameters and properties will be correspondingly implemented in the 
 
 ```csharp
 [DependencyModule]
-public partial class SomeProject : IServiceCollectionConfiguration 
+public partial class SomeModule : IServiceCollectionConfiguration 
 {
   private bool _someFlag;
-  public SomeProject(bool someFlag = false)
+  public SomeModule(bool someFlag = false)
   {
     _someFlag = someFlag;
   }
@@ -92,7 +94,7 @@ public partial class SomeProject : IServiceCollectionConfiguration
 }
 
 [DependencyModule]
-[SomeProject.Module(true, OptionalString = "otherString")]
+[SomeModule.Attribute(true, OptionalString = "otherString")]
 public partial class SomeOtherModule 
 {
 
@@ -125,7 +127,7 @@ It handles the population and construction of a service provider using specified
 
 // applies module & nsubstitute support to all tests.
 // test attributes can be applied at the assembly, class, and test method level
-[assemlby: MyDeps.Module]
+[assemlby: MyModule.Attribute]
 [assembly: NSubstituteSupport]
 
 public class OtherServiceTests 

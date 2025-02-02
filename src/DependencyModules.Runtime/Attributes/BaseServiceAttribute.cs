@@ -1,5 +1,12 @@
 namespace DependencyModules.Runtime.Attributes;
 
+public enum RegistrationType {
+    Add,
+    Try,
+    TryEnumerable,
+    Replace
+}
+
 public abstract class BaseServiceAttribute : Attribute {
     /// <summary>
     ///     Key to use for DI registration
@@ -12,10 +19,9 @@ public abstract class BaseServiceAttribute : Attribute {
     public Type? ServiceType { get; set; }
 
     /// <summary>
-    ///     If try type will only be registered if there is no pre-existing service
-    ///     False by default
+    ///     Which method type to use, 
     /// </summary>
-    public bool UseTry { get; set; }
+    public RegistrationType With { get; set; } = RegistrationType.Add;
 
     /// <summary>
     ///     DependencyModule realm that this type should be associated with

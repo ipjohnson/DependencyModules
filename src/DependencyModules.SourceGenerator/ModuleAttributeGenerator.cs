@@ -7,9 +7,9 @@ namespace DependencyModules.SourceGenerator;
 
 public class ModuleAttributeGenerator {
     public void Generate(ModuleEntryPointModel model, ClassDefinition classDefinition) {
-        var attributeClass = classDefinition.AddClass("ModuleAttribute");
+        var attributeClass = classDefinition.AddClass("Attribute");
 
-        attributeClass.AddBaseType(TypeDefinition.Get(typeof(Attribute)));
+        attributeClass.AddBaseType(TypeDefinition.Get("BaseAttribute = System.Attribute","BaseAttribute"));
         attributeClass.AddBaseType(KnownTypes.DependencyModules.Interfaces.IDependencyModuleProvider);
 
         if (model.Parameters.Count > 0) {

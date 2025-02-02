@@ -5,7 +5,7 @@ namespace SutProject.Tests.StandardTests;
 
 public class SingletonTests {
     [ModuleTest]
-    [SutModule.Module]
+    [SutModule.Attribute]
     public void ResolveSingleton(ISingletonService singletonService, ISingletonService otherSingletonService) {
         Assert.NotNull(singletonService);
         Assert.NotNull(otherSingletonService);

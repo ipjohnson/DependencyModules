@@ -3,7 +3,7 @@ using SutProject;
 
 namespace SecondarySutProject;
 
-[TransientService(ServiceType = typeof(IDependencyOne))]
+[TransientService]
 public class BetterDependencyOne : IDependencyOne {
 
     public BetterDependencyOne(ISingletonService singletonService, IScopedService scopedService) {

@@ -3,5 +3,5 @@ using DependencyModules.Runtime.Attributes;
 namespace SecondarySutProject.CircularReferenceModules;
 
 [DependencyModule]
-[ModuleB.Module]
+[ModuleB.Attribute]
 public partial class ModuleA { }

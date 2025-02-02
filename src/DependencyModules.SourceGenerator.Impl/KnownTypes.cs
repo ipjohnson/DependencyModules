@@ -14,6 +14,9 @@ public static class KnownTypes {
             
             public static readonly ITypeDefinition IServiceProvider =
                 TypeDefinition.Get(TypeDefinitionEnum.InterfaceDefinition, Namespace, "IServiceProvider");
+            
+            public static readonly ITypeDefinition ServiceDescriptor = 
+                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "ServiceDescriptor");
         }
     }
 

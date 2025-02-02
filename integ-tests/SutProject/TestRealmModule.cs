@@ -9,5 +9,5 @@ public interface ITestRealmService {
     
 }
 
-[SingletonService(ServiceType = typeof(ITestRealmService), Realm = typeof(TestRealmModule))]
+[SingletonService(Realm = typeof(TestRealmModule))]
 public class TestRealmService : ITestRealmService { }

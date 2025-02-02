@@ -49,7 +49,7 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
     private static List<ServiceRegistrationModel> GetRegistrations(
         GeneratorSyntaxContext context, ITypeDefinition classDefinition, CancellationToken cancellationToken) {
         var list = new List<ServiceRegistrationModel>();
-        
+
         foreach (var attributeSyntax in
                  context.Node.DescendantNodes().OfType<AttributeSyntax>()) {
             foreach (var typeDefinition in _attributeTypes) {
@@ -66,17 +66,17 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
     }
 
     private static ServiceRegistrationModel GetServiceRegistration(GeneratorSyntaxContext context, AttributeSyntax attributeSyntax, ITypeDefinition classDefinition) {
-        var registrationType = ServiceLifestyle.Transient;
+        var lifestyle = ServiceLifestyle.Transient;
 
         if (attributeSyntax.Name.ToString().StartsWith("Singleton")) {
-            registrationType = ServiceLifestyle.Singleton;
+            lifestyle = ServiceLifestyle.Singleton;
         }
         else if (attributeSyntax.Name.ToString().StartsWith("Scoped")) {
-            registrationType = ServiceLifestyle.Scoped;
+            lifestyle = ServiceLifestyle.Scoped;
         }
 
         ITypeDefinition? registration = null;
-        bool? registerWithTry = null;
+        RegistrationType? registrationType = null;
         ITypeDefinition? realm = null;
         object? key = null;
 
@@ -87,8 +87,8 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
                         case "Key":
                             key = argumentSyntax.Expression.ToString();
                             break;
-                        case "UseTry":
-                            registerWithTry = argumentSyntax.Expression.ToString() == "true";
+                        case "With":
+                            registrationType = GetRegistrationType(argumentSyntax.Expression.ToString());
                             break;
 
                         case "ServiceType":
@@ -96,17 +96,7 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
                                 registration = typeOfExpression.Type.GetTypeDefinition(context);
 
                                 if (registration is GenericTypeDefinition) {
-                                    var argumentTypes =
-                                        registration.TypeArguments.Select(
-                                            _ => _ is TypeParameterDefinition ? 
-                                                TypeDefinition.Get("", "") : _).ToArray();
-                                    
-                                    registration = new GenericTypeDefinition(
-                                        registration.TypeDefinitionEnum,
-                                        registration.Namespace,
-                                        registration.Name,
-                                        argumentTypes
-                                    );
+                                    registration = ReplaceGenericParametersForRegistration(registration);
                                 }
                             }
                             break;
@@ -122,12 +112,68 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
         }
 
         return new ServiceRegistrationModel(
-            registration ?? classDefinition,
+            registration ?? GetServieTypeFromClass(context, classDefinition),
+            lifestyle,
             registrationType,
-            registerWithTry,
             realm,
             key
         );
+    }
+
+    private static RegistrationType GetRegistrationType(string toString) {
+        var typeString = toString.Replace("RegistrationType.", "");
+
+        switch (typeString) {
+            case "Add":
+                return RegistrationType.Add;
+            case "Try":
+                return RegistrationType.Try;
+            case "TryEnumerable":
+                return  RegistrationType.TryEnumerable;
+            case "Replace":
+                return RegistrationType.Replace;
+            default:
+                throw new Exception("Unsupported RegistrationType: " + typeString);
+        }
+    }
+
+    private static ITypeDefinition ReplaceGenericParametersForRegistration(ITypeDefinition registration) {
+        var argumentTypes =
+            registration.TypeArguments.Select(
+                _ => _ is TypeParameterDefinition ? TypeDefinition.Get("", "") : _).ToArray();
+
+        registration = new GenericTypeDefinition(
+            registration.TypeDefinitionEnum,
+            registration.Namespace,
+            registration.Name,
+            argumentTypes
+        );
+        return registration;
+    }
+
+    private static ITypeDefinition GetServieTypeFromClass(
+        GeneratorSyntaxContext context, ITypeDefinition classDefinition) {
+        return GetBaseTypeRegistration(context) ?? classDefinition;
+    }
+
+    private static ITypeDefinition? GetBaseTypeRegistration(GeneratorSyntaxContext context) {
+        if (context.Node is ClassDeclarationSyntax classDeclarationSyntax) {
+            if (classDeclarationSyntax.BaseList != null) {
+                foreach (var baseTypeSyntax in classDeclarationSyntax.BaseList.Types) {
+                    var baseTypeDefinition = baseTypeSyntax.Type.GetTypeDefinition(context);
+
+                    if (baseTypeDefinition != null) {
+                        if (baseTypeDefinition is GenericTypeDefinition) {
+                            baseTypeDefinition = ReplaceGenericParametersForRegistration(baseTypeDefinition);
+                        }
+
+                        return baseTypeDefinition;
+                    }
+                }
+            }
+        }
+
+        return null;
     }
 
     private ITypeDefinition GetClassDefinition(GeneratorSyntaxContext context) {

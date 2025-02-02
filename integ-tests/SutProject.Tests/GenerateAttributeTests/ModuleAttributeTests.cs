@@ -8,11 +8,11 @@ public class ModuleAttributeTests {
     public void AssertGenerateAttribute() {
         var assembly = GetType().Assembly;
 
-        var withAttributeType = assembly.GetType(typeof(ModuleWithAttribute).FullName + "+ModuleAttribute");
+        var withAttributeType = assembly.GetType(typeof(ModuleWithAttribute).FullName + "+Attribute");
         
         Assert.NotNull(withAttributeType);
         
-        var withoutAttributeType = assembly.GetType(typeof(ModuleWithoutAttribute).FullName + "+ModuleAttribute");
+        var withoutAttributeType = assembly.GetType(typeof(ModuleWithoutAttribute).FullName + "+Attribute");
         
         Assert.Null(withoutAttributeType);
     }

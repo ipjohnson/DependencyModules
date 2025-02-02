@@ -9,7 +9,7 @@ namespace SutProject.Tests.NSubstitute;
 public class NSubstituteAttributeTests {
 
     [ModuleTest]
-    [SutModule.Module]
+    [SutModule.Attribute]
     public void MockTest([Mock] IDependencyOne dependencyOne,
         [Mock] IScopedService scopedService, ISingletonService singletonService) {
         dependencyOne.SingletonService.Returns(singletonService);

@@ -3,8 +3,8 @@ using SutProject;
 using SutProject.Tests.TestFramework;
 using Xunit;
 
-[assembly: AssemblyLevelModule.Module]
-[assembly: TestRealmModule.Module]
+[assembly: AssemblyLevelModule.Attribute]
+[assembly: TestRealmModule.Attribute]
 
 namespace SutProject.Tests.TestFramework;
 
@@ -15,7 +15,7 @@ public class AssemblyTestCaseTests {
     }
 }
 
-[ClassLevelModule.Module]
+[ClassLevelModule.Attribute]
 public class ClassTestCaseTests {
     [ModuleTest]
     public void ClassTest(ITestRealmService service) {
@@ -23,10 +23,10 @@ public class ClassTestCaseTests {
     }
 }
 
-[ClassLevelModule.Module]
+[ClassLevelModule.Attribute]
 public class MethodTestCaseTests {
     [ModuleTest]
-    [MethodLevelModule.Module]
+    [MethodLevelModule.Attribute]
     public void MethodTest(ITestRealmService service) {
         Assert.IsType<MethodTestCaseService>(service);
     }

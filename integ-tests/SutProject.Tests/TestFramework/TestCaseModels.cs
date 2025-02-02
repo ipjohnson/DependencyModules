@@ -3,18 +3,17 @@ using DependencyModules.Runtime.Attributes;
 namespace SutProject.Tests.TestFramework;
 
 
-[SingletonService(ServiceType = typeof(ITestRealmService), 
-    Realm = typeof(AssemblyLevelModule))]
+[SingletonService(Realm = typeof(AssemblyLevelModule))]
 public class AssemblyTestCaseService : ITestRealmService {
     
 }
 
-[SingletonService(ServiceType = typeof(ITestRealmService), Realm = typeof(ClassLevelModule))]
+[SingletonService(Realm = typeof(ClassLevelModule))]
 public class ClassTestCaseService : ITestRealmService {
     
 }
 
-[SingletonService(ServiceType = typeof(ITestRealmService), Realm = typeof(MethodLevelModule))]
+[SingletonService(Realm = typeof(MethodLevelModule))]
 public class MethodTestCaseService : ITestRealmService {
     
 }

@@ -5,7 +5,7 @@ namespace SutProject.Tests.StandardTests;
 
 public class SimpleResolveTests {
     [ModuleTest]
-    [SutModule.Module]
+    [SutModule.Attribute]
     public void SimpleTest(IDependencyOne dependencyOne) {
         Assert.NotNull(dependencyOne);
         Assert.NotNull(dependencyOne.SingletonService);
@@ -14,7 +14,7 @@ public class SimpleResolveTests {
 
 
     [ModuleTest]
-    [SutModule.Module]
+    [SutModule.Attribute]
     public void ResolveServiceProvider(IDependencyOne dependencyOne, IServiceProvider serviceProvider) {
         Assert.NotNull(dependencyOne);
         Assert.NotNull(serviceProvider);

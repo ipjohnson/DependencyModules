@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Text;
 using CSharpAuthor;
 using DependencyModules.SourceGenerator.Impl.Models;
@@ -86,61 +87,128 @@ public class DependencyFileWriter {
                     continue;
                 }
 
-                stringBuilder.Length = 0;
 
-                if (GetUseTryFlag(entryPointModel, configurationModel, registrationModel)) {
-                    stringBuilder.Append("Try");
-                }
+                var registrationType = GetRegistrationType(entryPointModel, configurationModel, registrationModel);
 
-                stringBuilder.Append("Add");
-
-                if (registrationModel.Key != null) {
-                    stringBuilder.Append("Keyed");
-                }
-
-                switch (registrationModel.Lifestyle) {
-                    case ServiceLifestyle.Transient:
-                        stringBuilder.Append("Transient");
+                switch (registrationType) {
+                    case RegistrationType.Add:
+                    case RegistrationType.Try:
+                        HandleTryAndAddRegistrationTypes(
+                            stringBuilder, registrationType, registrationModel, serviceModel, method, services);
                         break;
-                    case ServiceLifestyle.Scoped:
-                        stringBuilder.Append("Scoped");
-                        break;
-                    case ServiceLifestyle.Singleton:
-                        stringBuilder.Append("Singleton");
+                    
+                    case RegistrationType.Replace:
+                    case RegistrationType.TryEnumerable:
+                        HandleTryEnumerableAndReplaceRegistrationType(
+                            registrationType, registrationModel, serviceModel, method, services);
+                        
                         break;
                 }
-
-                var output = new List<object>();
-
-                output.Add(TypeOf(registrationModel.ServiceType));
-
-                if (registrationModel.Key != null) {
-                    output.Add(registrationModel.Key);
-                }
-
-                output.Add(TypeOf(serviceModel.ImplementationType));
-
-                method.AddIndentedStatement(
-                    services.Invoke(
-                        stringBuilder.ToString(),
-                        output.ToArray()
-                    ));
             }
         }
 
         return method.Name;
     }
 
-    private static bool GetUseTryFlag(ModuleEntryPointModel entryPointModel, DependencyModuleConfigurationModel configurationModel, ServiceRegistrationModel registrationModel) {
-        if (registrationModel.RegisterWithTry.HasValue) {
-            return registrationModel.RegisterWithTry.Value;
+    private void HandleTryEnumerableAndReplaceRegistrationType(
+        RegistrationType registrationType,
+        ServiceRegistrationModel registrationModel, 
+        ServiceModel serviceModel,
+        MethodDefinition method,
+        ParameterDefinition services) {
+        var invokeMethod = 
+            registrationType == RegistrationType.Replace ? "Replace" : "TryAddEnumerable";
+
+        var parameters = new List<object> {
+            TypeOf(registrationModel.ServiceType)
+        };
+        
+        if (registrationModel.Key != null) {
+            parameters.Add(registrationModel.Key);
+        }
+        parameters.Add(TypeOf(serviceModel.ImplementationType));
+
+        switch (registrationModel.Lifestyle) {
+            case ServiceLifestyle.Transient:
+                parameters.Add(CodeOutputComponent.Get("ServiceLifetime.Transient"));
+                break;
+            case ServiceLifestyle.Scoped:
+                parameters.Add(CodeOutputComponent.Get("ServiceLifetime.Scoped"));
+                break;
+            case ServiceLifestyle.Singleton:
+                parameters.Add(CodeOutputComponent.Get("ServiceLifetime.Singleton"));
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
+        
+        var serviceDescriptor = 
+            New(
+                KnownTypes.Microsoft.DependencyInjection.ServiceDescriptor,
+                parameters.ToArray());
+        
+        method.AddIndentedStatement(
+            services.Invoke(
+                invokeMethod,
+                serviceDescriptor
+            ));
+    }
+
+    private static void HandleTryAndAddRegistrationTypes(
+        StringBuilder stringBuilder, RegistrationType registrationType, ServiceRegistrationModel registrationModel, ServiceModel serviceModel,
+        MethodDefinition method,
+        ParameterDefinition services) {
+        stringBuilder.Length = 0;
+
+        if (registrationType == RegistrationType.Try) {
+            stringBuilder.Append("Try");
+        }
+
+        stringBuilder.Append("Add");
+
+        if (registrationModel.Key != null) {
+            stringBuilder.Append("Keyed");
+        }
+
+        switch (registrationModel.Lifestyle) {
+            case ServiceLifestyle.Transient:
+                stringBuilder.Append("Transient");
+                break;
+            case ServiceLifestyle.Scoped:
+                stringBuilder.Append("Scoped");
+                break;
+            case ServiceLifestyle.Singleton:
+                stringBuilder.Append("Singleton");
+                break;
+        }
+
+        var parameters = new List<object>();
+
+        parameters.Add(TypeOf(registrationModel.ServiceType));
+
+        if (registrationModel.Key != null) {
+            parameters.Add(registrationModel.Key);
+        }
+
+        parameters.Add(TypeOf(serviceModel.ImplementationType));
+
+        method.AddIndentedStatement(
+            services.Invoke(
+                stringBuilder.ToString(),
+                parameters.ToArray()
+            ));
+    }
+
+    private static RegistrationType GetRegistrationType(ModuleEntryPointModel entryPointModel, DependencyModuleConfigurationModel configurationModel, ServiceRegistrationModel registrationModel) {
+        if (registrationModel.RegistrationType.HasValue) {
+            return registrationModel.RegistrationType.Value;
         }
 
         if (entryPointModel.UseTry.HasValue) {
-            return entryPointModel.UseTry.Value;
+            return RegistrationType.Try;
         }
 
-        return configurationModel.DefaultUseTry;
+        return configurationModel.DefaultUseTry ? RegistrationType.Try : RegistrationType.Add;
     }
 
     private List<ServiceModel> GetSortedServiceModels(IEnumerable<ServiceModel> serviceModels) {

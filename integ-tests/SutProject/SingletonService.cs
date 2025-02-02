@@ -6,7 +6,7 @@ public interface ISingletonService {
     string GetName();
 }
 
-[SingletonService(ServiceType = typeof(ISingletonService))]
+[SingletonService]
 public class SingletonService : ISingletonService {
 
     public string GetName() {

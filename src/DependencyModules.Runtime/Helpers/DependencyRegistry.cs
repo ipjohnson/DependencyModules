@@ -10,7 +10,9 @@ public delegate void RegistryFunc(IServiceCollection serviceCollection);
 ///     per type
 /// </summary>
 /// <typeparam name="T"></typeparam>
+// ReSharper disable once ClassNeverInstantiated.Global
 public class DependencyRegistry<T> {
+    // ReSharper disable once StaticMemberInGenericType
     private static readonly List<RegistryFunc> _registryFuncs = [];
 
     /// <summary>
