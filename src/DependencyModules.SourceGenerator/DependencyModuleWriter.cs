@@ -27,7 +27,7 @@ public class DependencyModuleWriter {
     private void GenerateModuleClass(ModuleEntryPointModel model, CSharpFileDefinition csharpFile) {
         var classDefinition = csharpFile.AddClass(model.EntryPointType.Name);
 
-        classDefinition.NullableEnable();
+        classDefinition.EnableNullable();
         classDefinition.Modifiers |= ComponentModifier.Partial;
 
         if (model.GenerateAttribute != false) {
