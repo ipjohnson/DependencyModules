@@ -1,12 +1,12 @@
 using System.Reflection;
 using DependencyModules.Runtime.Interfaces;
-using DependencyModules.Testing.Attributes;
-using DependencyModules.Testing.Attributes.Interfaces;
+using DependencyModules.xUnit.Attributes;
+using DependencyModules.xUnit.Attributes.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit.Internal;
 using Xunit.v3;
 
-namespace DependencyModules.Testing.Impl;
+namespace DependencyModules.xUnit.Impl;
 
 /// <summary>
 ///     xUnit test case implementation

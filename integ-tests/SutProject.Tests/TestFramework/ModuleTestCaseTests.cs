@@ -1,4 +1,4 @@
-using DependencyModules.Testing.Attributes;
+using DependencyModules.xUnit.Attributes;
 using SutProject;
 using SutProject.Tests.TestFramework;
 using Xunit;

@@ -1,4 +1,4 @@
-namespace DependencyModules.Testing.Attributes.Interfaces;
+namespace DependencyModules.xUnit.Attributes.Interfaces;
 
 public interface IMockSupportAttribute {
     object ProvideMock(Type type);

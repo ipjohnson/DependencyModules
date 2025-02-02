@@ -1,7 +1,7 @@
 using System.Collections.Immutable;
 using System.Reflection;
 
-namespace DependencyModules.Testing.Impl;
+namespace DependencyModules.xUnit.Impl;
 
 public static class AttributeUtility {
     /// <summary>

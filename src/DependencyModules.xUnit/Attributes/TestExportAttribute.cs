@@ -1,8 +1,8 @@
-using DependencyModules.Testing.Attributes.Interfaces;
+using DependencyModules.xUnit.Attributes.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit.v3;
 
-namespace DependencyModules.Testing.Attributes;
+namespace DependencyModules.xUnit.Attributes;
 
 /// <summary>
 ///     Export type for test purposes

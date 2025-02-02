@@ -1,10 +1,10 @@
 using System.Reflection;
-using DependencyModules.Testing.Attributes.Interfaces;
-using DependencyModules.Testing.Impl;
+using DependencyModules.xUnit.Attributes.Interfaces;
+using DependencyModules.xUnit.Impl;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit.v3;
 
-namespace DependencyModules.Testing.Attributes;
+namespace DependencyModules.xUnit.Attributes;
 
 /// <summary>
 ///     Mock service and pass it as parameter to method

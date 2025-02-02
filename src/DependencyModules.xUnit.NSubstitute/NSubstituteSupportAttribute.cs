@@ -1,7 +1,7 @@
-using DependencyModules.Testing.Attributes.Interfaces;
+using DependencyModules.xUnit.Attributes.Interfaces;
 using NSub = NSubstitute;
 
-namespace DependencyModules.Testing.NSubstitute;
+namespace DependencyModules.xUnit.NSubstitute;
 
 [AttributeUsage(AttributeTargets.Method | AttributeTargets.Class | AttributeTargets.Assembly)]
 public class NSubstituteSupportAttribute : Attribute, IMockSupportAttribute {

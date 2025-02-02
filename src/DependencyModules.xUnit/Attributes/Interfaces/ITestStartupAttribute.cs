@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Xunit.v3;
 
-namespace DependencyModules.Testing.Attributes.Interfaces;
+namespace DependencyModules.xUnit.Attributes.Interfaces;
 
 public interface ITestStartupAttribute {
 

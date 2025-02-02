@@ -1,7 +1,7 @@
 using Xunit.Sdk;
 using Xunit.v3;
 
-namespace DependencyModules.Testing.Impl;
+namespace DependencyModules.xUnit.Impl;
 
 public class ModuleTestDiscoverer : IXunitTestCaseDiscoverer {
 

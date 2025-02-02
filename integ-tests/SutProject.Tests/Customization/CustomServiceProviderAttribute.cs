@@ -1,4 +1,4 @@
-using DependencyModules.Testing.Attributes.Interfaces;
+using DependencyModules.xUnit.Attributes.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit.v3;
 

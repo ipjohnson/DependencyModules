@@ -1,5 +1,5 @@
-using DependencyModules.Testing.Attributes;
-using DependencyModules.Testing.NSubstitute;
+using DependencyModules.xUnit.Attributes;
+using DependencyModules.xUnit.NSubstitute;
 using NSubstitute;
 using Xunit;
 

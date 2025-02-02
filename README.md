@@ -120,8 +120,8 @@ DependencyModules provides an xUnit extension to make testing much easier.
 It handles the population and construction of a service provider using specified modules.
 
 ```csharp
-> dotnet add package DependencyModules.Testing
-> dotnet add package DependencyModules.Testing.NSubstitute
+> dotnet add package DependencyModules.xUnit
+> dotnet add package DependencyModules.xUnit.NSubstitute
 
 // applies module & nsubstitute support to all tests.
 // test attributes can be applied at the assembly, class, and test method level

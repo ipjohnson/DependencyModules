@@ -1,8 +1,8 @@
-using DependencyModules.Testing.Impl;
+using DependencyModules.xUnit.Impl;
 using Xunit;
 using Xunit.v3;
 
-namespace DependencyModules.Testing.Attributes;
+namespace DependencyModules.xUnit.Attributes;
 
 /// <summary>
 ///     Mark test methods as ModuleTest
