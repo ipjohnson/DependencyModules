@@ -162,7 +162,8 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
                 foreach (var baseTypeSyntax in classDeclarationSyntax.BaseList.Types) {
                     var baseTypeDefinition = baseTypeSyntax.Type.GetTypeDefinition(context);
 
-                    if (baseTypeDefinition != null) {
+                    // only auto register interfaces
+                    if (baseTypeDefinition is { TypeDefinitionEnum: TypeDefinitionEnum.InterfaceDefinition }) {
                         if (baseTypeDefinition is GenericTypeDefinition) {
                             baseTypeDefinition = ReplaceGenericParametersForRegistration(baseTypeDefinition);
                         }
