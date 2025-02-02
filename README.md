@@ -57,7 +57,7 @@ var service = provider.GetService<OtherService>();
 
 ## Module Re-use
 
-DependencyModules creates a `ModuleAttribute` class that can be used to apply sub dependencies.
+DependencyModules creates an `Attribute` class that can be used to apply sub dependencies.
 
 ```csharp
 // Modules can be re-used with the generated attributes
