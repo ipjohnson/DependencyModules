@@ -1,7 +1,7 @@
 # DependencyModules
 
 DependencyModules is a C# source generator package that uses attributes to create
-dependency injection registration modules. These packages can then be used to populate 
+dependency injection registration modules. These modules can then be used to populate 
 an IServiceCollection instance.
 
 ## Installation
