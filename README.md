@@ -140,3 +140,69 @@ public class OtherServiceTests
   }
 }
 ```
+## Implementation
+
+Behind the scenes the library generates registration code that can be used with any `IServiceCollection` compatible DI container.
+
+Example generated code for [SutModule.cs](integ-tests/SutProject/SutModule.cs)
+```csharp
+    // SutModule.Dependencies.g.cs
+    public partial class SutModule
+    {
+        private static int moduleField = DependencyRegistry<SutModule>.Add(ModuleDependencies);
+
+        private static void ModuleDependencies(IServiceCollection services)
+        {
+            services.AddTransient(typeof(IDependencyOne), typeof(DependencyOne));
+            services.AddSingleton(typeof(IGenericInterface<>), typeof(GenericClass<>));
+            services.AddScoped(typeof(IScopedService), typeof(ScopedService));
+            services.AddSingleton(typeof(ISingletonService), typeof(SingletonService));
+            services.AddSingleton(typeof(IGenericInterface<string>), typeof(StringGeneric));
+        }
+    }
+
+    // SutModule.Modules.g.cs
+    public partial class SutModule : IDependencyModule
+    {
+        static SutModule()
+        {
+        }
+
+        // this method loads all dependencies into IServiceCollection.
+        public void PopulateServiceCollection(IServiceCollection services)
+        {
+            DependencyRegistry<SutModule>.LoadModules(services, this);
+        }
+
+        void IDependencyModule.InternalApplyServices(IServiceCollection services)
+        {
+            DependencyRegistry<SutModule>.ApplyServices(services);
+        }
+
+        // this method returns any modules that are attached using attributes
+        IEnumerable<object> IDependencyModule.InternalGetModules()
+        {
+            yield break;
+        }
+
+        public override bool Equals(object? obj)
+        {
+            return obj is SutModule;
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(base.GetHashCode());
+        }
+
+        public class ModuleAttribute : Attribute, IDependencyModuleProvider
+        {
+            public IDependencyModule GetModule()
+            {
+                var newModule = new SutModule();
+                return newModule;
+            }
+        }
+    }
+```
+```
