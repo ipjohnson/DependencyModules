@@ -1,3 +1,6 @@
+using System.ComponentModel;
+using Microsoft.Extensions.DependencyInjection;
+
 namespace DependencyModules.Runtime.Attributes;
 
 public enum RegistrationType {
@@ -7,7 +10,15 @@ public enum RegistrationType {
     Replace
 }
 
-public abstract class BaseServiceAttribute : Attribute {
+public interface  IServiceRegistrationAttribute {
+    string? Key { get; set; }
+    
+    Type? ServiceType { get; set; }
+    
+    ServiceLifetime Lifetime { get; set; }   
+}
+
+public abstract class BaseServiceAttribute : Attribute, IServiceRegistrationAttribute {
     /// <summary>
     ///     Key to use for DI registration
     /// </summary>
@@ -17,7 +28,7 @@ public abstract class BaseServiceAttribute : Attribute {
     ///     Service type to register
     /// </summary>
     public Type? ServiceType { get; set; }
-
+    
     /// <summary>
     ///     Which method type to use, 
     /// </summary>
@@ -27,4 +38,12 @@ public abstract class BaseServiceAttribute : Attribute {
     ///     DependencyModule realm that this type should be associated with
     /// </summary>
     public Type? Realm { get; set; }
+    
+    [Browsable(false)]
+    ServiceLifetime IServiceRegistrationAttribute.Lifetime {
+        get => Lifetime;
+        set => throw new Exception("Setting lifetime is not supported");
+    }
+
+    protected abstract ServiceLifetime Lifetime { get; }
 }
