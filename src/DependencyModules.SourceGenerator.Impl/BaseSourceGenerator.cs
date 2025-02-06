@@ -26,13 +26,14 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
 
     private IncrementalValueProvider<DependencyModuleConfigurationModel> CreateConfigurationValueProvider(IncrementalGeneratorInitializationContext context) {
         return context.AnalyzerConfigOptionsProvider.Select((options, _) => {
-            var defaultUseTry = false;
+            RegistrationType defaultRegistrationType = RegistrationType.Add;
 
-            if (options.GlobalOptions.TryGetValue("build_property.DependencyModules_DefaultUseTry", out var value)) {
-                defaultUseTry = value.ToLowerInvariant() == "true";
+            if (options.GlobalOptions.TryGetValue(
+                    "build_property.DependencyModules_RegistrationType", out var value)) {
+                defaultRegistrationType = GetRegistrationType(value);
             }
 
-            return new DependencyModuleConfigurationModel(defaultUseTry);
+            return new DependencyModuleConfigurationModel(defaultRegistrationType);
         }).WithComparer(new DependencyModuleConfigurationModelComparer());
     }
 
@@ -58,7 +59,7 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
                 .ToList();
         }
 
-        var (onlyRealm, useTry, generateAttribute) = GetDependencyFlags(context);
+        var (onlyRealm, registrationType, generateAttribute) = GetDependencyFlags(context);
         var implementsEqualsFlag = GetEqualsFlag(context);
         var parameters = GetConstructorParameters(context);
         var properties = GetProperties(context);
@@ -66,7 +67,7 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
         return new ModuleEntryPointModel(
             ((ClassDeclarationSyntax)context.Node).GetTypeDefinition(),
             onlyRealm,
-            useTry,
+            registrationType,
             generateAttribute,
             parameters,
             implementsEqualsFlag,
@@ -122,9 +123,9 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
         return context.Node.DescendantNodes().OfType<MethodDeclarationSyntax>().Any(m => m.Identifier.ToString().Equals("Equals"));
     }
 
-    private (bool onlyRealm, bool? useTry, bool? generateAttribute) GetDependencyFlags(GeneratorSyntaxContext context) {
+    private (bool onlyRealm, RegistrationType? registrationType, bool? generateAttribute) GetDependencyFlags(GeneratorSyntaxContext context) {
         var onlyRealm = false;
-        bool? useTry = null;
+        RegistrationType? registrationType = null;
         bool? generateAttribute = null;
         if (context.Node is ClassDeclarationSyntax classDeclarationSyntax) {
             var module = classDeclarationSyntax.DescendantNodes().OfType<AttributeSyntax>().FirstOrDefault(attr => attr.Name.ToString().StartsWith("DependencyModule"));
@@ -137,8 +138,8 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
                         case "OnlyRealm":
                             onlyRealm = argumentSyntax.Expression.ToString() == "true";
                             break;
-                        case "UseTry":
-                            useTry = argumentSyntax.Expression.ToString() == "true";
+                        case "With":
+                            registrationType = GetRegistrationType(argumentSyntax.Expression.ToString());
                             break;
                         case "GenerateAttribute":
                             generateAttribute = argumentSyntax.Expression.ToString() == "true";
@@ -147,6 +148,24 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
                 }
             }
         }
-        return (onlyRealm, useTry, generateAttribute);
+        
+        return (onlyRealm, registrationType, generateAttribute);
+    }
+    
+    public static RegistrationType GetRegistrationType(string toString) {
+        var typeString = toString.Replace("RegistrationType.", "");
+
+        switch (typeString) {
+            case "Add":
+                return RegistrationType.Add;
+            case "Try":
+                return RegistrationType.Try;
+            case "TryEnumerable":
+                return  RegistrationType.TryEnumerable;
+            case "Replace":
+                return RegistrationType.Replace;
+            default:
+                throw new Exception("Unsupported RegistrationType: " + typeString);
+        }
     }
 }

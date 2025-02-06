@@ -88,7 +88,8 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
                             key = argumentSyntax.Expression.ToString();
                             break;
                         case "With":
-                            registrationType = GetRegistrationType(argumentSyntax.Expression.ToString());
+                            registrationType = 
+                                BaseSourceGenerator.GetRegistrationType(argumentSyntax.Expression.ToString());
                             break;
 
                         case "ServiceType":
@@ -119,23 +120,7 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
             key
         );
     }
-
-    private static RegistrationType GetRegistrationType(string toString) {
-        var typeString = toString.Replace("RegistrationType.", "");
-
-        switch (typeString) {
-            case "Add":
-                return RegistrationType.Add;
-            case "Try":
-                return RegistrationType.Try;
-            case "TryEnumerable":
-                return  RegistrationType.TryEnumerable;
-            case "Replace":
-                return RegistrationType.Replace;
-            default:
-                throw new Exception("Unsupported RegistrationType: " + typeString);
-        }
-    }
+    
 
     private static ITypeDefinition ReplaceGenericParametersForRegistration(ITypeDefinition registration) {
         var argumentTypes =

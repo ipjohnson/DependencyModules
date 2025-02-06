@@ -6,14 +6,14 @@ namespace SutProject.Tests.RegistrationTypeTests;
 
 [DependencyModule(OnlyRealm = true)]
 [SutModule.Attribute]
-public partial class TryWithSutModule {
-    
-}
+public partial class TryWithSutModule { }
 
 [DependencyModule(OnlyRealm = true)]
-public partial class TryWithoutSutModule {
-    
-}
+public partial class TryWithoutSutModule { }
+
+[DependencyModule(With = RegistrationType.Try, OnlyRealm = true)]
+[SutModule.Attribute]
+public partial class TryAtModuleLevelWithSutModule { }
 
 [SingletonService(With = RegistrationType.Try, Realm = typeof(TryWithSutModule))]
 [SingletonService(With = RegistrationType.Try, Realm = typeof(TryWithoutSutModule))]
@@ -28,6 +28,8 @@ public class TryDependency : IDependencyOne {
         get;
     }
 }
+
+
 #pragma warning restore CS8618
 
 public class TryRegistrationTests {
@@ -41,5 +43,11 @@ public class TryRegistrationTests {
     [TryWithoutSutModule.Attribute]
     public void TryWithoutSut(IDependencyOne service) {
         Assert.IsType<TryDependency>(service);
+    }
+
+    [ModuleTest]
+    [TryAtModuleLevelWithSutModule.Attribute]
+    public void TryModuleLevelSut(IDependencyOne service) {
+        Assert.IsType<DependencyOne>(service);
     }
 }

@@ -12,7 +12,7 @@ public class DependencyModuleAttribute : Attribute {
     /// <summary>
     ///     Use try when registering, default is false
     /// </summary>
-    public bool UseTry { get; set; }
+    public RegistrationType With { get; set; } = RegistrationType.Add;
     
     /// <summary>
     /// Generate Module attribute, true by default

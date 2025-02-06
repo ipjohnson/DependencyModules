@@ -204,11 +204,11 @@ public class DependencyFileWriter {
             return registrationModel.RegistrationType.Value;
         }
 
-        if (entryPointModel.UseTry.HasValue) {
-            return RegistrationType.Try;
+        if (entryPointModel.RegistrationType.HasValue) {
+            return entryPointModel.RegistrationType.Value;
         }
 
-        return configurationModel.DefaultUseTry ? RegistrationType.Try : RegistrationType.Add;
+        return configurationModel.RegistrationType;
     }
 
     private List<ServiceModel> GetSortedServiceModels(IEnumerable<ServiceModel> serviceModels) {
