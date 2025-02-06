@@ -155,6 +155,10 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
     public static RegistrationType GetRegistrationType(string toString) {
         var typeString = toString.Replace("RegistrationType.", "");
 
+        if (string.IsNullOrEmpty(typeString)) {
+            return RegistrationType.Add;
+        }
+        
         switch (typeString) {
             case "Add":
                 return RegistrationType.Add;
