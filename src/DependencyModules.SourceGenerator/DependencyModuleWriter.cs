@@ -73,15 +73,18 @@ public class DependencyModuleWriter {
     }
 
     private void InternalGetModulesMethod(ClassDefinition classDefinition, ModuleEntryPointModel model) {
+        var attributeModels = FilterAttributes(model.AttributeModels);
+        
+        if (attributeModels.Count == 0) {
+            return;
+        }
+        
         var loadDependenciesMethod = classDefinition.AddMethod("InternalGetModules");
 
         loadDependenciesMethod.InterfaceImplementation = KnownTypes.DependencyModules.Interfaces.IDependencyModule;
         loadDependenciesMethod.SetReturnType(TypeDefinition.Get(typeof(IEnumerable<object>)));
 
-        foreach (var modelAttributeModel in model.AttributeModels) {
-            if (modelAttributeModel.TypeDefinition.Name == "DependencyModuleAttribute") {
-                continue;
-            }
+        foreach (var modelAttributeModel in attributeModels) {
             var newStatement = New(modelAttributeModel.TypeDefinition, modelAttributeModel.Arguments);
 
             if (!string.IsNullOrEmpty(modelAttributeModel.PropertyAssignment)) {
@@ -90,10 +93,20 @@ public class DependencyModuleWriter {
 
             loadDependenciesMethod.AddIndentedStatement(YieldReturn(newStatement));
         }
+    }
 
-        if (loadDependenciesMethod.StatementCount == 0) {
-            loadDependenciesMethod.AddIndentedStatement("yield break");
+    private List<AttributeModel> FilterAttributes(List<AttributeModel> modelAttributeModels) {
+        var attributeModels = new List<AttributeModel>();
+
+        foreach (var modelAttributeModel in modelAttributeModels) {
+            if (modelAttributeModel.TypeDefinition.Name == "DependencyModuleAttribute") {
+                continue;
+            }
+
+            attributeModels.Add(modelAttributeModel);
         }
+        
+        return attributeModels;
     }
 
     private void InternalApplyServicesMethod(

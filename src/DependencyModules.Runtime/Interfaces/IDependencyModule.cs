@@ -26,7 +26,9 @@ public interface IDependencyModule {
     /// </summary>
     /// <returns></returns>
     [Browsable(false)]
-    IEnumerable<object> InternalGetModules();
+    IEnumerable<object> InternalGetModules() {
+        return ArraySegment<IDependencyModule>.Empty;
+    }
 
     /// <summary>
     /// Internal method not intended to be called by general developers
