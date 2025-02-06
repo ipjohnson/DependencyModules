@@ -219,4 +219,3 @@ Example generated code for [SutModule.cs](integ-tests/SutProject/SutModule.cs)
         }
     }
 ```
-```
