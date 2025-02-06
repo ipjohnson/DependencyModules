@@ -1,3 +1,4 @@
+using DependencyModules.Runtime.Helpers;
 using DependencyModules.Runtime.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -36,10 +37,8 @@ public static class ServiceCollectionExtensions {
     /// <param name="modules"></param>
     /// <returns></returns>
     public static IServiceCollection AddModules(this IServiceCollection services, params IDependencyModule[] modules) {
-        for (var i = 0; i < modules.Length; i++) {
-            modules[i].PopulateServiceCollection(services);
-        }
-
+        DependencyRegistry<object>.LoadModules(services, modules);
+        
         return services;
     }
 }

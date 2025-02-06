@@ -1,4 +1,5 @@
 using System.Reflection;
+using DependencyModules.Runtime.Helpers;
 using DependencyModules.Runtime.Interfaces;
 using DependencyModules.xUnit.Attributes;
 using DependencyModules.xUnit.Attributes.Interfaces;
@@ -118,7 +119,9 @@ public class ModuleTestCase : XunitTestCase {
             }
         }
 
-        ApplyAllModules(serviceCollection, modules.ToArray());
+        modules.Reverse();
+        
+        DependencyRegistry<object>.LoadModules(serviceCollection, modules.ToArray());
     }
 
     /// <remarks>
@@ -234,49 +237,5 @@ public class ModuleTestCase : XunitTestCase {
     private object? ConstructValueFromType(ParameterInfo parameterInfo) {
         return ActivatorUtilities.CreateInstance(_serviceProvider!, parameterInfo.ParameterType);
     }
-
-    private void ApplyAllModules(IServiceCollection serviceCollection, IDependencyModule[] dependencyModules) {
-        foreach (var dependencyModule in GetAllModules(dependencyModules)) {
-            dependencyModule.InternalApplyServices(serviceCollection);
-
-            if (dependencyModule is IServiceCollectionConfiguration serviceCollectionConfigure) {
-                serviceCollectionConfigure.ConfigureServices(serviceCollection);
-            }
-        }
-    }
-
-    private IEnumerable<IDependencyModule> GetAllModules(IDependencyModule[] dependencyModules) {
-        var knownModules = new List<IDependencyModule>();
-        var list = new List<IDependencyModule>();
-        
-        foreach (var dependencyModule in dependencyModules) {
-            list.AddRange(InternalGetModules(dependencyModule, knownModules));
-        }
-        
-        return list;
-    }
-
-    private IEnumerable<IDependencyModule> InternalGetModules(IDependencyModule dependencyModule, List<IDependencyModule> knownModules) {
-        if (knownModules.Contains(dependencyModule)) {
-            yield break;
-        }
-        
-        knownModules.Add(dependencyModule);
-        
-        foreach (var dependentModule in dependencyModule.InternalGetModules()) {
-            if (dependentModule is IDependencyModuleProvider moduleProvider) {
-                var dep = moduleProvider.GetModule();
-                foreach (var module in InternalGetModules(dep, knownModules)) {
-                    yield return module;
-                }
-            }
-            else if (dependencyModule is IDependencyModule dep) {
-                foreach (var module in InternalGetModules(dep, knownModules)) {
-                    yield return module;
-                }
-            }
-        }
-        
-        yield return dependencyModule;
-    }
+    
 }
