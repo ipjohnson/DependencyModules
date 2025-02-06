@@ -193,12 +193,6 @@ Example generated code for [SutModule.cs](integ-tests/SutProject/SutModule.cs)
             DependencyRegistry<SutModule>.ApplyServices(services);
         }
 
-        // this method returns any modules that are attached using attributes
-        IEnumerable<object> IDependencyModule.InternalGetModules()
-        {
-            yield break;
-        }
-
         public override bool Equals(object? obj)
         {
             return obj is SutModule;
@@ -209,7 +203,7 @@ Example generated code for [SutModule.cs](integ-tests/SutProject/SutModule.cs)
             return HashCode.Combine(base.GetHashCode());
         }
 
-        public class ModuleAttribute : Attribute, IDependencyModuleProvider
+        public class Attribute : System.Attribute, IDependencyModuleProvider
         {
             public IDependencyModule GetModule()
             {
