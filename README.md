@@ -101,6 +101,11 @@ public partial class SomeOtherModule
 }
 ```
 
+## Duplication
+
+By default a module will only be loaded once, assuming attributes are used or it's included in the same `AddModules` call. Seperate calls to `AddModule` will result in modules being loaded multiple times. If a module uses parameters it can be useful to load a module more than once. That can be accompilished by overriding the `Equals` and `GetHashcode` methods to allow for multiple loads.
+
+
 ## Realm
 
 By default, all dependencies are registered in all modules within the same assembly. 
