@@ -101,10 +101,19 @@ public partial class SomeOtherModule
 }
 ```
 
-## Duplication
+## Managing duplicate registration
 
 By default a module will only be loaded once, assuming attributes are used or the modules are specified in the same `AddModules` call. Seperate calls to `AddModule` will result in modules being loaded multiple times. If a module uses parameters it can be useful to load a module more than once. That can be accompilished by overriding the `Equals` and `GetHashcode` methods to allow for multiple loads.
 
+In addition by default services will be registered with using an `Add` method. This can be controlled using the `With` property on individual service or at the `DepedencyModule` level.
+
+```
+[SingletonService(With = Registration.Type)]
+public class SomeService { }
+
+[DependencyModule(With = RegistrationType.Try)]
+public partial class SomeModule { }
+```
 
 ## Realm
 
