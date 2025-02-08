@@ -107,7 +107,7 @@ By default a module will only be loaded once, assuming attributes are used or th
 
 Services will be registered using an `Add` method by default. This can be overriden using the `With` property on individual service or at the `DepedencyModule` level.
 
-```
+```csharp
 [SingletonService(With = RegistrationType.Try)]
 public class SomeService { }
 
