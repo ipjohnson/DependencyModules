@@ -225,6 +225,12 @@ public class ModuleTestCase : XunitTestCase {
     }
 
     private object? ResolveArgumentFromProvider(ParameterInfo parameterInfo) {
+        var keyedServicesAttribute = parameterInfo.GetCustomAttribute<FromKeyedServicesAttribute>();
+
+        if (keyedServicesAttribute != null && _serviceProvider is IKeyedServiceProvider keyedServiceProvider) {
+            return keyedServiceProvider.GetKeyedService(parameterInfo.ParameterType, keyedServicesAttribute.Key);
+        }
+        
         var value = _serviceProvider!.GetService(parameterInfo.ParameterType);
 
         if (value != null) {

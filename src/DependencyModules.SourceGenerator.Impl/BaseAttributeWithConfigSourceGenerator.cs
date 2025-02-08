@@ -22,7 +22,6 @@ public abstract class BaseAttributeWithConfigSourceGenerator<TModel, TConfig> : 
         var collection =
             serviceModelProvider.Collect();
 
-
         var config =
             context.AnalyzerConfigOptionsProvider.Select(GenerateConfigAttributeModel).WithComparer(GetConfigComparer());
 

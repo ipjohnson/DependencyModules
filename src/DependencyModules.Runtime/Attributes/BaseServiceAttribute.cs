@@ -11,7 +11,7 @@ public enum RegistrationType {
 }
 
 public interface  IServiceRegistrationAttribute {
-    string? Key { get; set; }
+    object? Key { get; set; }
     
     Type? ServiceType { get; set; }
     
@@ -22,7 +22,7 @@ public abstract class BaseServiceAttribute : Attribute, IServiceRegistrationAttr
     /// <summary>
     ///     Key to use for DI registration
     /// </summary>
-    public string? Key { get; set; }
+    public object? Key { get; set; }
 
     /// <summary>
     ///     Service type to register

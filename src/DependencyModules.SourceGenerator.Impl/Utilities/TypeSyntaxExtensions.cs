@@ -69,8 +69,16 @@ public static class TypeSyntaxExtensions {
 
         return null;
     }
-
-    private static ITypeDefinition? GetTypeDefinitionFromNamedSymbol(INamedTypeSymbol namedTypeSymbol) {
+    
+    public static ITypeDefinition? GetTypeDefinitionFromNamedSymbol(this INamedTypeSymbol? namedTypeSymbol) {
+        if (namedTypeSymbol == null) {
+            return null;
+        }
+        
+        return  InternalGetTypeDefinitionFromNamedSymbol(namedTypeSymbol);
+    }
+    
+    private static ITypeDefinition? InternalGetTypeDefinitionFromNamedSymbol(INamedTypeSymbol namedTypeSymbol) {
 
         if (namedTypeSymbol.IsGenericType) {
             if (namedTypeSymbol.Name == "Nullable") {

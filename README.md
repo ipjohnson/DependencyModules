@@ -130,6 +130,18 @@ public partial class AnotherModule { }
 public class SomeDep : ISomeInterface { }
 ```
 
+## Keyed Registration
+
+Registration attributes have a `Key` property that allows for specifying the key at registration time.
+
+```csharp
+[SingletonService(Key = "SomeKey")]
+public class KeyService : IKeyService { }
+
+// yields this registration line
+services.AddKeyedSingleton(typeof(IKeyService), "SomeKey", typeof(KeyService));
+```
+
 ## Unit testing & Mocking
 
 DependencyModules provides an xUnit extension to make testing much easier. 
@@ -152,7 +164,10 @@ public class OtherServiceTests
      service.SomeProp.Returns("some mock value");
      Assert.Equals("some mock value", test.SomeProp);
   }
+  
+  public void 
 }
+
 ```
 ## Implementation
 

@@ -144,22 +144,57 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
     private static ITypeDefinition? GetBaseTypeRegistration(GeneratorSyntaxContext context) {
         if (context.Node is ClassDeclarationSyntax classDeclarationSyntax) {
             if (classDeclarationSyntax.BaseList != null) {
+                INamedTypeSymbol? baseTypeSymbol = null;
+                
                 foreach (var baseTypeSyntax in classDeclarationSyntax.BaseList.Types) {
-                    var baseTypeDefinition = baseTypeSyntax.Type.GetTypeDefinition(context);
+                    var symbolInfo = context.SemanticModel.GetSymbolInfo(baseTypeSyntax.Type);
 
-                    // only auto register interfaces
-                    if (baseTypeDefinition is { TypeDefinitionEnum: TypeDefinitionEnum.InterfaceDefinition }) {
-                        if (baseTypeDefinition is GenericTypeDefinition) {
-                            baseTypeDefinition = ReplaceGenericParametersForRegistration(baseTypeDefinition);
+                    if (symbolInfo.Symbol is INamedTypeSymbol namedTypeSymbol) {
+                        var baseTypeDefinition = 
+                            namedTypeSymbol.GetTypeDefinitionFromNamedSymbol();
+
+                        // only auto register interfaces
+                        if (baseTypeDefinition is { TypeDefinitionEnum: TypeDefinitionEnum.InterfaceDefinition }) {
+                            if (baseTypeDefinition is GenericTypeDefinition) {
+                                baseTypeDefinition = ReplaceGenericParametersForRegistration(baseTypeDefinition);
+                            }
+
+                            return baseTypeDefinition;
                         }
-
-                        return baseTypeDefinition;
+                        
+                        baseTypeSymbol = namedTypeSymbol;
                     }
+                }
+
+                if (baseTypeSymbol != null) {
+                    return GetBaseInterface(context, baseTypeSymbol);
                 }
             }
         }
 
         return null;
+    }
+
+    private static ITypeDefinition? GetBaseInterface(GeneratorSyntaxContext context, INamedTypeSymbol baseTypeSymbol) {
+        foreach (var interfaceSymbol in baseTypeSymbol.Interfaces) {
+            var baseTypeDefinition = 
+                interfaceSymbol.GetTypeDefinitionFromNamedSymbol();
+
+            // only auto register interfaces
+            if (baseTypeDefinition is { TypeDefinitionEnum: TypeDefinitionEnum.InterfaceDefinition }) {
+                if (baseTypeDefinition is GenericTypeDefinition) {
+                    baseTypeDefinition = ReplaceGenericParametersForRegistration(baseTypeDefinition);
+                }
+
+                return baseTypeDefinition;
+            }
+        }
+        
+        if (baseTypeSymbol.BaseType == null) {
+            return null;
+        }
+        
+        return GetBaseInterface(context, baseTypeSymbol.BaseType);
     }
 
     private ITypeDefinition GetClassDefinition(GeneratorSyntaxContext context) {
