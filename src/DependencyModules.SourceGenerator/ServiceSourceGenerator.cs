@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.ComponentModel;
 using CSharpAuthor;
 using DependencyModules.SourceGenerator.Impl;
 using DependencyModules.SourceGenerator.Impl.Models;
@@ -10,7 +11,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace DependencyModules.SourceGenerator;
 
 public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel> {
-
+    private static ITypeDefinition[] _skipTypes = new [] { TypeDefinition.Get(typeof(INotifyPropertyChanged))};
     private static readonly ITypeDefinition[] _attributeTypes = {
         KnownTypes.DependencyModules.Attributes.TransientServiceAttribute, KnownTypes.DependencyModules.Attributes.ScopedServiceAttribute, KnownTypes.DependencyModules.Attributes.SingletonServiceAttribute
     };
@@ -154,7 +155,8 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
                             namedTypeSymbol.GetTypeDefinitionFromNamedSymbol();
 
                         // only auto register interfaces
-                        if (baseTypeDefinition is { TypeDefinitionEnum: TypeDefinitionEnum.InterfaceDefinition }) {
+                        if (baseTypeDefinition is { TypeDefinitionEnum: TypeDefinitionEnum.InterfaceDefinition } && 
+                            !SkipInterface(baseTypeDefinition)) {
                             if (baseTypeDefinition is GenericTypeDefinition) {
                                 baseTypeDefinition = ReplaceGenericParametersForRegistration(baseTypeDefinition);
                             }
@@ -175,19 +177,26 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
         return null;
     }
 
+    private static bool SkipInterface(ITypeDefinition interfaceType) {
+        return _skipTypes.Any(type => type.Equals(interfaceType));
+    }
+
     private static ITypeDefinition? GetBaseInterface(GeneratorSyntaxContext context, INamedTypeSymbol baseTypeSymbol) {
         foreach (var interfaceSymbol in baseTypeSymbol.Interfaces) {
-            var baseTypeDefinition = 
+            var interfaceType = 
                 interfaceSymbol.GetTypeDefinitionFromNamedSymbol();
 
             // only auto register interfaces
-            if (baseTypeDefinition is { TypeDefinitionEnum: TypeDefinitionEnum.InterfaceDefinition }) {
-                if (baseTypeDefinition is GenericTypeDefinition) {
-                    baseTypeDefinition = ReplaceGenericParametersForRegistration(baseTypeDefinition);
-                }
-
-                return baseTypeDefinition;
+            if (interfaceType == null ||
+                SkipInterface(interfaceType)) {
+                continue;
             }
+            
+            if (interfaceType is GenericTypeDefinition) {
+                interfaceType = ReplaceGenericParametersForRegistration(interfaceType);
+            }
+
+            return interfaceType;
         }
         
         if (baseTypeSymbol.BaseType == null) {
