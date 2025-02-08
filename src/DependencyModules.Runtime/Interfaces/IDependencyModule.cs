@@ -35,5 +35,13 @@ public interface IDependencyModule {
     /// </summary>
     /// <param name="serviceCollection"></param>
     [Browsable(false)]
-    void InternalApplyServices(IServiceCollection serviceCollection);
+    void InternalApplyServices(IServiceCollection serviceCollection) { }
+
+    
+    /// <summary>
+    /// Internal method not intended to be called by general developers
+    /// </summary>
+    /// <param name="serviceCollection"></param>
+    [Browsable(false)]
+    void InternalApplyDecorators(IServiceCollection serviceCollection) { }
 }
