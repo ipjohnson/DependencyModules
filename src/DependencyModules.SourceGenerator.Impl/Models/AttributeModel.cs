@@ -37,3 +37,6 @@ public record AttributeModel(
         return $" {argument.Name}: {value}";
     }
 }
+
+public record AttributeClassInfo(
+    IReadOnlyList<ParameterInfoModel> ConstructorParameters, IReadOnlyList<PropertyInfoModel> Properties);

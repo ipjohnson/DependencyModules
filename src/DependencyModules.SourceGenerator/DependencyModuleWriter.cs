@@ -97,7 +97,7 @@ public class DependencyModuleWriter {
         }
     }
 
-    private List<AttributeModel> FilterAttributes(List<AttributeModel> modelAttributeModels) {
+    private List<AttributeModel> FilterAttributes(IReadOnlyList<AttributeModel> modelAttributeModels) {
         var attributeModels = new List<AttributeModel>();
 
         foreach (var modelAttributeModel in modelAttributeModels) {

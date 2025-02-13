@@ -7,10 +7,10 @@ public record ModuleEntryPointModel(
     bool OnlyRealm,
     RegistrationType? RegistrationType,
     bool? GenerateAttribute,
-    List<ParameterInfoModel> Parameters,
+    IReadOnlyList<ParameterInfoModel> Parameters,
     bool ImplementsEquals,
-    List<PropertyInfoModel> PropertyInfoModels,
-    List<AttributeModel> AttributeModels);
+    IReadOnlyList<PropertyInfoModel> PropertyInfoModels,
+    IReadOnlyList<AttributeModel> AttributeModels);
 
 public class ModuleEntryPointModelComparer : IEqualityComparer<ModuleEntryPointModel> {
 

@@ -61,17 +61,16 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
 
         var (onlyRealm, registrationType, generateAttribute) = GetDependencyFlags(context);
         var implementsEqualsFlag = GetEqualsFlag(context);
-        var parameters = GetConstructorParameters(context);
-        var properties = GetProperties(context);
+        var modelInfo = AttributeModelHelper.GetAttributeClassInfo(context);
 
         return new ModuleEntryPointModel(
             ((ClassDeclarationSyntax)context.Node).GetTypeDefinition(),
             onlyRealm,
             registrationType,
             generateAttribute,
-            parameters,
+            modelInfo.ConstructorParameters,
             implementsEqualsFlag,
-            properties,
+            modelInfo.Properties,
             attributes ?? new());
     }
 
@@ -96,27 +95,6 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
         }
 
         return propertyList;
-    }
-
-    private List<ParameterInfoModel> GetConstructorParameters(GeneratorSyntaxContext context) {
-        var list = new List<ParameterInfoModel>();
-        var constructors =
-            context.Node.DescendantNodes().OfType<ConstructorDeclarationSyntax>().ToList();
-
-        constructors.Sort(
-            (a, b) =>
-                a.ParameterList.Parameters.Count.CompareTo(b.ParameterList.Parameters.Count));
-
-        if (constructors.Count > 0) {
-            foreach (var parameterSyntax in constructors[0].ParameterList.Parameters) {
-                list.Add(new ParameterInfoModel(
-                    parameterSyntax.Identifier.ToString(),
-                    parameterSyntax.Type?.GetTypeDefinition(context) ?? TypeDefinition.Get(typeof(object))
-                ));
-            }
-        }
-
-        return list;
     }
 
     private bool GetEqualsFlag(GeneratorSyntaxContext context) {
