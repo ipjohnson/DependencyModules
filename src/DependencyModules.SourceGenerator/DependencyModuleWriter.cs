@@ -85,10 +85,12 @@ public class DependencyModuleWriter {
         loadDependenciesMethod.SetReturnType(TypeDefinition.Get(typeof(IEnumerable<object>)));
 
         foreach (var modelAttributeModel in attributeModels) {
-            var newStatement = New(modelAttributeModel.TypeDefinition, modelAttributeModel.Arguments);
+            var newStatement = New(modelAttributeModel.TypeDefinition, modelAttributeModel.ArgumentString);
 
-            if (!string.IsNullOrEmpty(modelAttributeModel.PropertyAssignment)) {
-                newStatement.AddInitValue(modelAttributeModel.PropertyAssignment);
+            var initValue = modelAttributeModel.PropertyString;
+            
+            if (!string.IsNullOrEmpty(initValue)) {
+                newStatement.AddInitValue(initValue);
             }
 
             loadDependenciesMethod.AddIndentedStatement(YieldReturn(newStatement));

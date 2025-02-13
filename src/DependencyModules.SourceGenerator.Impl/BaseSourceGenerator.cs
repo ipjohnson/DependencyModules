@@ -169,7 +169,7 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
             case "Replace":
                 return RegistrationType.Replace;
             default:
-                throw new Exception("Unsupported RegistrationType: " + typeString);
+                return RegistrationType.Add;
         }
     }
 }
