@@ -24,6 +24,7 @@ public class ModuleAttributeGenerator {
     public void Generate(ModuleEntryPointModel model, ClassDefinition classDefinition) {
         var attributeClass = classDefinition.AddClass("Attribute");
         
+        attributeClass.Modifiers |= ComponentModifier.Public | ComponentModifier.Partial;
         attributeClass.AddBaseType(TypeDefinition.Get("BaseAttribute = System.Attribute","BaseAttribute"));
         attributeClass.AddBaseType(KnownTypes.DependencyModules.Interfaces.IDependencyModuleProvider);
         attributeClass.AddLeadingTrait(
