@@ -7,7 +7,8 @@ public record AttributeArgumentValue(string Name, object? Value);
 public record AttributeModel(
     ITypeDefinition TypeDefinition,
     IReadOnlyList<AttributeArgumentValue> Arguments,
-    IReadOnlyList<AttributeArgumentValue> Properties) {
+    IReadOnlyList<AttributeArgumentValue> Properties,
+    IReadOnlyList<ITypeDefinition> ImplementedInterfaces) {
     
     public string ArgumentString => string.Join(", ", Arguments.Select(SelectArgument));
     

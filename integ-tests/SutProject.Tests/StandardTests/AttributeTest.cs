@@ -15,6 +15,12 @@ public partial class AttributeTestModule {
     }
 }
 
+[DependencyModule]
+[AttributeTestModule.Attribute]
+public partial class SomeModule {
+    
+}
+
 public class AttributeTest {
     [Fact]
     public void AttributePartialTest() {

@@ -144,7 +144,26 @@ public static class AttributeModelHelper {
 
         return new AttributeModel(type,
             arguments,
-            properties);
+            properties, 
+            GetInterfaces(context, attribute));
+    }
+
+    private static IReadOnlyList<ITypeDefinition> GetInterfaces(
+        GeneratorSyntaxContext context, AttributeSyntax attribute) {
+        var interfaces = new List<ITypeDefinition>();
+        var operation = context.SemanticModel.GetOperation(attribute);
+
+        var symbol = 
+            context.SemanticModel.GetTypeInfo(attribute);
+        
+        if (symbol.Type is INamedTypeSymbol namespaceOrTypeSymbol) {
+            foreach (var interfaceSymbol in namespaceOrTypeSymbol.AllInterfaces) {
+                interfaces.Add(interfaceSymbol.GetTypeDefinition());
+            }
+        }
+
+        
+        return interfaces;
     }
 
 

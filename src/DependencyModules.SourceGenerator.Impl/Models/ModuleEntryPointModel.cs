@@ -13,7 +13,7 @@ public record ModuleEntryPointModel(
     IReadOnlyList<AttributeModel> AttributeModels);
 
 public class ModuleEntryPointModelComparer : IEqualityComparer<ModuleEntryPointModel> {
-
+    
     public bool Equals(ModuleEntryPointModel? x, ModuleEntryPointModel? y) {
         if (x is null && y is null) return true;
         if (x is null || y is null) return false;
