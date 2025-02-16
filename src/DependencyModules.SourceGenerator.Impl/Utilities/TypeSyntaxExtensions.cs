@@ -66,7 +66,7 @@ public static class TypeSyntaxExtensions {
         if (symbolInfo.Symbol is IArrayTypeSymbol arrayTypeSymbol) {
             return GetTypeDefinitionFromType(arrayTypeSymbol.ElementType).MakeArray();
         }
-
+        
         return null;
     }
     

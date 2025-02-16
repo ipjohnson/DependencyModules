@@ -8,12 +8,35 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities;
 
 public static class AttributeModelHelper {
 
-    public static AttributeClassInfo GetAttributeClassInfo(GeneratorSyntaxContext context) {
+    public static IReadOnlyList<AttributeModel> GetAttributeModels(
+        GeneratorSyntaxContext context,  
+        SyntaxNode node,
+        CancellationToken cancellationToken,
+        Func<AttributeSyntax, bool>? filter = null) {
+        if (node is MemberDeclarationSyntax memberDeclarationSyntax) {
+            
+            var results = GetAttributes(
+                context,
+                memberDeclarationSyntax.AttributeLists, 
+                cancellationToken, 
+                filter);
+            
+            return results.ToList();
+        }
+        
+        return Array.Empty<AttributeModel>();
+    }
+    
+    public static AttributeClassInfo GetAttributeClassInfo(
+        GeneratorSyntaxContext context,
+        CancellationToken cancellationToken) {
         var propertyList = new List<PropertyInfoModel>();
         var constructors = new List<ConstructorDeclarationSyntax>();
 
         foreach (var syntax in
                  context.Node.DescendantNodes()) {
+            cancellationToken.ThrowIfCancellationRequested();
+            
             if (syntax is PropertyDeclarationSyntax propertyDeclarationSyntax) {
                 var setter =
                     propertyDeclarationSyntax.AccessorList?.Accessors.FirstOrDefault(
@@ -35,12 +58,14 @@ public static class AttributeModelHelper {
         }
 
         return new AttributeClassInfo(
-            GetConstructorParameterList(context, constructors),
+            GetConstructorParameterList(context, constructors, cancellationToken),
             propertyList);
     }
 
     private static IReadOnlyList<ParameterInfoModel> GetConstructorParameterList(
-        GeneratorSyntaxContext context, List<ConstructorDeclarationSyntax> constructors) {
+        GeneratorSyntaxContext context,
+        List<ConstructorDeclarationSyntax> constructors, 
+        CancellationToken cancellationToken) {
         constructors.Sort(
             (a, b) =>
                 a.ParameterList.Parameters.Count.CompareTo(b.ParameterList.Parameters.Count));
@@ -48,17 +73,8 @@ public static class AttributeModelHelper {
         if (constructors.Count == 0) {
             return Array.Empty<ParameterInfoModel>();
         }
-
-        var list = new List<ParameterInfoModel>();
-
-        foreach (var parameterSyntax in constructors[0].ParameterList.Parameters) {
-            list.Add(new ParameterInfoModel(
-                parameterSyntax.Identifier.ToString(),
-                parameterSyntax.Type?.GetTypeDefinition(context) ?? TypeDefinition.Get(typeof(object))
-            ));
-        }
-
-        return list;
+        
+        return constructors[0].GetMethodParameters(context,cancellationToken);
     }
 
     public static IEnumerable<AttributeModel> GetAttributes(

@@ -15,6 +15,11 @@ public enum RegistrationType {
     Replace
 }
 
+public record ServiceFactoryModel(
+    ITypeDefinition TypeDefinition,
+    string MethodName,
+    IReadOnlyList<ParameterInfoModel> Parameters);
+
 public record ServiceRegistrationModel(
     ITypeDefinition ServiceType,
     ServiceLifestyle Lifestyle,
@@ -24,7 +29,14 @@ public record ServiceRegistrationModel(
 
 public record ServiceModel(
     ITypeDefinition ImplementationType,
-    IReadOnlyList<ServiceRegistrationModel> Registrations);
+    ServiceFactoryModel? Factory,
+    IReadOnlyList<ServiceRegistrationModel> Registrations) {
+    public static ServiceModel Ignore = new ServiceModel(
+        TypeDefinition.Get("", "Ignore"),
+        null,
+        Array.Empty<ServiceRegistrationModel>()
+        );
+}
 
 public class ServiceModelComparer : IEqualityComparer<ServiceModel> {
 
@@ -35,7 +47,15 @@ public class ServiceModelComparer : IEqualityComparer<ServiceModel> {
         if (x.GetType() != y.GetType()) return false;
         return
             x.ImplementationType.Equals(y.ImplementationType) &&
-            CompareRegistrations(x.Registrations, y.Registrations);
+            CompareRegistrations(x.Registrations, y.Registrations) && 
+            CompareFactory(x.Factory, y.Factory);
+    }
+
+    private bool CompareFactory(ServiceFactoryModel? xFactory, ServiceFactoryModel? yFactory) {
+        if (xFactory is null && yFactory is null) return true;
+        if (xFactory is null) return false;
+        if (yFactory is null) return false;
+        return xFactory.Equals(yFactory);
     }
 
     public int GetHashCode(ServiceModel obj) {

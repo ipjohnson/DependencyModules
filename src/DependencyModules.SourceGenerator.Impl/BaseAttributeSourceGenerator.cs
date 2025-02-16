@@ -16,7 +16,7 @@ public abstract class BaseAttributeSourceGenerator<T> : ISourceGenerator {
 
     public void SetupGenerator(IncrementalGeneratorInitializationContext context,
         IncrementalValuesProvider<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> incrementalValueProvider) {
-        var classSelector = new SyntaxSelector<ClassDeclarationSyntax>(AttributeTypes().ToArray());
+        var classSelector = new SyntaxSelector<MemberDeclarationSyntax>(AttributeTypes().ToArray());
 
         var serviceModelProvider = context.SyntaxProvider.CreateSyntaxProvider(
             classSelector.Where,

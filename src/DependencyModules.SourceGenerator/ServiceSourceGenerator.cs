@@ -42,6 +42,6 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
     protected override ServiceModel GenerateAttributeModel(GeneratorSyntaxContext context, CancellationToken cancellationToken) {
         var serviceModel = ServiceModelUtility.GetServiceModel(context, cancellationToken);
         
-        return serviceModel ?? throw new Exception("Could not get service model");
+        return serviceModel ?? ServiceModel.Ignore;
     }
 }

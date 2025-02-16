@@ -2,54 +2,112 @@ using System.ComponentModel;
 using CSharpAuthor;
 using DependencyModules.SourceGenerator.Impl.Models;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace DependencyModules.SourceGenerator.Impl.Utilities;
 
 public class ServiceModelUtility {
-    private static ITypeDefinition[] _skipTypes = new [] { TypeDefinition.Get(typeof(INotifyPropertyChanged))};
+    private static ITypeDefinition[] _skipTypes = new[] {
+        TypeDefinition.Get(typeof(INotifyPropertyChanged))
+    };
+
     private static readonly ITypeDefinition[] _attributeTypes = {
         KnownTypes.DependencyModules.Attributes.TransientServiceAttribute, KnownTypes.DependencyModules.Attributes.ScopedServiceAttribute, KnownTypes.DependencyModules.Attributes.SingletonServiceAttribute
     };
-    
+
     public static ServiceModel? GetServiceModel(
         GeneratorSyntaxContext context, CancellationToken cancellationToken) {
         cancellationToken.ThrowIfCancellationRequested();
+        if (context.Node is ClassDeclarationSyntax) {
+            return GetClassDeclarationServiceModel(context, cancellationToken);
+        }
 
+        if (context.Node is MethodDeclarationSyntax methodDeclarationSyntax) {
+            
+            return MethodDeclarationServiceModel(context, methodDeclarationSyntax, cancellationToken);
+        }
+
+        return null;
+    }
+
+    private static ServiceModel? MethodDeclarationServiceModel(GeneratorSyntaxContext context, MethodDeclarationSyntax methodDeclarationSyntax, CancellationToken cancellationToken) {
+        // only support public or internal factory methods
+        if (methodDeclarationSyntax.Modifiers.Any(
+                m => m.IsKind(SyntaxKind.PrivateKeyword) || m.IsKind(SyntaxKind.ProtectedKeyword))) {
+            return null;
+        }
+
+        // only support static methods
+        if (!methodDeclarationSyntax.Modifiers.Any(m => m.IsKind(SyntaxKind.StaticKeyword))) {
+            return null;
+        }
+        
+        var returnType = methodDeclarationSyntax.ReturnType.GetTypeDefinition(context);
+        var factoryModel = GetFactoryModel(context, methodDeclarationSyntax, cancellationToken);
+
+        if (returnType == null || factoryModel == null) {
+            return null;
+        }
+
+        return new ServiceModel(returnType, factoryModel, GetRegistrations(context, returnType, cancellationToken));
+    }
+
+    private static ServiceFactoryModel? GetFactoryModel(GeneratorSyntaxContext context, MethodDeclarationSyntax methodDeclarationSyntax, CancellationToken cancellationToken) {
+        var factoryClass = methodDeclarationSyntax.FirstAncestorOrSelf<ClassDeclarationSyntax>();
+        if (factoryClass == null) {
+            return null;
+        }
+
+        var factoryType = GetClassTypeDefinition(factoryClass);
+
+        return new ServiceFactoryModel(
+            factoryType,
+            methodDeclarationSyntax.Identifier.ToString().Trim('"'),
+            methodDeclarationSyntax.GetMethodParameters(context, cancellationToken));
+    }
+
+    private static ServiceModel? GetClassDeclarationServiceModel(GeneratorSyntaxContext context, CancellationToken cancellationToken) {
         var classDefinition = GetClassDefinition(context);
 
         if (classDefinition == null) {
             return null;
         }
-        
+
         var registrations = GetRegistrations(context, classDefinition, cancellationToken);
 
-        return new ServiceModel(classDefinition, registrations);
+        return new ServiceModel(classDefinition, null, registrations);
     }
-    
+
     private static ITypeDefinition? GetClassDefinition(GeneratorSyntaxContext context) {
         ITypeDefinition? classTypeDefinition = null;
 
         if (context.Node is ClassDeclarationSyntax classDeclarationSyntax) {
-            if (classDeclarationSyntax.TypeParameterList is { Parameters.Count: > 0 }) {
-                classTypeDefinition =
-                    new GenericTypeDefinition(
-                        TypeDefinitionEnum.ClassDefinition,
-                        classDeclarationSyntax.GetNamespace(),
-                        classDeclarationSyntax.Identifier.ToString(),
-                        classDeclarationSyntax.TypeParameterList.Parameters.Select(_ => TypeDefinition.Get("", ""))
-                            .ToArray()
-                    );
-            }
-            else {
-                classTypeDefinition = TypeDefinition.Get(classDeclarationSyntax.GetNamespace(),
-                    classDeclarationSyntax.Identifier.ToString());
-            }
+            classTypeDefinition = GetClassTypeDefinition(classDeclarationSyntax);
         }
 
         return classTypeDefinition;
     }
-    
+
+    private static ITypeDefinition GetClassTypeDefinition(ClassDeclarationSyntax classDeclarationSyntax) {
+        ITypeDefinition classTypeDefinition;
+        if (classDeclarationSyntax.TypeParameterList is { Parameters.Count: > 0 }) {
+            classTypeDefinition =
+                new GenericTypeDefinition(
+                    TypeDefinitionEnum.ClassDefinition,
+                    classDeclarationSyntax.GetNamespace(),
+                    classDeclarationSyntax.Identifier.ToString(),
+                    classDeclarationSyntax.TypeParameterList.Parameters.Select(_ => TypeDefinition.Get("", ""))
+                        .ToArray()
+                );
+        }
+        else {
+            classTypeDefinition = TypeDefinition.Get(classDeclarationSyntax.GetNamespace(),
+                classDeclarationSyntax.Identifier.ToString());
+        }
+        return classTypeDefinition;
+    }
+
     private static List<ServiceRegistrationModel> GetRegistrations(GeneratorSyntaxContext context, ITypeDefinition classDefinition, CancellationToken cancellationToken) {
         var list = new List<ServiceRegistrationModel>();
 
@@ -91,7 +149,7 @@ public class ServiceModelUtility {
                             key = argumentSyntax.Expression.ToString();
                             break;
                         case "With":
-                            registrationType = 
+                            registrationType =
                                 BaseSourceGenerator.GetRegistrationType(argumentSyntax.Expression.ToString());
                             break;
 
@@ -123,27 +181,26 @@ public class ServiceModelUtility {
             key
         );
     }
-    
+
     private static ITypeDefinition GetServieTypeFromClass(
         GeneratorSyntaxContext context, ITypeDefinition classDefinition) {
         return GetBaseTypeRegistration(context) ?? classDefinition;
     }
 
-
     private static ITypeDefinition? GetBaseTypeRegistration(GeneratorSyntaxContext context) {
         if (context.Node is ClassDeclarationSyntax classDeclarationSyntax) {
             if (classDeclarationSyntax.BaseList != null) {
                 INamedTypeSymbol? baseTypeSymbol = null;
-                
+
                 foreach (var baseTypeSyntax in classDeclarationSyntax.BaseList.Types) {
-                    var symbolInfo = context.SemanticModel.GetSymbolInfo(baseTypeSyntax.Type);
+                    var symbolInfo = ModelExtensions.GetSymbolInfo(context.SemanticModel, baseTypeSyntax.Type);
 
                     if (symbolInfo.Symbol is INamedTypeSymbol namedTypeSymbol) {
-                        var baseTypeDefinition = 
+                        var baseTypeDefinition =
                             namedTypeSymbol.GetTypeDefinitionFromNamedSymbol();
 
                         // only auto register interfaces
-                        if (baseTypeDefinition is { TypeDefinitionEnum: TypeDefinitionEnum.InterfaceDefinition } && 
+                        if (baseTypeDefinition is { TypeDefinitionEnum: TypeDefinitionEnum.InterfaceDefinition } &&
                             !SkipInterface(baseTypeDefinition)) {
                             if (baseTypeDefinition is GenericTypeDefinition) {
                                 baseTypeDefinition = ReplaceGenericParametersForRegistration(baseTypeDefinition);
@@ -151,7 +208,7 @@ public class ServiceModelUtility {
 
                             return baseTypeDefinition;
                         }
-                        
+
                         baseTypeSymbol = namedTypeSymbol;
                     }
                 }
@@ -165,10 +222,10 @@ public class ServiceModelUtility {
         return null;
     }
 
-    
+
     private static ITypeDefinition? GetBaseInterface(GeneratorSyntaxContext context, INamedTypeSymbol baseTypeSymbol) {
         foreach (var interfaceSymbol in baseTypeSymbol.Interfaces) {
-            var interfaceType = 
+            var interfaceType =
                 interfaceSymbol.GetTypeDefinitionFromNamedSymbol();
 
             // only auto register interfaces
@@ -176,21 +233,21 @@ public class ServiceModelUtility {
                 SkipInterface(interfaceType)) {
                 continue;
             }
-            
+
             if (interfaceType is GenericTypeDefinition) {
                 interfaceType = ReplaceGenericParametersForRegistration(interfaceType);
             }
 
             return interfaceType;
         }
-        
+
         if (baseTypeSymbol.BaseType == null) {
             return null;
         }
-        
+
         return GetBaseInterface(context, baseTypeSymbol.BaseType);
     }
-    
+
     private static bool SkipInterface(ITypeDefinition interfaceType) {
         return _skipTypes.Any(type => type.Equals(interfaceType));
     }

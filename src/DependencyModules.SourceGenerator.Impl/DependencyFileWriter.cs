@@ -34,7 +34,8 @@ public class DependencyFileWriter {
 
         classDefinition.Modifiers |= ComponentModifier.Partial;
 
-        var methodName = GenerateDependencyMethod(entryPointModel, configurationModel, serviceModels, classDefinition, uniqueId);
+        var methodName = 
+            GenerateDependencyMethod(entryPointModel, configurationModel, serviceModels, classDefinition, uniqueId);
 
         CreateInvokeStatement(entryPointModel, methodName, classDefinition, uniqueId);
     }
@@ -76,6 +77,10 @@ public class DependencyFileWriter {
         var sortedServiceModels = GetSortedServiceModels(serviceModels);
 
         foreach (var serviceModel in sortedServiceModels) {
+            if (serviceModel.Equals(ServiceModel.Ignore)) {
+                continue;
+            }
+            
             foreach (var registrationModel in serviceModel.Registrations) {
                 // skip registrations not for this realm
                 if (registrationModel.Realm != null) {
@@ -87,20 +92,32 @@ public class DependencyFileWriter {
                     continue;
                 }
 
-
                 var registrationType = GetRegistrationType(entryPointModel, configurationModel, registrationModel);
 
                 switch (registrationType) {
                     case RegistrationType.Add:
                     case RegistrationType.Try:
                         HandleTryAndAddRegistrationTypes(
-                            stringBuilder, registrationType, registrationModel, serviceModel, method, services);
+                            classDefinition,
+                            stringBuilder, 
+                            registrationType, 
+                            registrationModel, 
+                            serviceModel, 
+                            method, 
+                            services,
+                            uniqueId);
                         break;
                     
                     case RegistrationType.Replace:
                     case RegistrationType.TryEnumerable:
                         HandleTryEnumerableAndReplaceRegistrationType(
-                            registrationType, registrationModel, serviceModel, method, services);
+                            classDefinition,
+                            registrationType,
+                            registrationModel, 
+                            serviceModel,
+                            method, 
+                            services, 
+                            uniqueId);
                         
                         break;
                 }
@@ -110,12 +127,11 @@ public class DependencyFileWriter {
         return method.Name;
     }
 
-    private void HandleTryEnumerableAndReplaceRegistrationType(
-        RegistrationType registrationType,
-        ServiceRegistrationModel registrationModel, 
+    private void HandleTryEnumerableAndReplaceRegistrationType(ClassDefinition classDefinition, RegistrationType registrationType,
+        ServiceRegistrationModel registrationModel,
         ServiceModel serviceModel,
         MethodDefinition method,
-        ParameterDefinition services) {
+        ParameterDefinition services, string uniqueId) {
         var invokeMethod = 
             registrationType == RegistrationType.Replace ? "Replace" : "TryAddEnumerable";
 
@@ -126,7 +142,13 @@ public class DependencyFileWriter {
         if (registrationModel.Key != null) {
             parameters.Add(registrationModel.Key);
         }
-        parameters.Add(TypeOf(serviceModel.ImplementationType));
+
+        if (serviceModel.Factory == null) {
+            parameters.Add(TypeOf(serviceModel.ImplementationType));
+        }
+        else {
+            AddFactoryParameter(serviceModel,classDefinition, parameters, uniqueId);
+        }
 
         switch (registrationModel.Lifestyle) {
             case ServiceLifestyle.Transient:
@@ -154,10 +176,12 @@ public class DependencyFileWriter {
             ));
     }
 
-    private static void HandleTryAndAddRegistrationTypes(
-        StringBuilder stringBuilder, RegistrationType registrationType, ServiceRegistrationModel registrationModel, ServiceModel serviceModel,
+    private static void HandleTryAndAddRegistrationTypes(ClassDefinition classDefinition, StringBuilder stringBuilder,
+        RegistrationType registrationType,
+        ServiceRegistrationModel registrationModel,
+        ServiceModel serviceModel,
         MethodDefinition method,
-        ParameterDefinition services) {
+        ParameterDefinition services, string uniqueId) {
         stringBuilder.Length = 0;
 
         if (registrationType == RegistrationType.Try) {
@@ -190,13 +214,71 @@ public class DependencyFileWriter {
             parameters.Add(registrationModel.Key);
         }
 
-        parameters.Add(TypeOf(serviceModel.ImplementationType));
-
+        if (serviceModel.Factory == null) {
+            parameters.Add(TypeOf(serviceModel.ImplementationType));
+        }
+        else {
+            AddFactoryParameter(serviceModel,classDefinition, parameters, uniqueId);
+        }
+        
         method.AddIndentedStatement(
             services.Invoke(
                 stringBuilder.ToString(),
                 parameters.ToArray()
             ));
+    }
+
+    private static void AddFactoryParameter(ServiceModel serviceModel, ClassDefinition classDefinition, List<object> parameters, string uniqueId) {
+        var factory = serviceModel.Factory;
+        if (factory == null) {
+            return;
+        }
+
+        if (factory.Parameters.Count == 1 && factory.Parameters.Any(m =>
+                m.ParameterType.Equals(KnownTypes.Microsoft.DependencyInjection.IServiceProvider))) {
+            parameters.Add(CodeOutputComponent.Get(
+                factory.TypeDefinition.Namespace + "." + factory.TypeDefinition.Name + "." + factory.MethodName));
+        }
+        else {
+            var glueFactory = GenerateGlueFactory(
+                serviceModel, factory, classDefinition, uniqueId);
+            
+            parameters.Add(CodeOutputComponent.Get(glueFactory.Name));
+        }
+    }
+
+    private static MethodDefinition GenerateGlueFactory(
+        ServiceModel serviceModel,
+        ServiceFactoryModel factory, 
+        ClassDefinition classDefinition,
+        string uniqueId) {
+        var glueFactoryName = uniqueId + "GlueFactory" + classDefinition.Methods.Count;
+        var method = classDefinition.AddMethod(glueFactoryName);
+        
+        method.Modifiers |= ComponentModifier.Private | ComponentModifier.Static;
+        method.SetReturnType(serviceModel.ImplementationType);
+
+        var serviceProvider = method.AddParameter(
+            KnownTypes.Microsoft.DependencyInjection.IServiceProvider, "serviceProvider");
+        
+        var parameterList = new List<object>();
+
+        foreach (var parameterInfoModel in factory.Parameters) {
+            if (parameterInfoModel.ParameterType.Equals(KnownTypes.Microsoft.DependencyInjection.IServiceProvider)) {
+                parameterList.Add(serviceProvider);
+            }
+            else {
+                parameterList.Add(
+                    serviceProvider.InvokeGeneric(
+                        "GetService", 
+                        new []{ parameterInfoModel.ParameterType.MakeNullable(false) })
+                    );
+            }
+        }
+        
+        method.Return(Invoke(factory.TypeDefinition, factory.MethodName,parameterList.ToArray()));
+        
+        return method;
     }
 
     private static RegistrationType GetRegistrationType(ModuleEntryPointModel entryPointModel, DependencyModuleConfigurationModel configurationModel, ServiceRegistrationModel registrationModel) {

@@ -61,7 +61,7 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
 
         var (onlyRealm, registrationType, generateAttribute) = GetDependencyFlags(context);
         var implementsEqualsFlag = GetEqualsFlag(context);
-        var modelInfo = AttributeModelHelper.GetAttributeClassInfo(context);
+        var modelInfo = AttributeModelHelper.GetAttributeClassInfo(context, cancellation);
 
         return new ModuleEntryPointModel(
             ((ClassDeclarationSyntax)context.Node).GetTypeDefinition(),

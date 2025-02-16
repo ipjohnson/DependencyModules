@@ -3,6 +3,7 @@ namespace DependencyModules.Runtime.Attributes;
 /// <summary>
 ///     Applied to partial classes to denote a module entry point
 /// </summary>
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
 public class DependencyModuleAttribute : Attribute {
     /// <summary>
     ///     Only get registration for this specific module

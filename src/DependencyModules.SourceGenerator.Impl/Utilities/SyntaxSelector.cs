@@ -34,6 +34,26 @@ public class SyntaxSelector<T> where T : SyntaxNode {
             return false;
         }
 
+        if (node is MemberDeclarationSyntax memberDeclarationSyntax) {
+            var foundAttribute = false;
+            foreach (var attributeListSyntax in memberDeclarationSyntax.AttributeLists) {
+                foreach (var attributeSyntax in attributeListSyntax.Attributes) {
+                    var name = attributeSyntax.Name.ToString();
+                    
+                    foundAttribute = _names.Contains(name);
+                    
+                    if (foundAttribute) {
+                        break;
+                    }
+                }
+                if (foundAttribute) {
+                    break;
+                }
+            }
+            
+            return foundAttribute;
+        }
+        
         var found = node.DescendantNodes()
             .OfType<AttributeSyntax>().Any(a => {
                 var name = a.Name.ToString();

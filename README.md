@@ -55,6 +55,21 @@ var provider = serviceCollection.BuildServiceProvider();
 var service = provider.GetService<OtherService>();
 ```
 
+## Factories
+
+Sometimes it's not possible to construct all types through normal registration.
+Factories can be registered with a module using the registration attributes.
+
+```csharp
+public class SomeClass : ISomeInterface {
+  public SomeClass(IDep one, IDepTwo two, DateTime dateTime) { ... }
+  
+  [SingletonService]
+  public static ISomeInterface Factory(IDep one, IDepTwo two) {
+    return new SomeClass(one, two, DateTime.Now());   
+  }
+}
+```
 ## Module Re-use
 
 DependencyModules creates an `Attribute` class that can be used to apply sub dependencies.
@@ -164,8 +179,6 @@ public class OtherServiceTests
      service.SomeProp.Returns("some mock value");
      Assert.Equals("some mock value", test.SomeProp);
   }
-  
-  public void 
 }
 
 ```

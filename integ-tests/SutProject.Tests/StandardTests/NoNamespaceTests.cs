@@ -14,10 +14,10 @@ public partial class NoNamespaceTestModule {
     
 }
 
+#pragma warning disable CS8618
 [SingletonService(Realm = typeof(NoNamespaceTestModule))]
 public class SomeDependency : IDependencyOne {
-
-    public ISingletonService SingletonService {
+   public ISingletonService SingletonService {
         get;
     }
 
@@ -25,6 +25,7 @@ public class SomeDependency : IDependencyOne {
         get;
     }
 }
+#pragma warning restore CS8618 
 
 public class NoNamespaceTests {
     [ModuleTest]
