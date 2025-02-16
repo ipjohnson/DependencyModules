@@ -30,8 +30,10 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
 
         var output = writer.Write(inputData.Left.Left, inputData.Left.Right, inputData.Right, "Module");
 
-        context.AddSource(inputData.Left.Left.EntryPointType.Name + ".Dependencies.g.cs", output);
+        context.AddSource(inputData.Left.Left.EntryPointType.Name + "."  + 
+                          inputData.Left.Left.UniqueId() + ".Dependencies.g.cs", output);
     }
+
 
     protected override IEqualityComparer<ServiceModel> GetComparer() {
         return _serviceEqualityComparer;

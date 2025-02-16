@@ -58,3 +58,15 @@ public class ModuleEntryPointModelComparer : IEqualityComparer<ModuleEntryPointM
         return hash;
     }
 }
+
+public static class ModuleEntryPointModelExtensions {
+    public static string UniqueId(this ModuleEntryPointModel model) {
+        var count = 0;
+
+        foreach (var charValue in model.EntryPointType.Namespace + "." + model.EntryPointType.Name) {
+            count += charValue;
+        }
+        
+        return count.ToString();
+    }
+}

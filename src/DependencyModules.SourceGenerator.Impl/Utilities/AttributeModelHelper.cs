@@ -161,7 +161,6 @@ public static class AttributeModelHelper {
                 interfaces.Add(interfaceSymbol.GetTypeDefinition());
             }
         }
-
         
         return interfaces;
     }

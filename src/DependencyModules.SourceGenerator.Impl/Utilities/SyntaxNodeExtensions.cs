@@ -39,9 +39,9 @@ public static class SyntaxNodeExtensions {
     }
 
     public static ITypeDefinition GetTypeDefinition(this ClassDeclarationSyntax classDeclarationSyntax) {
-        var namespaceSyntax = classDeclarationSyntax.Ancestors().OfType<BaseNamespaceDeclarationSyntax>().First();
+        var namespaceSyntax = classDeclarationSyntax.Ancestors().OfType<BaseNamespaceDeclarationSyntax>().FirstOrDefault();
 
-        return TypeDefinition.Get(namespaceSyntax.Name.ToFullString().TrimEnd(),
+        return TypeDefinition.Get(namespaceSyntax?.Name.ToFullString().TrimEnd() ?? "",
             classDeclarationSyntax.Identifier.Text);
     }
 

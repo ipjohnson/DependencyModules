@@ -21,8 +21,9 @@ public class DependencyModuleWriter {
 
         csharpFile.WriteOutput(outputContext);
 
-        context.AddSource(model.EntryPointType.Name + ".Module.g.cs", outputContext.Output());
+        context.AddSource(model.EntryPointType.Name + "." + model.UniqueId() + ".Module.g.cs", outputContext.Output());
     }
+
 
     private void GenerateModuleClass(ModuleEntryPointModel model, CSharpFileDefinition csharpFile) {
         var classDefinition = csharpFile.AddClass(model.EntryPointType.Name);
