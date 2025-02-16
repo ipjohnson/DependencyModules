@@ -2,6 +2,7 @@
 using DependencyModules.Runtime.Attributes;
 using DependencyModules.xUnit.Attributes;
 using SutProject;
+using Xunit;
 
 [DependencyModule]
 public partial class TestModule {
@@ -13,7 +14,7 @@ public partial class NoNamespaceTestModule {
     
 }
 
-[SingletonService]
+[SingletonService(Realm = typeof(NoNamespaceTestModule))]
 public class SomeDependency : IDependencyOne {
 
     public ISingletonService SingletonService {
@@ -29,6 +30,7 @@ public class NoNamespaceTests {
     [ModuleTest]
     [NoNamespaceTestModule.Attribute]
     public void NoNamespaceTest(IDependencyOne dependency) {
-        
+        Assert.NotNull(dependency);
+        Assert.IsType<SomeDependency>(dependency);
     }
 }
