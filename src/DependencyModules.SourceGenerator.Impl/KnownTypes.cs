@@ -35,6 +35,10 @@ public static class KnownTypes {
 
             public static readonly ITypeDefinition SingletonServiceAttribute =
                 TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "SingletonServiceAttribute");
+            
+            public static readonly ITypeDefinition CrossWireServiceAttribute =
+                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "CrossWireServiceAttribute");
+
         }
 
         public static class Interfaces {

@@ -25,7 +25,8 @@ public record ServiceRegistrationModel(
     ServiceLifestyle Lifestyle,
     RegistrationType? RegistrationType = null,
     ITypeDefinition? Realm = null,
-    object? Key = null);
+    object? Key = null,
+    bool? CrossWire = false);
 
 public record ServiceModel(
     ITypeDefinition ImplementationType,

@@ -12,8 +12,13 @@ public class ServiceModelUtility {
         TypeDefinition.Get(typeof(INotifyPropertyChanged))
     };
 
+    private static readonly ITypeDefinition _crossWireService =
+        KnownTypes.DependencyModules.Attributes.CrossWireServiceAttribute;
+
     private static readonly ITypeDefinition[] _attributeTypes = {
-        KnownTypes.DependencyModules.Attributes.TransientServiceAttribute, KnownTypes.DependencyModules.Attributes.ScopedServiceAttribute, KnownTypes.DependencyModules.Attributes.SingletonServiceAttribute
+        KnownTypes.DependencyModules.Attributes.TransientServiceAttribute, 
+        KnownTypes.DependencyModules.Attributes.ScopedServiceAttribute, 
+        KnownTypes.DependencyModules.Attributes.SingletonServiceAttribute
     };
 
     public static ServiceModel? GetServiceModel(
@@ -110,7 +115,7 @@ public class ServiceModelUtility {
 
     private static List<ServiceRegistrationModel> GetRegistrations(GeneratorSyntaxContext context, ITypeDefinition classDefinition, CancellationToken cancellationToken) {
         var list = new List<ServiceRegistrationModel>();
-
+        
         foreach (var attributeSyntax in
                  context.Node.DescendantNodes().OfType<AttributeSyntax>()) {
             foreach (var typeDefinition in _attributeTypes) {
@@ -121,9 +126,71 @@ public class ServiceModelUtility {
                     list.Add(GetServiceRegistration(context, attributeSyntax, classDefinition));
                 }
             }
+            
+            if (attributeSyntax.Name.ToString() == _crossWireService.Name ||
+                attributeSyntax.Name + "Attribute" == _crossWireService.Name) {
+                list.AddRange(GetCrossWiredService(context, attributeSyntax, classDefinition));
+            }
         }
 
         return list;
+    }
+
+    private static IEnumerable<ServiceRegistrationModel> GetCrossWiredService(GeneratorSyntaxContext context, AttributeSyntax attributeSyntax, ITypeDefinition classDefinition) {
+
+        RegistrationType? registrationType = null;
+        ITypeDefinition? realm = null;
+        object? key = null;
+        ServiceLifestyle lifestyle = ServiceLifestyle.Singleton;
+
+        if (attributeSyntax.ArgumentList != null) {
+            foreach (var argumentSyntax in attributeSyntax.ArgumentList.Arguments) {
+                if (argumentSyntax.NameEquals != null) {
+                    switch (argumentSyntax.NameEquals.Name.ToString()) {
+                        case "Key":
+                            key = argumentSyntax.Expression.ToString();
+                            break;
+                        
+                        case "With":
+                            registrationType =
+                                BaseSourceGenerator.GetRegistrationType(argumentSyntax.Expression.ToString());
+                            break;
+
+                        case "Lifetime":
+                            lifestyle = GetLifestyle(argumentSyntax.Expression.ToString());
+                            break;
+                        case "Realm":
+                            if (argumentSyntax.Expression is TypeOfExpressionSyntax realmType) {
+                                realm = realmType.Type.GetTypeDefinition(context);
+                            }
+                            break;
+                    }
+                }
+            }
+        }
+
+        if (context.Node is ClassDeclarationSyntax { BaseList: not null } classDeclarationSyntax) {
+            foreach (var baseTypeSyntax in classDeclarationSyntax.BaseList.Types) {
+                var type = baseTypeSyntax.Type.GetTypeDefinition(context);
+
+                if (type?.TypeDefinitionEnum == TypeDefinitionEnum.InterfaceDefinition) {
+                    yield return new ServiceRegistrationModel(
+                        type,
+                        lifestyle,
+                        registrationType,
+                        realm,
+                        key,
+                        true
+                    );
+                }
+            }
+        }
+        
+        yield break;
+    }
+
+    private static ServiceLifestyle GetLifestyle(string toString) {
+        throw new NotImplementedException();
     }
 
     private static ServiceRegistrationModel GetServiceRegistration(GeneratorSyntaxContext context, AttributeSyntax attributeSyntax, ITypeDefinition classDefinition) {

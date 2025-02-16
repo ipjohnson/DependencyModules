@@ -13,7 +13,10 @@ namespace DependencyModules.SourceGenerator;
 public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel> {
     private static ITypeDefinition[] _skipTypes = new [] { TypeDefinition.Get(typeof(INotifyPropertyChanged))};
     private static readonly ITypeDefinition[] _attributeTypes = {
-        KnownTypes.DependencyModules.Attributes.TransientServiceAttribute, KnownTypes.DependencyModules.Attributes.ScopedServiceAttribute, KnownTypes.DependencyModules.Attributes.SingletonServiceAttribute
+        KnownTypes.DependencyModules.Attributes.TransientServiceAttribute, 
+        KnownTypes.DependencyModules.Attributes.ScopedServiceAttribute, 
+        KnownTypes.DependencyModules.Attributes.SingletonServiceAttribute,
+        KnownTypes.DependencyModules.Attributes.CrossWireServiceAttribute
     };
 
     private readonly IEqualityComparer<ServiceModel> _serviceEqualityComparer = new ServiceModelComparer();

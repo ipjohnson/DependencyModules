@@ -17,6 +17,7 @@ dotnet add package DependencyModules.SourceGenerator
 * `[SingletonService]` - registers service as `AddSingleton`
 * `[ScopedService]` - registers service as `AdddScoped`
 * `[TransientService]` - registers service as `AddTransient`
+* `[CrossWireService]` - register implementation and interfaces with the same lifetime
 
 ```csharp
 // Registration example
