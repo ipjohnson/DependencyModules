@@ -190,7 +190,11 @@ public class ServiceModelUtility {
     }
 
     private static ServiceLifestyle GetLifestyle(string toString) {
-        throw new NotImplementedException();
+        if (Enum.TryParse(toString, out ServiceLifestyle lifestyle)) {
+            return lifestyle;
+        }
+        
+        return ServiceLifestyle.Singleton;
     }
 
     private static ServiceRegistrationModel GetServiceRegistration(GeneratorSyntaxContext context, AttributeSyntax attributeSyntax, ITypeDefinition classDefinition) {

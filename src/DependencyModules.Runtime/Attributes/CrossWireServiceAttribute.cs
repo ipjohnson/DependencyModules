@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace DependencyModules.Runtime.Attributes;
 
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true, Inherited = false)]
 public class CrossWireServiceAttribute : Attribute, IServiceRegistrationAttribute {
 
     public object? Key {
