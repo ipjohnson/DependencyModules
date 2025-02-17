@@ -80,10 +80,13 @@ public class DependencyModuleWriter {
             return;
         }
         
-        var loadDependenciesMethod = classDefinition.AddMethod("InternalGetModules");
+        var getModulesMethod = classDefinition.AddMethod("InternalGetModules");
 
-        loadDependenciesMethod.InterfaceImplementation = KnownTypes.DependencyModules.Interfaces.IDependencyModule;
-        loadDependenciesMethod.SetReturnType(TypeDefinition.Get(typeof(IEnumerable<object>)));
+        getModulesMethod.AddLeadingTrait(CodeOutputComponent.Get("[Browsable(false)]", true));
+        getModulesMethod.AddUsingNamespace("System.ComponentModel");
+        
+        getModulesMethod.InterfaceImplementation = KnownTypes.DependencyModules.Interfaces.IDependencyModule;
+        getModulesMethod.SetReturnType(TypeDefinition.Get(typeof(IEnumerable<object>)));
 
         foreach (var modelAttributeModel in attributeModels) {
             var newStatement = New(modelAttributeModel.TypeDefinition, modelAttributeModel.ArgumentString);
@@ -94,7 +97,7 @@ public class DependencyModuleWriter {
                 newStatement.AddInitValue(initValue);
             }
 
-            loadDependenciesMethod.AddIndentedStatement(YieldReturn(newStatement));
+            getModulesMethod.AddIndentedStatement(YieldReturn(newStatement));
         }
     }
 
@@ -118,6 +121,9 @@ public class DependencyModuleWriter {
 
         var loadDependenciesMethod = classDefinition.AddMethod("InternalApplyServices");
 
+        loadDependenciesMethod.AddLeadingTrait(CodeOutputComponent.Get("[Browsable(false)]", true));
+        loadDependenciesMethod.AddUsingNamespace("System.ComponentModel");
+        
         loadDependenciesMethod.InterfaceImplementation =
             KnownTypes.DependencyModules.Interfaces.IDependencyModule;
 
