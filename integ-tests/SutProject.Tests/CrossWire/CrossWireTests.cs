@@ -12,7 +12,7 @@ public partial class CrossWireModule {
 
 [DependencyModule(OnlyRealm = true)]
 public partial class CrossWireModuleScoped {
-    
+    public static string Test => "Test";
 }
 
 public interface IInterface1 {

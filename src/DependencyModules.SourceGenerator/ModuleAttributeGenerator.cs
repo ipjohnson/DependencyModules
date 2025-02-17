@@ -46,7 +46,7 @@ public class ModuleAttributeGenerator {
         }
 
         foreach (var propertyInfoModel in model.PropertyInfoModels) {
-            if (propertyInfoModel.IsReadOnly) {
+            if (propertyInfoModel.IsReadOnly || propertyInfoModel.IsStatic) {
                 continue;
             }
 
@@ -76,6 +76,10 @@ public class ModuleAttributeGenerator {
                     attributeClass.Fields.Select(f => f.Instance).OfType<object>().ToArray())).ToVar("newModule");
 
         foreach (var propertyInfoModel in model.PropertyInfoModels) {
+            if (propertyInfoModel.IsReadOnly || propertyInfoModel.IsStatic) {
+                continue;
+            }
+            
             BaseBlockDefinition block = method;
 
             if (propertyInfoModel.PropertyType.IsNullable) {

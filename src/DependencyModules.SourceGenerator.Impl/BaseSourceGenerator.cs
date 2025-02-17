@@ -89,7 +89,8 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
             if (propertyType != null) {
                 propertyList.Add(new PropertyInfoModel(propertyType,
                     propertyDeclarationSyntax.Identifier.ToString(),
-                    setter == null
+                    setter == null,
+                    propertyDeclarationSyntax.Modifiers.Any(m => m.IsKind(SyntaxKind.StaticKeyword))
                 ));
             }
         }
