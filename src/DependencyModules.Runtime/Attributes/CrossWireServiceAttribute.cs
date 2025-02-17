@@ -3,6 +3,11 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace DependencyModules.Runtime.Attributes;
 
+/// <summary>
+///   Register the attributed type and then all interfaces
+///   will be registered pointing to the implementation registration
+///   allowing for the same instance to be returned for multiple interfaces
+/// </summary>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true, Inherited = false)]
 public class CrossWireServiceAttribute : Attribute, IServiceRegistrationAttribute {
 
