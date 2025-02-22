@@ -120,7 +120,7 @@ public partial class SomeOtherModule
 ## Module Features
 Because module configuration happens before the dependency injection container is instantiate it's impossible to use it for configuration.
 To support configuration discovery before registration feature interface can be 
-implemented in modules and be passed to a handler a registration time.
+implemented in modules and be passed to a handler at registration time. Features applied before service and decorators.
 
 ```csharp
 // feature interface
