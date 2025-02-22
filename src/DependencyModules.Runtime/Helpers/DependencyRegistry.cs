@@ -47,7 +47,7 @@ public class DependencyRegistry<T> {
     public static void LoadModules(IServiceCollection serviceCollection, params IDependencyModule[] dependencyModules) {
         var modules = GetAllModules(dependencyModules);
         
-        ApplyFeatures(serviceCollection, dependencyModules, modules);
+        ApplyFeatures(serviceCollection, modules);
 
         ApplyServices(serviceCollection, modules);
         
@@ -72,10 +72,10 @@ public class DependencyRegistry<T> {
         }
     }
 
-    private static void ApplyFeatures(IServiceCollection serviceCollection, IDependencyModule[] dependencyModules, IReadOnlyList<IDependencyModule> modules) {
+    private static void ApplyFeatures(IServiceCollection serviceCollection, IReadOnlyList<IDependencyModule> modules) {
         var features = new List<IFeatureApplicator>();
 
-        for (var i = 0; i < dependencyModules.Length; i++) {
+        for (var i = 0; i < modules.Count; i++) {
             var module = modules[i];
             
             if (module is IDependencyModuleApplicatorProvider provider) {

@@ -34,6 +34,5 @@ public class ResolveGenericTypeTests {
     [GenericListModule.Attribute]
     public void ResolveList(IReadOnlyList<IDependencyOne> genericList) {
         Assert.NotNull(genericList);
-        
     }
 }
