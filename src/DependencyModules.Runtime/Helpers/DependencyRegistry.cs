@@ -13,9 +13,9 @@ public delegate void RegistryFunc(IServiceCollection serviceCollection);
 /// <typeparam name="T"></typeparam>
 // ReSharper disable once ClassNeverInstantiated.Global
 public class DependencyRegistry<T> {
-    // ReSharper disable once StaticMemberInGenericType
-    private static readonly List<RegistryFunc> _registryFuncs = [];
-    private static readonly List<RegistryFunc> _decorators = [];
+    // ReSharper disable StaticMemberInGenericType
+    private static readonly List<RegistryFunc> RegistryFuncs = [];
+    private static readonly List<RegistryFunc> Decorators = [];
 
     /// <summary>
     ///     Add registration func
@@ -23,7 +23,7 @@ public class DependencyRegistry<T> {
     /// <param name="registryFunc"></param>
     /// <returns></returns>
     public static int Add(RegistryFunc registryFunc) {
-        _registryFuncs.Add(registryFunc);
+        RegistryFuncs.Add(registryFunc);
 
         return 1;
     }
@@ -34,7 +34,7 @@ public class DependencyRegistry<T> {
     /// <param name="registryFunc"></param>
     /// <returns></returns>
     public static int AddDecorator(RegistryFunc registryFunc) {
-        _decorators.Add(registryFunc);
+        Decorators.Add(registryFunc);
         
         return 1;
     }
@@ -46,8 +46,22 @@ public class DependencyRegistry<T> {
     /// <param name="dependencyModules"></param>
     public static void LoadModules(IServiceCollection serviceCollection, params IDependencyModule[] dependencyModules) {
         var modules = GetAllModules(dependencyModules);
-        var features = new List<IFeatureApplicator>();
         
+        ApplyFeatures(serviceCollection, dependencyModules, modules);
+
+        ApplyServices(serviceCollection, modules);
+        
+        ApplyDecorators(serviceCollection, modules);
+    }
+
+    private static void ApplyDecorators(IServiceCollection serviceCollection, IReadOnlyList<IDependencyModule> modules) {
+        for (var i = 0; i < modules.Count; i++) {
+            var module = modules[i];
+            module.InternalApplyDecorators(serviceCollection);
+        }
+    }
+
+    private static void ApplyServices(IServiceCollection serviceCollection, IReadOnlyList<IDependencyModule> modules) {
         for (var i = 0; i < modules.Count; i++) {
             var module = modules[i];
             module.InternalApplyServices(serviceCollection);
@@ -55,6 +69,14 @@ public class DependencyRegistry<T> {
             if (module is IServiceCollectionConfiguration serviceCollectionConfigure) {
                 serviceCollectionConfigure.ConfigureServices(serviceCollection);
             }
+        }
+    }
+
+    private static void ApplyFeatures(IServiceCollection serviceCollection, IDependencyModule[] dependencyModules, IReadOnlyList<IDependencyModule> modules) {
+        var features = new List<IFeatureApplicator>();
+
+        for (var i = 0; i < dependencyModules.Length; i++) {
+            var module = modules[i];
             
             if (module is IDependencyModuleApplicatorProvider provider) {
                 foreach (var featureApplicator in provider.FeatureApplicators()) {
@@ -62,7 +84,7 @@ public class DependencyRegistry<T> {
                 }
             }
         }
-
+        
         if (features.Count > 0) {
             features.Sort((x, y) => x.Order.CompareTo(y.Order));
 
@@ -71,19 +93,10 @@ public class DependencyRegistry<T> {
                 feature.Apply(serviceCollection, modules);
             }
         }
-
-        for (var i = 0; i < modules.Count; i++) {
-            var module = modules[i];
-            module.InternalApplyDecorators(serviceCollection);
-        }
     }
 
-    /// <summary>
-    ///     Get list of modules from module. Inclusive
-    /// </summary>
-    /// <param name="dependencyModules"></param>
-    /// <returns></returns>
-    public static IReadOnlyList<IDependencyModule> GetAllModules(IDependencyModule[] dependencyModules) {
+
+    private static IReadOnlyList<IDependencyModule> GetAllModules(IDependencyModule[] dependencyModules) {
         var list = new List<IDependencyModule>();
 
         foreach (var dependencyModule in dependencyModules) {
@@ -98,7 +111,7 @@ public class DependencyRegistry<T> {
     /// </summary>
     /// <param name="serviceCollection"></param>
     public static void ApplyServices(IServiceCollection serviceCollection) {
-        foreach (var registryFunc in _registryFuncs) {
+        foreach (var registryFunc in RegistryFuncs) {
             registryFunc(serviceCollection);
         }
     }
@@ -108,7 +121,7 @@ public class DependencyRegistry<T> {
     /// </summary>
     /// <param name="serviceCollection"></param>
     public static void ApplyDecorators(IServiceCollection serviceCollection) {
-        foreach (var registryFunc in _decorators) {
+        foreach (var registryFunc in Decorators) {
             registryFunc(serviceCollection);
         }
     }
