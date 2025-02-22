@@ -46,6 +46,7 @@ public class DependencyRegistry<T> {
     /// <param name="dependencyModules"></param>
     public static void LoadModules(IServiceCollection serviceCollection, params IDependencyModule[] dependencyModules) {
         var modules = GetAllModules(dependencyModules);
+        var features = new List<IFeatureApplicator>();
         
         for (var i = 0; i < modules.Count; i++) {
             var module = modules[i];
@@ -54,15 +55,20 @@ public class DependencyRegistry<T> {
             if (module is IServiceCollectionConfiguration serviceCollectionConfigure) {
                 serviceCollectionConfigure.ConfigureServices(serviceCollection);
             }
-        }
-
-        for (var i = 0; i < modules.Count; i++) {
-            var module = modules[i];
-
+            
             if (module is IDependencyModuleApplicatorProvider provider) {
                 foreach (var featureApplicator in provider.FeatureApplicators()) {
-                    featureApplicator.Apply(serviceCollection, modules);
+                    features.Add(featureApplicator);
                 }
+            }
+        }
+
+        if (features.Count > 0) {
+            features.Sort((x, y) => x.Order.CompareTo(y.Order));
+
+            for (var i = 0; i < features.Count; i++) {
+                var feature = features[i];
+                feature.Apply(serviceCollection, modules);
             }
         }
 
