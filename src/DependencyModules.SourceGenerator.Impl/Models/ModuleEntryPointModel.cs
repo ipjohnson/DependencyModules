@@ -10,7 +10,8 @@ public record ModuleEntryPointModel(
     IReadOnlyList<ParameterInfoModel> Parameters,
     bool ImplementsEquals,
     IReadOnlyList<PropertyInfoModel> PropertyInfoModels,
-    IReadOnlyList<AttributeModel> AttributeModels);
+    IReadOnlyList<AttributeModel> AttributeModels,
+    IReadOnlyList<ITypeDefinition> Features);
 
 public class ModuleEntryPointModelComparer : IEqualityComparer<ModuleEntryPointModel> {
     
@@ -25,6 +26,7 @@ public class ModuleEntryPointModelComparer : IEqualityComparer<ModuleEntryPointM
                x.GenerateAttribute == y.GenerateAttribute &&
                x.Parameters.SequenceEqual(y.Parameters) &&
                x.PropertyInfoModels.SequenceEqual(y.PropertyInfoModels) &&
+               x.Features.SequenceEqual(y.Features) &&
                x.AttributeModels.SequenceEqual(y.AttributeModels);
     }
 
@@ -42,6 +44,7 @@ public class ModuleEntryPointModelComparer : IEqualityComparer<ModuleEntryPointM
             hash = GetListHashCode(obj.Parameters, hash);
             hash = GetListHashCode(obj.PropertyInfoModels, hash);
             hash = GetListHashCode(obj.AttributeModels, hash);
+            hash = GetListHashCode(obj.Features, hash);
             hash = hash * 31 + obj.ImplementsEquals.GetHashCode();
             
             return hash;

@@ -50,13 +50,25 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
 
     protected virtual ModuleEntryPointModel GenerateEntryPointModel(GeneratorSyntaxContext context, CancellationToken cancellation) {
         cancellation.ThrowIfCancellationRequested();
-
+        var featureTypes = new List<ITypeDefinition>();
         List<AttributeModel>? attributes = null;
 
         if (context.Node is ClassDeclarationSyntax classDeclarationSyntax) {
             attributes = AttributeModelHelper
                 .GetAttributes(context, classDeclarationSyntax.AttributeLists, cancellation)
                 .ToList();
+
+            if (classDeclarationSyntax.BaseList != null) {
+                foreach (var baseType in classDeclarationSyntax.BaseList.Types) {
+                    var typeDefinition = baseType.Type.GetTypeDefinition(context);
+
+                    if (typeDefinition is GenericTypeDefinition genericTypeDefinition &&
+                        genericTypeDefinition.TypeDefinitionEnum == TypeDefinitionEnum.InterfaceDefinition && 
+                        genericTypeDefinition.Name == "IDependencyModuleFeature") {
+                        featureTypes.Add(genericTypeDefinition.TypeArguments.First());
+                    }
+                }
+            }
         }
 
         var (onlyRealm, registrationType, generateAttribute) = GetDependencyFlags(context);
@@ -71,7 +83,9 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
             modelInfo.ConstructorParameters,
             implementsEqualsFlag,
             modelInfo.Properties,
-            attributes ?? new());
+            (IReadOnlyList<AttributeModel>?)attributes ?? Array.Empty<AttributeModel>(),
+            featureTypes
+            );
     }
 
     private List<PropertyInfoModel> GetProperties(GeneratorSyntaxContext context) {

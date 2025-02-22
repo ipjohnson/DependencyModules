@@ -46,12 +46,31 @@ public static class KnownTypes {
 
             // ReSharper disable once InconsistentNaming
             public static readonly ITypeDefinition IDependencyModule =
-                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "IDependencyModule");
+                TypeDefinition.Get(TypeDefinitionEnum.InterfaceDefinition, Namespace, "IDependencyModule");
 
             // ReSharper disable once InconsistentNaming
             public static readonly ITypeDefinition IDependencyModuleProvider =
-                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "IDependencyModuleProvider");
+                TypeDefinition.Get(TypeDefinitionEnum.InterfaceDefinition, Namespace, "IDependencyModuleProvider");
         }
+
+        public static class Features {
+            
+            public const string Namespace = "DependencyModules.Runtime.Features";
+
+            // ReSharper disable once InconsistentNaming
+            public static readonly ITypeDefinition IFeatureApplicator =
+                TypeDefinition.Get(TypeDefinitionEnum.InterfaceDefinition, Namespace, "IFeatureApplicator");
+
+            // ReSharper disable once InconsistentNaming
+            public static readonly ITypeDefinition IDependencyModuleApplicatorProvider =
+                TypeDefinition.Get(TypeDefinitionEnum.InterfaceDefinition, Namespace, "IDependencyModuleApplicatorProvider");
+            
+            // ReSharper disable once InconsistentNaming
+            public static readonly ITypeDefinition FeatureApplicator =
+                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "FeatureApplicator");
+
+        }
+        
 
         public static class Helpers {
             public const string Namespace = "DependencyModules.Runtime.Helpers";

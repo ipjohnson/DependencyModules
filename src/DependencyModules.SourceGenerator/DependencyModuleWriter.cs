@@ -44,11 +44,43 @@ public class DependencyModuleWriter {
         InternalApplyServicesMethod(classDefinition, model);
 
         InternalGetModulesMethod(classDefinition, model);
+        
+        FeatureMethod(classDefinition, model);
 
         if (!model.ImplementsEquals) {
             EqualMethod(classDefinition, model);
 
             HashMethod(classDefinition);
+        }
+    }
+
+    private void FeatureMethod(ClassDefinition classDefinition, ModuleEntryPointModel model) {
+        if (model.Features.Count == 0) {
+            return;
+        }
+
+        classDefinition.AddBaseType(KnownTypes.DependencyModules.Features.IDependencyModuleApplicatorProvider);
+
+        var method = classDefinition.AddMethod("FeatureApplicators");
+        method.SetReturnType(
+            new GenericTypeDefinition(typeof(IEnumerable<>), new []{KnownTypes.DependencyModules.Features.IFeatureApplicator}));
+
+        method.Modifiers |= ComponentModifier.Virtual | ComponentModifier.Public;
+
+        method.AddLeadingTrait(CodeOutputComponent.Get("[Browsable(false)]", true));
+        method.AddUsingNamespace("System.ComponentModel");
+        
+        method.InterfaceImplementation = KnownTypes.DependencyModules.Features.IDependencyModuleApplicatorProvider;
+        
+        foreach (var typeDefinition in model.Features) {
+            method.AddIndentedStatement(
+                YieldReturn(
+                    New(
+                        new GenericTypeDefinition(TypeDefinitionEnum.ClassDefinition,
+                        KnownTypes.DependencyModules.Features.FeatureApplicator.Namespace,
+                        KnownTypes.DependencyModules.Features.FeatureApplicator.Name,
+                        new []{typeDefinition}), "this")
+                    ));
         }
     }
 

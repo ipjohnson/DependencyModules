@@ -117,6 +117,29 @@ public partial class SomeOtherModule
 }
 ```
 
+## Module Features
+Because module configuration happens before the dependency injection container is instantiate it's impossible to use it for configuration.
+To support configuration discovery before registration feature interface can be 
+implemented in modules and be passed to a handler a registration time.
+
+```csharp
+// feature interface
+public interface IFeature { }
+
+[DependencyModule]
+public partial class ModuleImeplementation : ISomeFeature { }
+
+[DependencyModule]
+[ModuleImeplementation.Attribute]
+public partial class FeatureHandlerModule : IDependencyModuleFeature<ISomeFeature> 
+{
+  public void HandleFeature(IServiceCollection collection, IEnumerable<ISomeFeature> features) 
+  {
+      // invoked with service collection and one instance of the ModuleImplementation class
+  }
+}
+```
+
 ## Managing duplicate registration
 
 By default a module will only be loaded once, assuming attributes are used or the modules are specified in the same `AddModules` call. Seperate calls to `AddModule` will result in modules being loaded multiple times. If a module uses parameters it can be useful to load a module more than once. That can be accompilished by overriding the `Equals` and `GetHashcode` methods to allow for multiple loads.
