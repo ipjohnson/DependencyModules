@@ -171,7 +171,7 @@ public partial class CustomModule(string someString)
 }
 ```
 
-Services will be registered using an `Add` method by default. This can be overriden using the `With` property on individual service or at the `DepedencyModule` level.
+Services will be registered using an `Add` method by default. This can be overriden using the `With` property on individual service or at the `DepedencyModule` level. Note: the following are valid registration types Add, Try, TryEnumerable, Replace.
 
 ```csharp
 [SingletonService(With = RegistrationType.Try)]
