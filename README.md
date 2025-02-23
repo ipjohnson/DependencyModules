@@ -44,8 +44,8 @@ public class OtherService
 ```
 ## Container Instantiation
 
-`AddModule` - method adds root module to service collection
-`AddModules` - add a list of modules to the service collection
+* `AddModule` - method adds root module to service collection
+* `AddModules` - add a list of modules to the service collection
 
 ```csharp
 var serviceCollection = new ServiceCollection();
@@ -150,7 +150,7 @@ By default a module will only be loaded once, assuming attributes are used or th
 
 ```csharp
 // CustomModule will be loaded as long as someString is unique.
-// Duplicate modules with the someString value will be ignored
+// Duplicate modules with the same someString value will be ignored
 [DependencyModule]
 public partial class CustomModule(string someString)
 {
