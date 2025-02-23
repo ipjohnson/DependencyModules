@@ -29,6 +29,11 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
         SourceProductionContext context,
         ((ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right) Left, ImmutableArray<ServiceModel> Right) inputData) {
 
+        // don't generate empty dependency registrations
+        if (inputData.Right.Length == 0) {
+            return;
+        }
+        
         var writer = new DependencyFileWriter();
 
         var output = writer.Write(inputData.Left.Left, inputData.Left.Right, inputData.Right, "Module");
@@ -36,7 +41,6 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
         context.AddSource(inputData.Left.Left.EntryPointType.Name + "."  + 
                           inputData.Left.Left.UniqueId() + ".Dependencies.g.cs", output);
     }
-
 
     protected override IEqualityComparer<ServiceModel> GetComparer() {
         return _serviceEqualityComparer;

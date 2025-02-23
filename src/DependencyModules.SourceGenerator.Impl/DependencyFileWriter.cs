@@ -12,7 +12,6 @@ public class DependencyFileWriter {
         DependencyModuleConfigurationModel configurationModel,
         IEnumerable<ServiceModel> serviceModels,
         string uniqueId) {
-
         var csharpFile = new CSharpFileDefinition(entryPointModel.EntryPointType.Namespace);
 
         GenerateClass(entryPointModel, configurationModel, serviceModels, csharpFile, uniqueId);
