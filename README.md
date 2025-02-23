@@ -44,18 +44,22 @@ public class OtherService
 ```
 ## Container Instantiation
 
-`AddModule` - method adds modules to service collection
+`AddModule` - method adds root module to service collection
+`AddModules` - add a list of modules to the service collection
 
 ```csharp
 var serviceCollection = new ServiceCollection();
 
 serviceCollection.AddModule<MyModule>();
+// or
+serviceCollection.AddModules(new MyModule(), ...);
 
 var provider = serviceCollection.BuildServiceProvider();
 
 var service = provider.GetService<OtherService>();
 ```
 
+Note: to avoid duplicate modules it's recommend to only call AddModule(s) once in an application and never inside a Module.
 ## Factories
 
 Sometimes it's not possible to construct all types through normal registration.
@@ -118,8 +122,8 @@ public partial class SomeOtherModule
 ```
 
 ## Module Features
-Because module configuration happens before the dependency injection container is instantiate it's impossible to use it for configuration.
-To support configuration discovery before registration feature interface can be 
+Because module configuration happens before the dependency injection container is instantiate it's impossible to use the container for configuration.
+To support configuration discovery before registration, the feature interface can be 
 implemented in modules and be passed to a handler at registration time. Features applied before service and decorators.
 
 ```csharp
@@ -144,6 +148,29 @@ public partial class FeatureHandlerModule : IDependencyModuleFeature<ISomeFeatur
 
 By default a module will only be loaded once, assuming attributes are used or the modules are specified in the same `AddModules` call. Seperate calls to `AddModule` will result in modules being loaded multiple times. If a module uses parameters it can be useful to load a module more than once. That can be accompilished by overriding the `Equals` and `GetHashcode` methods to allow for multiple loads.
 
+```csharp
+// CustomModule will be loaded as long as someString is unique.
+// Duplicate modules with the someString value will be ignored
+[DependencyModule]
+public partial class CustomModule(string someString)
+{
+  public override bool Equals(object obj)
+  {
+    if (obj is CustomModule module)
+    {
+      return someString.Equals(module.someString);
+    }
+
+    return false;
+  }
+
+  public override int GetHashCode()
+  {
+    return someString.GetHashCode();
+  }
+}
+```
+
 Services will be registered using an `Add` method by default. This can be overriden using the `With` property on individual service or at the `DepedencyModule` level.
 
 ```csharp
@@ -164,8 +191,7 @@ The realm allows the developer to scope down the registration within a given mod
 [DependencyModule(OnlyRealm = true)]
 public partial class AnotherModule { }
 
-[SingletonService(ServiceType = typeof(ISomeInterface), 
-  Realm = typeof(AnotherModule))]
+[SingletonService(Realm = typeof(AnotherModule))]
 public class SomeDep : ISomeInterface { }
 ```
 
