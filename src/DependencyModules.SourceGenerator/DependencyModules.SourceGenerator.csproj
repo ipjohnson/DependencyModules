@@ -10,7 +10,13 @@
         <IsPackable>True</IsPackable>
         <PackageId>DependencyModules.SourceGenerator</PackageId>
     </PropertyGroup>
-
+    
+    <PropertyGroup Condition="'$(APPVEYOR)' == 'true'">
+        <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+        <PublicSign>true</PublicSign>
+        <AssemblyOriginatorKeyFile>..\DependencyModules.snk</AssemblyOriginatorKeyFile>
+    </PropertyGroup>
+    
     <PropertyGroup>
         <PackageCSharpAuthorIncludeSource>true</PackageCSharpAuthorIncludeSource>
     </PropertyGroup>

@@ -8,12 +8,25 @@
         <PackageId>DependencyModules.Runtime</PackageId>
         <PublishRepositoryUrl>true</PublishRepositoryUrl>
         <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
+        <SignAssembly>true</SignAssembly>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(APPVEYOR)' == 'true'">
+        <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+        <PublicSign>true</PublicSign>
+        <AssemblyOriginatorKeyFile>..\DependencyModules.snk</AssemblyOriginatorKeyFile>
     </PropertyGroup>
     
     <Import Project="../nuget.props"/>
 
     <ItemGroup>
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0"/>
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Include="..\DependencyModules.snk">
+        <Link>DependencyModules.snk</Link>
+      </None>
     </ItemGroup>
 
 </Project>
