@@ -7,6 +7,8 @@
         <Nullable>enable</Nullable>
         <IsPackable>True</IsPackable>
         <PackageId>DependencyModules.xUnit.NSubstitute</PackageId>
+        <PublishRepositoryUrl>true</PublishRepositoryUrl>
+        <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
     </PropertyGroup>
 
     <ItemGroup>
