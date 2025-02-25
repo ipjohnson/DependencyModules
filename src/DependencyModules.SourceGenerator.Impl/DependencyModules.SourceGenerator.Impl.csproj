@@ -11,12 +11,6 @@
         <PackageId>DependencyModules.SourceGenerator.Impl</PackageId>
     </PropertyGroup>
 
-    <PropertyGroup Condition="'$(APPVEYOR)' == 'true'">
-        <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
-        <PublicSign>true</PublicSign>
-        <AssemblyOriginatorKeyFile>..\DependencyModules.snk</AssemblyOriginatorKeyFile>
-    </PropertyGroup>
-    
     <ItemGroup>
         <PackageReference Include="CSharpAuthor" Version="1.0.4">
             <PrivateAssets>all</PrivateAssets>

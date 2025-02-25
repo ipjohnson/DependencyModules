@@ -10,12 +10,6 @@
         <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
         <SignAssembly>true</SignAssembly>
     </PropertyGroup>
-
-    <PropertyGroup Condition="'$(APPVEYOR)' == 'true'">
-        <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
-        <PublicSign>true</PublicSign>
-        <AssemblyOriginatorKeyFile>..\DependencyModules.snk</AssemblyOriginatorKeyFile>
-    </PropertyGroup>
     
     <Import Project="../nuget.props"/>
 
