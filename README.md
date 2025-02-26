@@ -94,19 +94,13 @@ Note these parameters and properties will be correspondingly implemented in the 
 
 ```csharp
 [DependencyModule]
-public partial class SomeModule : IServiceCollectionConfiguration 
+public partial class SomeModule(bool someFlag) : IServiceCollectionConfiguration 
 {
-  private bool _someFlag;
-  public SomeModule(bool someFlag = false)
-  {
-    _someFlag = someFlag;
-  }
-  
   public string OptionalString { get; set; } = "";
   
   public void ConfigureServices(IServiceCollection services) 
   {
-    if (_someFlag) 
+    if (someFlag) 
     {
       // custom registration
     } 
@@ -152,8 +146,13 @@ By default a module will only be loaded once, assuming attributes are used or th
 // CustomModule will be loaded as long as someString is unique.
 // Duplicate modules with the same someString value will be ignored
 [DependencyModule]
-public partial class CustomModule(string someString)
+public partial class CustomModule(string someString) : IServiceCollectionConfiguration 
 {
+  public void ConfigureServices(IServiceCollection services) 
+  {
+    // custom logic
+  }
+
   public override bool Equals(object obj)
   {
     if (obj is CustomModule module)
