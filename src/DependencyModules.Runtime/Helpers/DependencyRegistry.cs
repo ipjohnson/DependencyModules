@@ -127,7 +127,8 @@ public class DependencyRegistry<T> {
     }
     
     private static void InternalGetModules(IDependencyModule dependencyModule, List<IDependencyModule> dependencyModules) {
-        if (dependencyModules.Contains(dependencyModule)) {
+        if (!dependencyModule.LoadModule || 
+            dependencyModules.Contains(dependencyModule)) {
             return;
         }
 

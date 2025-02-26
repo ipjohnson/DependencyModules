@@ -9,6 +9,11 @@ namespace DependencyModules.Runtime.Interfaces;
 /// </summary>
 public interface IDependencyModule {
     /// <summary>
+    /// Flag to disable loading module and dependencies.
+    /// </summary>
+    bool LoadModule => true;
+    
+    /// <summary>
     /// Populate a service collection with registrations
     /// </summary>
     /// <param name="serviceCollection"></param>
