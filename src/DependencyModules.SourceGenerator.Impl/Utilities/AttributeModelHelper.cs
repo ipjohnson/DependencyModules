@@ -13,11 +13,19 @@ public static class AttributeModelHelper {
         SyntaxNode node,
         CancellationToken cancellationToken,
         Func<AttributeSyntax, bool>? filter = null) {
-        if (node is MemberDeclarationSyntax memberDeclarationSyntax) {
-            
+        SyntaxList<AttributeListSyntax>? attributeLists = null;
+
+        if (node is BaseParameterSyntax parameterSyntax) {
+            attributeLists = parameterSyntax.AttributeLists;    
+        } 
+        else if (node is MemberDeclarationSyntax memberDeclarationSyntax) {
+            attributeLists = memberDeclarationSyntax.AttributeLists;
+        }
+
+        if (attributeLists != null) {
             var results = GetAttributes(
                 context,
-                memberDeclarationSyntax.AttributeLists, 
+                attributeLists.Value, 
                 cancellationToken, 
                 filter);
             
