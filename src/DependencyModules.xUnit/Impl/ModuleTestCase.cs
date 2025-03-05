@@ -13,9 +13,6 @@ namespace DependencyModules.xUnit.Impl;
 ///     xUnit test case implementation
 /// </summary>
 public class ModuleTestCase : XunitTestCase {
-    private Dictionary<ParameterInfo, List<ITestParameterValueProvider>> _knownValues = new();
-    private IServiceProvider? _serviceProvider;
-    private List<ITestStartupAttribute> _startupAttributes = new();
 
 #pragma warning disable CS0618 // Type or member is obsolete
     public ModuleTestCase() { }
@@ -51,24 +48,44 @@ public class ModuleTestCase : XunitTestCase {
 
     public override void PreInvoke() { }
 
-    private void SetupServiceCollection() {
+    private record StartupValues(
+        IServiceProvider ServiceProvider, 
+        Dictionary<ParameterInfo, List<ITestParameterValueProvider>> KnownValues);
+    
+    private StartupValues SetupServiceCollection() {
         var serviceCollection = new ServiceCollection();
-        _knownValues = new Dictionary<ParameterInfo, List<ITestParameterValueProvider>>();
-        _startupAttributes = new List<ITestStartupAttribute>();
-
-        SetupModules(serviceCollection);
-
-        SetValueProviders(serviceCollection);
-
-        SetupStartupAttributes(serviceCollection);
-
-        _serviceProvider = BuildServiceProvider(serviceCollection);
+        var knownValues = new Dictionary<ParameterInfo, List<ITestParameterValueProvider>>();
         
-        DisposalTracker.Add(_serviceProvider);
+        var knownAttributes = TestMethod.Method.GetTestAttributes<Attribute>().ToArray();
+        
+        SetupTestCaseInfo(serviceCollection, knownAttributes);
+        
+        SetupModules(serviceCollection, knownAttributes);
+
+        SetValueProviders(serviceCollection, knownValues);
+
+        SetupStartupAttributes(serviceCollection, knownAttributes);
+
+        var provider = BuildServiceProvider(serviceCollection, knownAttributes);
+        
+        DisposalTracker.Add(provider);
+        
+        return new StartupValues(provider, knownValues);
     }
 
-    private IServiceProvider BuildServiceProvider(ServiceCollection serviceCollection) {
-        var serviceProviderBuilderAttribute = TestMethod.Method.GetTestAttribute<IServiceProviderBuilderAttribute>();
+    private void SetupTestCaseInfo(ServiceCollection serviceCollection, Attribute[] knownAttributes) {
+        
+        serviceCollection.AddSingleton<ITestCaseInfo>(provider => provider.GetRequiredService<TestCaseInfo>());
+        serviceCollection.AddSingleton<TestCaseInfo>(_ => new TestCaseInfo(
+            TestMethod,
+            ArraySegment<object>.Empty, 
+            knownAttributes
+            ));
+    }
+
+    private IServiceProvider BuildServiceProvider(ServiceCollection serviceCollection, Attribute[] knownAttributes) {
+        var serviceProviderBuilderAttribute =
+            knownAttributes.OfType<IServiceProviderBuilderAttribute>().FirstOrDefault();
 
         if (serviceProviderBuilderAttribute != null) {
             return serviceProviderBuilderAttribute.BuildServiceProvider(TestMethod, serviceCollection);
@@ -77,18 +94,17 @@ public class ModuleTestCase : XunitTestCase {
         return serviceCollection.BuildServiceProvider();
     }
 
-    private void SetupStartupAttributes(ServiceCollection serviceCollection) {
-        foreach (var testStartupAttribute in TestMethod.Method.GetTestAttributes<ITestStartupAttribute>()) {
+    private void SetupStartupAttributes(ServiceCollection serviceCollection, Attribute[] knownAttributes) {
+        foreach (var testStartupAttribute in knownAttributes.OfType<ITestStartupAttribute>()) {
             testStartupAttribute.SetupServiceCollection(TestMethod, serviceCollection);
-            _startupAttributes.Add(testStartupAttribute);
         }
     }
 
-    private void SetValueProviders(ServiceCollection serviceCollection) {
+    private void SetValueProviders(ServiceCollection serviceCollection, Dictionary<ParameterInfo, List<ITestParameterValueProvider>> knownValues) {
         foreach (var parameterInfo in TestMethod.Method.GetParameters()) {
             var list = new List<ITestParameterValueProvider>();
 
-            _knownValues.Add(parameterInfo, list);
+            knownValues.Add(parameterInfo, list);
 
             foreach (var valueProvider in parameterInfo.GetCustomAttributes().OfType<ITestParameterValueProvider>()) {
                 valueProvider.SetupServiceCollection(TestMethod, serviceCollection, parameterInfo);
@@ -97,11 +113,10 @@ public class ModuleTestCase : XunitTestCase {
         }
     }
 
-    private void SetupModules(ServiceCollection serviceCollection) {
+    private void SetupModules(ServiceCollection serviceCollection, IEnumerable<Attribute> knownAttributes) {
         var modules = new List<IDependencyModule>();
 
-        foreach (var loadModuleAttribute in
-                 TestMethod.Method.GetTestAttributes<IDependencyModuleProvider>()) {
+        foreach (var loadModuleAttribute in knownAttributes.OfType<IDependencyModuleProvider>()) {
 
             var moduleTypes = loadModuleAttribute.GetModule();
             
@@ -150,7 +165,7 @@ public class ModuleTestCase : XunitTestCase {
             foreach (var theoryDataRow in dataRowCollection) {
                 var data = theoryDataRow.GetData();
 
-                SetupServiceCollection();
+                var startupValues = SetupServiceCollection();
 
                 unitTests.Add(
                     new XunitTest(
@@ -162,7 +177,7 @@ public class ModuleTestCase : XunitTestCase {
                         unitTests.Count,
                         theoryDataRow.Traits?.ToReadOnly() ?? Traits.ToReadOnly(),
                         theoryDataRow.Timeout ?? Timeout,
-                        await ResolveArguments(data)
+                        await ResolveArguments(data, startupValues)
                     )
                 );
             }
@@ -172,7 +187,7 @@ public class ModuleTestCase : XunitTestCase {
     }
 
     private async Task<IReadOnlyCollection<IXunitTest>> UnitTestWithNoDataAttributes() {
-        SetupServiceCollection();
+        var startupValues = SetupServiceCollection();
 
         return [
             new XunitTest(
@@ -184,36 +199,39 @@ public class ModuleTestCase : XunitTestCase {
                 0,
                 Traits.ToReadOnly(),
                 Timeout,
-                await ResolveArguments([])
+                await ResolveArguments([], startupValues)
             )
         ];
     }
 
-    private async Task<object?[]> ResolveArguments(object?[] data) {
+    private async Task<object?[]> ResolveArguments(object?[] data, StartupValues startupValues) {
         var parameters = new List<object?>(data);
 
+        var testCaseInfo = startupValues.ServiceProvider.GetRequiredService<TestCaseInfo>();
+        
         var parameterList = TestMethod.Method.GetParameters();
 
         for (var i = data.Length; i < parameterList.Length; i++) {
             var parameterInfo = parameterList[i];
-            var value = await ResolveParameter(parameterInfo);
+            var value = await ResolveParameter(parameterInfo, startupValues);
 
-            parameters.Add(value ?? ResolveArgumentFromProvider(parameterInfo));
+            parameters.Add(value ?? ResolveArgumentFromProvider(parameterInfo, startupValues));
         }
-
-
+        
+        testCaseInfo.TestMethodArguments = parameters;
+        
         return parameters.ToArray();
     }
 
-    private async Task<object?> ResolveParameter(ParameterInfo parameterInfo) {
+    private async Task<object?> ResolveParameter(ParameterInfo parameterInfo, StartupValues startupValues) {
         object? value = null;
 
         if (parameterInfo.ParameterType == typeof(IServiceProvider)) {
-            value = _serviceProvider;
+            value = startupValues.ServiceProvider;
         }
         else {
-            foreach (var valueProvider in _knownValues[parameterInfo]) {
-                value = await valueProvider.GetParameterValueAsync(TestMethod, _serviceProvider!, parameterInfo);
+            foreach (var valueProvider in startupValues.KnownValues[parameterInfo]) {
+                value = await valueProvider.GetParameterValueAsync(TestMethod, startupValues.ServiceProvider, parameterInfo);
 
                 if (value != null) {
                     break;
@@ -224,24 +242,25 @@ public class ModuleTestCase : XunitTestCase {
         return value;
     }
 
-    private object? ResolveArgumentFromProvider(ParameterInfo parameterInfo) {
+    private object? ResolveArgumentFromProvider(ParameterInfo parameterInfo, StartupValues startupValues) {
         var keyedServicesAttribute = parameterInfo.GetCustomAttribute<FromKeyedServicesAttribute>();
 
-        if (keyedServicesAttribute != null && _serviceProvider is IKeyedServiceProvider keyedServiceProvider) {
+        if (keyedServicesAttribute != null && startupValues.ServiceProvider is IKeyedServiceProvider keyedServiceProvider) {
             return keyedServiceProvider.GetKeyedService(parameterInfo.ParameterType, keyedServicesAttribute.Key);
         }
         
-        var value = _serviceProvider!.GetService(parameterInfo.ParameterType);
+        var value = startupValues.ServiceProvider.GetService(parameterInfo.ParameterType);
 
         if (value != null) {
             return value;
         }
 
-        return ConstructValueFromType(parameterInfo);
+        return ConstructValueFromType(parameterInfo, startupValues);
     }
 
-    private object? ConstructValueFromType(ParameterInfo parameterInfo) {
-        return ActivatorUtilities.CreateInstance(_serviceProvider!, parameterInfo.ParameterType);
+    private object? ConstructValueFromType(ParameterInfo parameterInfo, StartupValues startupValues) {
+        return ActivatorUtilities.CreateInstance(
+            startupValues.ServiceProvider, parameterInfo.ParameterType);
     }
     
 }
