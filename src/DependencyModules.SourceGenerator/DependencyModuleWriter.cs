@@ -32,9 +32,9 @@ public class DependencyModuleWriter {
         classDefinition.Modifiers |= ComponentModifier.Partial;
 
         if (model.GenerateAttribute != false) {
-            var attributeGenerator = new ModuleAttributeGenerator();
+            var attributeGenerator = new ModuleAttributeWriter();
 
-            attributeGenerator.Generate(model, classDefinition);
+            attributeGenerator.CreateAttributeClass(classDefinition, model);
         }
         
         SetupStaticConstructor(classDefinition);

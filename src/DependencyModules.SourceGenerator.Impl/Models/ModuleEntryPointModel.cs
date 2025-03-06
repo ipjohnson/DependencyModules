@@ -11,7 +11,7 @@ public record ModuleEntryPointModel(
     bool ImplementsEquals,
     IReadOnlyList<PropertyInfoModel> PropertyInfoModels,
     IReadOnlyList<AttributeModel> AttributeModels,
-    IReadOnlyList<ITypeDefinition> Features);
+    IReadOnlyList<ITypeDefinition> Features) : IClassModel;
 
 public class ModuleEntryPointModelComparer : IEqualityComparer<ModuleEntryPointModel> {
     
