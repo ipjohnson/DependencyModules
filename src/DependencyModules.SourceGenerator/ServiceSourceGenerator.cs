@@ -16,7 +16,8 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
         KnownTypes.DependencyModules.Attributes.TransientServiceAttribute, 
         KnownTypes.DependencyModules.Attributes.ScopedServiceAttribute, 
         KnownTypes.DependencyModules.Attributes.SingletonServiceAttribute,
-        KnownTypes.DependencyModules.Attributes.CrossWireServiceAttribute
+        KnownTypes.DependencyModules.Attributes.CrossWireServiceAttribute,
+        KnownTypes.Microsoft.TextJson.JsonSourceGenerationOptionsAttribute
     };
 
     private readonly IEqualityComparer<ServiceModel> _serviceEqualityComparer = new ServiceModelComparer();

@@ -15,10 +15,13 @@ public class ServiceModelUtility {
     private static readonly ITypeDefinition _crossWireService =
         KnownTypes.DependencyModules.Attributes.CrossWireServiceAttribute;
 
+    private static readonly ITypeDefinition _serializerService =
+        KnownTypes.Microsoft.TextJson.JsonSourceGenerationOptionsAttribute;
+    
     private static readonly ITypeDefinition[] _attributeTypes = {
         KnownTypes.DependencyModules.Attributes.TransientServiceAttribute, 
         KnownTypes.DependencyModules.Attributes.ScopedServiceAttribute, 
-        KnownTypes.DependencyModules.Attributes.SingletonServiceAttribute
+        KnownTypes.DependencyModules.Attributes.SingletonServiceAttribute,
     };
 
     public static ServiceModel? GetServiceModel(
@@ -55,7 +58,11 @@ public class ServiceModelUtility {
             return null;
         }
 
-        return new ServiceModel(returnType, factoryModel, GetRegistrations(context, returnType, cancellationToken));
+        var models = 
+            AttributeModelHelper.GetAttributeModels(context,context.Node, cancellationToken);
+        
+        return new ServiceModel(returnType, factoryModel,null, 
+            GetRegistrations(context, returnType, models, cancellationToken));
     }
 
     private static ServiceFactoryModel? GetFactoryModel(GeneratorSyntaxContext context, MethodDeclarationSyntax methodDeclarationSyntax, CancellationToken cancellationToken) {
@@ -78,10 +85,43 @@ public class ServiceModelUtility {
         if (classDefinition == null) {
             return null;
         }
+        
+        var attributes =
+            AttributeModelHelper.GetAttributeModels(context,context.Node,cancellationToken);
+        
+        var registrations = GetRegistrations(context, classDefinition, attributes, cancellationToken);
+        
+        if (registrations.Count == 0 ) {
 
-        var registrations = GetRegistrations(context, classDefinition, cancellationToken);
+            return new ServiceModel(
+                classDefinition, 
+                null, 
+                FactoryOutput,
+                new []{ new ServiceRegistrationModel(
+                    KnownTypes.Microsoft.TextJson.IJsonTypeInfoResolver,
+                    ServiceLifestyle.Transient
+                    )}
+                );
+        }
 
-        return new ServiceModel(classDefinition, null, registrations);
+        FactoryOutputDelegate? factoryOutput = null;
+
+        if (registrations.Any(
+                r => r.ServiceType.Equals(KnownTypes.Microsoft.TextJson.IJsonTypeInfoResolver))) {
+            factoryOutput = FactoryOutput;
+        }
+        
+        return new ServiceModel(classDefinition, null, factoryOutput, registrations);
+    }
+
+    private static IOutputComponent? FactoryOutput(ServiceModel servicemodel, ServiceRegistrationModel registrationmodel) {
+        var signature = "_ => ";
+
+        if (registrationmodel.Key != null) {
+            signature = "(_,_) => ";
+        }
+        
+        return CodeOutputComponent.Get($"{signature}{servicemodel.ImplementationType.Name}.Default");
     }
 
     private static ITypeDefinition? GetClassDefinition(GeneratorSyntaxContext context) {
@@ -110,10 +150,11 @@ public class ServiceModelUtility {
             classTypeDefinition = TypeDefinition.Get(classDeclarationSyntax.GetNamespace(),
                 classDeclarationSyntax.Identifier.ToString());
         }
+        
         return classTypeDefinition;
     }
 
-    private static List<ServiceRegistrationModel> GetRegistrations(GeneratorSyntaxContext context, ITypeDefinition classDefinition, CancellationToken cancellationToken) {
+    private static List<ServiceRegistrationModel> GetRegistrations(GeneratorSyntaxContext context, ITypeDefinition classDefinition, IReadOnlyList<AttributeModel> attributes, CancellationToken cancellationToken) {
         var list = new List<ServiceRegistrationModel>();
         
         foreach (var attributeSyntax in

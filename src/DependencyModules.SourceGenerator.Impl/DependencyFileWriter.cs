@@ -168,7 +168,12 @@ public class DependencyFileWriter {
         }
 
         if (serviceModel.Factory == null) {
-            parameters.Add(TypeOf(serviceModel.ImplementationType));
+            if (serviceModel.FactoryOutput != null) {
+                parameters.Add(serviceModel.FactoryOutput);
+            }
+            else {
+                parameters.Add(TypeOf(serviceModel.ImplementationType));
+            }
         }
         else {
             AddFactoryParameter(serviceModel, classDefinition, parameters, uniqueId);
@@ -220,7 +225,9 @@ public class DependencyFileWriter {
             AddCrossWireParameter(serviceModel, registrationModel, parameters);
         }
         else if (serviceModel.Factory == null) {
-            parameters.Add(TypeOf(serviceModel.ImplementationType));
+            var factoryOutput = serviceModel.FactoryOutput?.Invoke(serviceModel, registrationModel);
+
+            parameters.Add(factoryOutput ?? TypeOf(serviceModel.ImplementationType));
         }
         else {
             AddFactoryParameter(serviceModel, classDefinition, parameters, uniqueId);
@@ -296,7 +303,9 @@ public class DependencyFileWriter {
                 serviceModel, registrationModel, parameters);
         }
         else if (serviceModel.Factory == null) {
-            parameters.Add(TypeOf(serviceModel.ImplementationType));
+            var output = serviceModel.FactoryOutput?.Invoke(serviceModel, registrationModel);
+            
+            parameters.Add(output ?? TypeOf(serviceModel.ImplementationType));
         }
         else {
             AddFactoryParameter(serviceModel, classDefinition, parameters, uniqueId);

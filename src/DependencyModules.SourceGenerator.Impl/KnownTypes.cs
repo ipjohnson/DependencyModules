@@ -18,6 +18,16 @@ public static class KnownTypes {
             public static readonly ITypeDefinition ServiceDescriptor = 
                 TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "ServiceDescriptor");
         }
+        
+        public static class TextJson {
+            public const string Namespace = "System.Text.Json.Serialization";
+            
+            public static readonly ITypeDefinition JsonSourceGenerationOptionsAttribute =
+                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "JsonSourceGenerationOptionsAttribute");
+            
+            public static readonly ITypeDefinition IJsonTypeInfoResolver =
+                TypeDefinition.Get(TypeDefinitionEnum.InterfaceDefinition, Namespace + ".Metadata", "IJsonTypeInfoResolver");
+        }
     }
 
     public static class DependencyModules {

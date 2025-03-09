@@ -12,7 +12,6 @@ public class SimpleResolveTests {
         Assert.NotNull(dependencyOne.ScopedService);
     }
 
-
     [ModuleTest]
     [SutModule.Attribute]
     public void ResolveServiceProvider(IDependencyOne dependencyOne, IServiceProvider serviceProvider) {

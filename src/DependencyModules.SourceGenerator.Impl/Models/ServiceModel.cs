@@ -28,12 +28,16 @@ public record ServiceRegistrationModel(
     object? Key = null,
     bool? CrossWire = false);
 
+public delegate IOutputComponent? FactoryOutputDelegate(ServiceModel serviceModel, ServiceRegistrationModel registrationModel);
+
 public record ServiceModel(
     ITypeDefinition ImplementationType,
     ServiceFactoryModel? Factory,
+    FactoryOutputDelegate? FactoryOutput,
     IReadOnlyList<ServiceRegistrationModel> Registrations) {
     public static ServiceModel Ignore = new ServiceModel(
         TypeDefinition.Get("", "Ignore"),
+        null,
         null,
         Array.Empty<ServiceRegistrationModel>()
         );
@@ -49,7 +53,14 @@ public class ServiceModelComparer : IEqualityComparer<ServiceModel> {
         return
             x.ImplementationType.Equals(y.ImplementationType) &&
             CompareRegistrations(x.Registrations, y.Registrations) && 
-            CompareFactory(x.Factory, y.Factory);
+            CompareFactory(x.Factory, y.Factory) && 
+            CompareFactoryOutput(x.FactoryOutput, y.FactoryOutput);
+    }
+
+    private bool CompareFactoryOutput(FactoryOutputDelegate? xFactoryOutput, FactoryOutputDelegate? yFactoryOutput) {
+        if (xFactoryOutput is null && yFactoryOutput is null) return true;
+        if (xFactoryOutput is null || yFactoryOutput is null) return false;
+        return true;
     }
 
     private bool CompareFactory(ServiceFactoryModel? xFactory, ServiceFactoryModel? yFactory) {
