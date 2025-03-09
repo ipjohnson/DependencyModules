@@ -93,6 +93,12 @@ public class DependencyFileWriter {
                     continue;
                 }
 
+                if (registrationModel.Namespaces != null) {
+                    foreach (var namespaceString in registrationModel.Namespaces) {
+                        classDefinition.AddUsingNamespace(namespaceString);
+                    }
+                }
+                
                 crossWire |= registrationModel.CrossWire.GetValueOrDefault(false);
 
                 var registrationType = GetRegistrationType(entryPointModel, configurationModel, registrationModel);

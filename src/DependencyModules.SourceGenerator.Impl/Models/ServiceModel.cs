@@ -26,7 +26,8 @@ public record ServiceRegistrationModel(
     RegistrationType? RegistrationType = null,
     ITypeDefinition? Realm = null,
     object? Key = null,
-    bool? CrossWire = false);
+    bool? CrossWire = false,
+    IReadOnlyList<string>? Namespaces = null);
 
 public delegate IOutputComponent? FactoryOutputDelegate(ServiceModel serviceModel, ServiceRegistrationModel registrationModel);
 
@@ -95,7 +96,15 @@ public class ServiceModelComparer : IEqualityComparer<ServiceModel> {
         return x.ServiceType.Equals(y.ServiceType) &&
                x.Lifestyle == y.Lifestyle &&
                x.RegistrationType == y.RegistrationType &&
+               CompareNamespaces(x.Namespaces, y.Namespaces) &&
                Equals(x.Realm, y.Realm) &&
                Equals(x.Key, y.Key);
+    }
+
+    private bool CompareNamespaces(IReadOnlyList<string>? xNamespaces, IReadOnlyList<string>? yNamespaces) {
+        if (xNamespaces is null && yNamespaces is null) return true;
+        if (xNamespaces is null || yNamespaces is null) return false;
+        if (xNamespaces.Count != yNamespaces.Count) return false;
+        return xNamespaces.SequenceEqual(yNamespaces);
     }
 }

@@ -1,5 +1,6 @@
 using CSharpAuthor;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace DependencyModules.SourceGenerator.Impl.Utilities;
 
@@ -17,6 +18,16 @@ public static class TypeSyntaxExtensions {
         return type;
     }
 
+    public static ITypeDefinition? GetTypeDefinition(this MemberAccessExpressionSyntax syntax, GeneratorSyntaxContext generatorSyntaxContext) {
+        var typeInfo = generatorSyntaxContext.SemanticModel.GetSymbolInfo(syntax.Expression);
+        
+        if (typeInfo.Symbol is INamedTypeSymbol namedTypeSymbol) {
+            return GetTypeDefinition(namedTypeSymbol);
+        }
+        
+        return null;
+    }
+    
     public static string GetFullName(this INamespaceSymbol? namespaceSymbol) {
         if (namespaceSymbol == null) {
             return "";

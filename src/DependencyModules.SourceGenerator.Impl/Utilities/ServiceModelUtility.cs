@@ -183,6 +183,7 @@ public class ServiceModelUtility {
         ITypeDefinition? realm = null;
         object? key = null;
         ServiceLifestyle lifestyle = ServiceLifestyle.Singleton;
+        var namespaces = new List<string>();
 
         if (attributeSyntax.ArgumentList != null) {
             foreach (var argumentSyntax in attributeSyntax.ArgumentList.Arguments) {
@@ -190,6 +191,12 @@ public class ServiceModelUtility {
                     switch (argumentSyntax.NameEquals.Name.ToString()) {
                         case "Key":
                             key = argumentSyntax.Expression.ToString();
+                            if (argumentSyntax.Expression is MemberAccessExpressionSyntax accessExpressionSyntax) {
+                                var type = accessExpressionSyntax.GetTypeDefinition(context);
+                                if (type != null) {
+                                    namespaces.AddRange(type.KnownNamespaces);
+                                }
+                            }
                             break;
                         
                         case "With":
@@ -221,13 +228,12 @@ public class ServiceModelUtility {
                         registrationType,
                         realm,
                         key,
-                        true
+                        true,
+                        namespaces
                     );
                 }
             }
         }
-        
-        yield break;
     }
 
     private static ServiceLifestyle GetLifestyle(string toString) {
@@ -252,13 +258,21 @@ public class ServiceModelUtility {
         RegistrationType? registrationType = null;
         ITypeDefinition? realm = null;
         object? key = null;
-
+        var namespaces = new List<string>();
+        
         if (attributeSyntax.ArgumentList != null) {
             foreach (var argumentSyntax in attributeSyntax.ArgumentList.Arguments) {
                 if (argumentSyntax.NameEquals != null) {
                     switch (argumentSyntax.NameEquals.Name.ToString()) {
                         case "Key":
                             key = argumentSyntax.Expression.ToString();
+
+                            if (argumentSyntax.Expression is MemberAccessExpressionSyntax accessExpressionSyntax) {
+                                var type = accessExpressionSyntax.GetTypeDefinition(context);
+                                if (type != null) {
+                                    namespaces.AddRange(type.KnownNamespaces);
+                                }
+                            }
                             break;
                         case "With":
                             registrationType =
@@ -286,15 +300,17 @@ public class ServiceModelUtility {
         }
 
         return new ServiceRegistrationModel(
-            registration ?? GetServieTypeFromClass(context, classDefinition),
+            registration ?? GetServiceTypeFromClass(context, classDefinition),
             lifestyle,
             registrationType,
             realm,
-            key
+            key,
+            false,
+            namespaces
         );
     }
 
-    private static ITypeDefinition GetServieTypeFromClass(
+    private static ITypeDefinition GetServiceTypeFromClass(
         GeneratorSyntaxContext context, ITypeDefinition classDefinition) {
         return GetBaseTypeRegistration(context) ?? classDefinition;
     }
