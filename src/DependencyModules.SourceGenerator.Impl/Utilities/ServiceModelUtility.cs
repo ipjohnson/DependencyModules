@@ -121,7 +121,10 @@ public class ServiceModelUtility {
             signature = "(_,_) => ";
         }
         
-        return CodeOutputComponent.Get($"{signature}{servicemodel.ImplementationType.Name}.Default");
+        var component = CodeOutputComponent.Get(
+            $"{signature}{servicemodel.ImplementationType.Namespace}.{servicemodel.ImplementationType.Name}.Default");
+        
+        return component;
     }
 
     private static ITypeDefinition? GetClassDefinition(GeneratorSyntaxContext context) {
