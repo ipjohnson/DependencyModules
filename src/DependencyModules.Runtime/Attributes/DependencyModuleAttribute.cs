@@ -14,9 +14,14 @@ public class DependencyModuleAttribute : Attribute {
     ///     Use try when registering, default is false
     /// </summary>
     public RegistrationType With { get; set; } = RegistrationType.Add;
-    
+
     /// <summary>
     /// Generate Module attribute, true by default
     /// </summary>
-    public bool GenerateAttribute { get; set; }
+    public bool GenerateAttribute { get; set; } = true;
+
+    /// <summary>
+    /// Register JsonSourceGenerationOptions classes
+    /// </summary>
+    public bool RegisterJsonSerializers { get; set; } = false;
 }

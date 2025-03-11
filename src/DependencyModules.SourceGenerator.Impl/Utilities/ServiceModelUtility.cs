@@ -62,7 +62,8 @@ public class ServiceModelUtility {
             AttributeModelHelper.GetAttributeModels(context,context.Node, cancellationToken);
         
         return new ServiceModel(returnType, factoryModel,null, 
-            GetRegistrations(context, returnType, models, cancellationToken));
+            GetRegistrations(context, returnType, models, cancellationToken), 
+            RegistrationFeature.None);
     }
 
     private static ServiceFactoryModel? GetFactoryModel(GeneratorSyntaxContext context, MethodDeclarationSyntax methodDeclarationSyntax, CancellationToken cancellationToken) {
@@ -100,7 +101,8 @@ public class ServiceModelUtility {
                 new []{ new ServiceRegistrationModel(
                     KnownTypes.Microsoft.TextJson.IJsonTypeInfoResolver,
                     ServiceLifestyle.Transient
-                    )}
+                    )}, 
+                RegistrationFeature.AutoRegisterSourceGenerator
                 );
         }
 
@@ -111,7 +113,7 @@ public class ServiceModelUtility {
             factoryOutput = FactoryOutput;
         }
         
-        return new ServiceModel(classDefinition, null, factoryOutput, registrations);
+        return new ServiceModel(classDefinition, null, factoryOutput, registrations, RegistrationFeature.None);
     }
 
     private static IOutputComponent? FactoryOutput(ServiceModel servicemodel, ServiceRegistrationModel registrationmodel) {

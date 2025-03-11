@@ -5,7 +5,8 @@ namespace DependencyModules.SourceGenerator.Impl.Models;
 ///     the values are intended to come from csproj
 /// </summary>
 public record DependencyModuleConfigurationModel(
-    RegistrationType RegistrationType
+    RegistrationType RegistrationType,
+    bool RegisterSourceGenerator
 );
 
 public class DependencyModuleConfigurationModelComparer :
@@ -16,7 +17,8 @@ public class DependencyModuleConfigurationModelComparer :
         if (x is null) return false;
         if (y is null) return false;
         if (x.GetType() != y.GetType()) return false;
-        return x.RegistrationType == y.RegistrationType;
+        return x.RegistrationType == y.RegistrationType && 
+               x.RegisterSourceGenerator == y.RegisterSourceGenerator;
     }
 
     public int GetHashCode(DependencyModuleConfigurationModel obj) {

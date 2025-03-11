@@ -15,6 +15,12 @@ public enum RegistrationType {
     Replace
 }
 
+[Flags]
+public enum RegistrationFeature {
+    None= 0,
+    AutoRegisterSourceGenerator = 1,
+}
+
 public record ServiceFactoryModel(
     ITypeDefinition TypeDefinition,
     string MethodName,
@@ -29,18 +35,21 @@ public record ServiceRegistrationModel(
     bool? CrossWire = false,
     IReadOnlyList<string>? Namespaces = null);
 
-public delegate IOutputComponent? FactoryOutputDelegate(ServiceModel serviceModel, ServiceRegistrationModel registrationModel);
+public delegate IOutputComponent? FactoryOutputDelegate(
+    ServiceModel serviceModel, ServiceRegistrationModel registrationModel);
 
 public record ServiceModel(
     ITypeDefinition ImplementationType,
     ServiceFactoryModel? Factory,
     FactoryOutputDelegate? FactoryOutput,
-    IReadOnlyList<ServiceRegistrationModel> Registrations) {
+    IReadOnlyList<ServiceRegistrationModel> Registrations,
+    RegistrationFeature Features) {
     public static ServiceModel Ignore = new ServiceModel(
         TypeDefinition.Get("", "Ignore"),
         null,
         null,
-        Array.Empty<ServiceRegistrationModel>()
+        Array.Empty<ServiceRegistrationModel>(),
+        RegistrationFeature.None
         );
 }
 
@@ -52,6 +61,7 @@ public class ServiceModelComparer : IEqualityComparer<ServiceModel> {
         if (y is null) return false;
         if (x.GetType() != y.GetType()) return false;
         return
+            x.Features == y.Features &&
             x.ImplementationType.Equals(y.ImplementationType) &&
             CompareRegistrations(x.Registrations, y.Registrations) && 
             CompareFactory(x.Factory, y.Factory) && 

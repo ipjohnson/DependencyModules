@@ -74,12 +74,19 @@ public class DependencyFileWriter {
         var stringBuilder = new StringBuilder();
 
         var sortedServiceModels = GetSortedServiceModels(serviceModels);
-
+        var autoRegisterGenerators =
+            entryPointModel.RegisterJsonSerializers ?? configurationModel.RegisterSourceGenerator;
+        
         foreach (var serviceModel in sortedServiceModels) {
             if (serviceModel.Equals(ServiceModel.Ignore)) {
                 continue;
             }
 
+            if ((serviceModel.Features & RegistrationFeature.AutoRegisterSourceGenerator) ==
+                RegistrationFeature.AutoRegisterSourceGenerator && !autoRegisterGenerators) {
+                continue;
+            }
+            
             var crossWire = false;
 
             foreach (var registrationModel in serviceModel.Registrations) {

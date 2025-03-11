@@ -7,6 +7,7 @@ public record ModuleEntryPointModel(
     bool OnlyRealm,
     RegistrationType? RegistrationType,
     bool? GenerateAttribute,
+    bool? RegisterJsonSerializers,
     IReadOnlyList<ParameterInfoModel> Parameters,
     bool ImplementsEquals,
     IReadOnlyList<PropertyInfoModel> PropertyInfoModels,
