@@ -19,11 +19,22 @@ public class DependencyModuleWriter {
 
         GenerateUseMethod(models, csharpFile);
         
+        GenerateAttribute(models, csharpFile);
+        
         var outputContext = new OutputContext();
 
         csharpFile.WriteOutput(outputContext);
 
         context.AddSource(model.EntryPointType.Name + "." + model.UniqueId() + ".Module.g.cs", outputContext.Output());
+    }
+
+    private void GenerateAttribute((ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right) models, CSharpFileDefinition csharpFile) {
+        var model = models.Left;
+        if (model.GenerateAttribute != false) {
+            var attributeGenerator = new ModuleAttributeWriter();
+
+            attributeGenerator.CreateAttributeClass(csharpFile, model);
+        }
     }
 
     private void GenerateUseMethod((ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right) models, CSharpFileDefinition csharpFile) {
@@ -62,12 +73,6 @@ public class DependencyModuleWriter {
 
         classDefinition.EnableNullable();
         classDefinition.Modifiers |= ComponentModifier.Partial;
-
-        if (model.GenerateAttribute != false) {
-            var attributeGenerator = new ModuleAttributeWriter();
-
-            attributeGenerator.CreateAttributeClass(classDefinition, model);
-        }
         
         SetupStaticConstructor(classDefinition);
 

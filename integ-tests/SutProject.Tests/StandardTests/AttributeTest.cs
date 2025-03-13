@@ -8,15 +8,17 @@ public interface ICustomAttributeInterface {
     
 }
 
+public partial class AttributeTestModuleAttribute : ICustomAttributeInterface{
+        
+}
+
 [DependencyModule(OnlyRealm = true)]
 public partial class AttributeTestModule {
-    public partial class Attribute : ICustomAttributeInterface{
-        
-    }
+
 }
 
 [DependencyModule]
-[AttributeTestModule.Attribute]
+[AttributeTestModule]
 public partial class SomeModule {
     
 }
@@ -24,7 +26,7 @@ public partial class SomeModule {
 public class AttributeTest {
     [Fact]
     public void AttributePartialTest() {
-        var attributeType = typeof(AttributeTestModule.Attribute);
+        var attributeType = typeof(AttributeTestModuleAttribute);
 
         var interfaces = attributeType.GetInterfaces();
         

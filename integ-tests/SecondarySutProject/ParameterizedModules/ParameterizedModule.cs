@@ -10,7 +10,7 @@ public partial class ParameterizedModule : IServiceCollectionConfiguration {
     private readonly string _a;
     private readonly int _b;
 
-    private ParameterizedModule(string a, int b) {
+    public ParameterizedModule(string a, int b) {
         _a = a;
         _b = b;
     }

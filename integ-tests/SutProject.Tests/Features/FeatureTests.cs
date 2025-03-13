@@ -5,10 +5,10 @@ namespace SutProject.Tests.Features;
 
 public class FeatureTests {
     [ModuleTest]
-    [FeatureModuleHandler.Attribute]
-    [FeatureModuleA.Attribute]
-    [FeatureModuleB.Attribute]
-    [FeatureModuleC.Attribute]
+    [FeatureModuleHandler]
+    [FeatureModuleA]
+    [FeatureModuleB]
+    [FeatureModuleC]
     public void FeatureTest(IEnumerable<DependencyValue> values) {
         var valuesArray = values.ToArray();
         

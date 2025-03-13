@@ -32,7 +32,7 @@ public static class FactoryClass {
 
 public class SimpleFactoryTests {
     [ModuleTest]
-    [FactoryModule.Attribute]
+    [FactoryModule]
     public void FactoryTest(IDependencyOne dependencyOne) {
         Assert.NotNull(dependencyOne);
     }

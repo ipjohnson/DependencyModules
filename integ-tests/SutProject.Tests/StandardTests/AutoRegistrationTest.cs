@@ -5,7 +5,7 @@ using Xunit;
 namespace SutProject.Tests.StandardTests;
 
 [DependencyModule(OnlyRealm = true)]
-[SutModule.Attribute]
+[SutModule]
 public partial class AutoRegisterModule {
     
 }
@@ -19,7 +19,7 @@ public class InheritDependencyOne
 
 public class AutoRegistrationTest {
     [ModuleTest]
-    [AutoRegisterModule.Attribute]
+    [AutoRegisterModule]
     public void AutoRegisterClassWithInheritance(IDependencyOne dependencyOne) {
         Assert.IsType<InheritDependencyOne>(dependencyOne);
     }

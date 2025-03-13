@@ -3,21 +3,21 @@ using DependencyModules.Runtime.Attributes;
 namespace SutProject.Tests.StandardTests;
 
 [DependencyModule]
-[SutModule.Attribute]
-public partial class TestModule { }
+[SutModule]
+public partial class TestModule;
 
 [DependencyModule]
-[SutModule.Attribute]
-public  partial class TestModule2 { }
+[SutModule]
+public partial class TestModule2;
 
 [DependencyModule]
-[TestModule.Attribute]
-[TestModule2.Attribute]
-public partial class CombinedModule { }
+[TestModule]
+[TestModule2]
+public partial class CombinedModule;
 
 [DependencyModule]
-[TestModule.Attribute]
-[TestModule.Attribute]
-[TestModule2.Attribute]
-[TestModule2.Attribute]
-public partial class DuplicateModule { }
+[TestModule]
+[TestModule]
+[TestModule2]
+[TestModule2]
+public partial class DuplicateModule;

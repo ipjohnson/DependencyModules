@@ -5,9 +5,9 @@ namespace SutProject.Tests.Features;
 
 public class OrderFeatureTests {
     [ModuleTest]
-    [FirstFeatureHandler.Attribute]
-    [SecondFeatureHandler.Attribute]
-    [ThirdFeatureHandler.Attribute]
+    [FirstFeatureHandler]
+    [SecondFeatureHandler]
+    [ThirdFeatureHandler]
     public void OrderTest(IEnumerable<DependencyValue> values) {
         var valuesList = values as List<DependencyValue> ?? values.ToList();
         

@@ -6,8 +6,8 @@ namespace SutProject.Tests.RealmTests;
 
 public class RealmIsolationTests {
     [ModuleTest]
-    [FirstRealmModule.Attribute]
-    [SecondarySutModule.Attribute]
+    [FirstRealmModule]
+    [SecondarySutModule]
     public void OverrideDependencyWithRealm(IDependencyOne dependencyOne) {
         Assert.IsType<RealmDependencyOne>(dependencyOne);
     }

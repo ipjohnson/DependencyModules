@@ -19,7 +19,7 @@ public abstract class BaseAttributeWriter<T> where T : IClassModel {
     }
 
     private static ClassDefinition ConstructClassDefinition(IConstructContainer container, T model) {
-        var attributeClass = container.AddClass("Attribute");
+        var attributeClass = container.AddClass( model.ClassType.Name + "Attribute");
         
         attributeClass.Modifiers |= ComponentModifier.Public | ComponentModifier.Partial;
         attributeClass.AddBaseType(TypeDefinition.Get("BaseAttribute = System.Attribute","BaseAttribute"));

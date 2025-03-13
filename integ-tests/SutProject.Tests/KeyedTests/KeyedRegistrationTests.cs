@@ -6,7 +6,7 @@ namespace SutProject.Tests.KeyedTests;
 
 public class KeyedRegistrationTests {
     [ModuleTest]
-    [KeyedModule.Attribute]
+    [KeyedModule]
     public void AKeyTest(IServiceProvider serviceProvider) {
         var aService = serviceProvider.GetKeyedService<IKeyedRegistration>("A");
         
@@ -15,7 +15,7 @@ public class KeyedRegistrationTests {
     }
     
     [ModuleTest]
-    [KeyedModule.Attribute]
+    [KeyedModule]
     public void BKeyTest(IServiceProvider serviceProvider) {
         var aService = serviceProvider.GetKeyedService<IKeyedRegistration>("B");
         
@@ -24,7 +24,7 @@ public class KeyedRegistrationTests {
     }
     
     [ModuleTest]
-    [KeyedModule.Attribute]
+    [KeyedModule]
     public void CKeyTest(IServiceProvider serviceProvider) {
         var aService = serviceProvider.GetKeyedService<IKeyedRegistration>("C");
         
@@ -33,7 +33,7 @@ public class KeyedRegistrationTests {
     }
     
     [ModuleTest]
-    [KeyedModule.Attribute]
+    [KeyedModule]
     public void AllKeyTest(
         [FromKeyedServices("A")] IKeyedRegistration aService, 
         [FromKeyedServices("B")] IKeyedRegistration bService, 

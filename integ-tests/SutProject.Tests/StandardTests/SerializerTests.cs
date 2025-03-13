@@ -7,7 +7,7 @@ namespace SutProject.Tests.StandardTests;
 
 public class SerializerTests {
     [ModuleTest]
-    [SerializerClasses.Attribute]
+    [SerializerClasses]
     public void LoadSerializer(IEnumerable<IJsonTypeInfoResolver> resolvers) {
         var resolverList = resolvers.ToList();
         
@@ -16,7 +16,7 @@ public class SerializerTests {
     }
 
     [ModuleTest]
-    [SerializerClasses.Attribute]
+    [SerializerClasses]
     [InlineData("A")]
     [InlineData("B")]
     public void LoadKeyedASerializer(string key, IServiceProvider serviceProvider) {

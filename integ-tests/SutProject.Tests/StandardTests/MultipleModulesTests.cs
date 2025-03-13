@@ -36,8 +36,8 @@ public partial class UniqueModule : IServiceCollectionConfiguration{
 
 public class MultipleModulesTests {
     [ModuleTest]
-    [UniqueModule.Attribute("test-value")]
-    [UniqueModule.Attribute("test-value-2")]
+    [UniqueModule("test-value")]
+    [UniqueModule("test-value-2")]
     public void MultipleModuleTest(IEnumerable<StringWrapper> wrappers) {
         var wrapperList = wrappers.ToList();
         Assert.Equal(2, wrapperList.Count);
@@ -46,8 +46,8 @@ public class MultipleModulesTests {
     }
     
     [ModuleTest]
-    [UniqueModule.Attribute("test-value")]
-    [UniqueModule.Attribute("test-value")]
+    [UniqueModule("test-value")]
+    [UniqueModule("test-value")]
     public void SameMultipleModuleTest(IEnumerable<StringWrapper> wrappers) {
         var wrapperList = wrappers.ToList();
         Assert.Single(wrapperList);

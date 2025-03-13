@@ -5,7 +5,7 @@ using Xunit;
 namespace SutProject.Tests.RegistrationTypeTests;
 
 [DependencyModule(OnlyRealm = true)]
-[SutModule.Attribute]
+[SutModule]
 public partial class ReplaceModule {
     
 }
@@ -29,7 +29,7 @@ public class ReplaceDependency : IDependencyOne {
 
 public class ReplaceTests {
     [ModuleTest]
-    [ReplaceModule.Attribute]
+    [ReplaceModule]
     public void ReplaceTest(IEnumerable<IDependencyOne> dependencies) {
         var dependenciesList = dependencies.ToList();
         Assert.Single(dependenciesList);

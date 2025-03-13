@@ -4,5 +4,5 @@ using SutProject;
 namespace SecondarySutProject;
 
 [DependencyModule]
-[SutModule.Attribute]
+[SutModule]
 public partial class SecondarySutModule { }

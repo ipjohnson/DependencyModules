@@ -31,13 +31,13 @@ public class CrossWireService : IInterface1, IInterface2 {
 
 public class CrossWireTests {
     [ModuleTest]
-    [CrossWireModule.Attribute]
+    [CrossWireModule]
     public void SingletonCrossWireTest(IInterface1 interface1, IInterface2 interface2) {
         Assert.Same(interface1, interface1);
     }
     
     [ModuleTest]
-    [CrossWireModule.Attribute]
+    [CrossWireModule]
     public void ScopedCrossWireTest(IInterface1 interface1, IInterface2 interface2) {
         Assert.Same(interface1, interface1);
     }

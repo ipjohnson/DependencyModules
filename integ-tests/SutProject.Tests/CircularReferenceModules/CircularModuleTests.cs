@@ -7,7 +7,7 @@ namespace SutProject.Tests.CircularReferenceModules;
 public class CircularModuleTests {
 
     [ModuleTest]
-    [ModuleA.Attribute]
+    [ModuleA]
     public void LoadModuleATest(ServiceA serviceA, ServiceB serviceB) {
         Assert.NotNull(serviceA);
         Assert.NotNull(serviceB);
@@ -15,7 +15,7 @@ public class CircularModuleTests {
 
 
     [ModuleTest]
-    [ModuleB.Attribute]
+    [ModuleB]
     public void LoadModuleBTest(ServiceA serviceA, ServiceB serviceB) {
         Assert.NotNull(serviceA);
         Assert.NotNull(serviceB);
@@ -23,8 +23,8 @@ public class CircularModuleTests {
 
 
     [ModuleTest]
-    [ModuleA.Attribute]
-    [ModuleB.Attribute]
+    [ModuleA]
+    [ModuleB]
     public void LoadModuleBothTest(ServiceA serviceA, ServiceB serviceB) {
         Assert.NotNull(serviceA);
         Assert.NotNull(serviceB);

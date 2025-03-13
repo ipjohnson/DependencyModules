@@ -7,20 +7,20 @@ namespace SutProject.Tests.StandardTests;
 
 public class ModuleDuplicationTests {
     [ModuleTest]
-    [CombinedModule.Attribute]
+    [CombinedModule]
     public void CombinedModuleTest(IEnumerable<IDependencyOne> dependencies) {
         Assert.Single(dependencies);
     }
     
     [ModuleTest]
-    [DuplicateModule.Attribute]
+    [DuplicateModule]
     public void DuplicateModuleTest(IEnumerable<IDependencyOne> dependencies) {
         Assert.Single(dependencies);
     }
 
     [ModuleTest]
-    [CombinedModule.Attribute]
-    [DuplicateModule.Attribute]
+    [CombinedModule]
+    [DuplicateModule]
     public void CombinedAndDuplicateModuleTest(IEnumerable<IDependencyOne> dependencies) {
         Assert.Single(dependencies);
     }

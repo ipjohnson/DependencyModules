@@ -15,7 +15,7 @@ public partial class GenericListModule : IServiceCollectionConfiguration {
     }
 }
 
-[SutModule.Attribute]
+[SutModule]
 public class ResolveGenericTypeTests {
     [ModuleTest]
     public void ResolveGenericType(IGenericInterface<IDependencyOne> genericInterface) {
@@ -30,8 +30,8 @@ public class ResolveGenericTypeTests {
     }
 
     [ModuleTest]
-    [SutModule.Attribute]
-    [GenericListModule.Attribute]
+    [SutModule]
+    [GenericListModule]
     public void ResolveList(IReadOnlyList<IDependencyOne> genericList) {
         Assert.NotNull(genericList);
     }

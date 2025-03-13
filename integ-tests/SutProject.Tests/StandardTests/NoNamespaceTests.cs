@@ -29,7 +29,7 @@ public class SomeDependency : IDependencyOne {
 
 public class NoNamespaceTests {
     [ModuleTest]
-    [NoNamespaceTestModule.Attribute]
+    [NoNamespaceTestModule]
     public void NoNamespaceTest(IDependencyOne dependency) {
         Assert.NotNull(dependency);
         Assert.IsType<SomeDependency>(dependency);
