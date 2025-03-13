@@ -82,7 +82,7 @@ DependencyModules creates an `Attribute` class that can be used to apply sub dep
 ```csharp
 // Modules can be re-used with the generated attributes
 [DependencyModule]
-[MyModule.Attribute]
+[MyModule]
 public partial class AnotherModule { }
 ```
 
@@ -108,7 +108,7 @@ public partial class SomeModule(bool someFlag) : IServiceCollectionConfiguration
 }
 
 [DependencyModule]
-[SomeModule.Attribute(true, OptionalString = "otherString")]
+[SomeModule(true, OptionalString = "otherString")]
 public partial class SomeOtherModule 
 {
 
@@ -128,7 +128,7 @@ public interface IFeature { }
 public partial class ModuleImeplementation : ISomeFeature { }
 
 [DependencyModule]
-[ModuleImeplementation.Attribute]
+[ModuleImeplementation]
 public partial class FeatureHandlerModule : IDependencyModuleFeature<ISomeFeature> 
 {
   public void HandleFeature(IServiceCollection collection, IEnumerable<ISomeFeature> features) 
@@ -217,7 +217,7 @@ It handles the population and construction of a service provider using specified
 
 // applies module & nsubstitute support to all tests.
 // test attributes can be applied at the assembly, class, and test method level
-[assemlby: MyModule.Attribute]
+[assemlby: MyModule]
 [assembly: NSubstituteSupport]
 
 public class OtherServiceTests 
@@ -279,14 +279,14 @@ Example generated code for [SutModule.cs](integ-tests/SutProject/SutModule.cs)
         {
             return HashCode.Combine(base.GetHashCode());
         }
-
-        public class Attribute : System.Attribute, IDependencyModuleProvider
-        {
-            public IDependencyModule GetModule()
-            {
-                var newModule = new SutModule();
-                return newModule;
-            }
-        }
     }
+    
+    public class SutModuleAttribute : System.Attribute, IDependencyModuleProvider
+    {
+        public IDependencyModule GetModule()
+        {
+            var newModule = new SutModule();
+            return newModule;
+        }
+    }    
 ```
