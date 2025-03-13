@@ -77,16 +77,17 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
             }
         }
 
-        var (onlyRealm, registrationType, generateAttribute, registerGenerator) = GetDependencyFlags(context);
+        var dependencyFlags = GetDependencyFlags(context);
         var implementsEqualsFlag = GetEqualsFlag(context);
         var modelInfo = AttributeModelHelper.GetAttributeClassInfo(context, cancellation);
 
         return new ModuleEntryPointModel(
             ((ClassDeclarationSyntax)context.Node).GetTypeDefinition(),
-            onlyRealm,
-            registrationType,
-            generateAttribute,
-            registerGenerator,
+            dependencyFlags.OnlyRealm,
+            dependencyFlags.RegistrationType,
+            dependencyFlags.GenerateAttribute,
+            dependencyFlags.RegisterGenerator,
+            dependencyFlags.UseMethod,
             modelInfo.ConstructorParameters,
             implementsEqualsFlag,
             modelInfo.Properties,
@@ -123,12 +124,16 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
         return context.Node.DescendantNodes().OfType<MethodDeclarationSyntax>().Any(m => m.Identifier.ToString().Equals("Equals"));
     }
 
-    private (bool onlyRealm, RegistrationType? registrationType, bool? generateAttribute, bool? registerGenerator)
+    private record DependencyFlags
+        (bool OnlyRealm, RegistrationType? RegistrationType, bool? GenerateAttribute, bool? RegisterGenerator, string? UseMethod);
+    
+    private DependencyFlags
         GetDependencyFlags(GeneratorSyntaxContext context) {
         var onlyRealm = false;
         RegistrationType? registrationType = null;
         bool? generateAttribute = null;
         bool? registerGenerator = null;
+        string? useMethod = null;
         if (context.Node is ClassDeclarationSyntax classDeclarationSyntax) {
             var module = classDeclarationSyntax.DescendantNodes().OfType<AttributeSyntax>().FirstOrDefault(attr => attr.Name.ToString().StartsWith("DependencyModule"));
 
@@ -144,17 +149,20 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
                             registrationType = GetRegistrationType(argumentSyntax.Expression.ToString());
                             break;
                         case "GenerateAttribute":
-                            generateAttribute = argumentSyntax.Expression.ToString() == "true";
+                            generateAttribute = argumentSyntax.Expression.ToString().Trim('"') == "true";
                             break;
                         case "RegisterJsonSerializers":
-                            registerGenerator = argumentSyntax.Expression.ToString() == "true";
+                            registerGenerator = argumentSyntax.Expression.ToString().Trim('"') == "true";
+                            break;
+                        case "UseMethod":
+                            useMethod = argumentSyntax.Expression.ToString().Trim('"');
                             break;
                     }
                 }
             }
         }
         
-        return (onlyRealm, registrationType, generateAttribute, registerGenerator);
+        return new DependencyFlags(onlyRealm, registrationType, generateAttribute, registerGenerator, useMethod);
     }
     
     public static RegistrationType GetRegistrationType(string toString) {

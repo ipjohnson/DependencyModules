@@ -29,7 +29,6 @@ public static class ServiceCollectionExtensions {
         return services;
     }
     
-    
     /// <summary>
     ///     Add dependency modules to service collection
     /// </summary>

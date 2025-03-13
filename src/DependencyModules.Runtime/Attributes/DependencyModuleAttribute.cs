@@ -24,4 +24,10 @@ public class DependencyModuleAttribute : Attribute {
     /// Register JsonSourceGenerationOptions classes
     /// </summary>
     public bool RegisterJsonSerializers { get; set; } = false;
+    
+    /// <summary>
+    /// Generate a IServiceCollection extension method
+    /// Attributes are usually preferred over UseXXX methods
+    /// </summary>
+    public string? UseMethod { get; set; }
 }

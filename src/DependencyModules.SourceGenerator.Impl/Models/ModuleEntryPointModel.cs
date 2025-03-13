@@ -8,6 +8,7 @@ public record ModuleEntryPointModel(
     RegistrationType? RegistrationType,
     bool? GenerateAttribute,
     bool? RegisterJsonSerializers,
+    string? UseMethod,
     IReadOnlyList<ParameterInfoModel> Parameters,
     bool ImplementsEquals,
     IReadOnlyList<PropertyInfoModel> PropertyInfoModels,

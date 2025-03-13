@@ -63,7 +63,7 @@ public static class AttributeModelHelper {
             }
             else if (syntax is ConstructorDeclarationSyntax constructorDeclarationSyntax) {
                 constructors.Add(constructorDeclarationSyntax);
-            }
+            } 
         }
 
         return new AttributeClassInfo(
@@ -75,10 +75,17 @@ public static class AttributeModelHelper {
         GeneratorSyntaxContext context,
         List<ConstructorDeclarationSyntax> constructors, 
         CancellationToken cancellationToken) {
+        
+        var classDeclaration = context.Node as ClassDeclarationSyntax;
+
+        if (classDeclaration?.ParameterList != null) {
+            return BaseMethodHelper.GetParameters(classDeclaration.ParameterList, context, cancellationToken);
+        }
+        
         constructors.Sort(
             (a, b) =>
                 a.ParameterList.Parameters.Count.CompareTo(b.ParameterList.Parameters.Count));
-
+        
         if (constructors.Count == 0) {
             return Array.Empty<ParameterInfoModel>();
         }

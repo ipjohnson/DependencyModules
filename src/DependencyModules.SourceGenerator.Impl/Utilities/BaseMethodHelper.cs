@@ -11,9 +11,15 @@ public static class BaseMethodHelper {
         GeneratorSyntaxContext context,
         CancellationToken cancellationToken
         ) {
+        var parameterList = methodDeclarationSyntax.ParameterList;
+
+        return GetParameters(parameterList, context, cancellationToken);
+    }
+
+    public static IReadOnlyList<ParameterInfoModel> GetParameters(ParameterListSyntax parameterList, GeneratorSyntaxContext context, CancellationToken cancellationToken) {
         var list = new List<ParameterInfoModel>();
 
-        foreach (var parameterSyntax in methodDeclarationSyntax.ParameterList.Parameters) {
+        foreach (var parameterSyntax in parameterList.Parameters) {
             cancellationToken.ThrowIfCancellationRequested();
             list.Add(new ParameterInfoModel(
                 parameterSyntax.Identifier.ToString(),

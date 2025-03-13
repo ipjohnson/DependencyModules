@@ -17,6 +17,8 @@ public class DependencyModuleWriter {
 
         GenerateModuleClass(model, csharpFile);
 
+        GenerateUseMethod(models, csharpFile);
+        
         var outputContext = new OutputContext();
 
         csharpFile.WriteOutput(outputContext);
@@ -24,7 +26,37 @@ public class DependencyModuleWriter {
         context.AddSource(model.EntryPointType.Name + "." + model.UniqueId() + ".Module.g.cs", outputContext.Output());
     }
 
+    private void GenerateUseMethod((ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right) models, CSharpFileDefinition csharpFile) {
 
+        if (string.IsNullOrEmpty(models.Left.UseMethod)) {
+            return;
+        }
+        var extensionMethod = csharpFile.AddClass($"{models.Left.EntryPointType.Name}Extensions");
+
+        extensionMethod.Modifiers = ComponentModifier.Public | ComponentModifier.Static | ComponentModifier.Partial;
+        
+        var method = extensionMethod.AddMethod(models.Left.UseMethod!);
+
+        method.Modifiers = ComponentModifier.Public | ComponentModifier.Static;
+        method.SetReturnType(KnownTypes.Microsoft.DependencyInjection.IServiceCollection);
+
+        var serviceProvider = method.AddParameter(KnownTypes.Microsoft.DependencyInjection.IServiceCollection, "serviceCollection");
+        serviceProvider.This = true;
+        
+        var parameters = new List<object>();
+        
+        foreach (var parameterInfoModel in models.Left.Parameters) {
+            var param = method.AddParameter(parameterInfoModel.ParameterType, parameterInfoModel.ParameterName);
+            
+            parameters.Add(param);
+        }
+        
+        var newStatement = New(models.Left.EntryPointType, parameters.ToArray());
+        
+        method.Return(serviceProvider.Invoke("AddModules", newStatement));
+        method.AddUsingNamespace("DependencyModules.Runtime");
+    }
+    
     private void GenerateModuleClass(ModuleEntryPointModel model, CSharpFileDefinition csharpFile) {
         var classDefinition = csharpFile.AddClass(model.EntryPointType.Name);
 
