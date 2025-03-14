@@ -3,6 +3,7 @@ using CSharpAuthor;
 namespace DependencyModules.SourceGenerator.Impl.Models;
 
 public record ModuleEntryPointModel(
+    string FileLocation,
     ITypeDefinition EntryPointType,
     bool OnlyRealm,
     RegistrationType? RegistrationType,

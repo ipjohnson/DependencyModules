@@ -82,6 +82,7 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
         var modelInfo = AttributeModelHelper.GetAttributeClassInfo(context, cancellation);
 
         return new ModuleEntryPointModel(
+            context.Node.SyntaxTree?.FilePath ?? "",
             ((ClassDeclarationSyntax)context.Node).GetTypeDefinition(),
             dependencyFlags.OnlyRealm,
             dependencyFlags.RegistrationType,
