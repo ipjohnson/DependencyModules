@@ -29,6 +29,17 @@ public class DependencyRegistry<T> {
     }
 
     /// <summary>
+    /// Adding singleton instance, intended to be used as a short cut 
+    /// </summary>
+    /// <param name="instance"></param>
+    /// <typeparam name="TInstance"></typeparam>
+    /// <returns></returns>
+    public static int AddSingleton<TInstance>(TInstance instance) where TInstance : class {
+        RegistryFuncs.Add(registry => registry.AddSingleton<TInstance>(instance));
+        return 1;
+    }
+    
+    /// <summary>
     ///      Add decorator func
     /// </summary>
     /// <param name="registryFunc"></param>
