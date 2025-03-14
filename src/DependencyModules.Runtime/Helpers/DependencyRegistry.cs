@@ -47,6 +47,17 @@ public class DependencyRegistry<T> {
                     )));
         return 1;
     }
+
+    public static int Add<TInstance>(Type implementationType, ServiceLifetime lifetime = ServiceLifetime.Transient) where TInstance : class {
+        RegistryFuncs.Add(
+            registry => registry.Add(
+                new ServiceDescriptor(
+                    typeof(TInstance),
+                    implementationType,
+                    lifetime
+                )));
+        return 1;
+    }
     
     /// <summary>
     ///      Add decorator func
