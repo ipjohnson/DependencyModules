@@ -31,11 +31,20 @@ public class DependencyRegistry<T> {
     /// <summary>
     /// Adding singleton instance, intended to be used as a short cut 
     /// </summary>
-    /// <param name="instance"></param>
+    /// <param name="provider"></param>
+    /// <param name="lifetime"></param>
     /// <typeparam name="TInstance"></typeparam>
     /// <returns></returns>
-    public static int AddSingleton<TInstance>(TInstance instance) where TInstance : class {
-        RegistryFuncs.Add(registry => registry.AddSingleton<TInstance>(instance));
+    public static int Add<TInstance>(
+        Func<IServiceProvider, TInstance> provider,
+        ServiceLifetime lifetime = ServiceLifetime.Transient) where TInstance : class {
+        RegistryFuncs.Add(
+            registry => registry.Add(
+                new ServiceDescriptor(
+                    typeof(TInstance),
+                    provider,
+                    lifetime
+                    )));
         return 1;
     }
     
