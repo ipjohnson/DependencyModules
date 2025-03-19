@@ -38,8 +38,8 @@ public class TypeParameterDefinition : ITypeDefinition {
     public string Namespace => "";
 
     public IEnumerable<string> KnownNamespaces => Enumerable.Empty<string>();
-
-    public void WriteShortName(StringBuilder builder) {
+    
+    public void WriteTypeName(StringBuilder builder, TypeOutputMode typeOutputMode = TypeOutputMode.ShortName) {
         builder.Append(Name);
     }
 

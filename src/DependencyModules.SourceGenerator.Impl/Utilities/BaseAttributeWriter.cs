@@ -22,7 +22,7 @@ public abstract class BaseAttributeWriter<T> where T : IClassModel {
         var attributeClass = container.AddClass( model.ClassType.Name + "Attribute");
         
         attributeClass.Modifiers |= ComponentModifier.Public | ComponentModifier.Partial;
-        attributeClass.AddBaseType(TypeDefinition.Get("BaseAttribute = System.Attribute","BaseAttribute"));
+        attributeClass.AddBaseType(TypeDefinition.Get("System","Attribute"));
         attributeClass.AddBaseType(KnownTypes.DependencyModules.Interfaces.IDependencyModuleProvider);
         attributeClass.AddLeadingTrait(
             new UsageAttributeComponent(

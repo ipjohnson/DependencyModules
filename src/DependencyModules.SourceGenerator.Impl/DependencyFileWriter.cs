@@ -16,7 +16,10 @@ public class DependencyFileWriter {
 
         GenerateClass(entryPointModel, configurationModel, serviceModels, csharpFile, uniqueId);
 
-        var output = new OutputContext();
+        var output = new OutputContext(
+            new OutputContextOptions {
+                TypeOutputMode = TypeOutputMode.Global
+            });
 
         csharpFile.WriteOutput(output);
 
