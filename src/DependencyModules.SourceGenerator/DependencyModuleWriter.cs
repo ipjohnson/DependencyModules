@@ -32,7 +32,8 @@ public class DependencyModuleWriter {
         ModuleEntryPointModel entryPointModel, 
         DependencyModuleConfigurationModel configurationModel) {
 
-        if (string.IsNullOrEmpty(entryPointModel.EntryPointType.Namespace)) {
+        if (entryPointModel.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.AutoGenerateModule) &&
+            string.IsNullOrEmpty(entryPointModel.EntryPointType.Namespace)) {
             entryPointModel = entryPointModel with {
                 EntryPointType = TypeDefinition.Get(
                     configurationModel.RootNamespace, 

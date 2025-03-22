@@ -108,7 +108,7 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
         }
 
         if (!implementsEqualsFlag) {
-            features |= features;
+            features |= ModuleEntryPointFeatures.ShouldImplementEquals;
         }
         
         return new ModuleEntryPointModel(

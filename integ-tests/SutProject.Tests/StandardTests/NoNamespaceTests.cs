@@ -1,7 +1,6 @@
 using DependencyModules.Runtime.Attributes;
 using DependencyModules.xUnit.Attributes;
 using SutProject;
-using SutProject.Tests;
 using Xunit;
 
 [DependencyModule]
