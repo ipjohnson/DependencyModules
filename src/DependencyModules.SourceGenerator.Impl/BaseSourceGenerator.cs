@@ -62,7 +62,10 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
         IncrementalValueProvider<ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)>> valuesProvider) { }
 
     private IncrementalValuesProvider<ModuleEntryPointModel> CreateSourceValueProvider(IncrementalGeneratorInitializationContext context) {
-        var classSelector = new SyntaxSelector<ClassDeclarationSyntax, CompilationUnitSyntax>(KnownTypes.DependencyModules.Attributes.DependencyModuleAttribute);
+        var classSelector = new SyntaxSelector<ClassDeclarationSyntax, CompilationUnitSyntax>(
+            KnownTypes.DependencyModules.Attributes.DependencyModuleAttribute) {
+            AutoApproveCompilationUnit = true
+        };
 
         return context.SyntaxProvider.CreateSyntaxProvider(
             classSelector.Where,

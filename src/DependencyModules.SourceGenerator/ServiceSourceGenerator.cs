@@ -26,21 +26,39 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
         return _attributeTypes;
     }
 
-    protected override void GenerateSourceOutput(
-        SourceProductionContext context,
-        ((ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right) Left, ImmutableArray<ServiceModel> Right) inputData) {
+    protected override void GenerateSourceOutput(SourceProductionContext context, (ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> Left, ImmutableArray<ServiceModel> Right) inputData) {
+        
+        var (entryPointList, configurationModel) = 
+            EntryModelUtil.ConsolidateEntryPointModels(inputData.Left);
 
-        // don't generate empty dependency registrations
-        if (inputData.Right.Length == 0) {
+        if (entryPointList.Count == 0) {
             return;
         }
         
+        foreach (var entryPointModel in entryPointList) {
+            GenerateSourceOutput(context, entryPointModel, configurationModel, inputData.Right);
+        }
+    }
+
+    protected void GenerateSourceOutput(
+        SourceProductionContext context,
+        ModuleEntryPointModel entryPointModel,
+        DependencyModuleConfigurationModel configurationModel, 
+        ImmutableArray<ServiceModel> serviceModels) {
+
+        // don't generate empty dependency registrations
+        if (serviceModels.Length == 0) {
+            return;
+        }
+        
+        entryPointModel = EntryModelUtil.EnsureNamespace(entryPointModel,configurationModel);
+        
         var writer = new DependencyFileWriter();
 
-        var output = writer.Write(inputData.Left.Left, inputData.Left.Right, inputData.Right, "Module");
-
-        context.AddSource(inputData.Left.Left.EntryPointType.Name + "."  + 
-                          inputData.Left.Left.UniqueId() + ".Dependencies.g.cs", output);
+        var output = writer.Write(entryPointModel, configurationModel, serviceModels, "Module");
+        
+        context.AddSource(
+            EntryModelUtil.GenerateFileName(entryPointModel, "Dependencies"), output);
     }
 
     protected override IEqualityComparer<ServiceModel> GetComparer() {

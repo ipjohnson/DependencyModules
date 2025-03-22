@@ -2,11 +2,7 @@
 
 using ConsoleTestProject;
 using DependencyModules.Runtime;
-using DependencyModules.Runtime.Attributes;
 using Microsoft.Extensions.DependencyInjection;
-using SutProject;
-
-[assembly: DependencyModule]
 
 var serviceCollection = new ServiceCollection();
 
@@ -16,4 +12,3 @@ var container = serviceCollection.BuildServiceProvider();
 
 container.GetRequiredService<TestExport>();
 
-SutModule.Run();

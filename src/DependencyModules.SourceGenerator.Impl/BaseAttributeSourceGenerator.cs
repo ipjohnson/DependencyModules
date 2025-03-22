@@ -27,14 +27,14 @@ public abstract class BaseAttributeSourceGenerator<T> : ISourceGenerator {
             serviceModelProvider.Collect();
 
         context.RegisterSourceOutput(
-            incrementalValueProvider.Combine(collection),
+            incrementalValueProvider.Collect().Combine(collection),
             GenerateSourceOutput
         );
     }
 
     protected abstract IEnumerable<ITypeDefinition> AttributeTypes();
 
-    protected abstract void GenerateSourceOutput(SourceProductionContext arg1, ((ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right) Left, ImmutableArray<T> Right) arg2);
+    protected abstract void GenerateSourceOutput(SourceProductionContext arg1, (ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> Left, ImmutableArray<T> Right) valueTuple);
 
     protected abstract IEqualityComparer<T> GetComparer();
 

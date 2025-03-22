@@ -18,7 +18,7 @@ public class DependencyModuleWriter {
         }
         
         var (entryPointList, configurationModel) = 
-            ConsolidateEntryPointModels(allEntryPoints);
+            EntryModelUtil.ConsolidateEntryPointModels(allEntryPoints);
 
         foreach (var entryPointModel in entryPointList) {
             context.CancellationToken.ThrowIfCancellationRequested();
@@ -32,14 +32,7 @@ public class DependencyModuleWriter {
         ModuleEntryPointModel entryPointModel, 
         DependencyModuleConfigurationModel configurationModel) {
 
-        if (entryPointModel.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.AutoGenerateModule) &&
-            string.IsNullOrEmpty(entryPointModel.EntryPointType.Namespace)) {
-            entryPointModel = entryPointModel with {
-                EntryPointType = TypeDefinition.Get(
-                    configurationModel.RootNamespace, 
-                    entryPointModel.EntryPointType.Name)
-            };
-        }
+        entryPointModel = EntryModelUtil.EnsureNamespace(entryPointModel,configurationModel);
 
         var csharpFile = new CSharpFileDefinition(entryPointModel.EntryPointType.Namespace);
 
@@ -55,44 +48,7 @@ public class DependencyModuleWriter {
 
         csharpFile.WriteOutput(outputContext);
 
-        context.AddSource(
-            entryPointModel.EntryPointType.Name + "." + entryPointModel.UniqueId() + ".Module.g.cs", outputContext.Output());
-    }
-
-    private (IList<ModuleEntryPointModel> uniqueEntryPoints, DependencyModuleConfigurationModel configurationModel) ConsolidateEntryPointModels(
-        ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> entryPointList) {
-        var uniqueEntryPoints = new List<ModuleEntryPointModel>();
-        var configurationModel = entryPointList.First().Right;
-
-        var entryPointModels = entryPointList.Select(m => m.Left);
-        if (!configurationModel.AutoGenerateEntry) {
-            entryPointModels = entryPointModels.Where(m => !m.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.AutoGenerateModule));
-        }
-        
-        var groupingEnumerable = 
-            entryPointModels.GroupBy(m => m.EntryPointType.Namespace + "." + m.EntryPointType.GetShortName());
-
-        foreach (var grouping in groupingEnumerable) {
-            if (grouping.Count() > 1) {
-                uniqueEntryPoints.Add(
-                    ConsolidateEntryPointModelGrouping(grouping, configurationModel));
-            } else {
-                uniqueEntryPoints.Add(grouping.First());
-            }
-        }
-        
-        return (uniqueEntryPoints, configurationModel);
-    }
-
-    private ModuleEntryPointModel ConsolidateEntryPointModelGrouping(IGrouping<string,ModuleEntryPointModel> grouping, DependencyModuleConfigurationModel configurationModel) {
-        var firstNonAuto = grouping.FirstOrDefault(
-            m => m.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.AutoGenerateModule) == false);
-        
-        if (firstNonAuto != null) {
-            return firstNonAuto;
-        }
-        
-        return grouping.First();
+        context.AddSource(EntryModelUtil.GenerateFileName(entryPointModel, "Module"), outputContext.Output());
     }
 
     private void GenerateAttribute(ModuleEntryPointModel moduleEntryPoint,
