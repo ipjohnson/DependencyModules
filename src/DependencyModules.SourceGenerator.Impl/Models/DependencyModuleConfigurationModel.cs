@@ -8,6 +8,7 @@ public record DependencyModuleConfigurationModel(
     RegistrationType RegistrationType,
     bool RegisterSourceGenerator,
     string RootNamespace,
+    string ProjectDir,
     bool AutoGenerateEntry
 );
 

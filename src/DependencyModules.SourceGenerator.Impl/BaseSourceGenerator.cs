@@ -31,6 +31,8 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
             bool registerSourceGenerator = false;
             bool autoGenerateEntry = true;
             var rootNamespace = "";
+            var projectDirectory = "";
+            
             
             if (options.GlobalOptions.TryGetValue(
                     "build_property.DependencyModules_RegistrationType", out var value)) {
@@ -46,6 +48,10 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
                 rootNamespace = rootNamespaceString;
             }
 
+            if (options.GlobalOptions.TryGetValue("build_property.ProjectDir", out var projectDirString)) {
+                projectDirectory = projectDirString;
+            }
+            
             if (options.GlobalOptions.TryGetValue("build_property.DependencyModules_AutoGenerateModule", out var autoGenerateEntryString)) {
                 autoGenerateEntry = autoGenerateEntryString.Equals("true", StringComparison.OrdinalIgnoreCase);
             }
@@ -54,6 +60,7 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
                 defaultRegistrationType, 
                 registerSourceGenerator, 
                 rootNamespace,
+                projectDirectory,
                 autoGenerateEntry);
         }).WithComparer(new DependencyModuleConfigurationModelComparer());
     }
@@ -64,7 +71,8 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
     private IncrementalValuesProvider<ModuleEntryPointModel> CreateSourceValueProvider(IncrementalGeneratorInitializationContext context) {
         var classSelector = new SyntaxSelector<ClassDeclarationSyntax, CompilationUnitSyntax>(
             KnownTypes.DependencyModules.Attributes.DependencyModuleAttribute) {
-            AutoApproveCompilationUnit = true
+            AutoApproveCompilationUnit = true,
+            ApproveFilter = "Program.cs",
         };
 
         return context.SyntaxProvider.CreateSyntaxProvider(
@@ -138,7 +146,6 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
         var additionalModules = new List<ITypeDefinition>();
         
         foreach (var syntax in compilationUnitSyntax.Members) {
-
             if (syntax is GlobalStatementSyntax globalStatementSyntax) {
                 if (globalStatementSyntax.Statement is ExpressionStatementSyntax expressionStatementSyntax) {
                     if (expressionStatementSyntax.Expression is InvocationExpressionSyntax invocationExpressionSyntax) {
@@ -159,7 +166,7 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
                 }
             }
         }
- 
+        
         return new ModuleEntryPointModel(
             ModuleEntryPointFeatures.AutoGenerateModule,
             context.Node.SyntaxTree?.FilePath ?? "",

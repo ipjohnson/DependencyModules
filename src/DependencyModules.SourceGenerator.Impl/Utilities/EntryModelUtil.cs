@@ -6,7 +6,12 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities;
 
 public class EntryModelUtil {
     public static string GenerateFileName(ModuleEntryPointModel entryPointModel, string uniquePortion) {
-        return $"{entryPointModel.EntryPointType.Namespace}.{entryPointModel.EntryPointType.GetShortName()}.{uniquePortion}.g.cs";
+        var namespaceName = entryPointModel.EntryPointType.Namespace;
+        if (string.IsNullOrEmpty(entryPointModel.EntryPointType.Namespace)) {
+            namespaceName = "blank-namespace";
+        }
+        
+        return $"{namespaceName}.{entryPointModel.EntryPointType.GetShortName()}.{uniquePortion}.g.cs";
     }
     
     public static ModuleEntryPointModel EnsureNamespace(ModuleEntryPointModel entryPointModel, DependencyModuleConfigurationModel configurationModel) {
@@ -40,7 +45,18 @@ public class EntryModelUtil {
                 uniqueEntryPoints.Add(
                     ConsolidateEntryPointModelGrouping(grouping, configurationModel));
             } else {
-                uniqueEntryPoints.Add(grouping.First());
+                var entryPointModel = grouping.First();
+
+                if (entryPointModel.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.AutoGenerateModule)) {
+                    var path = Path.Combine(configurationModel.ProjectDir, "Program.cs");
+
+                    if (entryPointModel.FileLocation == path) {
+                        uniqueEntryPoints.Add(grouping.First());
+                    }
+                }
+                else {
+                    uniqueEntryPoints.Add(grouping.First());
+                }
             }
         }
         

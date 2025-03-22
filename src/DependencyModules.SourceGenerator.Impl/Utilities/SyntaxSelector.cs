@@ -10,6 +10,8 @@ public abstract class BaseSyntaxSelector {
 
     public bool AutoApproveCompilationUnit { get; set; } = false;
     
+    public string ApproveFilter { get; set; } = "";
+    
     protected BaseSyntaxSelector(params ITypeDefinition[] attributes) {
         _names = GetAttributeStrings(attributes);
     }
@@ -44,7 +46,7 @@ public abstract class BaseSyntaxSelector {
         }
 
         if (node is CompilationUnitSyntax compilationUnitSyntax) {
-            return AutoApproveCompilationUnit ||
+            return IsAutoApprove(compilationUnitSyntax) ||
                    ProcessAttributeList(compilationUnitSyntax.AttributeLists);
         }
         
@@ -55,6 +57,15 @@ public abstract class BaseSyntaxSelector {
             });
         
         return found;
+    }
+
+    private bool IsAutoApprove(CompilationUnitSyntax compilationUnitSyntax) {
+        if (!AutoApproveCompilationUnit) {
+            return false;
+        }
+        
+        return ApproveFilter == "" || 
+               compilationUnitSyntax.SyntaxTree.FilePath.EndsWith(ApproveFilter);
     }
 
     private bool ProcessAttributeList(SyntaxList<AttributeListSyntax> attributeLists) {
