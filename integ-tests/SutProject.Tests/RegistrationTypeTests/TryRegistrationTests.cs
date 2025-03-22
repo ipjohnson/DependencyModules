@@ -15,8 +15,8 @@ public partial class TryWithoutSutModule;
 [SutModule]
 public partial class TryAtModuleLevelWithSutModule;
 
-[SingletonService(With = RegistrationType.Try, Realm = typeof(TryWithSutModule))]
-[SingletonService(With = RegistrationType.Try, Realm = typeof(TryWithoutSutModule))]
+[SingletonService(Using = RegistrationType.Try, Realm = typeof(TryWithSutModule))]
+[SingletonService(Using = RegistrationType.Try, Realm = typeof(TryWithoutSutModule))]
 #pragma warning disable CS8618 
 public class TryDependency : IDependencyOne {
 

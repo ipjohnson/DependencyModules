@@ -17,7 +17,7 @@ public class CrossWireServiceAttribute : Attribute, IServiceRegistrationAttribut
     }
 
     [Browsable(false)]
-    Type? IServiceRegistrationAttribute.ServiceType {
+    Type? IServiceRegistrationAttribute.As {
         get;
         set;
     }
@@ -30,7 +30,7 @@ public class CrossWireServiceAttribute : Attribute, IServiceRegistrationAttribut
     /// <summary>
     ///     Which method type to use, 
     /// </summary>
-    public RegistrationType With { get; set; } = RegistrationType.Add;
+    public RegistrationType Using { get; set; } = RegistrationType.Add;
     
     /// <summary>
     ///     DependencyModule realm that this type should be associated with

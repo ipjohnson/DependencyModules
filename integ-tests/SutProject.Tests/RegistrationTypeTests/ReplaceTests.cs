@@ -10,7 +10,7 @@ public partial class ReplaceModule {
     
 }
 
-[SingletonService(With = RegistrationType.Replace, Realm = typeof(ReplaceModule))]
+[SingletonService(Using = RegistrationType.Replace, Realm = typeof(ReplaceModule))]
 public class ReplaceDependency : IDependencyOne {
 
     public ReplaceDependency(ISingletonService singletonService, IScopedService scopedService) {

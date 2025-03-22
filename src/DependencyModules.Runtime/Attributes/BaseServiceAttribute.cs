@@ -13,7 +13,7 @@ public enum RegistrationType {
 public interface  IServiceRegistrationAttribute {
     object? Key { get; set; }
     
-    Type? ServiceType { get; set; }
+    Type? As { get; set; }
     
     ServiceLifetime Lifetime { get; set; }   
 }
@@ -27,12 +27,12 @@ public abstract class BaseServiceAttribute : Attribute, IServiceRegistrationAttr
     /// <summary>
     ///     Service type to register
     /// </summary>
-    public Type? ServiceType { get; set; }
+    public Type? As { get; set; }
     
     /// <summary>
     ///     Which method type to use, 
     /// </summary>
-    public RegistrationType With { get; set; } = RegistrationType.Add;
+    public RegistrationType Using { get; set; } = RegistrationType.Add;
 
     /// <summary>
     ///     DependencyModule realm that this type should be associated with

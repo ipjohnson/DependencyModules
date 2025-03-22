@@ -279,12 +279,12 @@ public class ServiceModelUtility {
                                 }
                             }
                             break;
-                        case "With":
+                        case "Using":
                             registrationType =
                                 BaseSourceGenerator.GetRegistrationType(argumentSyntax.Expression.ToString());
                             break;
 
-                        case "ServiceType":
+                        case "As":
                             if (argumentSyntax.Expression is TypeOfExpressionSyntax typeOfExpression) {
                                 registration = typeOfExpression.Type.GetTypeDefinition(context);
 

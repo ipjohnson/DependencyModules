@@ -2,7 +2,7 @@ using DependencyModules.Runtime.Attributes;
 
 namespace SutProject.Tests.RealmTests;
 
-[TransientService(ServiceType = typeof(IDependencyOne), Realm = typeof(FirstRealmModule), With = RegistrationType.Add)]
+[TransientService(As = typeof(IDependencyOne), Realm = typeof(FirstRealmModule), Using = RegistrationType.Add)]
 public class RealmDependencyOne : IDependencyOne {
     public RealmDependencyOne(ISingletonService singletonService, IScopedService scopedService) {
         SingletonService = singletonService;
