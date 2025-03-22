@@ -28,13 +28,27 @@ public abstract class BaseAttributeSourceGenerator<T> : ISourceGenerator {
 
         context.RegisterSourceOutput(
             incrementalValueProvider.Collect().Combine(collection),
-            GenerateSourceOutput
+            WrapGenerateSourceOutput
         );
     }
 
+    private void WrapGenerateSourceOutput(SourceProductionContext context,
+        (ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> Left, ImmutableArray<T> Right) data) {
+        var config = data.Left.FirstOrDefault().Right;
+
+        if (config != null) {
+            FileLogger.Wrap(
+                LoggerName, config,logger => GenerateSourceOutput(context, data,logger));
+        }
+    }
+
+    protected virtual string LoggerName => GetType().Name;
+
     protected abstract IEnumerable<ITypeDefinition> AttributeTypes();
 
-    protected abstract void GenerateSourceOutput(SourceProductionContext arg1, (ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> Left, ImmutableArray<T> Right) valueTuple);
+    protected abstract void GenerateSourceOutput(SourceProductionContext arg1,
+        (ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> Left, ImmutableArray<T> Right) valueTuple,
+        FileLogger logger);
 
     protected abstract IEqualityComparer<T> GetComparer();
 

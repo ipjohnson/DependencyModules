@@ -26,25 +26,26 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
         return _attributeTypes;
     }
 
-    protected override void GenerateSourceOutput(SourceProductionContext context, (ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> Left, ImmutableArray<ServiceModel> Right) inputData) {
-        
-        var (entryPointList, configurationModel) = 
-            EntryModelUtil.ConsolidateEntryPointModels(inputData.Left);
-
-        if (entryPointList.Count == 0) {
+    protected override void GenerateSourceOutput(SourceProductionContext context, 
+        (ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> Left, ImmutableArray<ServiceModel> Right) inputData, 
+        FileLogger logger) {
+        if (inputData.Left.Length == 0 || inputData.Right.Length == 0) {
             return;
         }
         
+        var (entryPointList, configurationModel) = 
+            EntryModelUtil.ConsolidateEntryPointModels(inputData.Left);
+        
         foreach (var entryPointModel in entryPointList) {
-            GenerateSourceOutput(context, entryPointModel, configurationModel, inputData.Right);
+            context.CancellationToken.ThrowIfCancellationRequested();
+            GenerateSourceOutput(context, entryPointModel, configurationModel, inputData.Right, logger);
         }
     }
 
-    protected void GenerateSourceOutput(
-        SourceProductionContext context,
+    protected void GenerateSourceOutput(SourceProductionContext context,
         ModuleEntryPointModel entryPointModel,
-        DependencyModuleConfigurationModel configurationModel, 
-        ImmutableArray<ServiceModel> serviceModels) {
+        DependencyModuleConfigurationModel configurationModel,
+        ImmutableArray<ServiceModel> serviceModels, FileLogger logger) {
 
         // don't generate empty dependency registrations
         if (serviceModels.Length == 0) {
@@ -53,7 +54,7 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
         
         entryPointModel = EntryModelUtil.EnsureNamespace(entryPointModel,configurationModel);
         
-        var writer = new DependencyFileWriter();
+        var writer = new DependencyFileWriter(logger);
 
         var output = writer.Write(entryPointModel, configurationModel, serviceModels, "Module");
         

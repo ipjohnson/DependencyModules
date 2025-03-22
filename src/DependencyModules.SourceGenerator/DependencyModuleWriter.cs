@@ -173,7 +173,7 @@ public class DependencyModuleWriter {
     private void InternalGetModulesMethod(ClassDefinition classDefinition, ModuleEntryPointModel model) {
         var attributeModels = FilterAttributes(model.AttributeModels);
         
-        if (attributeModels.Count == 0) {
+        if (attributeModels.Count == 0 && model.AdditionalModules.Count == 0) {
             return;
         }
         

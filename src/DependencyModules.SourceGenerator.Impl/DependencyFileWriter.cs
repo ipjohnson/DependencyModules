@@ -2,11 +2,18 @@ using System.Runtime.InteropServices;
 using System.Text;
 using CSharpAuthor;
 using DependencyModules.SourceGenerator.Impl.Models;
+using DependencyModules.SourceGenerator.Impl.Utilities;
 using static CSharpAuthor.SyntaxHelpers;
 
 namespace DependencyModules.SourceGenerator.Impl;
 
 public class DependencyFileWriter {
+    private readonly FileLogger _logger;
+
+    public DependencyFileWriter(FileLogger logger) {
+        _logger = logger;
+    }
+
     public string Write(
         ModuleEntryPointModel entryPointModel,
         DependencyModuleConfigurationModel configurationModel,
@@ -19,6 +26,8 @@ public class DependencyFileWriter {
                 EntryPointType = TypeDefinition.Get(configurationModel.RootNamespace, entryPointModel.EntryPointType.Name)
             };
         }
+        
+        _logger.Info($"Generating Dependencies for {entryPointModel.EntryPointType.Namespace}.{entryPointModel.EntryPointType.Namespace}");
         
         var csharpFile = new CSharpFileDefinition(entryPointModel.EntryPointType.Namespace);
 

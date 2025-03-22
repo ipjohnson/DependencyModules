@@ -3,6 +3,9 @@
 using ConsoleTestProject;
 using DependencyModules.Runtime;
 using Microsoft.Extensions.DependencyInjection;
+using SutProject;
+
+[assembly: SutModule]
 
 var serviceCollection = new ServiceCollection();
 

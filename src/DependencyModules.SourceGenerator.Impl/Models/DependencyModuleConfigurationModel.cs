@@ -1,5 +1,13 @@
 namespace DependencyModules.SourceGenerator.Impl.Models;
 
+public enum LogOutputLevel {
+    Debug = 1,
+    Info = 2,
+    Warning = 3,
+    Error = 4,
+    Fatal = 5,
+}
+
 /// <summary>
 ///     This is a configuration model for dependency generation
 ///     the values are intended to come from csproj
@@ -9,7 +17,9 @@ public record DependencyModuleConfigurationModel(
     bool RegisterSourceGenerator,
     string RootNamespace,
     string ProjectDir,
-    bool AutoGenerateEntry
+    bool AutoGenerateEntry,
+    string LogOutputFolder,
+    LogOutputLevel LogOutputLevel
 );
 
 public class DependencyModuleConfigurationModelComparer :
@@ -23,6 +33,8 @@ public class DependencyModuleConfigurationModelComparer :
         return x.RegistrationType == y.RegistrationType && 
                x.RegisterSourceGenerator == y.RegisterSourceGenerator &&
                x.RootNamespace == y.RootNamespace &&
+               x.ProjectDir == y.ProjectDir &&
+               x.LogOutputFolder == y.LogOutputFolder &&
                x.AutoGenerateEntry == y.AutoGenerateEntry;
     }
 

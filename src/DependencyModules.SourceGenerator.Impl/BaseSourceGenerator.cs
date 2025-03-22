@@ -32,11 +32,16 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
             bool autoGenerateEntry = true;
             var rootNamespace = "";
             var projectDirectory = "";
-            
+            var logOutputFolder = "";
             
             if (options.GlobalOptions.TryGetValue(
                     "build_property.DependencyModules_RegistrationType", out var value)) {
                 defaultRegistrationType = GetRegistrationType(value);
+            }
+            
+            if (options.GlobalOptions.TryGetValue(
+                    "build_property.DependencyModules_LogOutputDirectory", out var logOutputFolderValue)) {
+                logOutputFolder = logOutputFolderValue;
             }
             
             if (options.GlobalOptions.TryGetValue(
@@ -61,7 +66,9 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
                 registerSourceGenerator, 
                 rootNamespace,
                 projectDirectory,
-                autoGenerateEntry);
+                autoGenerateEntry,
+                logOutputFolder,
+                LogOutputLevel.Debug);
         }).WithComparer(new DependencyModuleConfigurationModelComparer());
     }
 
