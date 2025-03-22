@@ -6,7 +6,9 @@ namespace DependencyModules.SourceGenerator.Impl.Models;
 /// </summary>
 public record DependencyModuleConfigurationModel(
     RegistrationType RegistrationType,
-    bool RegisterSourceGenerator
+    bool RegisterSourceGenerator,
+    string RootNamespace,
+    bool AutoGenerateEntry
 );
 
 public class DependencyModuleConfigurationModelComparer :
@@ -18,7 +20,9 @@ public class DependencyModuleConfigurationModelComparer :
         if (y is null) return false;
         if (x.GetType() != y.GetType()) return false;
         return x.RegistrationType == y.RegistrationType && 
-               x.RegisterSourceGenerator == y.RegisterSourceGenerator;
+               x.RegisterSourceGenerator == y.RegisterSourceGenerator &&
+               x.RootNamespace == y.RootNamespace &&
+               x.AutoGenerateEntry == y.AutoGenerateEntry;
     }
 
     public int GetHashCode(DependencyModuleConfigurationModel obj) {

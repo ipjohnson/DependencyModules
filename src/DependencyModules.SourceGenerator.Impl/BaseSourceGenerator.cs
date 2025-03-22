@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using CSharpAuthor;
 using DependencyModules.SourceGenerator.Impl.Models;
 using DependencyModules.SourceGenerator.Impl.Utilities;
@@ -19,7 +20,7 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
             attributeSourceGenerator.SetupGenerator(context, valuesProvider);
         }
 
-        SetupRootGenerator(context, valuesProvider);
+        SetupRootGenerator(context, valuesProvider.Collect());
     }
 
     protected abstract IEnumerable<ISourceGenerator> AttributeSourceGenerators();
@@ -28,6 +29,8 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
         return context.AnalyzerConfigOptionsProvider.Select((options, _) => {
             RegistrationType defaultRegistrationType = RegistrationType.Add;
             bool registerSourceGenerator = false;
+            bool autoGenerateEntry = true;
+            var rootNamespace = "";
             
             if (options.GlobalOptions.TryGetValue(
                     "build_property.DependencyModules_RegistrationType", out var value)) {
@@ -38,15 +41,28 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
                     "build_property.DependencyModules_RegisterGenerator", out var generator)) {
                 registerSourceGenerator = generator.Equals("true", StringComparison.OrdinalIgnoreCase);
             }
+
+            if (options.GlobalOptions.TryGetValue("build_property.RootNamespace", out var rootNamespaceString)) {
+                rootNamespace = rootNamespaceString;
+            }
+
+            if (options.GlobalOptions.TryGetValue("build_property.DependencyModules_AutoGenerateModule", out var autoGenerateEntryString)) {
+                autoGenerateEntry = autoGenerateEntryString.Equals("true", StringComparison.OrdinalIgnoreCase);
+            }
             
-            return new DependencyModuleConfigurationModel(defaultRegistrationType, registerSourceGenerator);
+            return new DependencyModuleConfigurationModel(
+                defaultRegistrationType, 
+                registerSourceGenerator, 
+                rootNamespace,
+                autoGenerateEntry);
         }).WithComparer(new DependencyModuleConfigurationModelComparer());
     }
 
-    protected virtual void SetupRootGenerator(IncrementalGeneratorInitializationContext context, IncrementalValuesProvider<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> valuesProvider) { }
+    protected virtual void SetupRootGenerator(IncrementalGeneratorInitializationContext context,
+        IncrementalValueProvider<ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)>> valuesProvider) { }
 
     private IncrementalValuesProvider<ModuleEntryPointModel> CreateSourceValueProvider(IncrementalGeneratorInitializationContext context) {
-        var classSelector = new SyntaxSelector<ClassDeclarationSyntax>(KnownTypes.DependencyModules.Attributes.DependencyModuleAttribute);
+        var classSelector = new SyntaxSelector<ClassDeclarationSyntax, CompilationUnitSyntax>(KnownTypes.DependencyModules.Attributes.DependencyModuleAttribute);
 
         return context.SyntaxProvider.CreateSyntaxProvider(
             classSelector.Where,
@@ -56,45 +72,105 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
 
     protected virtual ModuleEntryPointModel GenerateEntryPointModel(GeneratorSyntaxContext context, CancellationToken cancellation) {
         cancellation.ThrowIfCancellationRequested();
-        var featureTypes = new List<ITypeDefinition>();
-        List<AttributeModel>? attributes = null;
 
         if (context.Node is ClassDeclarationSyntax classDeclarationSyntax) {
-            attributes = AttributeModelHelper
-                .GetAttributes(context, classDeclarationSyntax.AttributeLists, cancellation)
-                .ToList();
+            return GetClassEntryPointModel(context, cancellation, classDeclarationSyntax);
+        }
 
-            if (classDeclarationSyntax.BaseList != null) {
-                foreach (var baseType in classDeclarationSyntax.BaseList.Types) {
-                    var typeDefinition = baseType.Type.GetTypeDefinition(context);
+        return GetCompilationUnitSyntaxEntry(context, cancellation);
+    }
 
-                    if (typeDefinition is GenericTypeDefinition genericTypeDefinition &&
-                        genericTypeDefinition.TypeDefinitionEnum == TypeDefinitionEnum.InterfaceDefinition && 
-                        genericTypeDefinition.Name == "IDependencyModuleFeature") {
-                        featureTypes.Add(genericTypeDefinition.TypeArguments.First());
-                    }
+    private ModuleEntryPointModel GetClassEntryPointModel(GeneratorSyntaxContext context, CancellationToken cancellation, ClassDeclarationSyntax classDeclarationSyntax) {
+        var featureTypes = new List<ITypeDefinition>();
+        ModuleEntryPointFeatures features = ModuleEntryPointFeatures.None;
+        List<AttributeModel>? attributes = AttributeModelHelper
+            .GetAttributes(context, classDeclarationSyntax.AttributeLists, cancellation)
+            .ToList();
+
+        if (classDeclarationSyntax.BaseList != null) {
+            foreach (var baseType in classDeclarationSyntax.BaseList.Types) {
+                var typeDefinition = baseType.Type.GetTypeDefinition(context);
+
+                if (typeDefinition is GenericTypeDefinition genericTypeDefinition &&
+                    genericTypeDefinition.TypeDefinitionEnum == TypeDefinitionEnum.InterfaceDefinition &&
+                    genericTypeDefinition.Name == "IDependencyModuleFeature") {
+                    featureTypes.Add(genericTypeDefinition.TypeArguments.First());
                 }
             }
         }
-
+        
         var dependencyFlags = GetDependencyFlags(context);
         var implementsEqualsFlag = GetEqualsFlag(context);
         var modelInfo = AttributeModelHelper.GetAttributeClassInfo(context, cancellation);
 
+        if (dependencyFlags.OnlyRealm) {
+            features |= ModuleEntryPointFeatures.OnlyRealm;
+        }
+
+        if (!implementsEqualsFlag) {
+            features |= features;
+        }
+        
         return new ModuleEntryPointModel(
+            features,
             context.Node.SyntaxTree?.FilePath ?? "",
             ((ClassDeclarationSyntax)context.Node).GetTypeDefinition(),
-            dependencyFlags.OnlyRealm,
             dependencyFlags.RegistrationType,
             dependencyFlags.GenerateAttribute,
             dependencyFlags.RegisterGenerator,
             dependencyFlags.UseMethod,
             modelInfo.ConstructorParameters,
-            implementsEqualsFlag,
             modelInfo.Properties,
             (IReadOnlyList<AttributeModel>?)attributes ?? Array.Empty<AttributeModel>(),
+            Array.Empty<ITypeDefinition>(),
             featureTypes
-            );
+        );
+    }
+
+    private ModuleEntryPointModel GetCompilationUnitSyntaxEntry(GeneratorSyntaxContext context, CancellationToken cancellation) {
+        var compilationUnitSyntax = (CompilationUnitSyntax)context.Node;
+        var attributes = AttributeModelHelper
+            .GetAttributes(context, compilationUnitSyntax.AttributeLists, cancellation)
+            .ToList();
+        var additionalModules = new List<ITypeDefinition>();
+        
+        foreach (var syntax in compilationUnitSyntax.Members) {
+
+            if (syntax is GlobalStatementSyntax globalStatementSyntax) {
+                if (globalStatementSyntax.Statement is ExpressionStatementSyntax expressionStatementSyntax) {
+                    if (expressionStatementSyntax.Expression is InvocationExpressionSyntax invocationExpressionSyntax) {
+
+                        if (context.SemanticModel.GetSymbolInfo(expressionStatementSyntax.Expression).Symbol
+                            is IMethodSymbol { IsStatic: true } methodSymbol) {
+                            
+                            var typeSymbol = methodSymbol.ContainingSymbol as ITypeSymbol;
+                            var declaringType = methodSymbol.ContainingType;
+                            var moduleInterface = typeSymbol?.AllInterfaces.Any(x => x.GetTypeDefinition().Equals(KnownTypes.DependencyModules.Interfaces.IDependencyModule));
+
+                            if (moduleInterface.GetValueOrDefault(false) &&
+                                declaringType.Constructors.Any(c => c.Parameters.Length == 0)) {
+                                additionalModules.Add(declaringType.GetTypeDefinition());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+ 
+        return new ModuleEntryPointModel(
+            ModuleEntryPointFeatures.AutoGenerateModule,
+            context.Node.SyntaxTree?.FilePath ?? "",
+            TypeDefinition.Get("", "ApplicationModule"),
+            null,
+            true,
+            false,
+            null,
+            new ParameterInfoModel[0],
+            Array.Empty<PropertyInfoModel>(),
+            (IReadOnlyList<AttributeModel>?)attributes ?? Array.Empty<AttributeModel>(),
+            additionalModules,
+            Array.Empty<ITypeDefinition>()
+        );
     }
 
     private List<PropertyInfoModel> GetProperties(GeneratorSyntaxContext context) {

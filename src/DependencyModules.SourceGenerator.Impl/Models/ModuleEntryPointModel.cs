@@ -2,18 +2,26 @@ using CSharpAuthor;
 
 namespace DependencyModules.SourceGenerator.Impl.Models;
 
+[Flags]
+public enum ModuleEntryPointFeatures {
+    None,
+    AutoGenerateModule = 1,
+    OnlyRealm = 2,
+    ShouldImplementEquals = 4,
+}
+
 public record ModuleEntryPointModel(
+    ModuleEntryPointFeatures ModuleFeatures,
     string FileLocation,
     ITypeDefinition EntryPointType,
-    bool OnlyRealm,
     RegistrationType? RegistrationType,
     bool? GenerateAttribute,
     bool? RegisterJsonSerializers,
     string? UseMethod,
     IReadOnlyList<ParameterInfoModel> Parameters,
-    bool ImplementsEquals,
     IReadOnlyList<PropertyInfoModel> PropertyInfoModels,
     IReadOnlyList<AttributeModel> AttributeModels,
+    IReadOnlyList<ITypeDefinition> AdditionalModules,
     IReadOnlyList<ITypeDefinition> Features) : IClassModel {
     public ITypeDefinition ClassType => EntryPointType;
 }
@@ -24,9 +32,10 @@ public class ModuleEntryPointModelComparer : IEqualityComparer<ModuleEntryPointM
         if (x is null && y is null) return true;
         if (x is null || y is null) return false;
 
-        return x.EntryPointType.Equals(y.EntryPointType) &&
-               x.ImplementsEquals == y.ImplementsEquals &&
-               x.OnlyRealm == y.OnlyRealm &&
+        return x.FileLocation == y.FileLocation &&
+               x.EntryPointType.Equals(y.EntryPointType) &&
+               x.ModuleFeatures == y.ModuleFeatures &&
+               x.UseMethod == y.UseMethod &&
                x.RegistrationType == y.RegistrationType &&
                x.GenerateAttribute == y.GenerateAttribute &&
                x.Parameters.SequenceEqual(y.Parameters) &&
@@ -45,12 +54,13 @@ public class ModuleEntryPointModelComparer : IEqualityComparer<ModuleEntryPointM
             if (obj.GenerateAttribute.HasValue) {
                 hash = hash * 31 + obj.GenerateAttribute.Value.GetHashCode();
             }
-            hash = hash * 31 + obj.OnlyRealm.GetHashCode();
+            hash = hash * 31 + obj.FileLocation.GetHashCode();
+            hash = hash * 31 + obj.UseMethod?.GetHashCode() ?? 1;
+            hash = hash * 31 + (int)obj.ModuleFeatures;
             hash = GetListHashCode(obj.Parameters, hash);
             hash = GetListHashCode(obj.PropertyInfoModels, hash);
             hash = GetListHashCode(obj.AttributeModels, hash);
             hash = GetListHashCode(obj.Features, hash);
-            hash = hash * 31 + obj.ImplementsEquals.GetHashCode();
             
             return hash;
         }

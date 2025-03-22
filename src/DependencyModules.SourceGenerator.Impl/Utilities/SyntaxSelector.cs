@@ -4,11 +4,13 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace DependencyModules.SourceGenerator.Impl.Utilities;
 
-public class SyntaxSelector<T> where T : SyntaxNode {
-    private const string _attributeString = "Attribute";
+public abstract class BaseSyntaxSelector {
+        private const string _attributeString = "Attribute";
     private readonly List<string> _names;
 
-    public SyntaxSelector(params ITypeDefinition[] attributes) {
+    public bool AutoApproveCompilationUnit { get; set; } = false;
+    
+    protected BaseSyntaxSelector(params ITypeDefinition[] attributes) {
         _names = GetAttributeStrings(attributes);
     }
 
@@ -29,29 +31,21 @@ public class SyntaxSelector<T> where T : SyntaxNode {
         return returnList;
     }
 
+    protected abstract bool TestForTypes(SyntaxNode node, CancellationToken token);
+    
     public bool Where(SyntaxNode node, CancellationToken token) {
-        if (node is not T) {
+        
+        if (!TestForTypes(node, token)) {
             return false;
         }
 
         if (node is MemberDeclarationSyntax memberDeclarationSyntax) {
-            var foundAttribute = false;
-            foreach (var attributeListSyntax in memberDeclarationSyntax.AttributeLists) {
-                foreach (var attributeSyntax in attributeListSyntax.Attributes) {
-                    var name = attributeSyntax.Name.ToString();
-                    
-                    foundAttribute = _names.Contains(name);
-                    
-                    if (foundAttribute) {
-                        break;
-                    }
-                }
-                if (foundAttribute) {
-                    break;
-                }
-            }
-            
-            return foundAttribute;
+            return ProcessAttributeList(memberDeclarationSyntax.AttributeLists);
+        }
+
+        if (node is CompilationUnitSyntax compilationUnitSyntax) {
+            return AutoApproveCompilationUnit ||
+                   ProcessAttributeList(compilationUnitSyntax.AttributeLists);
         }
         
         var found = node.DescendantNodes()
@@ -59,7 +53,53 @@ public class SyntaxSelector<T> where T : SyntaxNode {
                 var name = a.Name.ToString();
                 return _names.Contains(name);
             });
-
+        
         return found;
+    }
+
+    private bool ProcessAttributeList(SyntaxList<AttributeListSyntax> attributeLists) {
+        var foundAttribute = false;
+        foreach (var attributeListSyntax in attributeLists) {
+            foreach (var attributeSyntax in attributeListSyntax.Attributes) {
+                var name = attributeSyntax.Name.ToString();
+                    
+                foundAttribute = _names.Contains(name);
+                    
+                if (foundAttribute) {
+                    break;
+                }
+            }
+            if (foundAttribute) {
+                break;
+            }
+        }
+            
+        return foundAttribute;
+    }
+
+}
+
+public class SyntaxSelector<T> : BaseSyntaxSelector where T : SyntaxNode {
+    public SyntaxSelector(params ITypeDefinition[] attributes) : base(attributes) {}
+    
+    protected override bool TestForTypes(SyntaxNode node, CancellationToken token) {
+        if (node is T) {
+            return true;
+        }
+        
+        return false;
+    }
+}
+
+
+public class SyntaxSelector<T1,T2> : BaseSyntaxSelector where T1 : SyntaxNode where T2 : SyntaxNode {
+    public SyntaxSelector(params ITypeDefinition[] attributes) : base(attributes) {}
+    
+    protected override bool TestForTypes(SyntaxNode node, CancellationToken token) {
+        if (node is T1 or T2) {
+            return true;
+        }
+        
+        return false;
     }
 }

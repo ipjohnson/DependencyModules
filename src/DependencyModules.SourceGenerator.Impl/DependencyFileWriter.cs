@@ -12,6 +12,13 @@ public class DependencyFileWriter {
         DependencyModuleConfigurationModel configurationModel,
         IEnumerable<ServiceModel> serviceModels,
         string uniqueId) {
+        
+        if (string.IsNullOrEmpty(entryPointModel.EntryPointType.Namespace)) {
+            entryPointModel = entryPointModel with {
+                EntryPointType = TypeDefinition.Get(configurationModel.RootNamespace, entryPointModel.EntryPointType.Name)
+            };
+        }
+        
         var csharpFile = new CSharpFileDefinition(entryPointModel.EntryPointType.Namespace);
 
         GenerateClass(entryPointModel, configurationModel, serviceModels, csharpFile, uniqueId);
@@ -99,7 +106,9 @@ public class DependencyFileWriter {
                         continue;
                     }
                 }
-                else if (entryPointModel.OnlyRealm) {
+                else if (
+                    (entryPointModel.ModuleFeatures & ModuleEntryPointFeatures.OnlyRealm) == 
+                    ModuleEntryPointFeatures.OnlyRealm) {
                     continue;
                 }
 

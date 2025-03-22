@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using CSharpAuthor;
 using DependencyModules.SourceGenerator.Impl;
 using DependencyModules.SourceGenerator.Impl.Models;
@@ -10,28 +11,92 @@ namespace DependencyModules.SourceGenerator;
 public class DependencyModuleWriter {
 
     public void GenerateSource(SourceProductionContext context, 
-        (ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right) models) {
-        var model = models.Left;
+        ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> allEntryPoints) {
 
-        var csharpFile = new CSharpFileDefinition(model.EntryPointType.Namespace);
-
-        GenerateModuleClass(model, csharpFile);
-
-        GenerateUseMethod(models, csharpFile);
+        if (allEntryPoints.Length == 0) {
+            return;
+        }
         
-        GenerateAttribute(models, csharpFile);
-        
+        var (entryPointList, configurationModel) = 
+            ConsolidateEntryPointModels(allEntryPoints);
+
+        foreach (var entryPointModel in entryPointList) {
+            context.CancellationToken.ThrowIfCancellationRequested();
+            
+            ProcessEntryPoint(context, entryPointModel, configurationModel);
+        }
+    }
+
+    private void ProcessEntryPoint(
+        SourceProductionContext context, 
+        ModuleEntryPointModel entryPointModel, 
+        DependencyModuleConfigurationModel configurationModel) {
+
+        if (string.IsNullOrEmpty(entryPointModel.EntryPointType.Namespace)) {
+            entryPointModel = entryPointModel with {
+                EntryPointType = TypeDefinition.Get(
+                    configurationModel.RootNamespace, 
+                    entryPointModel.EntryPointType.Name)
+            };
+        }
+
+        var csharpFile = new CSharpFileDefinition(entryPointModel.EntryPointType.Namespace);
+
+        GenerateModuleClass(entryPointModel, csharpFile);
+
+        GenerateUseMethod(entryPointModel, configurationModel, csharpFile);
+
+        GenerateAttribute(entryPointModel, csharpFile);
+
         var outputContext = new OutputContext(new OutputContextOptions {
             TypeOutputMode = TypeOutputMode.Global
         });
 
         csharpFile.WriteOutput(outputContext);
 
-        context.AddSource(model.EntryPointType.Name + "." + model.UniqueId() + ".Module.g.cs", outputContext.Output());
+        context.AddSource(
+            entryPointModel.EntryPointType.Name + "." + entryPointModel.UniqueId() + ".Module.g.cs", outputContext.Output());
     }
 
-    private void GenerateAttribute((ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right) models, CSharpFileDefinition csharpFile) {
-        var model = models.Left;
+    private (IList<ModuleEntryPointModel> uniqueEntryPoints, DependencyModuleConfigurationModel configurationModel) ConsolidateEntryPointModels(
+        ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> entryPointList) {
+        var uniqueEntryPoints = new List<ModuleEntryPointModel>();
+        var configurationModel = entryPointList.First().Right;
+
+        var entryPointModels = entryPointList.Select(m => m.Left);
+        if (!configurationModel.AutoGenerateEntry) {
+            entryPointModels = entryPointModels.Where(m => !m.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.AutoGenerateModule));
+        }
+        
+        var groupingEnumerable = 
+            entryPointModels.GroupBy(m => m.EntryPointType.Namespace + "." + m.EntryPointType.GetShortName());
+
+        foreach (var grouping in groupingEnumerable) {
+            if (grouping.Count() > 1) {
+                uniqueEntryPoints.Add(
+                    ConsolidateEntryPointModelGrouping(grouping, configurationModel));
+            } else {
+                uniqueEntryPoints.Add(grouping.First());
+            }
+        }
+        
+        return (uniqueEntryPoints, configurationModel);
+    }
+
+    private ModuleEntryPointModel ConsolidateEntryPointModelGrouping(IGrouping<string,ModuleEntryPointModel> grouping, DependencyModuleConfigurationModel configurationModel) {
+        var firstNonAuto = grouping.FirstOrDefault(
+            m => m.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.AutoGenerateModule) == false);
+        
+        if (firstNonAuto != null) {
+            return firstNonAuto;
+        }
+        
+        return grouping.First();
+    }
+
+    private void GenerateAttribute(ModuleEntryPointModel moduleEntryPoint,
+        CSharpFileDefinition csharpFile) {
+        var model = moduleEntryPoint;
         if (model.GenerateAttribute != false) {
             var attributeGenerator = new ModuleAttributeWriter();
 
@@ -39,16 +104,19 @@ public class DependencyModuleWriter {
         }
     }
 
-    private void GenerateUseMethod((ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right) models, CSharpFileDefinition csharpFile) {
+    private void GenerateUseMethod(
+        ModuleEntryPointModel entryPointModel, 
+        DependencyModuleConfigurationModel configurationModel, 
+        CSharpFileDefinition csharpFile) {
 
-        if (string.IsNullOrEmpty(models.Left.UseMethod)) {
+        if (string.IsNullOrEmpty(entryPointModel.UseMethod)) {
             return;
         }
-        var extensionMethod = csharpFile.AddClass($"{models.Left.EntryPointType.Name}Extensions");
+        var extensionMethod = csharpFile.AddClass($"{entryPointModel.EntryPointType.Name}Extensions");
 
         extensionMethod.Modifiers = ComponentModifier.Public | ComponentModifier.Static | ComponentModifier.Partial;
         
-        var method = extensionMethod.AddMethod(models.Left.UseMethod!);
+        var method = extensionMethod.AddMethod(entryPointModel.UseMethod!);
 
         method.Modifiers = ComponentModifier.Public | ComponentModifier.Static;
         method.SetReturnType(KnownTypes.Microsoft.DependencyInjection.IServiceCollection);
@@ -58,13 +126,13 @@ public class DependencyModuleWriter {
         
         var parameters = new List<object>();
         
-        foreach (var parameterInfoModel in models.Left.Parameters) {
+        foreach (var parameterInfoModel in entryPointModel.Parameters) {
             var param = method.AddParameter(parameterInfoModel.ParameterType, parameterInfoModel.ParameterName);
             
             parameters.Add(param);
         }
         
-        var newStatement = New(models.Left.EntryPointType, parameters.ToArray());
+        var newStatement = New(entryPointModel.EntryPointType, parameters.ToArray());
         
         method.Return(serviceProvider.Invoke("AddModules", newStatement));
         method.AddUsingNamespace("DependencyModules.Runtime");
@@ -86,7 +154,8 @@ public class DependencyModuleWriter {
         
         FeatureMethod(classDefinition, model);
 
-        if (!model.ImplementsEquals) {
+        if ((model.ModuleFeatures & ModuleEntryPointFeatures.ShouldImplementEquals) == 
+            ModuleEntryPointFeatures.ShouldImplementEquals) {
             EqualMethod(classDefinition, model);
 
             HashMethod(classDefinition);
@@ -169,6 +238,14 @@ public class DependencyModuleWriter {
             }
 
             getModulesMethod.AddIndentedStatement(YieldReturn(newStatement));
+        }
+
+        foreach (var additionalModule in model.AdditionalModules) {
+            if (additionalModule != null) {
+                var newStatement = New(additionalModule);
+
+                getModulesMethod.AddIndentedStatement(YieldReturn(newStatement));
+            }
         }
     }
 

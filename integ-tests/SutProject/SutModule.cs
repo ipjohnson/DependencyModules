@@ -3,4 +3,8 @@
 namespace SutProject;
 
 [DependencyModule]
-public partial class SutModule { }
+public partial class SutModule {
+    public static void Run() {
+        
+    }
+}
