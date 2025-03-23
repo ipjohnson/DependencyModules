@@ -59,7 +59,8 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
         var output = writer.Write(entryPointModel, configurationModel, serviceModels, "Module");
         
         context.AddSource(
-            EntryModelUtil.GenerateFileName(entryPointModel, "Dependencies"), output);
+            entryPointModel.EntryPointType.GetFileNameHint(
+                configurationModel.RootNamespace,"Dependencies"), output);
     }
 
     protected override IEqualityComparer<ServiceModel> GetComparer() {

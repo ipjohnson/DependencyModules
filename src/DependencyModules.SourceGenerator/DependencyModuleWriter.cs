@@ -48,7 +48,10 @@ public class DependencyModuleWriter {
 
         csharpFile.WriteOutput(outputContext);
 
-        context.AddSource(EntryModelUtil.GenerateFileName(entryPointModel, "Module"), outputContext.Output());
+        context.AddSource(
+            entryPointModel.EntryPointType.GetFileNameHint(
+                configurationModel.RootNamespace, "Module"), 
+            outputContext.Output());
     }
 
     private void GenerateAttribute(ModuleEntryPointModel moduleEntryPoint,
