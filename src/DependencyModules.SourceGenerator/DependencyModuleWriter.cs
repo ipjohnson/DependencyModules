@@ -187,7 +187,15 @@ public class DependencyModuleWriter {
         
         getModulesMethod.InterfaceImplementation = KnownTypes.DependencyModules.Interfaces.IDependencyModule;
         getModulesMethod.SetReturnType(TypeDefinition.Get(typeof(IEnumerable<object>)));
+        
+        foreach (var additionalModule in model.AdditionalModules) {
+            if (additionalModule != null) {
+                var newStatement = New(additionalModule);
 
+                getModulesMethod.AddIndentedStatement(YieldReturn(newStatement));
+            }
+        }
+        
         foreach (var modelAttributeModel in attributeModels) {
             var newStatement = New(modelAttributeModel.TypeDefinition, modelAttributeModel.ArgumentString);
 
@@ -198,14 +206,6 @@ public class DependencyModuleWriter {
             }
 
             getModulesMethod.AddIndentedStatement(YieldReturn(newStatement));
-        }
-
-        foreach (var additionalModule in model.AdditionalModules) {
-            if (additionalModule != null) {
-                var newStatement = New(additionalModule);
-
-                getModulesMethod.AddIndentedStatement(YieldReturn(newStatement));
-            }
         }
     }
 
