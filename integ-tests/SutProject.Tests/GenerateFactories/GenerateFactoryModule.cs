@@ -34,3 +34,10 @@ public class KeyedDependency([FromKeyedServices("Keyed")] IKeyedRegistration reg
         get;
     } = registration;
 }
+
+[SingletonService(Realm = typeof(GenerateFactoryModule))]
+public class StandardConstructor {
+    public StandardConstructor(IDependencyOne dependencyOne) {
+        
+    }
+}

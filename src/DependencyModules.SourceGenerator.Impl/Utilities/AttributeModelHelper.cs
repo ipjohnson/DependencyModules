@@ -78,7 +78,7 @@ public static class AttributeModelHelper {
         
         var classDeclaration = context.Node as ClassDeclarationSyntax;
 
-        if (classDeclaration?.ParameterList != null) {
+        if (classDeclaration?.ParameterList is { Parameters.Count: > 0 }) {
             return BaseMethodHelper.GetParameters(classDeclaration.ParameterList, context, cancellationToken);
         }
         

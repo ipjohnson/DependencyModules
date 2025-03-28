@@ -24,7 +24,7 @@ public class CKeyedRegistration : KeyedRegistration {
     }
 }
 
-[SingletonService]
+[SingletonService(Realm = typeof(KeyedModule))]
 public class CKeyedDependency([FromKeyedServices("C")] IKeyedRegistration registration) {
     public IKeyedRegistration Registration {
         get;

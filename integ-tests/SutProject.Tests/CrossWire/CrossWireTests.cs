@@ -24,7 +24,7 @@ public interface IInterface2 {
 }
 
 [CrossWireService(Realm = typeof(CrossWireModule))]
-[CrossWireService(Lifetime = ServiceLifetime.Scoped)]
+[CrossWireService(Lifetime = ServiceLifetime.Scoped, Realm = typeof(CrossWireModule))]
 public class CrossWireService : IInterface1, IInterface2 {
     
 }
