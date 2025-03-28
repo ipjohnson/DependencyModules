@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.ComponentModel;
 using CSharpAuthor;
 using DependencyModules.SourceGenerator.Impl.Models;
@@ -17,11 +18,9 @@ public class ServiceModelUtility {
 
     private static readonly ITypeDefinition _serializerService =
         KnownTypes.Microsoft.TextJson.JsonSourceGenerationOptionsAttribute;
-    
+
     private static readonly ITypeDefinition[] _attributeTypes = {
-        KnownTypes.DependencyModules.Attributes.TransientServiceAttribute, 
-        KnownTypes.DependencyModules.Attributes.ScopedServiceAttribute, 
-        KnownTypes.DependencyModules.Attributes.SingletonServiceAttribute,
+        KnownTypes.DependencyModules.Attributes.TransientServiceAttribute, KnownTypes.DependencyModules.Attributes.ScopedServiceAttribute, KnownTypes.DependencyModules.Attributes.SingletonServiceAttribute,
     };
 
     public static ServiceModel? GetServiceModel(
@@ -32,7 +31,6 @@ public class ServiceModelUtility {
         }
 
         if (context.Node is MethodDeclarationSyntax methodDeclarationSyntax) {
-            
             return MethodDeclarationServiceModel(context, methodDeclarationSyntax, cancellationToken);
         }
 
@@ -50,7 +48,7 @@ public class ServiceModelUtility {
         if (!methodDeclarationSyntax.Modifiers.Any(m => m.IsKind(SyntaxKind.StaticKeyword))) {
             return null;
         }
-        
+
         var returnType = methodDeclarationSyntax.ReturnType.GetTypeDefinition(context);
         var factoryModel = GetFactoryModel(context, methodDeclarationSyntax, cancellationToken);
 
@@ -58,11 +56,14 @@ public class ServiceModelUtility {
             return null;
         }
 
-        var models = 
-            AttributeModelHelper.GetAttributeModels(context,context.Node, cancellationToken);
-        
-        return new ServiceModel(returnType, factoryModel,null, 
-            GetRegistrations(context, returnType, models, cancellationToken), 
+        var models =
+            AttributeModelHelper.GetAttributeModels(context, context.Node, cancellationToken);
+
+        return new ServiceModel(
+            returnType,
+            null,
+            factoryModel, null,
+            GetRegistrations(context, returnType, models, cancellationToken),
             RegistrationFeature.None);
     }
 
@@ -86,24 +87,26 @@ public class ServiceModelUtility {
         if (classDefinition == null) {
             return null;
         }
-        
-        var attributes =
-            AttributeModelHelper.GetAttributeModels(context,context.Node,cancellationToken);
-        
-        var registrations = GetRegistrations(context, classDefinition, attributes, cancellationToken);
-        
-        if (registrations.Count == 0 ) {
 
+        var attributes =
+            AttributeModelHelper.GetAttributeModels(context, context.Node, cancellationToken);
+
+        var registrations = GetRegistrations(context, classDefinition, attributes, cancellationToken);
+
+        if (registrations.Count == 0) {
             return new ServiceModel(
-                classDefinition, 
-                null, 
+                classDefinition,
+                GetConstructor(context, cancellationToken),
+                null,
                 FactoryOutput,
-                new []{ new ServiceRegistrationModel(
-                    KnownTypes.Microsoft.TextJson.IJsonTypeInfoResolver,
-                    ServiceLifestyle.Transient
-                    )}, 
+                new[] {
+                    new ServiceRegistrationModel(
+                        KnownTypes.Microsoft.TextJson.IJsonTypeInfoResolver,
+                        ServiceLifestyle.Transient
+                    )
+                },
                 RegistrationFeature.AutoRegisterSourceGenerator
-                );
+            );
         }
 
         FactoryOutputDelegate? factoryOutput = null;
@@ -112,8 +115,56 @@ public class ServiceModelUtility {
                 r => r.ServiceType.Equals(KnownTypes.Microsoft.TextJson.IJsonTypeInfoResolver))) {
             factoryOutput = FactoryOutput;
         }
+
+        return new ServiceModel(classDefinition,
+            GetConstructor(context, cancellationToken),
+            null,
+            factoryOutput,
+            registrations,
+            RegistrationFeature.None);
+    }
+
+    private static ConstructorInfoModel? GetConstructor(GeneratorSyntaxContext context, CancellationToken cancellationToken) {
+        var constructorList = new List<ConstructorDeclarationSyntax>();
+
+        foreach (var constructor in context.Node.Ancestors().OfType<ConstructorDeclarationSyntax>()) {
+            if (constructor.Modifiers.Any(m => m.IsKind(SyntaxKind.PrivateKeyword))) {
+                continue;
+            }
+
+            if (constructor.AttributeLists.Any(attributeList =>
+                    attributeList.Attributes.Any(
+                        a => a.Name.ToString() == "ActivatorUtilitiesConstructorAttribute" ||
+                             a.Name.ToString() == "ActivatorUtilitiesConstructor"))) {
+
+                return new ConstructorInfoModel(constructor.GetMethodParameters(context, cancellationToken));
+            }
+
+            constructorList.Add(constructor);
+        }
+
+        if (context.Node is ClassDeclarationSyntax { ParameterList: not null } classDeclarationSyntax) {
+            return new ConstructorInfoModel(
+                classDeclarationSyntax.ParameterList.GetParameters(context, cancellationToken));
+        }
         
-        return new ServiceModel(classDefinition, null, factoryOutput, registrations, RegistrationFeature.None);
+        if (constructorList.Count == 0) {
+            return new ConstructorInfoModel(ImmutableArray<ParameterInfoModel>.Empty);
+        }
+
+        if (constructorList.Count == 1) {
+            var constructor = constructorList[0];
+
+            return new ConstructorInfoModel(constructor.GetMethodParameters(context, cancellationToken));
+        }
+
+        constructorList.Sort(
+            (a, b) =>
+                a.ParameterList.Parameters.Count.CompareTo(b.ParameterList.Parameters.Count));
+
+        return new ConstructorInfoModel(
+            constructorList.Last().GetMethodParameters(context, cancellationToken)
+        );
     }
 
     private static IOutputComponent? FactoryOutput(ServiceModel servicemodel, ServiceRegistrationModel registrationmodel) {
@@ -122,10 +173,10 @@ public class ServiceModelUtility {
         if (registrationmodel.Key != null) {
             signature = "(_,_) => ";
         }
-        
+
         var component = CodeOutputComponent.Get(
             $"{signature}{servicemodel.ImplementationType.Namespace}.{servicemodel.ImplementationType.Name}.Default");
-        
+
         return component;
     }
 
@@ -155,13 +206,13 @@ public class ServiceModelUtility {
             classTypeDefinition = TypeDefinition.Get(classDeclarationSyntax.GetNamespace(),
                 classDeclarationSyntax.Identifier.ToString());
         }
-        
+
         return classTypeDefinition;
     }
 
     private static List<ServiceRegistrationModel> GetRegistrations(GeneratorSyntaxContext context, ITypeDefinition classDefinition, IReadOnlyList<AttributeModel> attributes, CancellationToken cancellationToken) {
         var list = new List<ServiceRegistrationModel>();
-        
+
         foreach (var attributeSyntax in
                  context.Node.DescendantNodes().OfType<AttributeSyntax>()) {
             foreach (var typeDefinition in _attributeTypes) {
@@ -172,7 +223,7 @@ public class ServiceModelUtility {
                     list.Add(GetServiceRegistration(context, attributeSyntax, classDefinition));
                 }
             }
-            
+
             if (attributeSyntax.Name.ToString() == _crossWireService.Name ||
                 attributeSyntax.Name + "Attribute" == _crossWireService.Name) {
                 list.AddRange(GetCrossWiredService(context, attributeSyntax, classDefinition));
@@ -203,7 +254,7 @@ public class ServiceModelUtility {
                                 }
                             }
                             break;
-                        
+
                         case "With":
                             registrationType =
                                 BaseSourceGenerator.GetRegistrationType(argumentSyntax.Expression.ToString());
@@ -212,6 +263,7 @@ public class ServiceModelUtility {
                         case "Lifetime":
                             lifestyle = GetLifestyle(argumentSyntax.Expression.ToString());
                             break;
+
                         case "Realm":
                             if (argumentSyntax.Expression is TypeOfExpressionSyntax realmType) {
                                 realm = realmType.Type.GetTypeDefinition(context);
@@ -245,7 +297,7 @@ public class ServiceModelUtility {
         if (Enum.TryParse(toString, out ServiceLifestyle lifestyle)) {
             return lifestyle;
         }
-        
+
         return ServiceLifestyle.Singleton;
     }
 
@@ -264,7 +316,7 @@ public class ServiceModelUtility {
         ITypeDefinition? realm = null;
         object? key = null;
         var namespaces = new List<string>();
-        
+
         if (attributeSyntax.ArgumentList != null) {
             foreach (var argumentSyntax in attributeSyntax.ArgumentList.Arguments) {
                 if (argumentSyntax.NameEquals != null) {
@@ -396,7 +448,7 @@ public class ServiceModelUtility {
             registration.Name,
             argumentTypes
         );
+        
         return registration;
     }
-
 }

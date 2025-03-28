@@ -30,4 +30,10 @@ public class DependencyModuleAttribute : Attribute {
     /// Attributes are usually preferred over UseXXX methods
     /// </summary>
     public string? UseMethod { get; set; }
+    
+    /// <summary>
+    /// Setting this to true will generate registration using factories
+    /// instead of allowing the container to construct the type
+    /// </summary>
+    public bool GenerateFactories { get; set; } = false;
 }

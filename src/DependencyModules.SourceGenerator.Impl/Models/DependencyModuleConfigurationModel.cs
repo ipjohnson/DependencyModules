@@ -19,7 +19,8 @@ public record DependencyModuleConfigurationModel(
     string ProjectDir,
     bool AutoGenerateEntry,
     string LogOutputFolder,
-    LogOutputLevel LogOutputLevel
+    LogOutputLevel LogOutputLevel,
+    bool GenerateFactories
 );
 
 public class DependencyModuleConfigurationModelComparer :
@@ -35,7 +36,9 @@ public class DependencyModuleConfigurationModelComparer :
                x.RootNamespace == y.RootNamespace &&
                x.ProjectDir == y.ProjectDir &&
                x.LogOutputFolder == y.LogOutputFolder &&
-               x.AutoGenerateEntry == y.AutoGenerateEntry;
+               x.AutoGenerateEntry == y.AutoGenerateEntry &&
+               x.LogOutputLevel == y.LogOutputLevel &&
+               x.GenerateFactories == y.GenerateFactories;
     }
 
     public int GetHashCode(DependencyModuleConfigurationModel obj) {

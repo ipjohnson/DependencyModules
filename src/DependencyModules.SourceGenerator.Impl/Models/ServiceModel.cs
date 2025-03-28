@@ -40,12 +40,14 @@ public delegate IOutputComponent? FactoryOutputDelegate(
 
 public record ServiceModel(
     ITypeDefinition ImplementationType,
+    ConstructorInfoModel? Constructor,
     ServiceFactoryModel? Factory,
     FactoryOutputDelegate? FactoryOutput,
     IReadOnlyList<ServiceRegistrationModel> Registrations,
     RegistrationFeature Features) {
     public static ServiceModel Ignore = new ServiceModel(
         TypeDefinition.Get("", "Ignore"),
+        null,
         null,
         null,
         Array.Empty<ServiceRegistrationModel>(),
@@ -63,9 +65,16 @@ public class ServiceModelComparer : IEqualityComparer<ServiceModel> {
         return
             x.Features == y.Features &&
             x.ImplementationType.Equals(y.ImplementationType) &&
+            CompareConstructor(x.Constructor, y.Constructor) &&
             CompareRegistrations(x.Registrations, y.Registrations) && 
             CompareFactory(x.Factory, y.Factory) && 
             CompareFactoryOutput(x.FactoryOutput, y.FactoryOutput);
+    }
+
+    private bool CompareConstructor(ConstructorInfoModel? xConstructor, ConstructorInfoModel? yConstructor) {
+        if (xConstructor is null && yConstructor is null) return true;
+        if (xConstructor is null || yConstructor is null) return false;
+        return xConstructor.Parameters.SequenceEqual(yConstructor.Parameters);
     }
 
     private bool CompareFactoryOutput(FactoryOutputDelegate? xFactoryOutput, FactoryOutputDelegate? yFactoryOutput) {

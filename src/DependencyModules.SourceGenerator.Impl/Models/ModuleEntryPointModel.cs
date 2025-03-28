@@ -18,6 +18,7 @@ public record ModuleEntryPointModel(
     bool? GenerateAttribute,
     bool? RegisterJsonSerializers,
     string? UseMethod,
+    bool? GenerateFactories,
     IReadOnlyList<ParameterInfoModel> Parameters,
     IReadOnlyList<PropertyInfoModel> PropertyInfoModels,
     IReadOnlyList<AttributeModel> AttributeModels,
@@ -38,10 +39,13 @@ public class ModuleEntryPointModelComparer : IEqualityComparer<ModuleEntryPointM
                x.UseMethod == y.UseMethod &&
                x.RegistrationType == y.RegistrationType &&
                x.GenerateAttribute == y.GenerateAttribute &&
+               x.RegisterJsonSerializers == y.RegisterJsonSerializers &&
+               x.GenerateFactories == y.GenerateFactories &&
                x.Parameters.SequenceEqual(y.Parameters) &&
                x.PropertyInfoModels.SequenceEqual(y.PropertyInfoModels) &&
                x.Features.SequenceEqual(y.Features) &&
-               x.AttributeModels.SequenceEqual(y.AttributeModels);
+               x.AttributeModels.SequenceEqual(y.AttributeModels) &&
+               x.AdditionalModules.SequenceEqual(y.AdditionalModules);
     }
 
     public int GetHashCode(ModuleEntryPointModel obj) {
@@ -56,6 +60,8 @@ public class ModuleEntryPointModelComparer : IEqualityComparer<ModuleEntryPointM
             }
             hash = hash * 31 + obj.FileLocation.GetHashCode();
             hash = hash * 31 + obj.UseMethod?.GetHashCode() ?? 1;
+            hash = hash * 31 + (obj.RegisterJsonSerializers?.GetHashCode() ?? 1);
+            hash = hash * 31 + (obj.GenerateFactories?.GetHashCode() ?? 1);
             hash = hash * 31 + (int)obj.ModuleFeatures;
             hash = GetListHashCode(obj.Parameters, hash);
             hash = GetListHashCode(obj.PropertyInfoModels, hash);

@@ -30,6 +30,7 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
             RegistrationType defaultRegistrationType = RegistrationType.Add;
             bool registerSourceGenerator = false;
             bool autoGenerateEntry = true;
+            bool generateFactories = false;
             var rootNamespace = "";
             var projectDirectory = "";
             var logOutputFolder = "";
@@ -61,6 +62,10 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
                 autoGenerateEntry = autoGenerateEntryString.Equals("true", StringComparison.OrdinalIgnoreCase);
             }
             
+            if (options.GlobalOptions.TryGetValue("build_property.DependencyModules_GenerateFactories", out var generateFactoriesString)) {
+                generateFactories = generateFactoriesString.Equals("true", StringComparison.OrdinalIgnoreCase);
+            }
+            
             return new DependencyModuleConfigurationModel(
                 defaultRegistrationType, 
                 registerSourceGenerator, 
@@ -68,7 +73,8 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
                 projectDirectory,
                 autoGenerateEntry,
                 logOutputFolder,
-                LogOutputLevel.Debug);
+                LogOutputLevel.Debug,
+                generateFactories);
         }).WithComparer(new DependencyModuleConfigurationModelComparer());
     }
 
@@ -137,6 +143,7 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
             dependencyFlags.GenerateAttribute,
             dependencyFlags.RegisterGenerator,
             dependencyFlags.UseMethod,
+            dependencyFlags.GenerateFactories,
             modelInfo.ConstructorParameters,
             modelInfo.Properties,
             (IReadOnlyList<AttributeModel>?)attributes ?? Array.Empty<AttributeModel>(),
@@ -182,6 +189,7 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
             true,
             false,
             null,
+            null,
             new ParameterInfoModel[0],
             Array.Empty<PropertyInfoModel>(),
             (IReadOnlyList<AttributeModel>?)attributes ?? Array.Empty<AttributeModel>(),
@@ -219,7 +227,7 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
     }
 
     private record DependencyFlags
-        (bool OnlyRealm, RegistrationType? RegistrationType, bool? GenerateAttribute, bool? RegisterGenerator, string? UseMethod);
+        (bool OnlyRealm, RegistrationType? RegistrationType, bool? GenerateAttribute, bool? GenerateFactories, bool? RegisterGenerator, string? UseMethod);
     
     private DependencyFlags
         GetDependencyFlags(GeneratorSyntaxContext context) {
@@ -227,6 +235,7 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
         RegistrationType? registrationType = null;
         bool? generateAttribute = null;
         bool? registerGenerator = null;
+        bool? generateFactories = null;
         string? useMethod = null;
         if (context.Node is ClassDeclarationSyntax classDeclarationSyntax) {
             var module = classDeclarationSyntax.DescendantNodes().OfType<AttributeSyntax>().FirstOrDefault(attr => attr.Name.ToString().StartsWith("DependencyModule"));
@@ -251,12 +260,21 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
                         case "UseMethod":
                             useMethod = argumentSyntax.Expression.ToString().Trim('"');
                             break;
+                        case "GenerateFactories":
+                            generateFactories = argumentSyntax.Expression.ToString().Trim('"') == "true";
+                            break;
                     }
                 }
             }
         }
         
-        return new DependencyFlags(onlyRealm, registrationType, generateAttribute, registerGenerator, useMethod);
+        return new DependencyFlags(
+            onlyRealm,
+            registrationType, 
+            generateAttribute,
+            generateFactories,
+            registerGenerator, 
+            useMethod);
     }
     
     public static RegistrationType GetRegistrationType(string toString) {
