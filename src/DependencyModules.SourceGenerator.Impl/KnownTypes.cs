@@ -17,6 +17,9 @@ public static class KnownTypes {
             
             public static readonly ITypeDefinition ServiceDescriptor = 
                 TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "ServiceDescriptor");
+            
+            public static readonly ITypeDefinition FromKeyedServicesAttribute =
+                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "FromKeyedServicesAttribute");
         }
         
         public static class TextJson {

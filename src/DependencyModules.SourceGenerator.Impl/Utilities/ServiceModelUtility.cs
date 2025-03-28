@@ -96,7 +96,7 @@ public class ServiceModelUtility {
         if (registrations.Count == 0) {
             return new ServiceModel(
                 classDefinition,
-                GetConstructor(context, cancellationToken),
+                GetConstructorInfo(context, cancellationToken),
                 null,
                 FactoryOutput,
                 new[] {
@@ -117,14 +117,14 @@ public class ServiceModelUtility {
         }
 
         return new ServiceModel(classDefinition,
-            GetConstructor(context, cancellationToken),
+            GetConstructorInfo(context, cancellationToken),
             null,
             factoryOutput,
             registrations,
             RegistrationFeature.None);
     }
 
-    private static ConstructorInfoModel? GetConstructor(GeneratorSyntaxContext context, CancellationToken cancellationToken) {
+    public static ConstructorInfoModel? GetConstructorInfo(GeneratorSyntaxContext context, CancellationToken cancellationToken) {
         var constructorList = new List<ConstructorDeclarationSyntax>();
 
         foreach (var constructor in context.Node.Ancestors().OfType<ConstructorDeclarationSyntax>()) {

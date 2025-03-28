@@ -19,16 +19,16 @@ public class DependencyFileWriter {
         DependencyModuleConfigurationModel configurationModel,
         IEnumerable<ServiceModel> serviceModels,
         string uniqueId) {
-        
+
         if (entryPointModel.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.AutoGenerateModule) &&
             string.IsNullOrEmpty(entryPointModel.EntryPointType.Namespace)) {
             entryPointModel = entryPointModel with {
                 EntryPointType = TypeDefinition.Get(configurationModel.RootNamespace, entryPointModel.EntryPointType.Name)
             };
         }
-        
+
         _logger.Info($"Generating Dependencies for {entryPointModel.EntryPointType.Namespace}.{entryPointModel.EntryPointType.Namespace}");
-        
+
         var csharpFile = new CSharpFileDefinition(entryPointModel.EntryPointType.Namespace);
 
         GenerateClass(entryPointModel, configurationModel, serviceModels, csharpFile, uniqueId);
@@ -98,7 +98,7 @@ public class DependencyFileWriter {
         var sortedServiceModels = GetSortedServiceModels(serviceModels);
         var autoRegisterGenerators =
             entryPointModel.RegisterJsonSerializers ?? configurationModel.RegisterSourceGenerator;
-        
+
         foreach (var serviceModel in sortedServiceModels) {
             if (serviceModel.Equals(ServiceModel.Ignore)) {
                 continue;
@@ -108,7 +108,7 @@ public class DependencyFileWriter {
                 RegistrationFeature.AutoRegisterSourceGenerator && !autoRegisterGenerators) {
                 continue;
             }
-            
+
             var crossWire = false;
 
             foreach (var registrationModel in serviceModel.Registrations) {
@@ -119,7 +119,7 @@ public class DependencyFileWriter {
                     }
                 }
                 else if (
-                    (entryPointModel.ModuleFeatures & ModuleEntryPointFeatures.OnlyRealm) == 
+                    (entryPointModel.ModuleFeatures & ModuleEntryPointFeatures.OnlyRealm) ==
                     ModuleEntryPointFeatures.OnlyRealm) {
                     continue;
                 }
@@ -129,7 +129,7 @@ public class DependencyFileWriter {
                         classDefinition.AddUsingNamespace(namespaceString);
                     }
                 }
-                
+
                 crossWire |= registrationModel.CrossWire.GetValueOrDefault(false);
 
                 var registrationType = GetRegistrationType(entryPointModel, configurationModel, registrationModel);
@@ -170,9 +170,9 @@ public class DependencyFileWriter {
             if (crossWire) {
                 CrossWireRegisterImplementation(
                     configurationModel,
-                    entryPointModel, 
+                    entryPointModel,
                     classDefinition,
-                    method, 
+                    method,
                     services,
                     serviceModel,
                     uniqueId);
@@ -220,12 +220,12 @@ public class DependencyFileWriter {
         if (serviceModel.Factory == null) {
             if (serviceModel.FactoryOutput != null) {
                 parameters.Add(serviceModel.FactoryOutput);
-            } 
-            else if (serviceModel.Constructor != null && 
+            }
+            else if (serviceModel.Constructor != null &&
                      serviceModel.ImplementationType is not GenericTypeDefinition &&
                      entryPointModel.GenerateFactories.GetValueOrDefault(
-                           configurationModel.GenerateFactories)) {
-                parameters.Add(GenerateNewFactory(serviceModel));
+                         configurationModel.GenerateFactories)) {
+                parameters.Add(GenerateNewFactory(serviceModel, registrationModel));
             }
             else {
                 parameters.Add(TypeOf(serviceModel.ImplementationType));
@@ -261,15 +261,17 @@ public class DependencyFileWriter {
             ));
     }
 
-    private static object GenerateNewFactory(ServiceModel serviceModel) {
-        var parameter = 
+    private static object GenerateNewFactory(ServiceModel serviceModel, ServiceRegistrationModel registrationModel) {
+        var parameter =
             new ParameterDefinition(KnownTypes.Microsoft.DependencyInjection.IServiceProvider, "provider");
-        var provider = CodeOutputComponent.Get("provider => ");
-        
+
+        var providerParameters = registrationModel.Key == null ? "provider => " : "(provider, _) => ";
+        var provider = CodeOutputComponent.Get(providerParameters);
+
         var newStatement = New(
             serviceModel.ImplementationType,
             GetArgumentsForParameterList(parameter, serviceModel.Constructor!.Parameters));
-        
+
         return new WrapStatement(newStatement, provider, null);
     }
 
@@ -299,11 +301,11 @@ public class DependencyFileWriter {
 
                 parameters.Add(factoryOutput ?? TypeOf(serviceModel.ImplementationType));
             }
-            else if (serviceModel.Constructor != null && 
+            else if (serviceModel.Constructor != null &&
                      serviceModel.ImplementationType is not GenericTypeDefinition &&
                      entryPointModel.GenerateFactories.GetValueOrDefault(
                          configurationModel.GenerateFactories)) {
-                parameters.Add(GenerateNewFactory(serviceModel));
+                parameters.Add(GenerateNewFactory(serviceModel, registrationModel));
             }
             else {
                 parameters.Add(TypeOf(serviceModel.ImplementationType));
@@ -388,11 +390,11 @@ public class DependencyFileWriter {
 
                 parameters.Add(factoryOutput ?? TypeOf(serviceModel.ImplementationType));
             }
-            else if (serviceModel.Constructor != null && 
+            else if (serviceModel.Constructor != null &&
                      serviceModel.ImplementationType is not GenericTypeDefinition &&
                      entryPointModel.GenerateFactories.GetValueOrDefault(
                          configurationModel.GenerateFactories)) {
-                parameters.Add(GenerateNewFactory(serviceModel));
+                parameters.Add(GenerateNewFactory(serviceModel, registrationModel));
             }
             else {
                 parameters.Add(TypeOf(serviceModel.ImplementationType));
@@ -486,38 +488,51 @@ public class DependencyFileWriter {
     }
 
     private static object[] GetArgumentsForParameterList(ParameterDefinition serviceProvider, IReadOnlyList<ParameterInfoModel> parameterList) {
-        
         var returnList = new List<object>();
 
         foreach (var parameterInfoModel in parameterList) {
+            var keyed = parameterInfoModel.Attributes.FirstOrDefault(
+                a =>
+                    a.TypeDefinition.Equals(KnownTypes.Microsoft.DependencyInjection.FromKeyedServicesAttribute));
+
             if (parameterInfoModel.ParameterType.Equals(KnownTypes.Microsoft.DependencyInjection.IServiceProvider)) {
                 returnList.Add(serviceProvider);
             }
             else {
-                if (parameterInfoModel.ParameterType.IsNullable) {
-                    returnList.Add(
-                        serviceProvider.InvokeGeneric(
-                            "GetService",
-                            new[] {
-                                parameterInfoModel.ParameterType.MakeNullable(false)
-                            })
-                    );
+                var name = "Get";
+                var parameters = new List<object>();
+
+                if (!parameterInfoModel.ParameterType.IsNullable) {
+                    name += "Required";
                 }
-                else {
-                    returnList.Add(
-                        serviceProvider.InvokeGeneric(
-                            "GetRequiredService",
-                            new[] {
-                                parameterInfoModel.ParameterType
-                            })
-                    );
+
+                if (keyed != null) {
+                    name += "Keyed";
+
+                    var keyValue = keyed.Arguments.First().Value!;
+                    if (keyValue is string stringValue) {
+                        keyValue = QuoteString(stringValue);
+                    }
+
+                    parameters.Add(keyValue);
                 }
+
+                name += "Service";
+
+                returnList.Add(
+                    serviceProvider.InvokeGeneric(
+                        name,
+                        new[] {
+                            parameterInfoModel.ParameterType.MakeNullable(false)
+                        },
+                        parameters.ToArray()
+                    ));
             }
         }
-        
+
         return returnList.ToArray();
     }
-    
+
     private static RegistrationType GetRegistrationType(ModuleEntryPointModel entryPointModel, DependencyModuleConfigurationModel configurationModel, ServiceRegistrationModel registrationModel) {
         if (registrationModel.RegistrationType.HasValue) {
             return registrationModel.RegistrationType.Value;

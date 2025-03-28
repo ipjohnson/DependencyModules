@@ -1,4 +1,6 @@
 using DependencyModules.Runtime.Attributes;
+using Microsoft.Extensions.DependencyInjection;
+using SutProject.Tests.KeyedTests;
 
 namespace SutProject.Tests.GenerateFactories;
 
@@ -17,4 +19,18 @@ public class FactoryDepOne(
     public IScopedService ScopedService {
         get;
     } = scopedService!;
+}
+
+[SingletonService(Realm = typeof(GenerateFactoryModule), Key = "Keyed")]
+public class GenerateKeyed() : IKeyedRegistration {
+    public string Key {
+        get;
+    } = "Keyed";
+}
+
+[SingletonService(Realm = typeof(GenerateFactoryModule))]
+public class KeyedDependency([FromKeyedServices("Keyed")] IKeyedRegistration registration) {
+    public IKeyedRegistration Registration {
+        get;
+    } = registration;
 }
