@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace DependencyModules.SourceGenerator.Impl;
 
-public abstract class BaseAttributeWithConfigSourceGenerator<TModel, TConfig> : ISourceGenerator {
+public abstract class BaseAttributeWithConfigSourceGenerator<TModel, TConfig> : IDependencyModuleSourceGenerator {
 
     public void SetupGenerator(IncrementalGeneratorInitializationContext context,
         IncrementalValuesProvider<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> incrementalValueProvider) {

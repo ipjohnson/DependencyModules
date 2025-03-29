@@ -23,7 +23,7 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
         SetupRootGenerator(context, valuesProvider.Collect());
     }
 
-    protected abstract IEnumerable<ISourceGenerator> AttributeSourceGenerators();
+    protected abstract IEnumerable<IDependencyModuleSourceGenerator> AttributeSourceGenerators();
 
     private IncrementalValueProvider<DependencyModuleConfigurationModel> CreateConfigurationValueProvider(IncrementalGeneratorInitializationContext context) {
         return context.AnalyzerConfigOptionsProvider.Select((options, _) => {

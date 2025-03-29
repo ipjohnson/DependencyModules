@@ -7,12 +7,12 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace DependencyModules.SourceGenerator.Impl;
 
-public interface ISourceGenerator {
+public interface IDependencyModuleSourceGenerator {
     void SetupGenerator(IncrementalGeneratorInitializationContext context,
         IncrementalValuesProvider<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> incrementalValueProvider);
 }
 
-public abstract class BaseAttributeSourceGenerator<T> : ISourceGenerator {
+public abstract class BaseAttributeSourceGenerator<T> : IDependencyModuleSourceGenerator {
 
     public void SetupGenerator(IncrementalGeneratorInitializationContext context,
         IncrementalValuesProvider<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> incrementalValueProvider) {

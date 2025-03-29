@@ -2,14 +2,13 @@ using System.Collections.Immutable;
 using DependencyModules.SourceGenerator.Impl;
 using DependencyModules.SourceGenerator.Impl.Models;
 using Microsoft.CodeAnalysis;
-using ISourceGenerator = DependencyModules.SourceGenerator.Impl.ISourceGenerator;
 
 namespace DependencyModules.SourceGenerator;
 
 [Generator]
 public class SourceGenerator : BaseSourceGenerator {
 
-    protected override IEnumerable<ISourceGenerator> AttributeSourceGenerators() {
+    protected override IEnumerable<IDependencyModuleSourceGenerator> AttributeSourceGenerators() {
         yield return new ServiceSourceGenerator();
     }
 
