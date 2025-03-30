@@ -197,14 +197,12 @@ public class DependencyModuleWriter {
         }
         
         foreach (var modelAttributeModel in attributeModels) {
-            var newStatement = New(modelAttributeModel.TypeDefinition, modelAttributeModel.ArgumentString);
+            var newStatement = New(modelAttributeModel.TypeDefinition, modelAttributeModel.ArgumentString());
 
-            var initValue = modelAttributeModel.PropertyString;
+            var initValue = modelAttributeModel.PropertyString();
             
-            if (!string.IsNullOrEmpty(initValue)) {
-                newStatement.AddInitValue(initValue);
-            }
-
+            newStatement.AddInitValue(initValue);
+            
             getModulesMethod.AddIndentedStatement(YieldReturn(newStatement));
         }
     }

@@ -1,3 +1,4 @@
+using System.Text;
 using CSharpAuthor;
 
 namespace DependencyModules.SourceGenerator.Impl.Models;
@@ -9,35 +10,63 @@ public record AttributeModel(
     IReadOnlyList<AttributeArgumentValue> Arguments,
     IReadOnlyList<AttributeArgumentValue> Properties,
     IReadOnlyList<ITypeDefinition> ImplementedInterfaces) {
-    
-    public string ArgumentString => string.Join(", ", Arguments.Select(SelectArgument));
-    
-    public string PropertyString => string.Join(", ", Properties.Select(SelectProperty));
 
-    private string SelectProperty(AttributeArgumentValue property) {
-        var value = property.Value;
+    public object[] ArgumentString() {
+        var list = new List<object>();
+        foreach (var argument in Arguments) {
+            IOutputComponent? outputComponent = null;
 
-        if (value is string stringValue) {
-            return $" {property.Name} = \"{stringValue}\"";
+            if (argument.Value is IOutputComponent component) {
+                outputComponent = component;
+            }
+            else if (argument.Value is string stringValue) {
+                outputComponent = CodeOutputComponent.Get(
+                    SyntaxHelpers.QuoteString(stringValue)
+                );
+            }
+            else if (argument.Value is not null) {
+                outputComponent = CodeOutputComponent.Get(argument.Value);
+            }
+
+            if (outputComponent != null) {
+                list.Add(outputComponent);
+            }
         }
-        
-        return $" {property.Name} = {property.Value}";
+
+        return list.ToArray();
     }
 
-    private string SelectArgument(AttributeArgumentValue argument) {
-        var value = argument.Value;
+    public IOutputComponent PropertyString() {
+        var list = new List<IOutputComponent>();
+        foreach (var argument in Properties) {
 
-        if (value is string stringValue) {
-            value = $"\"{stringValue}\"";
+            IOutputComponent? outputComponent = null;
+
+            if (argument.Value is IOutputComponent component) {
+                outputComponent = component;
+            }
+            else if (argument.Value is string stringValue) {
+                outputComponent = CodeOutputComponent.Get(
+                    SyntaxHelpers.QuoteString(stringValue)
+                );
+            }
+            else if (argument.Value is not null) {
+                outputComponent = CodeOutputComponent.Get(argument.Value);
+            }
+
+            if (outputComponent != null) {
+                list.Add(
+                    new WrapStatement(
+                        CodeOutputComponent.Get(" = "),
+                        CodeOutputComponent.Get(argument.Name),
+                        outputComponent));
+            }
         }
-        
-        if (string.IsNullOrEmpty(argument.Name)) {
-            return " " +value;
-        }
-        
-        return $" {argument.Name}: {value}";
+
+        return new ListOutputComponent(list);
     }
 }
 
 public record AttributeClassInfo(
-    IReadOnlyList<ParameterInfoModel> ConstructorParameters, IReadOnlyList<PropertyInfoModel> Properties);
+    IReadOnlyList<ParameterInfoModel> ConstructorParameters,
+    IReadOnlyList<PropertyInfoModel> Properties);

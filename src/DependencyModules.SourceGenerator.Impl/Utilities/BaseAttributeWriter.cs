@@ -1,3 +1,4 @@
+using System.Text;
 using CSharpAuthor;
 using DependencyModules.SourceGenerator.Impl.Models;
 
@@ -39,13 +40,16 @@ public abstract class BaseAttributeWriter<T> where T : IClassModel {
             var propertyType = propertyInfoModel.PropertyType;
 
             if (propertyType.IsNullable) {
-                propertyType = TypeDefinition.Get(propertyType.TypeDefinitionEnum, propertyType.Namespace, propertyType.Name);
+                propertyType = TypeDefinition.Get(propertyType.TypeDefinitionEnum, propertyType.Namespace, propertyType.Name, propertyType.IsArray);
             }
 
             var property = attributeClass.AddProperty(propertyType, propertyInfoModel.PropertyName);
 
+            var stringBuilder = new StringBuilder();
+            propertyType.WriteTypeName(stringBuilder, TypeOutputMode.Global);
+            
             property.DefaultValue = 
-                new WrapStatement(CodeOutputComponent.Get(propertyType.Name), "default(", ")!");
+                new WrapStatement(CodeOutputComponent.Get(stringBuilder.ToString()), "default(", ")!");
         }
     }
 

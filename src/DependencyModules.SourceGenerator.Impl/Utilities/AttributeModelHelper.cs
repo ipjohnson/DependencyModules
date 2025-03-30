@@ -128,10 +128,16 @@ public static class AttributeModelHelper {
         if (attribute.ArgumentList != null) {
             foreach (var attributeArgumentSyntax in
                      attribute.ArgumentList.Arguments) {
-                if (attributeArgumentSyntax.NameColon != null) {
-                    var constantValue =
-                        context.SemanticModel.GetOperation(attributeArgumentSyntax.Expression)?.ConstantValue.Value;
+                var operationValue = context.SemanticModel.GetOperation(attributeArgumentSyntax.Expression);
 
+                if (operationValue == null) {
+                    continue;
+                }
+                
+                var constantValue = GetOperationValue(context, operationValue);
+                
+                if (attributeArgumentSyntax.NameColon != null) {
+                    
                     arguments.Add(
                         new AttributeArgumentValue(
                             attributeArgumentSyntax.NameColon.ToString(),
@@ -140,8 +146,6 @@ public static class AttributeModelHelper {
 
                 }
                 else if (attributeArgumentSyntax.NameEquals != null) {
-                    var constantValue =
-                        context.SemanticModel.GetOperation(attributeArgumentSyntax.Expression)?.ConstantValue.Value;
                     var name =
                         attributeArgumentSyntax.NameEquals.Name.ToString().Replace("=", "").Trim();
 
@@ -152,9 +156,7 @@ public static class AttributeModelHelper {
                         ));
                 }
                 else {
-                    var constantValue =
-                        context.SemanticModel.GetOperation(attributeArgumentSyntax.Expression)?.ConstantValue.Value;
-
+                    
                     arguments.Add(
                         new AttributeArgumentValue(
                             "",
@@ -180,6 +182,54 @@ public static class AttributeModelHelper {
             GetInterfaces(context, attribute));
     }
 
+    private static object? GetOperationValue(GeneratorSyntaxContext context, IOperation operationValue) {
+        if (operationValue.ConstantValue.HasValue) {
+            return operationValue.ConstantValue.Value;
+        }
+
+        return GetOperationValue(context, operationValue.Syntax);
+    }
+
+    private static object GetOperationValue(GeneratorSyntaxContext context, SyntaxNode syntaxNode) {
+        if (syntaxNode is CollectionExpressionSyntax collectionExpressionSyntax) {
+            var collection = new CollectionSyntaxDeclaration();
+            
+            foreach (var elementSyntax in collectionExpressionSyntax.Elements) {
+                var dec = elementSyntax.DescendantNodes().FirstOrDefault();
+
+                if (dec != null) {
+                    collection.Add(GetOperationValue(context, dec));
+                }
+            }
+            
+            return collection;
+        }
+        if (syntaxNode is LiteralExpressionSyntax literalExpressionSyntax) {
+            return literalExpressionSyntax.Token.Value ?? "null";
+        }
+        if (syntaxNode is TypeOfExpressionSyntax typeOf) {
+            var type = typeOf.GetTypeDefinition(context);
+
+            if (type != null) {
+                return SyntaxHelpers.TypeOf(type);
+            }
+        }
+        
+        return new Wrapper(syntaxNode.ToString().Trim('"'));
+    }
+
+    private class Wrapper {
+        private readonly string _value;
+
+        public Wrapper(string value) {
+            _value = value;
+
+        }
+        public override string ToString() {
+            return _value;
+        }
+    }
+    
     private static IReadOnlyList<ITypeDefinition> GetInterfaces(
         GeneratorSyntaxContext context, AttributeSyntax attribute) {
         var interfaces = new List<ITypeDefinition>();
@@ -196,6 +246,4 @@ public static class AttributeModelHelper {
         
         return interfaces;
     }
-
-
 }
