@@ -63,7 +63,7 @@ public static class AttributeModelHelper {
         }
 
         return new AttributeClassInfo(
-            ServiceModelUtility.GetConstructorInfo(context, cancellationToken) ?? 
+            ServiceModelUtility.GetConstructorInfo(context, context.Node, cancellationToken) ?? 
             new ConstructorInfoModel(Array.Empty<ParameterInfoModel>()),
             propertyList);
     }
@@ -193,23 +193,9 @@ public static class AttributeModelHelper {
         return syntaxNode.ToString().Trim('"');
     }
 
-    private class Wrapper {
-        private readonly string _value;
-
-        public Wrapper(string value) {
-            _value = value;
-
-        }
-
-        public override string ToString() {
-            return _value;
-        }
-    }
-
     private static IReadOnlyList<ITypeDefinition> GetInterfaces(
         GeneratorSyntaxContext context, AttributeSyntax attribute) {
         var interfaces = new List<ITypeDefinition>();
-        var operation = context.SemanticModel.GetOperation(attribute);
 
         var symbol =
             context.SemanticModel.GetTypeInfo(attribute);

@@ -96,7 +96,7 @@ public class ServiceModelUtility {
         if (registrations.Count == 0) {
             return new ServiceModel(
                 classDefinition,
-                GetConstructorInfo(context, cancellationToken),
+                GetConstructorInfo(context, context.Node, cancellationToken),
                 null,
                 FactoryOutput,
                 new[] {
@@ -117,17 +117,17 @@ public class ServiceModelUtility {
         }
 
         return new ServiceModel(classDefinition,
-            GetConstructorInfo(context, cancellationToken),
+            GetConstructorInfo(context, context.Node, cancellationToken),
             null,
             factoryOutput,
             registrations,
             RegistrationFeature.None);
     }
 
-    public static ConstructorInfoModel? GetConstructorInfo(GeneratorSyntaxContext context, CancellationToken cancellationToken) {
+    public static ConstructorInfoModel? GetConstructorInfo(GeneratorSyntaxContext context, SyntaxNode node, CancellationToken cancellationToken) {
         var constructorList = new List<ConstructorDeclarationSyntax>();
 
-        foreach (var constructor in context.Node.DescendantNodes().OfType<ConstructorDeclarationSyntax>()) {
+        foreach (var constructor in node.DescendantNodes().OfType<ConstructorDeclarationSyntax>()) {
             if (constructor.Modifiers.Any(m => m.IsKind(SyntaxKind.PrivateKeyword))) {
                 continue;
             }
@@ -143,7 +143,7 @@ public class ServiceModelUtility {
             constructorList.Add(constructor);
         }
 
-        if (context.Node is ClassDeclarationSyntax { ParameterList.Parameters.Count: > 0 } classDeclarationSyntax) {
+        if (node is ClassDeclarationSyntax { ParameterList.Parameters.Count: > 0 } classDeclarationSyntax) {
             return new ConstructorInfoModel(
                 classDeclarationSyntax.ParameterList.GetParameters(context, cancellationToken));
         }
