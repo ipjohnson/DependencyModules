@@ -197,11 +197,13 @@ public class DependencyModuleWriter {
         }
         
         foreach (var modelAttributeModel in attributeModels) {
-            var newStatement = New(modelAttributeModel.TypeDefinition, modelAttributeModel.ArgumentString());
-
-            var initValue = modelAttributeModel.PropertyString();
+            var newStatement = New(
+                modelAttributeModel.TypeDefinition,
+                modelAttributeModel.GetArguments().Select(o => (object)o).ToArray());
             
-            newStatement.AddInitValue(initValue);
+            foreach (var propertyValue in modelAttributeModel.PropertyValues()) {
+                newStatement.AddInitValue(propertyValue);
+            }
             
             getModulesMethod.AddIndentedStatement(YieldReturn(newStatement));
         }
@@ -287,5 +289,4 @@ public class DependencyModuleWriter {
     private void SetupStaticConstructor(ClassDefinition classDefinition) {
         classDefinition.AddConstructor().Modifiers = ComponentModifier.Static;
     }
-
 }

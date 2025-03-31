@@ -9,15 +9,15 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities;
 public static class AttributeModelHelper {
 
     public static IReadOnlyList<AttributeModel> GetAttributeModels(
-        GeneratorSyntaxContext context,  
+        GeneratorSyntaxContext context,
         SyntaxNode node,
         CancellationToken cancellationToken,
         Func<AttributeSyntax, bool>? filter = null) {
         SyntaxList<AttributeListSyntax>? attributeLists = null;
 
         if (node is BaseParameterSyntax parameterSyntax) {
-            attributeLists = parameterSyntax.AttributeLists;    
-        } 
+            attributeLists = parameterSyntax.AttributeLists;
+        }
         else if (node is MemberDeclarationSyntax memberDeclarationSyntax) {
             attributeLists = memberDeclarationSyntax.AttributeLists;
         }
@@ -25,16 +25,16 @@ public static class AttributeModelHelper {
         if (attributeLists != null) {
             var results = GetAttributes(
                 context,
-                attributeLists.Value, 
-                cancellationToken, 
+                attributeLists.Value,
+                cancellationToken,
                 filter);
-            
+
             return results.ToList();
         }
-        
+
         return Array.Empty<AttributeModel>();
     }
-    
+
     public static AttributeClassInfo GetAttributeClassInfo(
         GeneratorSyntaxContext context,
         CancellationToken cancellationToken) {
@@ -44,7 +44,7 @@ public static class AttributeModelHelper {
         foreach (var syntax in
                  context.Node.DescendantNodes()) {
             cancellationToken.ThrowIfCancellationRequested();
-            
+
             if (syntax is PropertyDeclarationSyntax propertyDeclarationSyntax) {
                 var setter =
                     propertyDeclarationSyntax.AccessorList?.Accessors.FirstOrDefault(
@@ -63,7 +63,7 @@ public static class AttributeModelHelper {
             }
             else if (syntax is ConstructorDeclarationSyntax constructorDeclarationSyntax) {
                 constructors.Add(constructorDeclarationSyntax);
-            } 
+            }
         }
 
         return new AttributeClassInfo(
@@ -73,24 +73,24 @@ public static class AttributeModelHelper {
 
     private static IReadOnlyList<ParameterInfoModel> GetConstructorParameterList(
         GeneratorSyntaxContext context,
-        List<ConstructorDeclarationSyntax> constructors, 
+        List<ConstructorDeclarationSyntax> constructors,
         CancellationToken cancellationToken) {
-        
+
         var classDeclaration = context.Node as ClassDeclarationSyntax;
 
         if (classDeclaration?.ParameterList is { Parameters.Count: > 0 }) {
             return BaseMethodHelper.GetParameters(classDeclaration.ParameterList, context, cancellationToken);
         }
-        
+
         constructors.Sort(
             (a, b) =>
                 a.ParameterList.Parameters.Count.CompareTo(b.ParameterList.Parameters.Count));
-        
+
         if (constructors.Count == 0) {
             return Array.Empty<ParameterInfoModel>();
         }
-        
-        return constructors[0].GetMethodParameters(context,cancellationToken);
+
+        return constructors[0].GetMethodParameters(context, cancellationToken);
     }
 
     public static IEnumerable<AttributeModel> GetAttributes(
@@ -124,7 +124,6 @@ public static class AttributeModelHelper {
         var arguments = new List<AttributeArgumentValue>();
         var properties = new List<AttributeArgumentValue>();
 
-
         if (attribute.ArgumentList != null) {
             foreach (var attributeArgumentSyntax in
                      attribute.ArgumentList.Arguments) {
@@ -133,17 +132,15 @@ public static class AttributeModelHelper {
                 if (operationValue == null) {
                     continue;
                 }
-                
+
                 var constantValue = GetOperationValue(context, operationValue);
-                
+
                 if (attributeArgumentSyntax.NameColon != null) {
-                    
                     arguments.Add(
                         new AttributeArgumentValue(
                             attributeArgumentSyntax.NameColon.ToString(),
                             constantValue
                         ));
-
                 }
                 else if (attributeArgumentSyntax.NameEquals != null) {
                     var name =
@@ -156,7 +153,7 @@ public static class AttributeModelHelper {
                         ));
                 }
                 else {
-                    
+
                     arguments.Add(
                         new AttributeArgumentValue(
                             "",
@@ -178,7 +175,7 @@ public static class AttributeModelHelper {
 
         return new AttributeModel(type,
             arguments,
-            properties, 
+            properties,
             GetInterfaces(context, attribute));
     }
 
@@ -191,9 +188,10 @@ public static class AttributeModelHelper {
     }
 
     private static object GetOperationValue(GeneratorSyntaxContext context, SyntaxNode syntaxNode) {
+        
         if (syntaxNode is CollectionExpressionSyntax collectionExpressionSyntax) {
-            var collection = new CollectionSyntaxDeclaration();
-            
+            var collection = new List<object>();
+
             foreach (var elementSyntax in collectionExpressionSyntax.Elements) {
                 var dec = elementSyntax.DescendantNodes().FirstOrDefault();
 
@@ -201,21 +199,23 @@ public static class AttributeModelHelper {
                     collection.Add(GetOperationValue(context, dec));
                 }
             }
-            
-            return collection;
+
+            return collection.ToArray();
         }
+
         if (syntaxNode is LiteralExpressionSyntax literalExpressionSyntax) {
             return literalExpressionSyntax.Token.Value ?? "null";
         }
+
         if (syntaxNode is TypeOfExpressionSyntax typeOf) {
-            var type = typeOf.GetTypeDefinition(context);
+            var type = typeOf.Type.GetTypeDefinition(context);
 
             if (type != null) {
-                return SyntaxHelpers.TypeOf(type);
+                return type;
             }
         }
-        
-        return new Wrapper(syntaxNode.ToString().Trim('"'));
+
+        return syntaxNode.ToString().Trim('"');
     }
 
     private class Wrapper {
@@ -225,25 +225,26 @@ public static class AttributeModelHelper {
             _value = value;
 
         }
+
         public override string ToString() {
             return _value;
         }
     }
-    
+
     private static IReadOnlyList<ITypeDefinition> GetInterfaces(
         GeneratorSyntaxContext context, AttributeSyntax attribute) {
         var interfaces = new List<ITypeDefinition>();
         var operation = context.SemanticModel.GetOperation(attribute);
 
-        var symbol = 
+        var symbol =
             context.SemanticModel.GetTypeInfo(attribute);
-        
+
         if (symbol.Type is INamedTypeSymbol namespaceOrTypeSymbol) {
             foreach (var interfaceSymbol in namespaceOrTypeSymbol.AllInterfaces) {
                 interfaces.Add(interfaceSymbol.GetTypeDefinition());
             }
         }
-        
+
         return interfaces;
     }
 }
