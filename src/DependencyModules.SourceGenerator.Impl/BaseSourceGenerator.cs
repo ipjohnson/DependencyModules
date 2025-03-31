@@ -144,7 +144,7 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
             dependencyFlags.RegisterGenerator,
             dependencyFlags.UseMethod,
             dependencyFlags.GenerateFactories,
-            modelInfo.ConstructorParameters,
+            modelInfo.ConstructorInfo.Parameters,
             modelInfo.Properties,
             (IReadOnlyList<AttributeModel>?)attributes ?? Array.Empty<AttributeModel>(),
             Array.Empty<ITypeDefinition>(),

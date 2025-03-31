@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text;
 using CSharpAuthor;
 
@@ -112,5 +113,5 @@ public record AttributeModel(
 }
 
 public record AttributeClassInfo(
-    IReadOnlyList<ParameterInfoModel> ConstructorParameters,
+    ConstructorInfoModel ConstructorInfo,
     IReadOnlyList<PropertyInfoModel> Properties);

@@ -39,7 +39,6 @@ public static class AttributeModelHelper {
         GeneratorSyntaxContext context,
         CancellationToken cancellationToken) {
         var propertyList = new List<PropertyInfoModel>();
-        var constructors = new List<ConstructorDeclarationSyntax>();
 
         foreach (var syntax in
                  context.Node.DescendantNodes()) {
@@ -61,13 +60,10 @@ public static class AttributeModelHelper {
                     ));
                 }
             }
-            else if (syntax is ConstructorDeclarationSyntax constructorDeclarationSyntax) {
-                constructors.Add(constructorDeclarationSyntax);
-            }
         }
 
         return new AttributeClassInfo(
-            GetConstructorParameterList(context, constructors, cancellationToken),
+            ServiceModelUtility.GetConstructorInfo(context, cancellationToken),
             propertyList);
     }
 
