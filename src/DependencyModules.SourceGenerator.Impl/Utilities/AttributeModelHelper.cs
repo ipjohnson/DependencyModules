@@ -63,30 +63,9 @@ public static class AttributeModelHelper {
         }
 
         return new AttributeClassInfo(
-            ServiceModelUtility.GetConstructorInfo(context, cancellationToken),
+            ServiceModelUtility.GetConstructorInfo(context, cancellationToken) ?? 
+            new ConstructorInfoModel(Array.Empty<ParameterInfoModel>()),
             propertyList);
-    }
-
-    private static IReadOnlyList<ParameterInfoModel> GetConstructorParameterList(
-        GeneratorSyntaxContext context,
-        List<ConstructorDeclarationSyntax> constructors,
-        CancellationToken cancellationToken) {
-
-        var classDeclaration = context.Node as ClassDeclarationSyntax;
-
-        if (classDeclaration?.ParameterList is { Parameters.Count: > 0 }) {
-            return BaseMethodHelper.GetParameters(classDeclaration.ParameterList, context, cancellationToken);
-        }
-
-        constructors.Sort(
-            (a, b) =>
-                a.ParameterList.Parameters.Count.CompareTo(b.ParameterList.Parameters.Count));
-
-        if (constructors.Count == 0) {
-            return Array.Empty<ParameterInfoModel>();
-        }
-
-        return constructors[0].GetMethodParameters(context, cancellationToken);
     }
 
     public static IEnumerable<AttributeModel> GetAttributes(
@@ -184,7 +163,7 @@ public static class AttributeModelHelper {
     }
 
     private static object GetOperationValue(GeneratorSyntaxContext context, SyntaxNode syntaxNode) {
-        
+
         if (syntaxNode is CollectionExpressionSyntax collectionExpressionSyntax) {
             var collection = new List<object>();
 
