@@ -24,7 +24,7 @@ public class DependencyRegistry<T> {
     /// <returns></returns>
     public static int Add(RegistryFunc registryFunc) {
         RegistryFuncs.Add(registryFunc);
-
+        
         return 1;
     }
 
@@ -48,11 +48,12 @@ public class DependencyRegistry<T> {
         return 1;
     }
 
-    public static int Add<TInstance>(Type implementationType, ServiceLifetime lifetime = ServiceLifetime.Transient) where TInstance : class {
+    public static int Add<TInstance>(Type implementationType, ServiceLifetime lifetime = ServiceLifetime.Transient, object? serviceKey = null) where TInstance : class {
         RegistryFuncs.Add(
             registry => registry.Add(
                 new ServiceDescriptor(
                     typeof(TInstance),
+                    serviceKey,
                     implementationType,
                     lifetime
                 )));

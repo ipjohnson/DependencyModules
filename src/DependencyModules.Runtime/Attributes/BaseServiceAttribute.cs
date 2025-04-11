@@ -11,11 +11,25 @@ public enum RegistrationType {
 }
 
 public interface  IServiceRegistrationAttribute {
-    object? Key { get; set; }
+    object? Key { 
+        get => null;
+        set {}
+    }
     
-    Type? As { get; set; }
-    
-    ServiceLifetime Lifetime { get; set; }   
+    Type? As { 
+        get => null;
+        set { } 
+    }
+
+    ServiceLifetime Lifetime {
+        get => ServiceLifetime.Transient;
+        set { }
+    }
+
+    RegistrationType Using {
+        get => RegistrationType.Add;
+        set { }
+    }
 }
 
 public abstract class BaseServiceAttribute : Attribute, IServiceRegistrationAttribute {

@@ -5,6 +5,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <IsPackable>False</IsPackable>
+        <DependencyModules_CustomAttribute>PromptAttribute</DependencyModules_CustomAttribute>
     </PropertyGroup>
 
     <ItemGroup>
