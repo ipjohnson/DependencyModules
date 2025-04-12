@@ -15,7 +15,7 @@ public class SourceGenerator : BaseSourceGenerator {
     protected override void SetupRootGenerator(IncrementalGeneratorInitializationContext context,
         IncrementalValueProvider<ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)>> valuesProvider) {
      
-        var moduleWriter = new DependencyModuleWriter();
+        var moduleWriter = new DependencyModuleWriter(true);
         
         context.RegisterSourceOutput(
             valuesProvider,

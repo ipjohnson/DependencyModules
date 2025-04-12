@@ -4,7 +4,7 @@ using DependencyModules.SourceGenerator.Impl.Models;
 using DependencyModules.SourceGenerator.Impl.Utilities;
 using static CSharpAuthor.SyntaxHelpers;
 
-namespace DependencyModules.SourceGenerator;
+namespace DependencyModules.SourceGenerator.Impl;
 
 public class ModuleAttributeWriter : BaseAttributeWriter<ModuleEntryPointModel> {
 

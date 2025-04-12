@@ -1,14 +1,19 @@
 using System.Collections.Immutable;
 using CSharpAuthor;
-using DependencyModules.SourceGenerator.Impl;
 using DependencyModules.SourceGenerator.Impl.Models;
 using DependencyModules.SourceGenerator.Impl.Utilities;
 using Microsoft.CodeAnalysis;
 using static CSharpAuthor.SyntaxHelpers;
 
-namespace DependencyModules.SourceGenerator;
+namespace DependencyModules.SourceGenerator.Impl;
+
 
 public class DependencyModuleWriter {
+    private readonly bool _generateAttribute;
+
+    public DependencyModuleWriter(bool generateAttribute) {
+        _generateAttribute = generateAttribute;
+    }
 
     public void GenerateSource(SourceProductionContext context, 
         ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> allEntryPoints) {
@@ -39,7 +44,7 @@ public class DependencyModuleWriter {
         GenerateModuleClass(entryPointModel, csharpFile);
 
         GenerateUseMethod(entryPointModel, configurationModel, csharpFile);
-
+        
         GenerateAttribute(entryPointModel, csharpFile);
 
         var outputContext = new OutputContext(new OutputContextOptions {
@@ -57,7 +62,7 @@ public class DependencyModuleWriter {
     private void GenerateAttribute(ModuleEntryPointModel moduleEntryPoint,
         CSharpFileDefinition csharpFile) {
         var model = moduleEntryPoint;
-        if (model.GenerateAttribute != false) {
+        if (_generateAttribute && model.GenerateAttribute != false) {
             var attributeGenerator = new ModuleAttributeWriter();
 
             attributeGenerator.CreateAttributeClass(csharpFile, model);
