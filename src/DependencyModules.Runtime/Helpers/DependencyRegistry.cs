@@ -16,6 +16,7 @@ public class DependencyRegistry<T> {
     // ReSharper disable StaticMemberInGenericType
     private static readonly List<RegistryFunc> RegistryFuncs = [];
     private static readonly List<RegistryFunc> Decorators = [];
+    private static readonly List<IDependencyModule> Modules = [];
 
     /// <summary>
     ///     Add registration func
@@ -48,6 +49,14 @@ public class DependencyRegistry<T> {
         return 1;
     }
 
+    /// <summary>
+    /// Add instance of of dependency
+    /// </summary>
+    /// <param name="implementationType"></param>
+    /// <param name="lifetime"></param>
+    /// <param name="serviceKey"></param>
+    /// <typeparam name="TInstance"></typeparam>
+    /// <returns></returns>
     public static int Add<TInstance>(Type implementationType, ServiceLifetime lifetime = ServiceLifetime.Transient, object? serviceKey = null) where TInstance : class {
         RegistryFuncs.Add(
             registry => registry.Add(
@@ -67,6 +76,17 @@ public class DependencyRegistry<T> {
     /// <returns></returns>
     public static int AddDecorator(RegistryFunc registryFunc) {
         Decorators.Add(registryFunc);
+        
+        return 1;
+    }
+
+    /// <summary>
+    /// Add module
+    /// </summary>
+    /// <param name="modules"></param>
+    /// <returns></returns>
+    public static int AddModule(params IDependencyModule[] modules) {
+        Modules.AddRange(modules);
         
         return 1;
     }
@@ -178,6 +198,10 @@ public class DependencyRegistry<T> {
         
         foreach (var module in dependencyModule.GetModules()) {
             InternalGetModules(module, dependencyModules);
-        } 
+        }
+
+        foreach (var module in Modules) {
+            InternalGetModules(module, dependencyModules);
+        }
     }
 }
