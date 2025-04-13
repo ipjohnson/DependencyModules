@@ -22,7 +22,7 @@ dotnet add package DependencyModules.SourceGenerator
 ```csharp
 // Registration example
 [DependencyModule]
-public partial class MyModule { }
+public partial class MyModule;
 
 // registers SomeClass implementation for ISomeService
 [SingletonService]
@@ -85,7 +85,7 @@ DependencyModules creates an `Attribute` class that can be used to apply sub dep
 // Modules can be re-used with the generated attributes
 [DependencyModule]
 [MyModule]
-public partial class AnotherModule { }
+public partial class AnotherModule;
 ```
 
 ## Parameters
@@ -111,10 +111,7 @@ public partial class SomeModule(bool someFlag) : IServiceCollectionConfiguration
 
 [DependencyModule]
 [SomeModule(true, OptionalString = "otherString")]
-public partial class SomeOtherModule 
-{
-
-}
+public partial class SomeOtherModule;
 ```
 
 ## Module Features
@@ -127,7 +124,9 @@ implemented in modules and be passed to a handler at registration time. Features
 public interface IFeature { }
 
 [DependencyModule]
-public partial class ModuleImeplementation : ISomeFeature { }
+public partial class ModuleImeplementation : ISomeFeature
+{
+}
 
 [DependencyModule]
 [ModuleImeplementation]
@@ -176,10 +175,10 @@ Services will be registered using an `Add` method by default. This can be overri
 
 ```csharp
 [SingletonService(Using = RegistrationType.Try)]
-public class SomeService { }
+public class SomeService;
 
 [DependencyModule(Using = RegistrationType.Try)]
-public partial class SomeModule { }
+public partial class SomeModule;
 ```
 
 ## Realm
@@ -190,7 +189,7 @@ The realm allows the developer to scope down the registration within a given mod
 ```csharp
 // register only dependencies specifically marked for this realm
 [DependencyModule(OnlyRealm = true)]
-public partial class AnotherModule { }
+public partial class AnotherModule;
 
 [SingletonService(Realm = typeof(AnotherModule))]
 public class SomeDep : ISomeInterface { }
@@ -281,34 +280,64 @@ Example generated code for [SutModule.cs](integ-tests/SutProject/SutModule.cs)
     // SutModule.Dependencies.g.cs
     public partial class SutModule
     {
-        private static int moduleField = DependencyRegistry<SutModule>.Add(ModuleDependencies);
+        private static int moduleField = global::DependencyModules.Runtime.Helpers.DependencyRegistry<global::SutProject.SutModule>.Add(ModuleDependencies);
 
-        private static void ModuleDependencies(IServiceCollection services)
+        private static void ModuleDependencies(global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)
         {
-            services.AddTransient(typeof(IDependencyOne), typeof(DependencyOne));
-            services.AddSingleton(typeof(IGenericInterface<>), typeof(GenericClass<>));
-            services.AddScoped(typeof(IScopedService), typeof(ScopedService));
-            services.AddSingleton(typeof(ISingletonService), typeof(SingletonService));
-            services.AddSingleton(typeof(IGenericInterface<string>), typeof(StringGeneric));
+            services.AddTransient(
+                typeof(global::SutProject.IDependencyOne), 
+                typeof(global::SutProject.DependencyOne)
+            );
+            services.AddSingleton(
+                typeof(global::SutProject.IGenericInterface<>), 
+                typeof(global::SutProject.GenericClass<>)
+            );
+            services.AddKeyedTransient(
+                typeof(global::SutProject.KeyedService), 
+                Constants.StringValue, 
+                typeof(global::SutProject.KeyedService)
+            );
+            services.AddScoped(
+                typeof(global::SutProject.IScopedService), 
+                typeof(global::SutProject.ScopedService)
+            );
+            services.AddSingleton(
+                typeof(global::SutProject.ISingletonService), 
+                typeof(global::SutProject.SingletonService)
+            );
+            services.AddSingleton(
+                typeof(global::SutProject.IGenericInterface<string>), 
+                typeof(global::SutProject.StringGeneric)
+            );
         }
     }
 
     // SutModule.Modules.g.cs
-    public partial class SutModule : IDependencyModule
+namespace SutProject
+{
+        #nullable enable
+    public partial class SutModule : global::DependencyModules.Runtime.Interfaces.IDependencyModule
     {
+
         static SutModule()
         {
         }
 
-        // this method loads all dependencies into IServiceCollection.
-        public void PopulateServiceCollection(IServiceCollection services)
+        public void PopulateServiceCollection(global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)
         {
-            DependencyRegistry<SutModule>.LoadModules(services, this);
+            global::DependencyModules.Runtime.Helpers.DependencyRegistry<global::SutProject.SutModule>.LoadModules(services, this);
         }
 
-        void IDependencyModule.InternalApplyServices(IServiceCollection services)
+        [Browsable(false)]
+        void global::DependencyModules.Runtime.Interfaces.IDependencyModule.InternalApplyServices(global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)
         {
-            DependencyRegistry<SutModule>.ApplyServices(services);
+            global::DependencyModules.Runtime.Helpers.DependencyRegistry<global::SutProject.SutModule>.ApplyServices(services);
+        }
+
+        [Browsable(false)]
+        global::System.Collections.Generic.IEnumerable<object> global::DependencyModules.Runtime.Interfaces.IDependencyModule.InternalGetModules()
+        {
+            return global::DependencyModules.Runtime.Helpers.DependencyRegistry<global::SutProject.SutModule>.GetModules();
         }
 
         public override bool Equals(object? obj)
@@ -321,13 +350,19 @@ Example generated code for [SutModule.cs](integ-tests/SutProject/SutModule.cs)
             return HashCode.Combine(base.GetHashCode());
         }
     }
-    
-    public class SutModuleAttribute : System.Attribute, IDependencyModuleProvider
+    #nullable disable
+
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Assembly | AttributeTargets.Method | AttributeTargets.Parameter, AllowMultiple = true)]
+    #nullable enable
+    public partial class SutModuleAttribute : global::System.Attribute, global::DependencyModules.Runtime.Interfaces.IDependencyModuleProvider
     {
-        public IDependencyModule GetModule()
+
+        public global::DependencyModules.Runtime.Interfaces.IDependencyModule GetModule()
         {
-            var newModule = new SutModule();
+            var newModule = new global::SutProject.SutModule();
             return newModule;
         }
-    }    
+    }
+    #nullable disable
+}
 ```

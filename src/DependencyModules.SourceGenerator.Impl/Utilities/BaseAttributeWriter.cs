@@ -8,6 +8,8 @@ public abstract class BaseAttributeWriter<T> where T : IClassModel {
     public void CreateAttributeClass(IConstructContainer container, T model) {
         var attributeClass = ConstructClassDefinition(container, model);
 
+        attributeClass.EnableNullable();
+        
         CreateConstructor(container, attributeClass, model);
 
         CreateProperties(container, attributeClass, model);
