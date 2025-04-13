@@ -105,6 +105,43 @@ public class DependencyRegistry<T> {
         
         ApplyDecorators(serviceCollection, modules);
     }
+    
+    /// <summary>
+    ///     Apply all registration for a given type to the service collection
+    /// </summary>
+    /// <param name="serviceCollection"></param>
+    public static void ApplyServices(IServiceCollection serviceCollection) {
+        foreach (var registryFunc in RegistryFuncs) {
+            registryFunc(serviceCollection);
+        }
+    }
+    
+    /// <summary>
+    /// Apply all decorators
+    /// </summary>
+    /// <param name="serviceCollection"></param>
+    public static void ApplyDecorators(IServiceCollection serviceCollection) {
+        foreach (var registryFunc in Decorators) {
+            registryFunc(serviceCollection);
+        }
+    }
+
+    /// <summary>
+    /// GetModules that have been registered
+    /// </summary>
+    /// <param name="modules"></param>
+    /// <returns></returns>
+    public static IEnumerable<object> GetModules(params object[] modules) {
+        if (modules.Length == 0) {
+            return Modules;
+        }
+        
+        if (Modules.Count == 0) {
+            return modules;
+        }
+        
+        return Modules.Concat(modules);
+    }
 
     private static void ApplyDecorators(IServiceCollection serviceCollection, IReadOnlyList<IDependencyModule> modules) {
         for (var i = 0; i < modules.Count; i++) {
@@ -158,25 +195,6 @@ public class DependencyRegistry<T> {
         return list;
     }
 
-    /// <summary>
-    ///     Apply all registration for a given type to the service collection
-    /// </summary>
-    /// <param name="serviceCollection"></param>
-    public static void ApplyServices(IServiceCollection serviceCollection) {
-        foreach (var registryFunc in RegistryFuncs) {
-            registryFunc(serviceCollection);
-        }
-    }
-    
-    /// <summary>
-    /// Apply all decorators
-    /// </summary>
-    /// <param name="serviceCollection"></param>
-    public static void ApplyDecorators(IServiceCollection serviceCollection) {
-        foreach (var registryFunc in Decorators) {
-            registryFunc(serviceCollection);
-        }
-    }
     
     private static void InternalGetModules(IDependencyModule dependencyModule, List<IDependencyModule> dependencyModules) {
         if (!dependencyModule.LoadModule || 
@@ -197,10 +215,6 @@ public class DependencyRegistry<T> {
         }
         
         foreach (var module in dependencyModule.GetModules()) {
-            InternalGetModules(module, dependencyModules);
-        }
-
-        foreach (var module in Modules) {
             InternalGetModules(module, dependencyModules);
         }
     }

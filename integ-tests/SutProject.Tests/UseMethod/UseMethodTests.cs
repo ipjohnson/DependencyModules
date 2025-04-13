@@ -6,7 +6,7 @@ namespace SutProject.Tests.UseMethod;
 
 [DependencyModule(UseMethod = "UseMethodModule", OnlyRealm = true)]
 public partial class UseMethodModule(string name) {
-    
+    public string Name => name;
 }
 
 [SingletonService(Realm = typeof(UseMethodModule))]

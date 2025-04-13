@@ -181,10 +181,6 @@ public class DependencyModuleWriter {
     private void InternalGetModulesMethod(ClassDefinition classDefinition, ModuleEntryPointModel model) {
         var attributeModels = FilterAttributes(model.AttributeModels);
         
-        if (attributeModels.Count == 0 && model.AdditionalModules.Count == 0) {
-            return;
-        }
-        
         var getModulesMethod = classDefinition.AddMethod("InternalGetModules");
 
         getModulesMethod.AddLeadingTrait(CodeOutputComponent.Get("[Browsable(false)]", true));
@@ -193,11 +189,13 @@ public class DependencyModuleWriter {
         getModulesMethod.InterfaceImplementation = KnownTypes.DependencyModules.Interfaces.IDependencyModule;
         getModulesMethod.SetReturnType(TypeDefinition.Get(typeof(IEnumerable<object>)));
         
+        var parametersList = new List<IOutputComponent>();
+        
         foreach (var additionalModule in model.AdditionalModules) {
             if (additionalModule != null) {
                 var newStatement = New(additionalModule);
 
-                getModulesMethod.AddIndentedStatement(YieldReturn(newStatement));
+                parametersList.Add(newStatement);
             }
         }
         
@@ -210,8 +208,21 @@ public class DependencyModuleWriter {
                 newStatement.AddInitValue(propertyValue);
             }
             
-            getModulesMethod.AddIndentedStatement(YieldReturn(newStatement));
+            parametersList.Add(newStatement);
         }
+        
+        var closedType = new GenericTypeDefinition(
+            TypeDefinitionEnum.ClassDefinition, KnownTypes.DependencyModules.Helpers.Namespace, "DependencyRegistry", new[] {
+                model.EntryPointType
+            });
+        
+        getModulesMethod.Return(
+            new StaticInvokeStatement(
+                closedType,
+                "GetModules",
+                parametersList.ToArray()) {
+                Indented = false
+            });
     }
 
     private List<AttributeModel> FilterAttributes(IReadOnlyList<AttributeModel> modelAttributeModels) {
