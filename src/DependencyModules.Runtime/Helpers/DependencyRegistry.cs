@@ -196,26 +196,26 @@ public class DependencyRegistry<T> {
     }
 
     
-    private static void InternalGetModules(IDependencyModule dependencyModule, List<IDependencyModule> dependencyModules) {
+    private static void InternalGetModules(IDependencyModule dependencyModule, List<IDependencyModule> allDependencyModules) {
         if (!dependencyModule.LoadModule || 
-            dependencyModules.Contains(dependencyModule)) {
+            allDependencyModules.Contains(dependencyModule)) {
             return;
         }
 
-        dependencyModules.Insert(0, dependencyModule);
+        allDependencyModules.Insert(0, dependencyModule);
 
-        foreach (var dependentModule in dependencyModule.InternalGetModules()) {
-            if (dependentModule is IDependencyModuleProvider moduleProvider) {
+        foreach (var dependencyObject in dependencyModule.InternalGetModules()) {
+            if (dependencyObject is IDependencyModuleProvider moduleProvider) {
                 var dep = moduleProvider.GetModule();
-                InternalGetModules(dep, dependencyModules);
+                InternalGetModules(dep, allDependencyModules);
             }
-            else if (dependencyModule is IDependencyModule module) {
-                InternalGetModules(module, dependencyModules);
+            else if (dependencyObject is IDependencyModule module) {
+                InternalGetModules(module, allDependencyModules);
             }
         }
         
         foreach (var module in dependencyModule.GetModules()) {
-            InternalGetModules(module, dependencyModules);
+            InternalGetModules(module, allDependencyModules);
         }
     }
 }
