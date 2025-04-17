@@ -8,13 +8,21 @@ public abstract class BaseAttributeWriter<T> where T : IClassModel {
     public void CreateAttributeClass(IConstructContainer container, T model) {
         var attributeClass = ConstructClassDefinition(container, model);
 
-        attributeClass.EnableNullable();
-        
+        AddClassTraits(attributeClass);
+
         CreateConstructor(container, attributeClass, model);
 
         CreateProperties(container, attributeClass, model);
         
         CustomImplementation(container, attributeClass, model);
+    }
+
+    private static void AddClassTraits(ClassDefinition attributeClass) {
+        attributeClass.EnableNullable();
+        attributeClass.WrapInPragma("CS0472");
+        attributeClass.AddLeadingTrait(
+            new UsageAttributeComponent(
+                "[AttributeUsage(AttributeTargets.Class | AttributeTargets.Assembly | AttributeTargets.Method | AttributeTargets.Parameter, AllowMultiple = true)]"));
     }
 
     protected virtual void CustomImplementation(IConstructContainer container, ClassDefinition attributeClass, T model) {
@@ -27,9 +35,7 @@ public abstract class BaseAttributeWriter<T> where T : IClassModel {
         attributeClass.Modifiers |= ComponentModifier.Public | ComponentModifier.Partial;
         attributeClass.AddBaseType(TypeDefinition.Get("System","Attribute"));
         attributeClass.AddBaseType(KnownTypes.DependencyModules.Interfaces.IDependencyModuleProvider);
-        attributeClass.AddLeadingTrait(
-            new UsageAttributeComponent(
-                "[AttributeUsage(AttributeTargets.Class | AttributeTargets.Assembly | AttributeTargets.Method | AttributeTargets.Parameter, AllowMultiple = true)]"));
+        
         return attributeClass;
     }
 
