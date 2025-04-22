@@ -43,6 +43,10 @@ public static class TypeSyntaxExtensions {
     }
 
     public static ITypeDefinition GetTypeDefinition(this ITypeSymbol typeSymbol) {
+        if (typeSymbol is INamedTypeSymbol namedTypeSymbol) {
+            return InternalGetTypeDefinitionFromNamedSymbol(namedTypeSymbol);
+        }
+        
         var typeEnum = GetTypeSymbolKind(typeSymbol);
 
         return TypeDefinition.Get(typeEnum, typeSymbol.ContainingNamespace.GetFullName(), GetTypeName(typeSymbol));
@@ -86,10 +90,10 @@ public static class TypeSyntaxExtensions {
             return null;
         }
         
-        return  InternalGetTypeDefinitionFromNamedSymbol(namedTypeSymbol);
+        return InternalGetTypeDefinitionFromNamedSymbol(namedTypeSymbol);
     }
     
-    private static ITypeDefinition? InternalGetTypeDefinitionFromNamedSymbol(INamedTypeSymbol namedTypeSymbol) {
+    private static ITypeDefinition InternalGetTypeDefinitionFromNamedSymbol(INamedTypeSymbol namedTypeSymbol) {
 
         if (namedTypeSymbol.IsGenericType) {
             if (namedTypeSymbol.Name == "Nullable") {
