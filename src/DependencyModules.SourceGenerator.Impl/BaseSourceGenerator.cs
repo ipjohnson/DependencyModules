@@ -248,7 +248,7 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
                         case "OnlyRealm":
                             onlyRealm = argumentSyntax.Expression.ToString() == "true";
                             break;
-                        case "With":
+                        case "Using":
                             registrationType = GetRegistrationType(argumentSyntax.Expression.ToString());
                             break;
                         case "GenerateAttribute":
@@ -257,7 +257,7 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
                         case "RegisterJsonSerializers":
                             registerGenerator = argumentSyntax.Expression.ToString().Trim('"') == "true";
                             break;
-                        case "UseMethod":
+                        case "GenerateUseMethod":
                             useMethod = argumentSyntax.Expression.ToString().Trim('"');
                             break;
                         case "GenerateFactories":

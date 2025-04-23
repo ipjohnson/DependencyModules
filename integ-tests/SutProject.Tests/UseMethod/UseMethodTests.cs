@@ -4,7 +4,7 @@ using Xunit;
 
 namespace SutProject.Tests.UseMethod;
 
-[DependencyModule(UseMethod = "UseMethodModule", OnlyRealm = true)]
+[DependencyModule(GenerateUseMethod = "UseMethodModule", OnlyRealm = true)]
 public partial class UseMethodModule(string name) {
     public string Name => name;
 }

@@ -29,7 +29,7 @@ public class DependencyModuleAttribute : Attribute {
     /// Generate a IServiceCollection extension method
     /// Attributes are usually preferred over UseXXX methods
     /// </summary>
-    public string? UseMethod { get; set; }
+    public string? GenerateUseMethod { get; set; }
     
     /// <summary>
     /// Setting this to true will generate registration using factories
