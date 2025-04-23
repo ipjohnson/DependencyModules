@@ -11,7 +11,7 @@ public partial class TryWithSutModule;
 [DependencyModule(OnlyRealm = true)]
 public partial class TryWithoutSutModule;
 
-[DependencyModule(With = RegistrationType.Try, OnlyRealm = true)]
+[DependencyModule(Using = RegistrationType.Try, OnlyRealm = true)]
 [SutModule]
 public partial class TryAtModuleLevelWithSutModule;
 

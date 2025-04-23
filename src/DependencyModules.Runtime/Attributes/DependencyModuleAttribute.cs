@@ -6,14 +6,14 @@ namespace DependencyModules.Runtime.Attributes;
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Assembly , Inherited = false)]
 public class DependencyModuleAttribute : Attribute {
     /// <summary>
-    ///     Only get registration for this specific module
+    ///     Restrict registration to types that are registered for this realm (Type)
     /// </summary>
     public bool OnlyRealm { get; set; } = false;
 
     /// <summary>
     ///     Use try when registering, default is false
     /// </summary>
-    public RegistrationType With { get; set; } = RegistrationType.Add;
+    public RegistrationType Using { get; set; } = RegistrationType.Add;
 
     /// <summary>
     /// Generate Module attribute, true by default
