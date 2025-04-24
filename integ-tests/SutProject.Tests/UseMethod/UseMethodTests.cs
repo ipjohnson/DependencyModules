@@ -10,9 +10,7 @@ public partial class UseMethodModule(string name) {
 }
 
 [SingletonService(Realm = typeof(UseMethodModule))]
-public class SomeImplementation {
-    
-}
+public class SomeImplementation;
 
 public class UseMethodTests {
     [Fact]

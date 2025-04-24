@@ -9,6 +9,7 @@
         <Nullable>enable</Nullable>
         <IsPackable>True</IsPackable>
         <PackageId>DependencyModules.SourceGenerator</PackageId>
+        <IncludeBuildOutput>false</IncludeBuildOutput>
     </PropertyGroup>
     
     <PropertyGroup>
