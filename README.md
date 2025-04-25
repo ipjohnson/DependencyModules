@@ -22,7 +22,7 @@ dotnet add package DependencyModules.SourceGenerator
 ```csharp
 // Registration example
 [DependencyModule]
-public partial class MyModule;
+public partial class ApplicationModule;
 
 // registers SomeClass implementation for ISomeService
 [SingletonService]
@@ -52,9 +52,9 @@ Note: `[DependencyModule]` is not required for [Top-level](https://learn.microso
 ```csharp
 var serviceCollection = new ServiceCollection();
 
-serviceCollection.AddModule<MyModule>();
+serviceCollection.AddModule<ApplicationModule>();
 // or
-serviceCollection.AddModules(new MyModule(), ...);
+serviceCollection.AddModules(new ApplicationModule(), ...);
 
 var provider = serviceCollection.BuildServiceProvider();
 
@@ -84,7 +84,7 @@ DependencyModules creates an `Attribute` class that can be used to apply sub dep
 ```csharp
 // Modules can be re-used with the generated attributes
 [DependencyModule]
-[MyModule]
+[ApplicationModule]
 public partial class AnotherModule;
 ```
 
