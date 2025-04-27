@@ -37,7 +37,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="CSharpAuthor" Version="1.1.1003">
+        <PackageReference Include="CSharpAuthor" Version="1.1.1005">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>build</IncludeAssets>
         </PackageReference>
