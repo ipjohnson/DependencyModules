@@ -7,6 +7,7 @@ namespace DependencyModules.Runtime.Attributes;
 /// </summary>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true, Inherited = false)]
 public class TransientServiceAttribute : BaseServiceAttribute {
-
+    
+    /// <inheritdoc />
     protected override ServiceLifetime Lifetime => ServiceLifetime.Transient;
 }

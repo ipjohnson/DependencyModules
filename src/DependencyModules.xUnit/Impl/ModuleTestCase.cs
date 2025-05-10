@@ -10,14 +10,23 @@ using Xunit.v3;
 namespace DependencyModules.xUnit.Impl;
 
 /// <summary>
-///     xUnit test case implementation
+/// Represents a specialized implementation of <see cref="XunitTestCase"/>
+/// tailored for module-based test scenarios within the xUnit framework.
 /// </summary>
 public class ModuleTestCase : XunitTestCase {
 
 #pragma warning disable CS0618 // Type or member is obsolete
+    /// <summary>
+    /// Represents a specialized implementation of <see cref="XunitTestCase"/>
+    /// designed to support module-based test scenarios within the xUnit testing framework.
+    /// </summary>
     public ModuleTestCase() { }
 #pragma warning restore CS0618 // Type or member is obsolete
 
+    /// <summary>
+    /// Represents a specialized implementation of <see cref="XunitTestCase"/>
+    /// tailored for module-based test scenarios within the xUnit framework.
+    /// </summary>
     public ModuleTestCase(
         IXunitTestMethod testMethod,
         string testCaseDisplayName,
@@ -46,6 +55,10 @@ public class ModuleTestCase : XunitTestCase {
         sourceLineNumber,
         timeout) { }
 
+    /// <summary>
+    /// Executes logic before the invocation of the test method associated with the current test case.
+    /// Override this method to introduce custom pre-invocation behaviors specific to derived test case implementations.
+    /// </summary>
     public override void PreInvoke() { }
 
     private record StartupValues(

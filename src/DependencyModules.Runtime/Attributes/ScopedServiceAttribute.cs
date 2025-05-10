@@ -8,5 +8,6 @@ namespace DependencyModules.Runtime.Attributes;
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true, Inherited = false)]
 public class ScopedServiceAttribute : BaseServiceAttribute {
     
+    /// <inheritdoc />
     protected override ServiceLifetime Lifetime => ServiceLifetime.Scoped;
 }

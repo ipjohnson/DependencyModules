@@ -4,6 +4,11 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace DependencyModules.Runtime.Helpers;
 
+/// <summary>
+/// Delegate representing a function responsible for registering dependencies
+/// into an IServiceCollection.
+/// </summary>
+/// <param name="serviceCollection">The IServiceCollection to which dependencies will be added.</param>
 public delegate void RegistryFunc(IServiceCollection serviceCollection);
 
 /// <summary>

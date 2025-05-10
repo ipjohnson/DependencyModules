@@ -3,13 +3,18 @@ using System.Reflection;
 
 namespace DependencyModules.xUnit.Impl;
 
+/// <summary>
+/// Provides utility methods for retrieving attributes from methods, parameters, classes, or assemblies.
+/// </summary>
 public static class AttributeUtility {
+
     /// <summary>
-    ///     Get attribute on a method, looks on method, then class, then assembly
+    /// Retrieves an attribute of the specified type from a method.
+    /// Searches on the method, then its declaring type, and finally its assembly.
     /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="methodInfo"></param>
-    /// <returns></returns>
+    /// <typeparam name="T">The type of the attribute to retrieve.</typeparam>
+    /// <param name="methodInfo">The method from which to retrieve the attribute.</param>
+    /// <returns>The first matching attribute of the specified type, or null if no attribute is found.</returns>
     public static T? GetTestAttribute<T>(this MethodInfo methodInfo) where T : class {
         var returnAttribute = methodInfo.GetOrderedCustomAttributes().FirstOrDefault(a => a is T) ??
                               methodInfo.DeclaringType?.GetTypeInfo().GetOrderedCustomAttributes()
@@ -21,11 +26,12 @@ public static class AttributeUtility {
     }
 
     /// <summary>
-    ///     Get attribute on a method, looks on method, then class, then assembly
+    /// Retrieves an attribute of the specified type from a method parameter.
+    /// Searches on the parameter, the containing method, the declaring type, and finally the assembly.
     /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="parameterInfo"></param>
-    /// <returns></returns>
+    /// <typeparam name="T">The type of the attribute to retrieve.</typeparam>
+    /// <param name="parameterInfo">The parameter from which to retrieve the attribute.</param>
+    /// <returns>The first matching attribute of the specified type, or null if no attribute is found.</returns>
     public static T? GetTestAttribute<T>(this ParameterInfo parameterInfo) where T : class {
         var attribute = parameterInfo.GetOrderedCustomAttributes().FirstOrDefault(a => a is T);
 
@@ -44,12 +50,14 @@ public static class AttributeUtility {
         return returnAttribute as T;
     }
 
+
     /// <summary>
-    ///     Gets attributes from method, class, then assembly
+    /// Retrieves all attributes of the specified type from a method.
+    /// Searches the method, its declaring type, and its assembly in order to accumulate matching attributes.
     /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="methodInfo"></param>
-    /// <returns></returns>
+    /// <typeparam name="T">The type of the attributes to retrieve.</typeparam>
+    /// <param name="methodInfo">The method from which to retrieve the attributes.</param>
+    /// <returns>An enumerable collection of attributes of the specified type.</returns>
     public static IEnumerable<T> GetTestAttributes<T>(this MethodInfo methodInfo) where T : class {
         var returnList = new List<T>();
 
@@ -64,12 +72,14 @@ public static class AttributeUtility {
         return returnList;
     }
 
+
     /// <summary>
-    ///     Gets attributes from method, class, then assembly
+    /// Retrieves all attributes of the specified type from a parameterInfo.
+    /// Searches on the method, its declaring type, and its assembly in order.
     /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="parameterInfo"></param>
-    /// <returns></returns>
+    /// <typeparam name="T">The type of the attributes to retrieve.</typeparam>
+    /// <param name="parameterInfo">The parameter from which to retrieve the attributes.</param>
+    /// <returns>A collection of matching attributes of the specified type, or an empty collection if no attributes are found.</returns>
     public static IEnumerable<T> GetTestAttributes<T>(this ParameterInfo parameterInfo) where T : class {
         var returnList = new List<T>();
 
@@ -115,22 +125,20 @@ public static class AttributeUtility {
         return parameterInfo.GetCustomAttributes()
             .Order(new SortCustomAttribute(parameterInfo.Member.DeclaringType.Assembly));
     }
-    
-    private class SortCustomAttribute : IComparer<Attribute> {
-        private Assembly _testAssembly;
 
-        public SortCustomAttribute(Assembly testAssembly) {
-            _testAssembly = testAssembly;
-        }
+    /// <summary>
+    /// Provides a custom attribute sorting mechanism based on the association of attributes with a specified assembly.
+    /// </summary>
+    private class SortCustomAttribute(Assembly testAssembly) : IComparer<Attribute> {
 
         public int Compare(Attribute? x, Attribute? y) {
-            if (_testAssembly.Equals(x?.GetType().Assembly)) {
-                if (_testAssembly.Equals(y?.GetType().Assembly)) {
+            if (testAssembly.Equals(x?.GetType().Assembly)) {
+                if (testAssembly.Equals(y?.GetType().Assembly)) {
                     return 0;
                 }
                 return 1;
             }
-            else if (_testAssembly.Equals(y?.GetType().Assembly)) {
+            else if (testAssembly.Equals(y?.GetType().Assembly)) {
                 return -1;
             }
             

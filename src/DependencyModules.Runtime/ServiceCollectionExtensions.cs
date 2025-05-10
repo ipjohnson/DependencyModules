@@ -4,6 +4,9 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace DependencyModules.Runtime;
 
+/// <summary>
+/// Provides extension methods for adding dependency modules to the IServiceCollection.
+/// </summary>
 public static class ServiceCollectionExtensions {
     /// <summary>
     ///     Add dependency module to service collection

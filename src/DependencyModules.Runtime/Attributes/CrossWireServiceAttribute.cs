@@ -11,17 +11,20 @@ namespace DependencyModules.Runtime.Attributes;
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true, Inherited = false)]
 public class CrossWireServiceAttribute : Attribute, IServiceRegistrationAttribute {
 
+    /// <inheritdoc />
     public object? Key {
         get;
         set;
     }
-
+    
+    /// <inheritdoc />
     [Browsable(false)]
     Type? IServiceRegistrationAttribute.As {
         get;
         set;
     }
-
+    
+    /// <inheritdoc />
     public ServiceLifetime Lifetime {
         get;
         set;
