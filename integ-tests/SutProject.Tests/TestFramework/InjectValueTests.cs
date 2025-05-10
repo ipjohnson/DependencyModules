@@ -9,7 +9,7 @@ public class InjectValueTests {
     [ModuleTest]
     [SutModule]
     public void InjectTestValue(
-        [InjectValue("Hello World!")]InjectModel injectModel) {
+        [InjectValues("Hello World!")]InjectModel injectModel) {
         Assert.NotNull(injectModel);
         Assert.NotNull(injectModel.DependencyOne);
         Assert.Equal("Hello World!", injectModel.StringValue);
