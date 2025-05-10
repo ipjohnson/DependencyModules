@@ -8,5 +8,5 @@ namespace DependencyModules.xUnit.Attributes.Interfaces;
 /// rather it's instantiated using ActivatorUtilities.CreateInstance
 /// </summary>
 public interface IInjectValueAttribute {
-    object? ProvideValue(IServiceProvider serviceProvider, ParameterInfo parameter);
+    object[] ProvideValue(IServiceProvider serviceProvider, ParameterInfo parameter);
 }

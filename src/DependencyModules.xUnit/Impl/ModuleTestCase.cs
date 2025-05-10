@@ -264,20 +264,15 @@ public class ModuleTestCase : XunitTestCase {
         ParameterInfo parameterInfo,
         StartupValues startupValues,
         IReadOnlyList<Attribute> attributes) {
-        var parameterValues = new List<object>();
+        object[] parameterValues = [];
 
         foreach (var attribute in attributes) {
             if (attribute is IInjectValueAttribute injectValueAttribute) {
-                var value = injectValueAttribute.ProvideValue(startupValues.ServiceProvider, parameterInfo);
-
-                if (value != null) {
-                    parameterValues.Add(value);
-                }
+                parameterValues = injectValueAttribute.ProvideValue(startupValues.ServiceProvider, parameterInfo);
             }
         }
         
         return ActivatorUtilities.CreateInstance(
-            startupValues.ServiceProvider, parameterInfo.ParameterType, parameterValues.ToArray());
+            startupValues.ServiceProvider, parameterInfo.ParameterType, parameterValues);
     }
-    
 }
