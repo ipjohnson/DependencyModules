@@ -213,9 +213,11 @@ public class ModuleTestCase : XunitTestCase {
 
         for (var i = data.Length; i < parameterList.Length; i++) {
             var parameterInfo = parameterList[i];
+            var attributes = parameterInfo.GetCustomAttributes().ToList();
+            
             var value = await ResolveParameter(parameterInfo, startupValues);
 
-            parameters.Add(value ?? ResolveArgumentFromProvider(parameterInfo, startupValues));
+            parameters.Add(value ?? ResolveArgumentFromProvider(parameterInfo, startupValues, attributes));
         }
         
         testCaseInfo.TestMethodArguments = parameters;
@@ -242,7 +244,7 @@ public class ModuleTestCase : XunitTestCase {
         return value;
     }
 
-    private object? ResolveArgumentFromProvider(ParameterInfo parameterInfo, StartupValues startupValues) {
+    private object? ResolveArgumentFromProvider(ParameterInfo parameterInfo, StartupValues startupValues, List<Attribute> attributes) {
         var keyedServicesAttribute = parameterInfo.GetCustomAttribute<FromKeyedServicesAttribute>();
 
         if (keyedServicesAttribute != null && startupValues.ServiceProvider is IKeyedServiceProvider keyedServiceProvider) {
@@ -255,12 +257,27 @@ public class ModuleTestCase : XunitTestCase {
             return value;
         }
 
-        return ConstructValueFromType(parameterInfo, startupValues);
+        return ConstructValueFromType(parameterInfo, startupValues, attributes);
     }
 
-    private object? ConstructValueFromType(ParameterInfo parameterInfo, StartupValues startupValues) {
+    private object? ConstructValueFromType(
+        ParameterInfo parameterInfo,
+        StartupValues startupValues,
+        IReadOnlyList<Attribute> attributes) {
+        var parameterValues = new List<object>();
+
+        foreach (var attribute in attributes) {
+            if (attribute is IInjectValueAttribute injectValueAttribute) {
+                var value = injectValueAttribute.ProvideValue(startupValues.ServiceProvider, parameterInfo);
+
+                if (value != null) {
+                    parameterValues.Add(value);
+                }
+            }
+        }
+        
         return ActivatorUtilities.CreateInstance(
-            startupValues.ServiceProvider, parameterInfo.ParameterType);
+            startupValues.ServiceProvider, parameterInfo.ParameterType, parameterValues.ToArray());
     }
     
 }
