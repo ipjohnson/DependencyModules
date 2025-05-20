@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\..\src\DependencyModules.Runtime\DependencyModules.Runtime.csproj"/>
+        <ProjectReference Include="..\..\..\src\DependencyModules.xUnit.NSubstitute\DependencyModules.xUnit.NSubstitute.csproj" />
+        <ProjectReference Include="..\..\..\src\DependencyModules.xUnit\DependencyModules.xUnit.csproj" />
+        <ProjectReference Include="..\..\..\src\DependencyModules.SourceGenerator\DependencyModules.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false"/>
+        <ProjectReference Include="..\WebApiApp\WebApiApp.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0"/>
+        <PackageReference Include="xunit.runner.visualstudio" Version="3.0.0">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="xunit.v3" Version="1.0.0"/>
+    </ItemGroup>
+</Project>
