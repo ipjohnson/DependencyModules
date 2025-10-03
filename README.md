@@ -257,7 +257,7 @@ It handles the population and construction of a service provider using specified
 
 // applies module & nsubstitute support to all tests.
 // test attributes can be applied at the assembly, class, and test method level
-[assemlby: MyModule]
+[assembly: MyModule]
 [assembly: NSubstituteSupport]
 
 public class OtherServiceTests 
