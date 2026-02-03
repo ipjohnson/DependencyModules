@@ -65,7 +65,7 @@ public class ModuleTestCase : XunitTestCase {
         IServiceProvider ServiceProvider, 
         Dictionary<ParameterInfo, List<ITestParameterValueProvider>> KnownValues);
     
-    private StartupValues SetupServiceCollection() {
+    private async Task<StartupValues> SetupServiceCollection() {
         var serviceCollection = new ServiceCollection();
         var knownValues = new Dictionary<ParameterInfo, List<ITestParameterValueProvider>>();
         
@@ -77,11 +77,15 @@ public class ModuleTestCase : XunitTestCase {
 
         SetValueProviders(serviceCollection, knownValues);
 
-        SetupStartupAttributes(serviceCollection, knownAttributes);
+        var startupAttributes = SetupStartupAttributes(serviceCollection, knownAttributes);
 
         var provider = BuildServiceProvider(serviceCollection, knownAttributes);
         
         DisposalTracker.Add(provider);
+
+        foreach (var startupAttribute in startupAttributes) {
+            await startupAttribute.StartupAsync(this.TestMethod, provider);
+        }
         
         return new StartupValues(provider, knownValues);
     }
@@ -107,10 +111,13 @@ public class ModuleTestCase : XunitTestCase {
         return serviceCollection.BuildServiceProvider();
     }
 
-    private void SetupStartupAttributes(ServiceCollection serviceCollection, Attribute[] knownAttributes) {
+    private IReadOnlyList<ITestStartupAttribute> SetupStartupAttributes(ServiceCollection serviceCollection, Attribute[] knownAttributes) {
+        var startupAttributes = new List<ITestStartupAttribute>();
         foreach (var testStartupAttribute in knownAttributes.OfType<ITestStartupAttribute>()) {
             testStartupAttribute.SetupServiceCollection(TestMethod, serviceCollection);
+            startupAttributes.Add(testStartupAttribute);
         }
+        return startupAttributes;
     }
 
     private void SetValueProviders(ServiceCollection serviceCollection, Dictionary<ParameterInfo, List<ITestParameterValueProvider>> knownValues) {
@@ -178,7 +185,7 @@ public class ModuleTestCase : XunitTestCase {
             foreach (var theoryDataRow in dataRowCollection) {
                 var data = theoryDataRow.GetData();
 
-                var startupValues = SetupServiceCollection();
+                var startupValues = await SetupServiceCollection();
 
                 unitTests.Add(
                     new XunitTest(
@@ -200,7 +207,7 @@ public class ModuleTestCase : XunitTestCase {
     }
 
     private async Task<IReadOnlyCollection<IXunitTest>> UnitTestWithNoDataAttributes() {
-        var startupValues = SetupServiceCollection();
+        var startupValues = await SetupServiceCollection();
 
         return [
             new XunitTest(
