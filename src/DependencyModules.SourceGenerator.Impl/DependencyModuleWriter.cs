@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Text.RegularExpressions;
 using CSharpAuthor;
 using DependencyModules.SourceGenerator.Impl.Models;
 using DependencyModules.SourceGenerator.Impl.Utilities;
@@ -53,10 +54,19 @@ public class DependencyModuleWriter {
 
         csharpFile.WriteOutput(outputContext);
 
+        var source = outputContext.Output();
+
+        if (entryPointModel.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.IsRecord)) {
+            source = Regex.Replace(
+                source,
+                @"partial class " + Regex.Escape(entryPointModel.EntryPointType.Name) + @"(?!\w)",
+                $"partial record class {entryPointModel.EntryPointType.Name}");
+        }
+
         context.AddSource(
             entryPointModel.EntryPointType.GetFileNameHint(
-                configurationModel.RootNamespace, "Module"), 
-            outputContext.Output());
+                configurationModel.RootNamespace, "Module"),
+            source);
     }
 
     private void GenerateAttribute(ModuleEntryPointModel moduleEntryPoint,
@@ -123,7 +133,7 @@ public class DependencyModuleWriter {
             ModuleEntryPointFeatures.ShouldImplementEquals) {
             EqualMethod(classDefinition, model);
 
-            HashMethod(classDefinition);
+            HashMethod(classDefinition, model);
         }
     }
 
@@ -158,13 +168,36 @@ public class DependencyModuleWriter {
     }
 
     private void HashMethod(
-        ClassDefinition classDefinition) {
+        ClassDefinition classDefinition, ModuleEntryPointModel model) {
         var hashMethod = classDefinition.AddMethod("GetHashCode");
 
         hashMethod.Modifiers |= ComponentModifier.Override;
         hashMethod.SetReturnType(typeof(int));
 
-        hashMethod.Return("HashCode.Combine(base.GetHashCode())");
+        var fullTypeName = string.IsNullOrEmpty(model.EntryPointType.Namespace)
+            ? model.EntryPointType.Name
+            : $"{model.EntryPointType.Namespace}.{model.EntryPointType.Name}";
+        var stableHash = GetStableHashCode(fullTypeName);
+
+        hashMethod.Return(stableHash.ToString());
+    }
+
+    private static int GetStableHashCode(string str) {
+        unchecked {
+            var hash1 = 5381;
+            var hash2 = hash1;
+
+            for (var i = 0; i < str.Length && str[i] != '\0'; i += 2) {
+                hash1 = ((hash1 << 5) + hash1) ^ str[i];
+                if (i == str.Length - 1) {
+                    break;
+                }
+
+                hash2 = ((hash2 << 5) + hash2) ^ str[i + 1];
+            }
+
+            return hash1 + (hash2 * 1566083941);
+        }
     }
 
     private void EqualMethod(ClassDefinition classDefinition, ModuleEntryPointModel model) {

@@ -8,6 +8,7 @@ public enum ModuleEntryPointFeatures {
     AutoGenerateModule = 1,
     OnlyRealm = 2,
     ShouldImplementEquals = 4,
+    IsRecord = 8,
 }
 
 public record ModuleEntryPointModel(

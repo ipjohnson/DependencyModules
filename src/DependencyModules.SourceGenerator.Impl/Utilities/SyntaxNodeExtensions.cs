@@ -38,11 +38,11 @@ public static class SyntaxNodeExtensions {
         return stringBuilder.ToString();
     }
 
-    public static ITypeDefinition GetTypeDefinition(this ClassDeclarationSyntax classDeclarationSyntax) {
-        var namespaceSyntax = classDeclarationSyntax.Ancestors().OfType<BaseNamespaceDeclarationSyntax>().FirstOrDefault();
+    public static ITypeDefinition GetTypeDefinition(this TypeDeclarationSyntax typeDeclarationSyntax) {
+        var namespaceSyntax = typeDeclarationSyntax.Ancestors().OfType<BaseNamespaceDeclarationSyntax>().FirstOrDefault();
 
         return TypeDefinition.Get(namespaceSyntax?.Name.ToFullString().TrimEnd() ?? "",
-            classDeclarationSyntax.Identifier.Text);
+            typeDeclarationSyntax.Identifier.Text);
     }
 
     public static AttributeSyntax? GetAttribute(this SyntaxNode node, string attributeName, string ns = "") {

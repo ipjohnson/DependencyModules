@@ -12,7 +12,7 @@ public abstract class BaseAttributeWithConfigSourceGenerator<TModel, TConfig> : 
 
     public void SetupGenerator(IncrementalGeneratorInitializationContext context,
         IncrementalValuesProvider<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> incrementalValueProvider) {
-        var classSelector = new SyntaxSelector<ClassDeclarationSyntax>(AttributeTypes().ToArray());
+        var classSelector = new SyntaxSelector<ClassDeclarationSyntax, RecordDeclarationSyntax>(AttributeTypes().ToArray());
 
         var serviceModelProvider = context.SyntaxProvider.CreateSyntaxProvider(
             classSelector.Where,

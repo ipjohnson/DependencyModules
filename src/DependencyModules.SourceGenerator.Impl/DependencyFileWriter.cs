@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using CSharpAuthor;
 using DependencyModules.SourceGenerator.Impl.Models;
 using DependencyModules.SourceGenerator.Impl.Utilities;
@@ -40,7 +41,16 @@ public class DependencyFileWriter {
 
         csharpFile.WriteOutput(output);
 
-        return output.Output();
+        var result = output.Output();
+
+        if (entryPointModel.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.IsRecord)) {
+            result = Regex.Replace(
+                result,
+                @"partial class " + Regex.Escape(entryPointModel.EntryPointType.Name) + @"(?!\w)",
+                $"partial record class {entryPointModel.EntryPointType.Name}");
+        }
+
+        return result;
     }
 
     private void GenerateClass(ModuleEntryPointModel entryPointModel,

@@ -105,12 +105,24 @@ public class SyntaxSelector<T> : BaseSyntaxSelector where T : SyntaxNode {
 
 public class SyntaxSelector<T1,T2> : BaseSyntaxSelector where T1 : SyntaxNode where T2 : SyntaxNode {
     public SyntaxSelector(params ITypeDefinition[] attributes) : base(attributes) {}
-    
+
     protected override bool TestForTypes(SyntaxNode node, CancellationToken token) {
         if (node is T1 or T2) {
             return true;
         }
-        
+
+        return false;
+    }
+}
+
+public class SyntaxSelector<T1,T2,T3> : BaseSyntaxSelector where T1 : SyntaxNode where T2 : SyntaxNode where T3 : SyntaxNode {
+    public SyntaxSelector(params ITypeDefinition[] attributes) : base(attributes) {}
+
+    protected override bool TestForTypes(SyntaxNode node, CancellationToken token) {
+        if (node is T1 or T2 or T3) {
+            return true;
+        }
+
         return false;
     }
 }
