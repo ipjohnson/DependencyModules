@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Text.RegularExpressions;
 using CSharpAuthor;
 using DependencyModules.SourceGenerator.Impl.Models;
 using DependencyModules.SourceGenerator.Impl.Utilities;
@@ -53,10 +54,19 @@ public class DependencyModuleWriter {
 
         csharpFile.WriteOutput(outputContext);
 
+        var source = outputContext.Output();
+
+        if (entryPointModel.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.IsRecord)) {
+            source = Regex.Replace(
+                source,
+                @"partial class " + Regex.Escape(entryPointModel.EntryPointType.Name) + @"(?!\w)",
+                $"partial record class {entryPointModel.EntryPointType.Name}");
+        }
+
         context.AddSource(
             entryPointModel.EntryPointType.GetFileNameHint(
-                configurationModel.RootNamespace, "Module"), 
-            outputContext.Output());
+                configurationModel.RootNamespace, "Module"),
+            source);
     }
 
     private void GenerateAttribute(ModuleEntryPointModel moduleEntryPoint,

@@ -82,7 +82,7 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
         IncrementalValueProvider<ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)>> valuesProvider) { }
 
     private IncrementalValuesProvider<ModuleEntryPointModel> CreateSourceValueProvider(IncrementalGeneratorInitializationContext context) {
-        var classSelector = new SyntaxSelector<ClassDeclarationSyntax, CompilationUnitSyntax>(
+        var classSelector = new SyntaxSelector<ClassDeclarationSyntax, RecordDeclarationSyntax, CompilationUnitSyntax>(
             KnownTypes.DependencyModules.Attributes.DependencyModuleAttribute) {
             AutoApproveCompilationUnit = true,
             ApproveFilter = "Program.cs",
@@ -97,22 +97,22 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
     protected virtual ModuleEntryPointModel GenerateEntryPointModel(GeneratorSyntaxContext context, CancellationToken cancellation) {
         cancellation.ThrowIfCancellationRequested();
 
-        if (context.Node is ClassDeclarationSyntax classDeclarationSyntax) {
-            return GetClassEntryPointModel(context, cancellation, classDeclarationSyntax);
+        if (context.Node is TypeDeclarationSyntax typeDeclarationSyntax) {
+            return GetClassEntryPointModel(context, cancellation, typeDeclarationSyntax);
         }
 
         return GetCompilationUnitSyntaxEntry(context, cancellation);
     }
 
-    private ModuleEntryPointModel GetClassEntryPointModel(GeneratorSyntaxContext context, CancellationToken cancellation, ClassDeclarationSyntax classDeclarationSyntax) {
+    private ModuleEntryPointModel GetClassEntryPointModel(GeneratorSyntaxContext context, CancellationToken cancellation, TypeDeclarationSyntax typeDeclarationSyntax) {
         var featureTypes = new List<ITypeDefinition>();
         ModuleEntryPointFeatures features = ModuleEntryPointFeatures.None;
         List<AttributeModel>? attributes = AttributeModelHelper
-            .GetAttributes(context, classDeclarationSyntax.AttributeLists, cancellation)
+            .GetAttributes(context, typeDeclarationSyntax.AttributeLists, cancellation)
             .ToList();
 
-        if (classDeclarationSyntax.BaseList != null) {
-            foreach (var baseType in classDeclarationSyntax.BaseList.Types) {
+        if (typeDeclarationSyntax.BaseList != null) {
+            foreach (var baseType in typeDeclarationSyntax.BaseList.Types) {
                 var typeDefinition = baseType.Type.GetTypeDefinition(context);
 
                 if (typeDefinition is GenericTypeDefinition genericTypeDefinition &&
@@ -131,14 +131,17 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
             features |= ModuleEntryPointFeatures.OnlyRealm;
         }
 
-        if (!implementsEqualsFlag) {
+        if (typeDeclarationSyntax is RecordDeclarationSyntax) {
+            features |= ModuleEntryPointFeatures.IsRecord;
+        }
+        else if (!implementsEqualsFlag) {
             features |= ModuleEntryPointFeatures.ShouldImplementEquals;
         }
         
         return new ModuleEntryPointModel(
             features,
             context.Node.SyntaxTree?.FilePath ?? "",
-            ((ClassDeclarationSyntax)context.Node).GetTypeDefinition(),
+            ((TypeDeclarationSyntax)context.Node).GetTypeDefinition(),
             dependencyFlags.RegistrationType,
             dependencyFlags.GenerateAttribute,
             dependencyFlags.RegisterGenerator,
@@ -237,8 +240,8 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
         bool? registerGenerator = null;
         bool? generateFactories = null;
         string? useMethod = null;
-        if (context.Node is ClassDeclarationSyntax classDeclarationSyntax) {
-            var module = classDeclarationSyntax.DescendantNodes().OfType<AttributeSyntax>().FirstOrDefault(attr => attr.Name.ToString().StartsWith("DependencyModule"));
+        if (context.Node is TypeDeclarationSyntax typeDeclarationSyntax) {
+            var module = typeDeclarationSyntax.DescendantNodes().OfType<AttributeSyntax>().FirstOrDefault(attr => attr.Name.ToString().StartsWith("DependencyModule"));
 
             if (module is { ArgumentList: not null }) {
                 foreach (var argumentSyntax in module.ArgumentList.Arguments) {
