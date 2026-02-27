@@ -19,6 +19,7 @@ public delegate void RegistryFunc(IServiceCollection serviceCollection);
 // ReSharper disable once ClassNeverInstantiated.Global
 public class DependencyRegistry<T> {
     // ReSharper disable StaticMemberInGenericType
+    private static readonly object SyncLock = new();
     private static readonly List<RegistryFunc> RegistryFuncs = [];
     private static readonly List<RegistryFunc> Decorators = [];
     private static readonly List<IDependencyModule> Modules = [];
@@ -29,13 +30,15 @@ public class DependencyRegistry<T> {
     /// <param name="registryFunc"></param>
     /// <returns></returns>
     public static int Add(RegistryFunc registryFunc) {
-        RegistryFuncs.Add(registryFunc);
-        
+        lock (SyncLock) {
+            RegistryFuncs.Add(registryFunc);
+        }
+
         return 1;
     }
 
     /// <summary>
-    /// Adding singleton instance, intended to be used as a short cut 
+    /// Adding singleton instance, intended to be used as a short cut
     /// </summary>
     /// <param name="provider"></param>
     /// <param name="lifetime"></param>
@@ -44,13 +47,15 @@ public class DependencyRegistry<T> {
     public static int Add<TInstance>(
         Func<IServiceProvider, TInstance> provider,
         ServiceLifetime lifetime = ServiceLifetime.Transient) where TInstance : class {
-        RegistryFuncs.Add(
-            registry => registry.Add(
-                new ServiceDescriptor(
-                    typeof(TInstance),
-                    provider,
-                    lifetime
+        lock (SyncLock) {
+            RegistryFuncs.Add(
+                registry => registry.Add(
+                    new ServiceDescriptor(
+                        typeof(TInstance),
+                        provider,
+                        lifetime
                     )));
+        }
         return 1;
     }
 
@@ -63,25 +68,29 @@ public class DependencyRegistry<T> {
     /// <typeparam name="TInstance"></typeparam>
     /// <returns></returns>
     public static int Add<TInstance>(Type implementationType, ServiceLifetime lifetime = ServiceLifetime.Transient, object? serviceKey = null) where TInstance : class {
-        RegistryFuncs.Add(
-            registry => registry.Add(
-                new ServiceDescriptor(
-                    typeof(TInstance),
-                    serviceKey,
-                    implementationType,
-                    lifetime
-                )));
+        lock (SyncLock) {
+            RegistryFuncs.Add(
+                registry => registry.Add(
+                    new ServiceDescriptor(
+                        typeof(TInstance),
+                        serviceKey,
+                        implementationType,
+                        lifetime
+                    )));
+        }
         return 1;
     }
-    
+
     /// <summary>
     ///      Add decorator func
     /// </summary>
     /// <param name="registryFunc"></param>
     /// <returns></returns>
     public static int AddDecorator(RegistryFunc registryFunc) {
-        Decorators.Add(registryFunc);
-        
+        lock (SyncLock) {
+            Decorators.Add(registryFunc);
+        }
+
         return 1;
     }
 
@@ -91,8 +100,10 @@ public class DependencyRegistry<T> {
     /// <param name="modules"></param>
     /// <returns></returns>
     public static int AddModule(params IDependencyModule[] modules) {
-        Modules.AddRange(modules);
-        
+        lock (SyncLock) {
+            Modules.AddRange(modules);
+        }
+
         return 1;
     }
 
@@ -116,17 +127,27 @@ public class DependencyRegistry<T> {
     /// </summary>
     /// <param name="serviceCollection"></param>
     public static void ApplyServices(IServiceCollection serviceCollection) {
-        foreach (var registryFunc in RegistryFuncs) {
+        RegistryFunc[] snapshot;
+        lock (SyncLock) {
+            snapshot = RegistryFuncs.ToArray();
+        }
+
+        foreach (var registryFunc in snapshot) {
             registryFunc(serviceCollection);
         }
     }
-    
+
     /// <summary>
     /// Apply all decorators
     /// </summary>
     /// <param name="serviceCollection"></param>
     public static void ApplyDecorators(IServiceCollection serviceCollection) {
-        foreach (var registryFunc in Decorators) {
+        RegistryFunc[] snapshot;
+        lock (SyncLock) {
+            snapshot = Decorators.ToArray();
+        }
+
+        foreach (var registryFunc in snapshot) {
             registryFunc(serviceCollection);
         }
     }
@@ -137,15 +158,20 @@ public class DependencyRegistry<T> {
     /// <param name="modules"></param>
     /// <returns></returns>
     public static IEnumerable<object> GetModules(params object[] modules) {
-        if (modules.Length == 0) {
-            return Modules;
+        List<IDependencyModule> snapshot;
+        lock (SyncLock) {
+            snapshot = Modules.ToList();
         }
-        
-        if (Modules.Count == 0) {
+
+        if (modules.Length == 0) {
+            return snapshot;
+        }
+
+        if (snapshot.Count == 0) {
             return modules;
         }
-        
-        return Modules.Concat(modules);
+
+        return snapshot.Concat(modules);
     }
 
     private static void ApplyDecorators(IServiceCollection serviceCollection, IReadOnlyList<IDependencyModule> modules) {
