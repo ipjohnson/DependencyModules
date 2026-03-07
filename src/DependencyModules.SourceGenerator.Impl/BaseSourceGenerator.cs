@@ -25,6 +25,14 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
 
     protected abstract IEnumerable<IDependencyModuleSourceGenerator> AttributeSourceGenerators();
 
+    /// <summary>
+    /// Returns the attribute types that trigger module source generation.
+    /// Override to support custom trigger attributes (e.g. for framework-specific module attributes).
+    /// </summary>
+    protected virtual ITypeDefinition[] ModuleAttributeTypes() {
+        return new[] { KnownTypes.DependencyModules.Attributes.DependencyModuleAttribute };
+    }
+
     private IncrementalValueProvider<DependencyModuleConfigurationModel> CreateConfigurationValueProvider(IncrementalGeneratorInitializationContext context) {
         return context.AnalyzerConfigOptionsProvider.Select((options, _) => {
             RegistrationType defaultRegistrationType = RegistrationType.Add;
@@ -83,7 +91,7 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
 
     private IncrementalValuesProvider<ModuleEntryPointModel> CreateSourceValueProvider(IncrementalGeneratorInitializationContext context) {
         var classSelector = new SyntaxSelector<ClassDeclarationSyntax, RecordDeclarationSyntax, CompilationUnitSyntax>(
-            KnownTypes.DependencyModules.Attributes.DependencyModuleAttribute) {
+            ModuleAttributeTypes()) {
             AutoApproveCompilationUnit = true,
             ApproveFilter = "Program.cs",
         };

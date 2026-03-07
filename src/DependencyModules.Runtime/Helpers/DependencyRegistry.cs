@@ -182,6 +182,20 @@ public class DependencyRegistry<T> {
     }
 
     private static void ApplyServices(IServiceCollection serviceCollection, IReadOnlyList<IDependencyModule> modules) {
+        IModuleEnvironment? environment = null;
+        var hasEnvironmentModules = false;
+
+        for (var i = 0; i < modules.Count; i++) {
+            if (modules[i] is IEnvironmentServiceCollectionConfiguration) {
+                hasEnvironmentModules = true;
+                break;
+            }
+        }
+
+        if (hasEnvironmentModules) {
+            environment = FindModuleEnvironment(serviceCollection);
+        }
+
         for (var i = 0; i < modules.Count; i++) {
             var module = modules[i];
             module.InternalApplyServices(serviceCollection);
@@ -189,7 +203,24 @@ public class DependencyRegistry<T> {
             if (module is IServiceCollectionConfiguration serviceCollectionConfigure) {
                 serviceCollectionConfigure.ConfigureServices(serviceCollection);
             }
+
+            if (module is IEnvironmentServiceCollectionConfiguration environmentConfigure) {
+                environmentConfigure.ConfigureServices(serviceCollection, environment);
+            }
         }
+    }
+
+    private static IModuleEnvironment? FindModuleEnvironment(IServiceCollection serviceCollection) {
+        for (var i = serviceCollection.Count - 1; i >= 0; i--) {
+            var descriptor = serviceCollection[i];
+            if (descriptor.ServiceType == typeof(IModuleEnvironment) &&
+                descriptor.Lifetime == ServiceLifetime.Singleton &&
+                descriptor.ImplementationInstance is IModuleEnvironment environment) {
+                return environment;
+            }
+        }
+
+        return null;
     }
 
     private static void ApplyFeatures(IServiceCollection serviceCollection, IReadOnlyList<IDependencyModule> modules) {
