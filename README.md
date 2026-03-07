@@ -280,6 +280,7 @@ Example generated code for [SutModule.cs](integ-tests/SutProject/SutModule.cs)
     // SutModule.Dependencies.g.cs
     public partial class SutModule
     {
+        [DynamicDependency(nameof(ModuleDependencies))]
         private static int moduleField = global::DependencyModules.Runtime.Helpers.DependencyRegistry<global::SutProject.SutModule>.Add(ModuleDependencies);
 
         private static void ModuleDependencies(global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)
