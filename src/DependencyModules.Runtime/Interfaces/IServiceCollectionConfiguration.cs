@@ -18,3 +18,15 @@ public interface IServiceCollectionConfiguration {
     /// <param name="services"></param>
     void ConfigureDecorators(IServiceCollection services) { }
 }
+
+/// <summary>
+///     DependencyModules that need access to the environment during registration should implement this interface.
+/// </summary>
+public interface IEnvironmentServiceCollectionConfiguration {
+    /// <summary>
+    /// Configure services with access to the module environment.
+    /// </summary>
+    /// <param name="services"></param>
+    /// <param name="environment"></param>
+    void ConfigureServices(IServiceCollection services, IModuleEnvironment? environment);
+}

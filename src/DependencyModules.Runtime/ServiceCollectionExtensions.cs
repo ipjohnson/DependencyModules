@@ -40,7 +40,24 @@ public static class ServiceCollectionExtensions {
     /// <returns></returns>
     public static IServiceCollection AddModules(this IServiceCollection services, params IDependencyModule[] modules) {
         DependencyRegistry<object>.LoadModules(services, modules);
-        
+
+        return services;
+    }
+
+    /// <summary>
+    ///     Add dependency modules to service collection with an environment for conditional registration
+    /// </summary>
+    /// <param name="services"></param>
+    /// <param name="environment"></param>
+    /// <param name="modules"></param>
+    /// <returns></returns>
+    public static IServiceCollection AddModules(this IServiceCollection services, IModuleEnvironment? environment, params IDependencyModule[] modules) {
+        if (environment != null) {
+            services.AddSingleton(environment);
+        }
+
+        DependencyRegistry<object>.LoadModules(services, modules);
+
         return services;
     }
 }
