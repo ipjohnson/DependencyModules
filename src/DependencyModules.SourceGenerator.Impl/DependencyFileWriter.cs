@@ -75,6 +75,7 @@ public class DependencyFileWriter {
         var field = classDefinition.AddField(typeof(int), lowerName);
 
         field.Modifiers |= ComponentModifier.Private | ComponentModifier.Static;
+        field.AddAttribute(TypeDefinition.Get("System.Diagnostics.CodeAnalysis", "DynamicDependency"), $"nameof({methodName})");
 
         var closedType = new GenericTypeDefinition(
             TypeDefinitionEnum.ClassDefinition, KnownTypes.DependencyModules.Helpers.Namespace, "DependencyRegistry", new[] {
