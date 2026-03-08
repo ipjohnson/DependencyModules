@@ -33,6 +33,11 @@
             <PackagePath>src\DependencyModules.SourceGenerator.Impl\</PackagePath>
             <PackageCopyToOutput>true</PackageCopyToOutput>
         </Content>
+        <Content Include="..\DependencyModules.SourceGenerator\ServiceSourceGenerator.cs" Visible="true">
+            <Pack>true</Pack>
+            <PackagePath>src\DependencyModules.SourceGenerator\</PackagePath>
+            <PackageCopyToOutput>true</PackageCopyToOutput>
+        </Content>
     </ItemGroup>
 
     <ItemGroup>
