@@ -89,10 +89,12 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
     protected virtual void SetupRootGenerator(IncrementalGeneratorInitializationContext context,
         IncrementalValueProvider<ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)>> valuesProvider) { }
 
+    protected virtual bool ShouldAutoApproveCompilationUnit => true;
+
     private IncrementalValuesProvider<ModuleEntryPointModel> CreateSourceValueProvider(IncrementalGeneratorInitializationContext context) {
         var classSelector = new SyntaxSelector<ClassDeclarationSyntax, RecordDeclarationSyntax, CompilationUnitSyntax>(
             ModuleAttributeTypes()) {
-            AutoApproveCompilationUnit = true,
+            AutoApproveCompilationUnit = ShouldAutoApproveCompilationUnit,
             ApproveFilter = "Program.cs",
         };
 
