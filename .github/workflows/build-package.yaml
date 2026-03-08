@@ -19,6 +19,6 @@ jobs:
           NUGET_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}
       - run: dotnet restore DependencyModules.sln
       - run: dotnet build DependencyModules.sln --no-restore --configuration Release
-      - run: dotnet test DependencyModules.sln --no-build --configuration Release
+      - run: dotnet test integ-tests/SutProject.Tests/SutProject.Tests.csproj integ-tests/web/WebApiApp.Tests/WebApiApp.Tests.csproj --no-build --configuration Release
       - run: dotnet pack DependencyModules.sln --configuration Release --no-build /p:PackageVersion=1.0.0-Alpha${{ github.run_number }}
       - run: dotnet nuget push src/**/bin/Release/*.nupkg --api-key ${{secrets.GITHUB_TOKEN}} --source "https://nuget.pkg.github.com/ipjohnson/index.json" --skip-duplicate
