@@ -20,7 +20,8 @@ public record DependencyModuleConfigurationModel(
     bool AutoGenerateEntry,
     string LogOutputFolder,
     LogOutputLevel LogOutputLevel,
-    bool GenerateFactories
+    bool GenerateFactories,
+    bool ExcludeGeneratedCodeFromCoverage = true
 );
 
 public class DependencyModuleConfigurationModelComparer :
@@ -31,14 +32,15 @@ public class DependencyModuleConfigurationModelComparer :
         if (x is null) return false;
         if (y is null) return false;
         if (x.GetType() != y.GetType()) return false;
-        return x.RegistrationType == y.RegistrationType && 
+        return x.RegistrationType == y.RegistrationType &&
                x.RegisterSourceGenerator == y.RegisterSourceGenerator &&
                x.RootNamespace == y.RootNamespace &&
                x.ProjectDir == y.ProjectDir &&
                x.LogOutputFolder == y.LogOutputFolder &&
                x.AutoGenerateEntry == y.AutoGenerateEntry &&
                x.LogOutputLevel == y.LogOutputLevel &&
-               x.GenerateFactories == y.GenerateFactories;
+               x.GenerateFactories == y.GenerateFactories &&
+               x.ExcludeGeneratedCodeFromCoverage == y.ExcludeGeneratedCodeFromCoverage;
     }
 
     public int GetHashCode(DependencyModuleConfigurationModel obj) {

@@ -1,5 +1,9 @@
 <Project>
+    <PropertyGroup>
+        <ExcludeGeneratedCodeFromCoverage Condition="'$(ExcludeGeneratedCodeFromCoverage)' == ''">true</ExcludeGeneratedCodeFromCoverage>
+    </PropertyGroup>
     <ItemGroup>
         <CompilerVisibleProperty Include="DependencyModules_RegistrationType"/>
+        <CompilerVisibleProperty Include="ExcludeGeneratedCodeFromCoverage"/>
     </ItemGroup>
 </Project>
