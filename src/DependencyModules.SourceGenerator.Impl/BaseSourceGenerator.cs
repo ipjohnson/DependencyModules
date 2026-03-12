@@ -73,16 +73,22 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
             if (options.GlobalOptions.TryGetValue("build_property.DependencyModules_GenerateFactories", out var generateFactoriesString)) {
                 generateFactories = generateFactoriesString.Equals("true", StringComparison.OrdinalIgnoreCase);
             }
-            
+
+            var excludeGeneratedCodeFromCoverage = true;
+            if (options.GlobalOptions.TryGetValue("build_property.ExcludeGeneratedCodeFromCoverage", out var excludeCoverageString)) {
+                excludeGeneratedCodeFromCoverage = !excludeCoverageString.Equals("false", StringComparison.OrdinalIgnoreCase);
+            }
+
             return new DependencyModuleConfigurationModel(
-                defaultRegistrationType, 
-                registerSourceGenerator, 
+                defaultRegistrationType,
+                registerSourceGenerator,
                 rootNamespace,
                 projectDirectory,
                 autoGenerateEntry,
                 logOutputFolder,
                 LogOutputLevel.Debug,
-                generateFactories);
+                generateFactories,
+                excludeGeneratedCodeFromCoverage);
         }).WithComparer(new DependencyModuleConfigurationModelComparer());
     }
 

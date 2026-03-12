@@ -63,6 +63,11 @@ public class DependencyFileWriter {
 
         classDefinition.Modifiers |= ComponentModifier.Partial;
 
+        if (configurationModel.ExcludeGeneratedCodeFromCoverage) {
+            classDefinition.AddAttribute(
+                TypeDefinition.Get("System.Diagnostics.CodeAnalysis", "ExcludeFromCodeCoverage"));
+        }
+
         var methodName =
             GenerateDependencyMethod(entryPointModel, configurationModel, serviceModels, classDefinition, uniqueId);
 
