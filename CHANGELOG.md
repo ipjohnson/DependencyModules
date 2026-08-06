@@ -23,6 +23,10 @@ fixes packaging and generated-code defects and commits to the API surface going 
   `DependencyModules_RegistrationType` silently stopped reaching the generator.
 - **`DependencyModules_LogOutputDirectory` is now honoured.** Generator diagnostic logs were
   written to the compiler's working directory instead of the configured folder.
+- **Nested service classes generate valid code.** A service declared inside another type was
+  emitted without its containing type — `Namespace.Inner` instead of `Namespace.Outer.Inner` —
+  so the generated registration failed to compile with `CS0234`. Note that modules themselves
+  still have to be declared directly in a namespace; see the README.
 - **Incremental generation now caches.** The generator's model records compared their
   `IReadOnlyList` members by reference, which a positional record does by default. Because every
   module carries at least the `[DependencyModule]` attribute, and the attribute list is rebuilt on

@@ -54,6 +54,11 @@ public class OtherService
 ```
 
 Note: `[DependencyModule]` is not required for [Top-level](https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/program-structure/top-level-statements) statement applications.
+
+Note: a `[DependencyModule]` class must be declared directly in a namespace, not nested inside
+another type. A nested module generates a separate, detached class rather than completing the
+partial declaration, so its registrations never run. Services registered with
+`[SingletonService]` and friends may be nested freely.
 ## Container Instantiation
 
 * `AddModule` - method adds root module to service collection

@@ -12,6 +12,8 @@
         <!-- Referenced as a library, not an analyzer: these tests drive the generator directly. -->
         <ProjectReference Include="..\..\src\DependencyModules.SourceGenerator\DependencyModules.SourceGenerator.csproj"
                           OutputItemType="Analyzer" ReferenceOutputAssembly="true"/>
+        <ProjectReference Include="..\..\src\DependencyModules.xUnit\DependencyModules.xUnit.csproj"/>
+        <ProjectReference Include="..\..\src\DependencyModules.xUnit.NSubstitute\DependencyModules.xUnit.NSubstitute.csproj"/>
     </ItemGroup>
 
     <ItemGroup>

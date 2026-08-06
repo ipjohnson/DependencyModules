@@ -54,7 +54,7 @@ jobs:
       - run: dotnet build DependencyModules.sln --no-restore --configuration Release
 
       - name: Test with coverage
-        run: ./scripts/coverage.sh 70
+        run: ./scripts/coverage.sh 85
 
       - name: Publish coverage to the job summary
         if: always()

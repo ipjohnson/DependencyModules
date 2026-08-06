@@ -14,7 +14,7 @@ permissions:
 env:
   # Ratchet: raise this as coverage improves. Kept just below the current figure so an
   # unrelated change does not fail the build on rounding.
-  COVERAGE_THRESHOLD: 70
+  COVERAGE_THRESHOLD: 85
 
 jobs:
   build:
