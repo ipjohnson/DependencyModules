@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using Xunit;
 
@@ -10,9 +11,30 @@ namespace DependencyModules.Tests.Infrastructure;
 /// To accept new output, re-run the tests with UPDATE_SNAPSHOTS=1:
 ///     UPDATE_SNAPSHOTS=1 dotnet test tests/DependencyModules.Tests
 /// and review the resulting changes under tests/DependencyModules.Tests/Snapshots.
+///
+/// Snapshots are read from the build output, where they are copied by the project file.
+/// [CallerFilePath] is deliberately not used to locate them: deterministic builds
+/// (ContinuousIntegrationBuild) rewrite source paths to /_/..., which does not exist on disk.
 /// </summary>
 public static class Snapshot {
     private const string UpdateVariable = "UPDATE_SNAPSHOTS";
+    private const string SnapshotFolderName = "Snapshots";
+
+    /// <summary>
+    /// The copy of the snapshots in the build output. Always present, on any machine.
+    /// </summary>
+    private static string OutputSnapshotDirectory { get; } =
+        Path.Combine(AppContext.BaseDirectory, SnapshotFolderName);
+
+    /// <summary>
+    /// The snapshots in the source tree, injected by the project file at build time. Only used
+    /// when updating, and only meaningful when the tests run on the machine that built them.
+    /// </summary>
+    private static string? SourceSnapshotDirectory { get; } =
+        typeof(Snapshot).Assembly
+            .GetCustomAttributes<AssemblyMetadataAttribute>()
+            .FirstOrDefault(attribute => attribute.Key == "SnapshotDirectory")
+            ?.Value;
 
     public static void Match(
         string actual,
@@ -20,33 +42,52 @@ public static class Snapshot {
         [CallerMemberName] string callerMemberName = "") {
 
         var testClass = Path.GetFileNameWithoutExtension(callerFilePath);
-        var snapshotDirectory = Path.Combine(FindTestProjectRoot(callerFilePath), "Snapshots");
-        var snapshotPath = Path.Combine(snapshotDirectory, $"{testClass}.{callerMemberName}.verified.txt");
-
+        var fileName = $"{testClass}.{callerMemberName}.verified.txt";
         var normalized = Normalize(actual);
 
         if (ShouldUpdate) {
-            Directory.CreateDirectory(snapshotDirectory);
-            File.WriteAllText(snapshotPath, normalized);
+            Update(fileName, normalized);
             return;
         }
 
+        var snapshotPath = Path.Combine(OutputSnapshotDirectory, fileName);
+
         Assert.True(File.Exists(snapshotPath),
-            $"Missing snapshot '{Path.GetFileName(snapshotPath)}'. Re-run with {UpdateVariable}=1 to create it." +
+            $"Missing snapshot '{fileName}'. Re-run with {UpdateVariable}=1 to create it." +
             Environment.NewLine + "Actual output was:" + Environment.NewLine + normalized);
 
         var expected = Normalize(File.ReadAllText(snapshotPath));
 
         if (expected != normalized) {
-            var receivedPath = snapshotPath.Replace(".verified.txt", ".received.txt");
+            var receivedPath = Path.Combine(OutputSnapshotDirectory, fileName.Replace(".verified.txt", ".received.txt"));
             File.WriteAllText(receivedPath, normalized);
 
             Assert.Fail(
-                $"Generated output does not match '{Path.GetFileName(snapshotPath)}'." + Environment.NewLine +
-                $"Wrote actual output to '{Path.GetFileName(receivedPath)}'." + Environment.NewLine +
+                $"Generated output does not match '{fileName}'." + Environment.NewLine +
+                $"Wrote actual output to '{receivedPath}'." + Environment.NewLine +
                 $"If the change is intended, re-run with {UpdateVariable}=1." + Environment.NewLine +
                 Environment.NewLine + FirstDifference(expected, normalized));
         }
+    }
+
+    /// <summary>
+    /// Writes to the source tree so the change can be reviewed and committed, and to the build
+    /// output so a subsequent run in the same session reads the updated value.
+    /// </summary>
+    private static void Update(string fileName, string content) {
+        Assert.True(!string.IsNullOrEmpty(SourceSnapshotDirectory),
+            $"Cannot update snapshots: the assembly has no SnapshotDirectory metadata. " +
+            $"Rebuild the test project, then re-run with {UpdateVariable}=1.");
+
+        Assert.True(Directory.Exists(Path.GetDirectoryName(SourceSnapshotDirectory!)),
+            $"Cannot update snapshots: '{SourceSnapshotDirectory}' is not reachable from this machine. " +
+            "Snapshots can only be updated from a checkout of the source tree.");
+
+        Directory.CreateDirectory(SourceSnapshotDirectory!);
+        File.WriteAllText(Path.Combine(SourceSnapshotDirectory!, fileName), content);
+
+        Directory.CreateDirectory(OutputSnapshotDirectory);
+        File.WriteAllText(Path.Combine(OutputSnapshotDirectory, fileName), content);
     }
 
     private static bool ShouldUpdate {
@@ -59,21 +100,6 @@ public static class Snapshot {
 
     private static string Normalize(string value) =>
         value.Replace("\r\n", "\n").TrimEnd() + "\n";
-
-    /// <summary>
-    /// Walks up from the test source file to the directory holding the .csproj, so snapshots are
-    /// written next to the sources rather than into the build output.
-    /// </summary>
-    private static string FindTestProjectRoot(string callerFilePath) {
-        var directory = new DirectoryInfo(Path.GetDirectoryName(callerFilePath)!);
-
-        while (directory != null && !directory.EnumerateFiles("*.csproj").Any()) {
-            directory = directory.Parent;
-        }
-
-        return directory?.FullName
-               ?? throw new InvalidOperationException($"Could not locate the test project root from '{callerFilePath}'.");
-    }
 
     private static string FirstDifference(string expected, string actual) {
         var expectedLines = expected.Split('\n');

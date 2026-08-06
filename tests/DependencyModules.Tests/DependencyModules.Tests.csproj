@@ -15,6 +15,10 @@
     </ItemGroup>
 
     <ItemGroup>
+        <PackageReference Include="coverlet.collector" Version="6.0.2">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
         <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.10.0"/>
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1"/>
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0"/>
@@ -23,6 +27,22 @@
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
         <PackageReference Include="xunit.v3" Version="1.0.0"/>
+    </ItemGroup>
+
+    <!--
+        Snapshots are read from the build output so the tests do not depend on source paths,
+        which deterministic builds rewrite to /_/... The source location is injected separately
+        and used only when UPDATE_SNAPSHOTS=1.
+    -->
+    <ItemGroup>
+        <Content Include="Snapshots\**\*.verified.txt" CopyToOutputDirectory="PreserveNewest" LinkBase="Snapshots"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+            <_Parameter1>SnapshotDirectory</_Parameter1>
+            <_Parameter2>$(MSBuildProjectDirectory)/Snapshots</_Parameter2>
+        </AssemblyAttribute>
     </ItemGroup>
 
 </Project>

@@ -83,6 +83,58 @@ public static class GeneratorTestHarness {
     public static GeneratorResult Run(string source, IReadOnlyDictionary<string, string>? buildProperties = null) =>
         Run(new Dictionary<string, string> { ["Test.cs"] = source }, buildProperties);
 
+    /// <summary>
+    /// Runs the generator over <paramref name="first"/>, then re-runs the same driver over
+    /// <paramref name="second"/>, reporting why each output was or was not recomputed.
+    ///
+    /// This is how the model comparers earn their keep: when an edit cannot affect generated
+    /// output, Roslyn should reuse the cached result rather than regenerate. Getting this wrong
+    /// makes the IDE recompute on every keystroke, or serve stale output after a real change.
+    /// </summary>
+    public static IncrementalRunResult RunIncremental(
+        IReadOnlyDictionary<string, string> first,
+        IReadOnlyDictionary<string, string> second,
+        IReadOnlyDictionary<string, string>? buildProperties = null) {
+
+        var projectDir = ResolveProjectDir(buildProperties);
+
+        Compilation Compile(IReadOnlyDictionary<string, string> sources) =>
+            CSharpCompilation.Create(
+                "GeneratorTestAssembly",
+                sources.Select(pair => CSharpSyntaxTree.ParseText(
+                    pair.Value,
+                    new CSharpParseOptions(LanguageVersion.Latest),
+                    path: Path.Combine(projectDir, pair.Key))),
+                References.Value,
+                new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
+
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(
+            new ISourceGenerator[] { new SourceGenerator.SourceGenerator().AsSourceGenerator() },
+            optionsProvider: new TestAnalyzerConfigOptionsProvider(buildProperties),
+            parseOptions: new CSharpParseOptions(LanguageVersion.Latest),
+            driverOptions: new GeneratorDriverOptions(default, trackIncrementalGeneratorSteps: true));
+
+        driver = driver.RunGenerators(Compile(first));
+        var firstOutputs = Outputs(driver.GetRunResult());
+
+        driver = driver.RunGenerators(Compile(second));
+        var secondRun = driver.GetRunResult();
+
+        var reasons = secondRun.Results
+            .SelectMany(result => result.TrackedOutputSteps)
+            .SelectMany(step => step.Value)
+            .SelectMany(step => step.Outputs)
+            .Select(output => output.Reason)
+            .ToArray();
+
+        return new IncrementalRunResult(firstOutputs, Outputs(secondRun), reasons);
+    }
+
+    private static IReadOnlyDictionary<string, string> Outputs(GeneratorDriverRunResult runResult) =>
+        runResult.Results
+            .SelectMany(result => result.GeneratedSources)
+            .ToDictionary(generated => generated.HintName, generated => generated.SourceText.ToString());
+
     internal static string DefaultProjectDir { get; } =
         Path.Combine(Path.GetTempPath(), "GeneratorTest") + Path.DirectorySeparatorChar;
 
@@ -201,6 +253,31 @@ public class GeneratorResult(
 
         return builder.ToString().Replace("\r\n", "\n").TrimEnd() + "\n";
     }
+}
+
+/// <summary>
+/// The generated output of two consecutive generator runs, plus why the second run's outputs
+/// were recomputed or reused.
+/// </summary>
+public class IncrementalRunResult(
+    IReadOnlyDictionary<string, string> firstRun,
+    IReadOnlyDictionary<string, string> secondRun,
+    IReadOnlyList<IncrementalStepRunReason> outputReasons) {
+
+    public IReadOnlyDictionary<string, string> FirstRun { get; } = firstRun;
+
+    public IReadOnlyDictionary<string, string> SecondRun { get; } = secondRun;
+
+    public IReadOnlyList<IncrementalStepRunReason> OutputReasons { get; } = outputReasons;
+
+    /// <summary>
+    /// True when the second run reused every cached output, meaning the edit was correctly
+    /// recognised as irrelevant to generation.
+    /// </summary>
+    public bool AllOutputsCached =>
+        OutputReasons.Count > 0 &&
+        OutputReasons.All(reason =>
+            reason is IncrementalStepRunReason.Cached or IncrementalStepRunReason.Unchanged);
 }
 
 internal class TestAnalyzerConfigOptionsProvider(IReadOnlyDictionary<string, string>? buildProperties)

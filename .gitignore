@@ -189,3 +189,6 @@ $RECYCLE.BIN/
 
 # Snapshot test output awaiting review
 *.received.txt
+
+# Local build artifacts (coverage reports, packed output)
+artifacts/

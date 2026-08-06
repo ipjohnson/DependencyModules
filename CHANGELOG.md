@@ -23,6 +23,13 @@ fixes packaging and generated-code defects and commits to the API surface going 
   `DependencyModules_RegistrationType` silently stopped reaching the generator.
 - **`DependencyModules_LogOutputDirectory` is now honoured.** Generator diagnostic logs were
   written to the compiler's working directory instead of the configured folder.
+- **Incremental generation now caches.** The generator's model records compared their
+  `IReadOnlyList` members by reference, which a positional record does by default. Because every
+  module carries at least the `[DependencyModule]` attribute, and the attribute list is rebuilt on
+  each run, no two runs ever produced equal models — so Roslyn re-ran full generation on every
+  keystroke instead of reusing cached output. `AttributeModel`, `AttributeArgumentValue`,
+  `ParameterInfoModel`, `ConstructorInfoModel`, and `ServiceFactoryModel` now compare
+  structurally.
 
 ### Changed
 
@@ -48,6 +55,9 @@ fixes packaging and generated-code defects and commits to the API surface going 
 - `scripts/verify-packages.sh`: packs the libraries and consumes them from a throwaway project
   the way a real user would, asserting on package layout, metadata, generator execution, and
   MSBuild property flow. Runs in CI.
+- `scripts/coverage.sh`: runs every suite with coverage collection, merges the results across the
+  shipping libraries, and fails below a threshold. CI publishes the summary to the run summary and
+  a coverage badge to the `badges` branch.
 - A tag-driven release workflow publishing to nuget.org and GitHub Packages.
 
 [1.0.0]: https://github.com/ipjohnson/DependencyModules/releases/tag/v1.0.0

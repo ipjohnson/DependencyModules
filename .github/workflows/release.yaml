@@ -53,14 +53,15 @@ jobs:
 
       - run: dotnet build DependencyModules.sln --no-restore --configuration Release
 
-      - name: Unit and generator tests
-        run: dotnet test tests/DependencyModules.Tests/DependencyModules.Tests.csproj --no-build --configuration Release
+      - name: Test with coverage
+        run: ./scripts/coverage.sh 70
 
-      - name: Integration tests
-        run: dotnet test integ-tests/SutProject.Tests/SutProject.Tests.csproj --no-build --configuration Release
-
-      - name: Web integration tests
-        run: dotnet test integ-tests/web/WebApiApp.Tests/WebApiApp.Tests.csproj --no-build --configuration Release
+      - name: Publish coverage to the job summary
+        if: always()
+        run: |
+          if [ -f artifacts/coverage/SummaryGithub.md ]; then
+            cat artifacts/coverage/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Verify packages
         run: ./scripts/verify-packages.sh "${{ steps.version.outputs.version }}"
