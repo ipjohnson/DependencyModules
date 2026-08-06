@@ -9,53 +9,51 @@
         <IsPackable>True</IsPackable>
         <Nullable>enable</Nullable>
         <PackageId>DependencyModules.SourceGenerator.Impl</PackageId>
+        <Description>Source-only package containing the DependencyModules generator internals. Set PackageDependencyModuleIncludeSource=true to compile these sources into your own Roslyn generator and extend DependencyModules with custom attributes and registration logic. Most projects want DependencyModules.SourceGenerator instead.</Description>
+        <DevelopmentDependency>true</DevelopmentDependency>
         <IncludeBuildOutput>false</IncludeBuildOutput>
-    </PropertyGroup>
-
-    <ItemGroup>
-        <PackageReference Include="CSharpAuthor" Version="1.1.1006">
-            <PrivateAssets>all</PrivateAssets>
-            <IncludeAssets>build</IncludeAssets>
-        </PackageReference>
-    </ItemGroup>
-
-    <Import Project="../nuget.props"/>
-    
-    <ItemGroup>
-        <None Remove="Package\DependencyModules.*"/>
-        <Content Include="Package\DependencyModules.*">
-            <Pack>true</Pack>
-            <PackagePath>build\</PackagePath>
-            <PackageCopyToOutput>true</PackageCopyToOutput>
-        </Content>
-        <Content Include="**\*.cs" Exclude="**\obj\**;**\bin\**" Visible="true">
-            <Pack>true</Pack>
-            <PackagePath>src\DependencyModules.SourceGenerator.Impl\</PackagePath>
-            <PackageCopyToOutput>true</PackageCopyToOutput>
-        </Content>
-        <Content Include="..\DependencyModules.SourceGenerator\ServiceSourceGenerator.cs" Visible="true">
-            <Pack>true</Pack>
-            <PackagePath>src\DependencyModules.SourceGenerator\</PackagePath>
-            <PackageCopyToOutput>true</PackageCopyToOutput>
-        </Content>
-    </ItemGroup>
-
-    <ItemGroup>
-        <PackageReference Include="Microsoft.Extensions.Primitives" Version="8.0.0"/>
-        <PackageReference Include="System.Memory" Version="4.5.5"/>
-        <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4">
-            <PrivateAssets>all</PrivateAssets>
-            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-        </PackageReference>
-        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.10.0"/>
-    </ItemGroup>
-
-    <PropertyGroup>
-        <IncludeBuildOutput>false</IncludeBuildOutput>
+        <!-- Source-only package: ships .cs under src/ and no lib/, which is exactly what NU5128 flags. -->
+        <NoWarn>$(NoWarn);NU5128</NoWarn>
     </PropertyGroup>
 
     <PropertyGroup>
         <PackageCSharpAuthorIncludeSource>true</PackageCSharpAuthorIncludeSource>
     </PropertyGroup>
+
+    <ItemGroup>
+        <!-- PackagePath must use a forward slash: a trailing backslash packs to "build//" on Linux/macOS,
+             which breaks NuGet's build/$(PackageId).props|targets convention. -->
+        <None Remove="Package\DependencyModules.*"/>
+        <Content Include="Package\DependencyModules.*">
+            <Pack>true</Pack>
+            <PackagePath>build/</PackagePath>
+            <PackageCopyToOutput>true</PackageCopyToOutput>
+        </Content>
+        <Content Include="**\*.cs" Exclude="**\obj\**;**\bin\**" Visible="true">
+            <Pack>true</Pack>
+            <PackagePath>src/DependencyModules.SourceGenerator.Impl/</PackagePath>
+            <PackageCopyToOutput>true</PackageCopyToOutput>
+        </Content>
+        <Content Include="..\DependencyModules.SourceGenerator\ServiceSourceGenerator.cs" Visible="true">
+            <Pack>true</Pack>
+            <PackagePath>src/DependencyModules.SourceGenerator/</PackagePath>
+            <PackageCopyToOutput>true</PackageCopyToOutput>
+        </Content>
+    </ItemGroup>
+
+    <!-- These deps intentionally flow: consumers compile the shipped sources into their own generator. -->
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.Primitives" Version="8.0.0"/>
+        <PackageReference Include="System.Memory" Version="4.5.5"/>
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.10.0"/>
+        <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="CSharpAuthor" Version="1.1.1006">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>build</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
 
 </Project>

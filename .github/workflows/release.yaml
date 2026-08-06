@@ -1,0 +1,109 @@
+name: release
+
+# Cutting a release:
+#   git tag v1.0.0 && git push origin v1.0.0
+#
+# The tag is the single source of truth for the published version. Requires a NUGET_API_KEY
+# repository secret with push rights for the DependencyModules.* package IDs on nuget.org.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (without the leading v), e.g. 1.0.0'
+        required: true
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
+
+          # Guard against a mistyped tag producing a bad package version.
+          if ! echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "::error::'$VERSION' is not a valid semantic version"
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Releasing $VERSION"
+
+      - run: dotnet restore DependencyModules.sln
+
+      - run: dotnet build DependencyModules.sln --no-restore --configuration Release
+
+      - name: Unit and generator tests
+        run: dotnet test tests/DependencyModules.Tests/DependencyModules.Tests.csproj --no-build --configuration Release
+
+      - name: Integration tests
+        run: dotnet test integ-tests/SutProject.Tests/SutProject.Tests.csproj --no-build --configuration Release
+
+      - name: Web integration tests
+        run: dotnet test integ-tests/web/WebApiApp.Tests/WebApiApp.Tests.csproj --no-build --configuration Release
+
+      - name: Verify packages
+        run: ./scripts/verify-packages.sh "${{ steps.version.outputs.version }}"
+
+      # Only the shipping projects; packing the whole solution drags in the integration projects.
+      - name: Pack
+        run: |
+          for project in \
+            src/DependencyModules.Runtime/DependencyModules.Runtime.csproj \
+            src/DependencyModules.SourceGenerator/DependencyModules.SourceGenerator.csproj \
+            src/DependencyModules.SourceGenerator.Impl/DependencyModules.SourceGenerator.Impl.csproj \
+            src/DependencyModules.xUnit/DependencyModules.xUnit.csproj \
+            src/DependencyModules.xUnit.NSubstitute/DependencyModules.xUnit.NSubstitute.csproj; do
+            dotnet pack "$project" --configuration Release --output ./artifacts \
+              "/p:PackageVersion=${{ steps.version.outputs.version }}"
+          done
+          ls -la ./artifacts
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: ./artifacts/*
+
+      - name: Push to nuget.org
+        run: |
+          dotnet nuget push "./artifacts/*.nupkg" \
+            --api-key "${{ secrets.NUGET_API_KEY }}" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+
+      - name: Push to GitHub Packages
+        run: |
+          dotnet nuget push "./artifacts/*.nupkg" \
+            --api-key ${{ secrets.GITHUB_TOKEN }} \
+            --source "https://nuget.pkg.github.com/ipjohnson/index.json" \
+            --skip-duplicate --no-symbols
+
+      - name: Create GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes \
+            ./artifacts/*.nupkg

@@ -1,0 +1,35 @@
+<Project>
+
+    <!--
+        Single source of truth for the product version.
+        Release builds override PackageVersion from the git tag (see .github/workflows/release.yaml);
+        local and CI builds fall back to the values below.
+    -->
+    <PropertyGroup>
+        <VersionPrefix>1.0.0</VersionPrefix>
+        <AssemblyVersion>1.0.0.0</AssemblyVersion>
+        <FileVersion>1.0.0.0</FileVersion>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <Authors>Ian Johnson</Authors>
+        <Company>Ian Johnson</Company>
+        <Copyright>Copyright (c) Ian Johnson</Copyright>
+        <PackageProjectUrl>https://github.com/ipjohnson/DependencyModules</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/ipjohnson/DependencyModules</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+        <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageTags>dependency-injection;di;ioc;source-generator;roslyn;servicecollection;modules</PackageTags>
+        <PackageReleaseNotes>https://github.com/ipjohnson/DependencyModules/releases</PackageReleaseNotes>
+    </PropertyGroup>
+
+    <!-- Deterministic, source-linked builds so consumers can step into the library. -->
+    <PropertyGroup>
+        <PublishRepositoryUrl>true</PublishRepositoryUrl>
+        <EmbedUntrackedSources>true</EmbedUntrackedSources>
+        <Deterministic>true</Deterministic>
+        <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+    </PropertyGroup>
+
+</Project>

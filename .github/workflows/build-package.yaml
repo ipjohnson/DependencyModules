@@ -1,6 +1,11 @@
 name: build-package
 
-on: [push]
+on:
+  push:
+    branches: ['**']
+    tags-ignore: ['v*']
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: read
@@ -11,15 +16,59 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - run: dotnet restore DependencyModules.sln
+
+      - run: dotnet build DependencyModules.sln --no-restore --configuration Release
+
+      - name: Unit and generator tests
+        run: dotnet test tests/DependencyModules.Tests/DependencyModules.Tests.csproj --no-build --configuration Release
+
+      - name: Integration tests
+        run: dotnet test integ-tests/SutProject.Tests/SutProject.Tests.csproj --no-build --configuration Release
+
+      - name: Web integration tests
+        run: dotnet test integ-tests/web/WebApiApp.Tests/WebApiApp.Tests.csproj --no-build --configuration Release
+
+      # Packs and consumes the packages the way a real user would. Catches packaging faults
+      # that a ProjectReference-based test suite cannot see.
+      - name: Verify packages
+        run: ./scripts/verify-packages.sh
+
+  publish-prerelease:
+    # Development builds for anyone tracking main; the released packages come from release.yaml.
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
           source-url: https://nuget.pkg.github.com/ipjohnson/index.json
         env:
-          NUGET_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          NUGET_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - run: dotnet restore DependencyModules.sln
+
       - run: dotnet build DependencyModules.sln --no-restore --configuration Release
-      - run: dotnet test integ-tests/SutProject.Tests/SutProject.Tests.csproj --no-build --configuration Release
-      - run: dotnet test integ-tests/web/WebApiApp.Tests/WebApiApp.Tests.csproj --no-build --configuration Release
-      - run: dotnet pack DependencyModules.sln --configuration Release --no-build /p:PackageVersion=1.0.0-rel${{ github.run_number }}
-      - run: dotnet nuget push src/**/bin/Release/*.nupkg --api-key ${{secrets.GITHUB_TOKEN}} --source "https://nuget.pkg.github.com/ipjohnson/index.json" --skip-duplicate
+
+      - name: Pack prerelease
+        run: |
+          dotnet pack DependencyModules.sln --configuration Release --no-build \
+            --output ./artifacts \
+            --version-suffix "ci.${{ github.run_number }}"
+
+      - name: Push to GitHub Packages
+        run: |
+          dotnet nuget push "./artifacts/*.nupkg" \
+            --api-key ${{ secrets.GITHUB_TOKEN }} \
+            --source "https://nuget.pkg.github.com/ipjohnson/index.json" \
+            --skip-duplicate --no-symbols

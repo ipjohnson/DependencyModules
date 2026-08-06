@@ -1,23 +1,32 @@
 # DependencyModules
 
+[![NuGet](https://img.shields.io/nuget/v/DependencyModules.Runtime.svg)](https://www.nuget.org/packages/DependencyModules.Runtime/)
+[![build](https://github.com/ipjohnson/DependencyModules/actions/workflows/build-package.yaml/badge.svg)](https://github.com/ipjohnson/DependencyModules/actions/workflows/build-package.yaml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE.txt)
+
 DependencyModules is a C# source generator package that uses attributes to create
 dependency injection registration modules. These modules can then be used to populate 
 an IServiceCollection instance.
 
+Registration code is generated at compile time, so there is no reflection or assembly
+scanning at run time.
+
 ## Installation
 
-```csharp
+```shell
 dotnet add package DependencyModules.Runtime
 dotnet add package DependencyModules.SourceGenerator
 ```
+
+Requires .NET 8.0 or later. See [CHANGELOG.md](CHANGELOG.md) for release notes.
 
 ## Service Attributes 
 
 * `[DependencyModule]` - used to attribute class that will become dependency module (must be partial)
 * `[SingletonService]` - registers service as `AddSingleton`
-* `[ScopedService]` - registers service as `AdddScoped`
+* `[ScopedService]` - registers service as `AddScoped`
 * `[TransientService]` - registers service as `AddTransient`
-* `[CrossWireService]` - register implementation and interfaces with the same lifetime
+* `[CrossWireService]` - registers implementation and interfaces with the same lifetime
 
 ```csharp
 // Registration example
@@ -31,7 +40,7 @@ public class SomeClass : ISomeService
   public string SomeProp => "SomeString";
 }
 
-// registers OtherSerice implementation
+// registers OtherService implementation
 [TransientService]
 public class OtherService
 {
@@ -50,6 +59,9 @@ Note: `[DependencyModule]` is not required for [Top-level](https://learn.microso
 * `AddModules` - add a list of modules to the service collection
 
 ```csharp
+// AddModule and AddModules are extension methods in the DependencyModules.Runtime namespace
+using DependencyModules.Runtime;
+
 var serviceCollection = new ServiceCollection();
 
 serviceCollection.AddModule<ApplicationModule>();
@@ -61,7 +73,7 @@ var provider = serviceCollection.BuildServiceProvider();
 var service = provider.GetService<OtherService>();
 ```
 
-Note: to avoid duplicate modules it's recommend to only call AddModule(s) once in an application and never inside a Module.
+Note: to avoid duplicate modules it's recommended to only call AddModule(s) once in an application and never inside a Module.
 ## Factories
 
 Sometimes it's not possible to construct all types through normal registration.
@@ -115,21 +127,21 @@ public partial class SomeOtherModule;
 ```
 
 ## Module Features
-Because module configuration happens before the dependency injection container is instantiate it's impossible to use the container for configuration.
+Because module configuration happens before the dependency injection container is instantiated it's impossible to use the container for configuration.
 To support configuration discovery before registration, the feature interface can be 
-implemented in modules and be passed to a handler at registration time. Features applied before service and decorators.
+implemented in modules and be passed to a handler at registration time. Features are applied before services and decorators.
 
 ```csharp
 // feature interface
 public interface IFeature { }
 
 [DependencyModule]
-public partial class ModuleImeplementation : ISomeFeature
+public partial class ModuleImplementation : ISomeFeature
 {
 }
 
 [DependencyModule]
-[ModuleImeplementation]
+[ModuleImplementation]
 public partial class FeatureHandlerModule : IDependencyModuleFeature<ISomeFeature> 
 {
   public void HandleFeature(IServiceCollection collection, IEnumerable<ISomeFeature> features) 
@@ -141,7 +153,7 @@ public partial class FeatureHandlerModule : IDependencyModuleFeature<ISomeFeatur
 
 ## Managing duplicate registration
 
-By default a module will only be loaded once, assuming attributes are used or the modules are specified in the same `AddModules` call. Seperate calls to `AddModule` will result in modules being loaded multiple times. If a module uses parameters it can be useful to load a module more than once. That can be accompilished by overriding the `Equals` and `GetHashcode` methods to allow for multiple loads.
+By default a module will only be loaded once, assuming attributes are used or the modules are specified in the same `AddModules` call. Separate calls to `AddModule` will result in modules being loaded multiple times. If a module uses parameters it can be useful to load a module more than once. That can be accomplished by overriding the `Equals` and `GetHashcode` methods to allow for multiple loads.
 
 ```csharp
 // CustomModule will be loaded as long as someString is unique.
@@ -171,7 +183,7 @@ public partial class CustomModule(string someString) : IServiceCollectionConfigu
 }
 ```
 
-Services will be registered using an `Add` method by default. This can be overriden with the `Using` property on individual service or at the `DepedencyModule` level. Note: the following are valid registration types Add, Try, TryEnumerable, Replace.
+Services will be registered using an `Add` method by default. This can be overridden with the `Using` property on individual service or at the `DependencyModule` level. Note: the following are valid registration types Add, Try, TryEnumerable, Replace.
 
 ```csharp
 [SingletonService(Using = RegistrationType.Try)]
@@ -353,7 +365,7 @@ namespace SutProject
     }
     #nullable disable
 
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Assembly | AttributeTargets.Method | AttributeTargets.Parameter, AllowMultiple = true)]
+    [global::System.AttributeUsage(global::System.AttributeTargets.Class | global::System.AttributeTargets.Assembly | global::System.AttributeTargets.Method | global::System.AttributeTargets.Parameter, AllowMultiple = true)]
     #nullable enable
     public partial class SutModuleAttribute : global::System.Attribute, global::DependencyModules.Runtime.Interfaces.IDependencyModuleProvider
     {

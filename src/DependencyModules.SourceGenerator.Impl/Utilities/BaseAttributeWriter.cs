@@ -20,9 +20,15 @@ public abstract class BaseAttributeWriter<T> where T : IClassModel {
     private static void AddClassTraits(ClassDefinition attributeClass) {
         attributeClass.EnableNullable();
         attributeClass.WrapInPragma("CS0472");
+        // Fully qualified: generated code must compile regardless of the consumer's using
+        // directives, and nothing else in this file causes a "using System;" to be emitted.
         attributeClass.AddLeadingTrait(
             new UsageAttributeComponent(
-                "[AttributeUsage(AttributeTargets.Class | AttributeTargets.Assembly | AttributeTargets.Method | AttributeTargets.Parameter, AllowMultiple = true)]"));
+                "[global::System.AttributeUsage(" +
+                "global::System.AttributeTargets.Class | " +
+                "global::System.AttributeTargets.Assembly | " +
+                "global::System.AttributeTargets.Method | " +
+                "global::System.AttributeTargets.Parameter, AllowMultiple = true)]"));
     }
 
     protected virtual void CustomImplementation(IConstructContainer container, ClassDefinition attributeClass, T model) {

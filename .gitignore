@@ -186,3 +186,6 @@ $RECYCLE.BIN/
 /.vs/Grace/v15
 /.vs/Grace/DesignTimeBuild/.dtbcache
 /.vs
+
+# Snapshot test output awaiting review
+*.received.txt
