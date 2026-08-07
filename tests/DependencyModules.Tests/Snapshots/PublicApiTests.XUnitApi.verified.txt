@@ -1,0 +1,108 @@
+[assembly: Xunit.Runner.Common.RegisterRunnerReporter(typeof(Xunit.Runner.Common.AppVeyorReporter))]
+[assembly: Xunit.Runner.Common.RegisterRunnerReporter(typeof(Xunit.Runner.Common.DefaultRunnerReporter))]
+[assembly: Xunit.Runner.Common.RegisterRunnerReporter(typeof(Xunit.Runner.Common.JsonReporter))]
+[assembly: Xunit.Runner.Common.RegisterRunnerReporter(typeof(Xunit.Runner.Common.QuietReporter))]
+[assembly: Xunit.Runner.Common.RegisterRunnerReporter(typeof(Xunit.Runner.Common.SilentReporter))]
+[assembly: Xunit.Runner.Common.RegisterRunnerReporter(typeof(Xunit.Runner.Common.TeamCityReporter))]
+[assembly: Xunit.Runner.Common.RegisterRunnerReporter(typeof(Xunit.Runner.Common.VerboseReporter))]
+[assembly: Xunit.Runner.Common.RegisterRunnerReporter(typeof(Xunit.Runner.Common.VstsReporter))]
+namespace DependencyModules.xUnit.Attributes
+{
+    public class InjectValuesAttribute : System.Attribute, DependencyModules.xUnit.Attributes.Interfaces.IInjectValueAttribute
+    {
+        public InjectValuesAttribute(params object[] value) { }
+        public object[] ProvideValue(System.IServiceProvider serviceProvider, System.Reflection.ParameterInfo parameter) { }
+    }
+    [System.AttributeUsage(System.AttributeTargets.Parameter, AllowMultiple=true)]
+    public class MockAttribute : System.Attribute, DependencyModules.xUnit.Attributes.Interfaces.ITestParameterValueProvider
+    {
+        public MockAttribute() { }
+        public System.Threading.Tasks.Task<object?> GetParameterValueAsync(Xunit.v3.IXunitTestMethod context, System.IServiceProvider serviceProvider, System.Reflection.ParameterInfo parameter) { }
+        public void SetupServiceCollection(Xunit.v3.IXunitTestMethod testCaseContext, Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection, System.Reflection.ParameterInfo parameter) { }
+    }
+    [System.AttributeUsage(System.AttributeTargets.Method)]
+    [Xunit.v3.XunitTestCaseDiscoverer(typeof(DependencyModules.xUnit.Impl.ModuleTestDiscoverer))]
+    public class ModuleTestAttribute : Xunit.FactAttribute
+    {
+        public ModuleTestAttribute(params System.Type[] modules) { }
+        public System.Type[] ModuleTypes { get; }
+    }
+    [System.AttributeUsage(System.AttributeTargets.Assembly | System.AttributeTargets.Class | System.AttributeTargets.Method, AllowMultiple=true)]
+    public class TestExportAttribute : System.Attribute, DependencyModules.xUnit.Attributes.Interfaces.ITestStartupAttribute
+    {
+        public TestExportAttribute(System.Type service) { }
+        public System.Type? Implementation { get; set; }
+        public Microsoft.Extensions.DependencyInjection.ServiceLifetime Lifetime { get; set; }
+        public System.Type Service { get; }
+        public void SetupServiceCollection(Xunit.v3.IXunitTestMethod testMethod, Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection) { }
+        public System.Threading.Tasks.Task StartupAsync(Xunit.v3.IXunitTestMethod testMethod, System.IServiceProvider serviceProvider) { }
+    }
+}
+namespace DependencyModules.xUnit.Attributes.Interfaces
+{
+    public interface IInjectValueAttribute
+    {
+        object[] ProvideValue(System.IServiceProvider serviceProvider, System.Reflection.ParameterInfo parameter);
+    }
+    public interface IMockSupportAttribute
+    {
+        object ProvideMock(System.Type type);
+    }
+    public interface IOrderedAttribute
+    {
+        int Order { get; }
+    }
+    public interface IServiceProviderBuilderAttribute
+    {
+        System.IServiceProvider BuildServiceProvider(Xunit.v3.IXunitTestMethod testCaseContext, Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection);
+    }
+    public interface ITestParameterValueProvider
+    {
+        System.Threading.Tasks.Task<object?> GetParameterValueAsync(Xunit.v3.IXunitTestMethod context, System.IServiceProvider serviceProvider, System.Reflection.ParameterInfo parameter);
+        void SetupServiceCollection(Xunit.v3.IXunitTestMethod testCaseContext, Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection, System.Reflection.ParameterInfo parameter);
+    }
+    public interface ITestStartupAttribute
+    {
+        void SetupServiceCollection(Xunit.v3.IXunitTestMethod testMethod, Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection);
+        System.Threading.Tasks.Task StartupAsync(Xunit.v3.IXunitTestMethod testMethod, System.IServiceProvider serviceProvider);
+    }
+}
+namespace DependencyModules.xUnit.Impl
+{
+    public static class AttributeUtility
+    {
+        public static T? GetTestAttribute<T>(this System.Reflection.MethodInfo methodInfo)
+            where T :  class { }
+        public static T? GetTestAttribute<T>(this System.Reflection.ParameterInfo parameterInfo)
+            where T :  class { }
+        public static System.Collections.Generic.IEnumerable<T> GetTestAttributes<T>(this System.Reflection.MethodInfo methodInfo)
+            where T :  class { }
+        public static System.Collections.Generic.IEnumerable<T> GetTestAttributes<T>(this System.Reflection.ParameterInfo parameterInfo)
+            where T :  class { }
+    }
+    public interface ITestCaseInfo
+    {
+        Xunit.v3.IXunitTestMethod TestMethod { get; }
+        System.Collections.Generic.IReadOnlyList<object?> TestMethodArguments { get; set; }
+        System.Collections.Generic.IReadOnlyList<System.Attribute> TestMethodAttributes { get; }
+    }
+    public class ModuleTestCase : Xunit.v3.XunitTestCase
+    {
+        public ModuleTestCase() { }
+        public ModuleTestCase(Xunit.v3.IXunitTestMethod testMethod, string testCaseDisplayName, string uniqueID, bool @explicit, string? skipReason = null, System.Type? skipType = null, string? skipUnless = null, string? skipWhen = null, System.Collections.Generic.Dictionary<string, System.Collections.Generic.HashSet<string>>? traits = null, object?[]? testMethodArguments = null, string? sourceFilePath = null, int? sourceLineNumber = default, int? timeout = default) { }
+        public override System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyCollection<Xunit.v3.IXunitTest>> CreateTests() { }
+        public override void PreInvoke() { }
+    }
+    public class ModuleTestDiscoverer : Xunit.v3.IXunitTestCaseDiscoverer
+    {
+        public ModuleTestDiscoverer() { }
+        public System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyCollection<Xunit.v3.IXunitTestCase>> Discover(Xunit.Sdk.ITestFrameworkDiscoveryOptions discoveryOptions, Xunit.v3.IXunitTestMethod testMethod, Xunit.v3.IFactAttribute factAttribute) { }
+    }
+    public class TestCaseInfo : DependencyModules.xUnit.Impl.ITestCaseInfo
+    {
+        public TestCaseInfo(Xunit.v3.IXunitTestMethod testMethod, System.Collections.Generic.IReadOnlyList<object> testMethodArguments, System.Collections.Generic.IReadOnlyList<System.Attribute> testMethodAttributes) { }
+        public Xunit.v3.IXunitTestMethod TestMethod { get; }
+        public System.Collections.Generic.IReadOnlyList<object?> TestMethodArguments { get; set; }
+        public System.Collections.Generic.IReadOnlyList<System.Attribute> TestMethodAttributes { get; }
+    }
+}

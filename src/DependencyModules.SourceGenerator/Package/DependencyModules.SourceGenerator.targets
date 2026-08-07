@@ -2,8 +2,18 @@
     <PropertyGroup>
         <ExcludeGeneratedCodeFromCoverage Condition="'$(ExcludeGeneratedCodeFromCoverage)' == ''">true</ExcludeGeneratedCodeFromCoverage>
     </PropertyGroup>
+
+    <!--
+        Every property the generator reads has to be listed here, or it is invisible to the
+        compiler and silently takes its default. ProjectDir and RootNamespace are omitted
+        deliberately: the .NET SDK already declares those.
+    -->
     <ItemGroup>
         <CompilerVisibleProperty Include="DependencyModules_RegistrationType"/>
+        <CompilerVisibleProperty Include="DependencyModules_LogOutputDirectory"/>
+        <CompilerVisibleProperty Include="DependencyModules_RegisterGenerator"/>
+        <CompilerVisibleProperty Include="DependencyModules_AutoGenerateModule"/>
+        <CompilerVisibleProperty Include="DependencyModules_GenerateFactories"/>
         <CompilerVisibleProperty Include="ExcludeGeneratedCodeFromCoverage"/>
     </ItemGroup>
 </Project>

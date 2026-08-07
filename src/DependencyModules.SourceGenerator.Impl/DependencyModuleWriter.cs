@@ -38,6 +38,19 @@ public class DependencyModuleWriter {
         ModuleEntryPointModel entryPointModel, 
         DependencyModuleConfigurationModel configurationModel) {
 
+        // Generating into a non-partial type produces CS0260 against the developer's own
+        // declaration, which describes the symptom rather than the fix. Report it directly and
+        // generate nothing, so the only error they see is the actionable one.
+        if (entryPointModel.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.NotPartial)) {
+            context.ReportDiagnostic(
+                Diagnostic.Create(
+                    DependencyModuleDiagnostics.ModuleMustBePartial,
+                    Location.None,
+                    entryPointModel.EntryPointType.Name));
+
+            return;
+        }
+
         entryPointModel = EntryModelUtil.EnsureNamespace(entryPointModel,configurationModel);
 
         var csharpFile = new CSharpFileDefinition(entryPointModel.EntryPointType.Namespace);

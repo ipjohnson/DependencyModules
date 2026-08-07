@@ -68,11 +68,42 @@ public class FileLoggerTests : IDisposable {
         Assert.Contains("the data", content);
     }
 
+    /// <summary>
+    /// With no reporter the exception must escape, so Roslyn reports its own generator failure.
+    /// Swallowing it produced a successful build with no registrations and no message at all.
+    /// </summary>
     [Fact]
-    public void Wrap_RecordsAnExceptionRatherThanPropagatingIt() {
-        var exception = new InvalidOperationException("generator blew up");
+    public void Wrap_WithoutAReporter_RethrowsSoTheFailureIsVisible() {
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => FileLogger.Wrap(
+                "generator",
+                Configuration(_outputFolder),
+                _ => throw new InvalidOperationException("generator blew up")));
 
-        FileLogger.Wrap("generator", Configuration(_outputFolder), _ => throw exception);
+        Assert.Equal("generator blew up", exception.Message);
+    }
+
+    [Fact]
+    public void Wrap_WithAReporter_HandsItTheExceptionInsteadOfPropagating() {
+        Exception? reported = null;
+
+        FileLogger.Wrap(
+            "generator",
+            Configuration(_outputFolder),
+            _ => throw new InvalidOperationException("generator blew up"),
+            exception => reported = exception);
+
+        Assert.NotNull(reported);
+        Assert.Equal("generator blew up", reported!.Message);
+    }
+
+    [Fact]
+    public void Wrap_RecordsTheExceptionInTheLog() {
+        FileLogger.Wrap(
+            "generator",
+            Configuration(_outputFolder),
+            _ => throw new InvalidOperationException("generator blew up"),
+            _ => { });
 
         var content = File.ReadAllText(Directory.GetFiles(_outputFolder).Single());
 

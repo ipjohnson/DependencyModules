@@ -1,0 +1,1190 @@
+namespace CSharpAuthor
+{
+    public class AppendStatement : CSharpAuthor.BaseOutputComponent
+    {
+        public AppendStatement(string appendString, CSharpAuthor.IOutputComponent outputComponent) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class AssignmentStatement : CSharpAuthor.BaseOutputComponent
+    {
+        public AssignmentStatement(CSharpAuthor.IOutputComponent valueComponent, CSharpAuthor.IOutputComponent destinationComponent) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class AttributeDefinition : CSharpAuthor.BaseOutputComponent
+    {
+        public AttributeDefinition(CSharpAuthor.ITypeDefinition attributeType) { }
+        public System.Collections.Generic.IList<CSharpAuthor.IOutputComponent>? Arguments { get; set; }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public abstract class BaseBlockDefinition : CSharpAuthor.BaseOutputComponent
+    {
+        protected readonly System.Collections.Generic.List<CSharpAuthor.IOutputComponent> StatementList;
+        protected BaseBlockDefinition() { }
+        public int StatementCount { get; }
+        public T Add<T>(T component)
+            where T : CSharpAuthor.IOutputComponent { }
+        public virtual CSharpAuthor.CodeOutputComponent AddCode(string statement, params object[] types) { }
+        public virtual object AddIndentedStatement(object component) { }
+        public CSharpAuthor.BaseBlockDefinition.ToClass Assign(CSharpAuthor.IOutputComponent value) { }
+        public CSharpAuthor.BaseBlockDefinition.ToClass Assign(string value) { }
+        public void Break() { }
+        public CSharpAuthor.ForEachDefinition ForEach(string variable, CSharpAuthor.IOutputComponent enumerableComponent) { }
+        public CSharpAuthor.IfElseLogicBlockDefinition If(CSharpAuthor.IOutputComponent outputComponent) { }
+        public CSharpAuthor.IfElseLogicBlockDefinition If(string ifStatement) { }
+        public virtual void NewLine() { }
+        public void Return(object? returnValue = null) { }
+        public CSharpAuthor.SwitchBlockDefinition Switch(object switchValue) { }
+        public void Throw(CSharpAuthor.ITypeDefinition exceptionType, params object[] parameters) { }
+        public void Throw(System.Type type, params object[] parameters) { }
+        public CSharpAuthor.TryCatchBlock Try() { }
+        public CSharpAuthor.WhileDefinition While(object testStatement) { }
+        protected void WriteBlock(CSharpAuthor.IOutputContext context) { }
+        public class ToClass
+        {
+            public ToClass(System.Action<CSharpAuthor.IOutputComponent> addStatement, CSharpAuthor.IOutputComponent valueComponent) { }
+            public void To(CSharpAuthor.IOutputComponent outputComponent) { }
+            public void To(string destination) { }
+            public CSharpAuthor.InstanceDefinition ToLocal(CSharpAuthor.ITypeDefinition typeDefinition, string name) { }
+            public CSharpAuthor.InstanceDefinition ToVar(string name) { }
+        }
+    }
+    public abstract class BaseOutputComponent : CSharpAuthor.IOutputComponent
+    {
+        protected System.Collections.Generic.List<CSharpAuthor.AttributeDefinition>? AttributeDefinitions;
+        protected System.Collections.Generic.List<CSharpAuthor.IOutputComponent>? LeadingTraits;
+        protected System.Collections.Generic.List<CSharpAuthor.IOutputComponent>? TrailingTraits;
+        protected System.Collections.Generic.List<string>? UsingNamespaces;
+        protected BaseOutputComponent() { }
+        public string? Comment { get; set; }
+        public bool Indented { get; set; }
+        public CSharpAuthor.ComponentModifier Modifiers { get; set; }
+        public CSharpAuthor.AttributeDefinition AddAttribute(CSharpAuthor.ITypeDefinition typeDefinition, params object[] args) { }
+        public CSharpAuthor.AttributeDefinition AddAttribute(System.Type type, params object[] args) { }
+        public void AddLeadingTrait(CSharpAuthor.IOutputComponent outputComponent) { }
+        public void AddTrailingTrait(CSharpAuthor.IOutputComponent component) { }
+        public void AddUsingNamespace(string ns) { }
+        protected string GetAccessModifier(string defaultString) { }
+        protected string GetVirtualModifier() { }
+        protected virtual void ProcessAttributes(CSharpAuthor.IOutputContext outputContext) { }
+        protected virtual void ProcessLeadingTraits(CSharpAuthor.IOutputContext outputContext) { }
+        protected virtual void ProcessTrailingTraits(CSharpAuthor.IOutputContext outputContext) { }
+        protected virtual void WriteComment(CSharpAuthor.IOutputContext outputContext) { }
+        protected abstract void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext);
+        public void WriteOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class BaseStatement : CSharpAuthor.BaseOutputComponent
+    {
+        public BaseStatement(System.Collections.Generic.IReadOnlyList<CSharpAuthor.IOutputComponent> components) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public abstract class BaseTypeDefinition : CSharpAuthor.ITypeDefinition, System.IComparable<CSharpAuthor.ITypeDefinition>
+    {
+        protected BaseTypeDefinition(CSharpAuthor.TypeDefinitionEnum typeDefinitionEnum, string ns, string name, bool isArray, bool isNullable) { }
+        public bool IsArray { get; }
+        public bool IsNullable { get; }
+        public abstract System.Collections.Generic.IEnumerable<string> KnownNamespaces { get; }
+        public string Name { get; }
+        public string Namespace { get; }
+        public abstract System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> TypeArguments { get; }
+        public CSharpAuthor.TypeDefinitionEnum TypeDefinitionEnum { get; }
+        protected int BaseCompareTo(CSharpAuthor.ITypeDefinition other) { }
+        public abstract int CompareTo(CSharpAuthor.ITypeDefinition other);
+        public abstract CSharpAuthor.ITypeDefinition MakeArray();
+        public abstract CSharpAuthor.ITypeDefinition MakeNullable(bool nullable = true);
+        public abstract void WriteTypeName(System.Text.StringBuilder builder, CSharpAuthor.TypeOutputMode typeOutputMode = 2);
+    }
+    public class CSharpFileDefinition : CSharpAuthor.BaseOutputComponent, CSharpAuthor.IConstructContainer
+    {
+        public CSharpFileDefinition(string ns = "") { }
+        public CSharpAuthor.ClassDefinition AddClass(string name) { }
+        public void AddComponent(CSharpAuthor.IOutputComponent component) { }
+        public CSharpAuthor.EnumDefinition AddEnum(string name) { }
+        public CSharpAuthor.InterfaceDefinition AddInterface(string interfaceName) { }
+        public System.Collections.Generic.IEnumerable<CSharpAuthor.IOutputComponent> GetAllNamedComponents() { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class CaseBlockDefinition : CSharpAuthor.BaseBlockDefinition
+    {
+        public CaseBlockDefinition(CSharpAuthor.IOutputComponent caseStatement) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class ClassDefinition : CSharpAuthor.BaseOutputComponent, CSharpAuthor.IConstructContainer, CSharpAuthor.INamedComponent
+    {
+        public ClassDefinition(string name) { }
+        public System.Collections.Generic.IReadOnlyList<CSharpAuthor.ConstructorDefinition> Constructors { get; }
+        public int FieldCount { get; }
+        public System.Collections.Generic.IReadOnlyList<CSharpAuthor.FieldDefinition> Fields { get; }
+        public System.Collections.Generic.IReadOnlyList<CSharpAuthor.MethodDefinition> Methods { get; }
+        public string Name { get; }
+        public System.Collections.Generic.IReadOnlyList<CSharpAuthor.PropertyDefinition> Properties { get; }
+        public CSharpAuthor.ClassDefinition AddBaseType(CSharpAuthor.ITypeDefinition typeDefinition) { }
+        public CSharpAuthor.ClassDefinition AddClass(string name) { }
+        public void AddComponent(CSharpAuthor.IOutputComponent outputComponent) { }
+        public CSharpAuthor.ConstructorDefinition AddConstructor(CSharpAuthor.IOutputComponent? baseComponent = null) { }
+        public CSharpAuthor.EnumDefinition AddEnum(string name) { }
+        public CSharpAuthor.FieldDefinition AddField(CSharpAuthor.ITypeDefinition typeDefinition, string fieldName) { }
+        public CSharpAuthor.FieldDefinition AddField(System.Type type, string fieldName) { }
+        public CSharpAuthor.InterfaceDefinition AddInterface(string name) { }
+        public CSharpAuthor.MethodDefinition AddMethod(string method) { }
+        public CSharpAuthor.PropertyDefinition AddProperty(CSharpAuthor.ITypeDefinition type, string fieldName) { }
+        public CSharpAuthor.PropertyDefinition AddProperty(System.Type type, string fieldName) { }
+        public System.Collections.Generic.IEnumerable<CSharpAuthor.IOutputComponent> GetAllNamedComponents() { }
+        protected override void WriteComment(CSharpAuthor.IOutputContext outputContext) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class CloseScopeComponent : CSharpAuthor.BaseOutputComponent
+    {
+        public CloseScopeComponent() { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class CodeOutputComponent : CSharpAuthor.BaseOutputComponent
+    {
+        public CodeOutputComponent(string statement) { }
+        public void AddType(CSharpAuthor.ITypeDefinition typeDefinition) { }
+        public void AddTypes(System.Collections.Generic.IEnumerable<CSharpAuthor.ITypeDefinition> typeDefinitions) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+        public static CSharpAuthor.IOutputComponent Get(object? value, bool indented = false) { }
+        public static System.Collections.Generic.IEnumerable<CSharpAuthor.IOutputComponent> GetAll(System.Collections.Generic.IEnumerable<object> values, bool indented = false) { }
+        public static CSharpAuthor.CodeOutputComponent op_Implicit(string statement) { }
+    }
+    public class CombineOutputComponent : CSharpAuthor.BaseOutputComponent
+    {
+        public CombineOutputComponent(params object[] components) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    [System.Flags]
+    public enum ComponentModifier
+    {
+        None = 0,
+        Public = 1,
+        Protected = 2,
+        Private = 4,
+        Readonly = 8,
+        Static = 16,
+        Virtual = 32,
+        Override = 64,
+        Abstract = 128,
+        Async = 256,
+        Partial = 512,
+        Internal = 1024,
+        NoAccessibility = 2048,
+    }
+    public class ConstructorDefinition : CSharpAuthor.MethodDefinition
+    {
+        public ConstructorDefinition(string name, CSharpAuthor.IOutputComponent? base = null) { }
+        public CSharpAuthor.IOutputComponent? Base { get; }
+        protected override void WriteAccessModifier(CSharpAuthor.IOutputContext outputContext) { }
+        protected override void WriteEndOfMethodSignature(CSharpAuthor.IOutputContext outputContext) { }
+        protected override void WriteReturnType(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class DeclarationStatement : CSharpAuthor.BaseOutputComponent
+    {
+        public DeclarationStatement(CSharpAuthor.ITypeDefinition typeDefinition, CSharpAuthor.IOutputComponent outputComponent) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class DelegateDefinition : CSharpAuthor.MethodDefinition
+    {
+        public DelegateDefinition(string name) { }
+        protected override void WriteAccessModifier(CSharpAuthor.IOutputContext outputContext) { }
+        protected override void WriteEndOfMethodSignature(CSharpAuthor.IOutputContext outputContext) { }
+        protected override void WriteMethodBody(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class EnumDefinition : CSharpAuthor.BaseOutputComponent, CSharpAuthor.INamedComponent
+    {
+        public EnumDefinition(string enumName) { }
+        public CSharpAuthor.ITypeDefinition? BaseType { get; set; }
+        public string Name { get; }
+        public CSharpAuthor.EnumDefinition AddFlags() { }
+        public CSharpAuthor.EnumValueDefinition AddValue(string enumValueName) { }
+        public CSharpAuthor.EnumValueDefinition AddValue(string enumValueName, object value) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class EnumValueDefinition : CSharpAuthor.BaseOutputComponent
+    {
+        public EnumValueDefinition(string enumValueName) { }
+        public object? Value { get; set; }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class FieldDefinition : CSharpAuthor.BaseOutputComponent, CSharpAuthor.INamedComponent
+    {
+        public FieldDefinition(CSharpAuthor.ITypeDefinition typeDefinition, string name) { }
+        public CSharpAuthor.IOutputComponent? InitializeValue { get; set; }
+        public CSharpAuthor.InstanceDefinition Instance { get; }
+        public string Name { get; }
+        public CSharpAuthor.ITypeDefinition TypeDefinition { get; }
+        protected override void WriteComment(CSharpAuthor.IOutputContext outputContext) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class ForDefinition : CSharpAuthor.BaseBlockDefinition
+    {
+        public ForDefinition() { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class ForEachDefinition : CSharpAuthor.BaseBlockDefinition
+    {
+        public ForEachDefinition(string instanceName, CSharpAuthor.IOutputComponent enumerableStatement) { }
+        public CSharpAuthor.InstanceDefinition Instance { get; }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class GenericTypeDefinition : CSharpAuthor.BaseTypeDefinition
+    {
+        public GenericTypeDefinition(System.Type type, System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> closeTypes, bool isArray = false, bool isNullable = false) { }
+        public GenericTypeDefinition(CSharpAuthor.TypeDefinitionEnum classType, string ns, string name, System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> closingTypes, bool isArray = false, bool isNullable = false) { }
+        public override System.Collections.Generic.IEnumerable<string> KnownNamespaces { get; }
+        public override System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> TypeArguments { get; }
+        public override int CompareTo(CSharpAuthor.ITypeDefinition other) { }
+        public override bool Equals(object obj) { }
+        public override int GetHashCode() { }
+        public override CSharpAuthor.ITypeDefinition MakeArray() { }
+        public override CSharpAuthor.ITypeDefinition MakeNullable(bool nullable = true) { }
+        public CSharpAuthor.ITypeDefinition MakeOpenType() { }
+        public override string ToString() { }
+        public override void WriteTypeName(System.Text.StringBuilder builder, CSharpAuthor.TypeOutputMode typeOutputMode = 2) { }
+    }
+    public interface IAttributeAware
+    {
+        CSharpAuthor.AttributeDefinition AddAttribute(CSharpAuthor.ITypeDefinition typeDefinition, string argumentStatement = "");
+        CSharpAuthor.AttributeDefinition AddAttribute(System.Type type, string argumentStatement = "");
+    }
+    public interface IConstructContainer
+    {
+        CSharpAuthor.ClassDefinition AddClass(string name);
+        CSharpAuthor.EnumDefinition AddEnum(string name);
+        CSharpAuthor.InterfaceDefinition AddInterface(string name);
+        System.Collections.Generic.IEnumerable<CSharpAuthor.IOutputComponent> GetAllNamedComponents();
+    }
+    public static class IEnumerableExtensions
+    {
+        public static void OutputCommaSeparatedList(this System.Collections.Generic.IEnumerable<CSharpAuthor.IOutputComponent> components, CSharpAuthor.IOutputContext context, bool newLineBeforeItems = false) { }
+        public static void OutputCommaSeparatedList(this System.Collections.Generic.IEnumerable<CSharpAuthor.ITypeDefinition> components, CSharpAuthor.IOutputContext context, bool newLineBeforeItems = false) { }
+        public static void OutputCommaSeparatedList<T>(this System.Collections.Generic.IEnumerable<T> components, CSharpAuthor.IOutputContext context, System.Action<CSharpAuthor.IOutputContext, T> writeAction, bool newLineBeforeItems = false) { }
+        public static void OutputSeparatedList<T>(this System.Collections.Generic.IEnumerable<T> components, CSharpAuthor.IOutputContext context, System.Action<CSharpAuthor.IOutputContext, T> writeAction, string separator, bool newLineBeforeItems = false) { }
+    }
+    public interface INamedComponent
+    {
+        string Name { get; }
+    }
+    public interface IOutputComponent
+    {
+        void AddUsingNamespace(string ns);
+        void WriteOutput(CSharpAuthor.IOutputContext outputContext);
+    }
+    public interface IOutputContext
+    {
+        string IndentString { get; }
+        char? LastCharacter { get; }
+        CSharpAuthor.OutputContextOptions Options { get; }
+        string SingleIndent { get; }
+        void AddImportNamespace(CSharpAuthor.ITypeDefinition typeDefinition);
+        void AddImportNamespace(string ns);
+        void AddImportNamespaces(System.Collections.Generic.IEnumerable<CSharpAuthor.ITypeDefinition> typeDefinition);
+        void AddImportNamespaces(System.Collections.Generic.IEnumerable<string> namespaces);
+        void CloseScope();
+        void DecrementIndent();
+        void GenerateUsingStatements();
+        void IncrementIndent();
+        void OpenScope();
+        string Output();
+        void Write(CSharpAuthor.ITypeDefinition typeDefinition);
+        void Write(string text);
+        void WriteIndent(string text = "");
+        void WriteIndentedLine(string text);
+        void WriteLine();
+        void WriteLine(string text);
+        void WriteSpace();
+    }
+    public interface ITypeDefinition : System.IComparable<CSharpAuthor.ITypeDefinition>
+    {
+        bool IsArray { get; }
+        bool IsNullable { get; }
+        System.Collections.Generic.IEnumerable<string> KnownNamespaces { get; }
+        string Name { get; }
+        string Namespace { get; }
+        System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> TypeArguments { get; }
+        CSharpAuthor.TypeDefinitionEnum TypeDefinitionEnum { get; }
+        CSharpAuthor.ITypeDefinition MakeArray();
+        CSharpAuthor.ITypeDefinition MakeNullable(bool nullable = true);
+        void WriteTypeName(System.Text.StringBuilder builder, CSharpAuthor.TypeOutputMode typeOutputMode = 2);
+    }
+    public static class ITypeDefinitionExtensions
+    {
+        public static string GetShortName(this CSharpAuthor.ITypeDefinition typeDefinition) { }
+    }
+    public class IfElseLogicBlockDefinition : CSharpAuthor.BaseBlockDefinition
+    {
+        public IfElseLogicBlockDefinition(CSharpAuthor.IOutputComponent ifStatement) { }
+        public CSharpAuthor.BaseBlockDefinition Else() { }
+        public CSharpAuthor.BaseBlockDefinition ElseIf(CSharpAuthor.IOutputComponent ifStatement) { }
+        public CSharpAuthor.BaseBlockDefinition ElseIf(string ifStatement) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class IndentedStatementComponent : CSharpAuthor.BaseOutputComponent
+    {
+        public IndentedStatementComponent(CSharpAuthor.IOutputComponent component) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class IndexStatement : CSharpAuthor.WrapStatement
+    {
+        public IndexStatement(CSharpAuthor.IOutputComponent instance, CSharpAuthor.IOutputComponent index) { }
+    }
+    public class InstanceDefinition : CSharpAuthor.BaseOutputComponent
+    {
+        public InstanceDefinition(string name) { }
+        public string Name { get; }
+        public CSharpAuthor.InvokeDefinition Invoke(string methodName, params object[] parameters) { }
+        public CSharpAuthor.InvokeGenericDefinition InvokeGeneric(string methodName, System.Collections.Generic.IEnumerable<CSharpAuthor.ITypeDefinition> genericArgs, params object[] parameters) { }
+        public CSharpAuthor.InstanceDefinition Property(string propertyName) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class InterfaceDefinition : CSharpAuthor.BaseOutputComponent, CSharpAuthor.INamedComponent
+    {
+        protected readonly System.Collections.Generic.List<CSharpAuthor.ITypeDefinition> BaseTypes;
+        protected readonly System.Collections.Generic.List<CSharpAuthor.InterfaceMethodDefinition> Methods;
+        protected readonly System.Collections.Generic.List<CSharpAuthor.InterfacePropertyDefinition> Properties;
+        public InterfaceDefinition(string name) { }
+        public string Name { get; }
+        public CSharpAuthor.InterfaceDefinition AddBaseType(CSharpAuthor.ITypeDefinition typeDefinition) { }
+        public CSharpAuthor.InterfaceDefinition AddBaseType(System.Type type) { }
+        public CSharpAuthor.InterfaceMethodDefinition AddMethod(string name) { }
+        public CSharpAuthor.InterfacePropertyDefinition AddProperty(CSharpAuthor.ITypeDefinition typeDefinition, string name) { }
+        public CSharpAuthor.InterfacePropertyDefinition AddProperty(System.Type type, string name) { }
+        protected override void WriteComment(CSharpAuthor.IOutputContext outputContext) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class InterfaceMethodDefinition : CSharpAuthor.MethodDefinition
+    {
+        public InterfaceMethodDefinition(string name) { }
+        protected override void WriteAccessModifier(CSharpAuthor.IOutputContext outputContext) { }
+        protected override void WriteEndOfMethodSignature(CSharpAuthor.IOutputContext outputContext) { }
+        protected override void WriteMethodBody(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class InterfacePropertyDefinition : CSharpAuthor.PropertyDefinition
+    {
+        public InterfacePropertyDefinition(CSharpAuthor.ITypeDefinition typeDefinition, string name) { }
+        protected override void WriteAccessModifiers(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class InvokeDefinition : CSharpAuthor.BaseOutputComponent
+    {
+        public InvokeDefinition(string instance, string methodName, params object[] arguments) { }
+        public void AddArgument(CSharpAuthor.IOutputComponent argument) { }
+        public void AddArgument(object argument) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class InvokeGenericDefinition : CSharpAuthor.BaseOutputComponent
+    {
+        public InvokeGenericDefinition(string instance, string methodName, System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> genericArguments, params object[] arguments) { }
+        public void AddArgument(CSharpAuthor.IOutputComponent argument) { }
+        public void AddArgument(object argument) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public static class KeyWords
+    {
+        public static string Abstract { get; }
+        public static string Async { get; }
+        public static string Await { get; }
+        public static string Class { get; }
+        public static string Interface { get; }
+        public static string Internal { get; }
+        public static string Override { get; }
+        public static string Partial { get; }
+        public static string Private { get; }
+        public static string Protected { get; }
+        public static string Public { get; }
+        public static string ReadOnly { get; }
+        public static string Static { get; }
+        public static string Virtual { get; }
+    }
+    public class ListOutputComponent : CSharpAuthor.BaseOutputComponent
+    {
+        public ListOutputComponent(System.Collections.Generic.IReadOnlyList<CSharpAuthor.IOutputComponent> components) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class LogicStatement : CSharpAuthor.BaseOutputComponent
+    {
+        public LogicStatement(string logicStatement, System.Collections.Generic.IReadOnlyList<CSharpAuthor.IOutputComponent> outputComponents) { }
+        public LogicStatement(string logicStatement, params object[] outputComponents) { }
+        public bool PrintParentheses { get; set; }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class MethodDefinition : CSharpAuthor.BaseBlockDefinition, CSharpAuthor.INamedComponent
+    {
+        protected readonly System.Collections.Generic.List<CSharpAuthor.ParameterDefinition> ParameterList;
+        protected int VariableCount;
+        public MethodDefinition(string name) { }
+        public System.Collections.Generic.List<CSharpAuthor.ITypeDefinition> GenericParameters { get; }
+        public CSharpAuthor.ITypeDefinition? InterfaceImplementation { get; set; }
+        public string Name { get; }
+        public System.Collections.Generic.IReadOnlyList<CSharpAuthor.ParameterDefinition> Parameters { get; }
+        public string? ReturnComment { get; set; }
+        public CSharpAuthor.ITypeDefinition? ReturnType { get; }
+        public CSharpAuthor.IOutputComponent? WhereStatement { get; set; }
+        public void AddGenericParameter(CSharpAuthor.ITypeDefinition typeDefinition) { }
+        public CSharpAuthor.MethodDefinition AddParameter(CSharpAuthor.ParameterDefinition parameterDefinition) { }
+        public CSharpAuthor.ParameterDefinition AddParameter(CSharpAuthor.ITypeDefinition typeDefinition, string name) { }
+        public CSharpAuthor.ParameterDefinition AddParameter(System.Type type, string name) { }
+        public string GetUniqueVariable(string prefix) { }
+        public CSharpAuthor.MethodDefinition SetReturnType(CSharpAuthor.ITypeDefinition type) { }
+        public CSharpAuthor.MethodDefinition SetReturnType(System.Type type) { }
+        protected virtual void WriteAccessModifier(CSharpAuthor.IOutputContext outputContext) { }
+        protected override void WriteComment(CSharpAuthor.IOutputContext outputContext) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+        protected virtual void WriteEndOfMethodSignature(CSharpAuthor.IOutputContext outputContext) { }
+        protected virtual void WriteMethodBody(CSharpAuthor.IOutputContext outputContext) { }
+        protected virtual void WriteMethodSignature(CSharpAuthor.IOutputContext outputContext) { }
+        protected virtual void WriteReturnType(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class NamespaceDefinition : CSharpAuthor.BaseOutputComponent, CSharpAuthor.IConstructContainer
+    {
+        public NamespaceDefinition(string ns = "") { }
+        public CSharpAuthor.ClassDefinition AddClass(string name) { }
+        public void AddComponent(CSharpAuthor.IOutputComponent component) { }
+        public CSharpAuthor.EnumDefinition AddEnum(string name) { }
+        public CSharpAuthor.InterfaceDefinition AddInterface(string interfaceName) { }
+        public CSharpAuthor.NamespaceDefinition AddNamespace(string @namespace) { }
+        public System.Collections.Generic.IEnumerable<CSharpAuthor.IOutputComponent> GetAllNamedComponents() { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class NewArrayStatement : CSharpAuthor.BaseOutputComponent
+    {
+        public NewArrayStatement(CSharpAuthor.ITypeDefinition typeDefinition, params CSharpAuthor.IOutputComponent[] components) { }
+        public NewArrayStatement(CSharpAuthor.ITypeDefinition typeDefinition, int length) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class NewStatement : CSharpAuthor.InstanceDefinition
+    {
+        public NewStatement(CSharpAuthor.ITypeDefinition typeDefinition, params object[] arguments) { }
+        public void AddArgument(CSharpAuthor.IOutputComponent argument) { }
+        public void AddArgument(object argument) { }
+        public void AddInitValue(object initValue) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class NullableEnableComponent : CSharpAuthor.BaseOutputComponent
+    {
+        public NullableEnableComponent(bool enable) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class OpenScopeComponent : CSharpAuthor.BaseOutputComponent
+    {
+        public OpenScopeComponent() { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class OutputContext : CSharpAuthor.IOutputContext
+    {
+        public OutputContext(CSharpAuthor.OutputContextOptions? options = null) { }
+        public string IndentString { get; }
+        public char? LastCharacter { get; }
+        public CSharpAuthor.OutputContextOptions Options { get; }
+        public string SingleIndent { get; }
+        public void AddImportNamespace(CSharpAuthor.ITypeDefinition typeDefinition) { }
+        public void AddImportNamespace(string ns) { }
+        public void AddImportNamespaces(System.Collections.Generic.IEnumerable<CSharpAuthor.ITypeDefinition> typeDefinitions) { }
+        public void AddImportNamespaces(System.Collections.Generic.IEnumerable<string> namespaces) { }
+        public void CloseScope() { }
+        public void DecrementIndent() { }
+        public void GenerateUsingStatements() { }
+        public void IncrementIndent() { }
+        public void OpenScope() { }
+        public string Output() { }
+        public void Write(CSharpAuthor.ITypeDefinition typeDefinition) { }
+        public void Write(string text) { }
+        public void WriteIndent(string text = "") { }
+        public void WriteIndentedLine(string text) { }
+        public void WriteLine() { }
+        public void WriteLine(string text) { }
+        public void WriteSpace() { }
+    }
+    public class OutputContextOptions
+    {
+        public OutputContextOptions() { }
+        public bool BreakInvokeLines { get; set; }
+        public bool GenerateDocumentation { get; set; }
+        public char IndentChar { get; set; }
+        public int IndentCharCount { get; set; }
+        public string NewLine { get; set; }
+        public CSharpAuthor.TypeOutputMode TypeOutputMode { get; set; }
+    }
+    public class ParameterDefinition : CSharpAuthor.InstanceDefinition
+    {
+        public ParameterDefinition(CSharpAuthor.ITypeDefinition typeDefinition, string name) { }
+        public CSharpAuthor.IOutputComponent? DefaultValue { get; set; }
+        public bool IsOut { get; set; }
+        public bool This { get; set; }
+        public CSharpAuthor.ITypeDefinition TypeDefinition { get; }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+        public void WriteWithSignature(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class PostfixOutputComponent : CSharpAuthor.BaseOutputComponent
+    {
+        public PostfixOutputComponent(string postfix, CSharpAuthor.IOutputComponent outputComponent) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class PragmaOutputComponent : CSharpAuthor.BaseOutputComponent
+    {
+        public PragmaOutputComponent(bool enable, params string[] pragma) { }
+        protected override void ProcessLeadingTraits(CSharpAuthor.IOutputContext outputContext) { }
+        protected override void ProcessTrailingTraits(CSharpAuthor.IOutputContext outputContext) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class PrefixOutputComponent : CSharpAuthor.BaseOutputComponent
+    {
+        public PrefixOutputComponent(string prefix, CSharpAuthor.IOutputComponent awaitableOutputComponent) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class PropertyDefinition : CSharpAuthor.BaseOutputComponent, CSharpAuthor.INamedComponent
+    {
+        public PropertyDefinition(CSharpAuthor.ITypeDefinition type, string name) { }
+        public CSharpAuthor.IOutputComponent? DefaultValue { get; set; }
+        public CSharpAuthor.PropertyMethodDefinition Get { get; }
+        public string IndexName { get; set; }
+        public CSharpAuthor.ITypeDefinition? IndexType { get; set; }
+        public CSharpAuthor.InstanceDefinition Instance { get; }
+        public string Name { get; }
+        public CSharpAuthor.PropertyMethodDefinition? Set { get; set; }
+        public CSharpAuthor.ITypeDefinition Type { get; }
+        protected virtual void WriteAccessModifiers(CSharpAuthor.IOutputContext outputContext) { }
+        protected override void WriteComment(CSharpAuthor.IOutputContext outputContext) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class PropertyMethodDefinition : CSharpAuthor.MethodDefinition
+    {
+        public PropertyMethodDefinition() { }
+        public bool LambdaSyntax { get; set; }
+        protected override void WriteMethodBody(CSharpAuthor.IOutputContext outputContext) { }
+        protected override void WriteMethodSignature(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class StaticCastComponent : CSharpAuthor.BaseOutputComponent
+    {
+        public StaticCastComponent(CSharpAuthor.ITypeDefinition typeDefinition, object value) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class StaticInvokeGenericStatement : CSharpAuthor.BaseOutputComponent
+    {
+        public StaticInvokeGenericStatement(CSharpAuthor.ITypeDefinition typeDefinition, string methodName, System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> genericArguments, System.Collections.Generic.IReadOnlyList<CSharpAuthor.IOutputComponent> parameters) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class StaticInvokeStatement : CSharpAuthor.BaseOutputComponent
+    {
+        public StaticInvokeStatement(CSharpAuthor.ITypeDefinition typeDefinition, string methodName, System.Collections.Generic.IReadOnlyList<CSharpAuthor.IOutputComponent> parameters) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class StaticPropertyStatement : CSharpAuthor.BaseOutputComponent
+    {
+        public StaticPropertyStatement(CSharpAuthor.ITypeDefinition typeDefinition, string propertyName) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class SwitchBlockDefinition : CSharpAuthor.BaseOutputComponent
+    {
+        public SwitchBlockDefinition(CSharpAuthor.IOutputComponent switchValue) { }
+        public CSharpAuthor.CaseBlockDefinition AddCase(object value) { }
+        public CSharpAuthor.CaseBlockDefinition AddDefault() { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public static class SyntaxHelpers
+    {
+        public static CSharpAuthor.LogicStatement Add(params object[] andStatements) { }
+        public static CSharpAuthor.LogicStatement And(System.Collections.Generic.IReadOnlyList<CSharpAuthor.IOutputComponent> andStatements) { }
+        public static CSharpAuthor.LogicStatement And(params object[] andStatements) { }
+        public static CSharpAuthor.IOutputComponent Await(object outputComponent) { }
+        public static CSharpAuthor.IOutputComponent Bang(object outputComponent) { }
+        public static CSharpAuthor.BaseStatement Base(params object[] parameters) { }
+        public static CSharpAuthor.LogicStatement ConcatSymbol(string symbol, params object[] andStatements) { }
+        public static CSharpAuthor.IOutputComponent Decrement(object outputComponent) { }
+        public static CSharpAuthor.LogicStatement Divide(params object[] andStatements) { }
+        public static void EnableNullable(this CSharpAuthor.BaseOutputComponent baseOutputComponent) { }
+        public static CSharpAuthor.LogicStatement EqualsStatement(object leftHandSide, object rightHandSide) { }
+        public static CSharpAuthor.LogicStatement GreaterThan(object leftHandSide, object rightHandSide) { }
+        public static CSharpAuthor.LogicStatement GreaterThanOrEquals(object leftHandSide, object rightHandSide) { }
+        public static CSharpAuthor.IOutputComponent Increment(object outputComponent) { }
+        public static CSharpAuthor.IndexStatement Index(this CSharpAuthor.IOutputComponent component, object index) { }
+        public static CSharpAuthor.InvokeDefinition Invoke(string methodName, params object[] parameters) { }
+        public static CSharpAuthor.IOutputComponent Invoke(this CSharpAuthor.IOutputComponent outputComponent, string methodName, params object[] parameters) { }
+        public static CSharpAuthor.StaticInvokeStatement Invoke(CSharpAuthor.ITypeDefinition typeDefinition, string methodName, params object[] parameters) { }
+        public static CSharpAuthor.StaticInvokeStatement Invoke(System.Type type, string methodName, params object[] parameters) { }
+        public static CSharpAuthor.InvokeGenericDefinition InvokeGeneric(string methodName, System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> genericArgs, params object[] parameters) { }
+        public static CSharpAuthor.IOutputComponent InvokeGeneric(this CSharpAuthor.IOutputComponent outputComponent, string methodName, System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> genericArgs, params object[] parameters) { }
+        public static CSharpAuthor.StaticInvokeGenericStatement InvokeGeneric(CSharpAuthor.ITypeDefinition typeDefinition, string methodName, System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> genericArgs, params object[] parameters) { }
+        public static CSharpAuthor.StaticInvokeGenericStatement InvokeGeneric(System.Type type, string methodName, System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> genericArgs, params object[] parameters) { }
+        public static CSharpAuthor.IOutputComponent Is(CSharpAuthor.IOutputComponent testComponent, CSharpAuthor.ITypeDefinition typeDefinition) { }
+        public static CSharpAuthor.LogicStatement LessThan(object leftHandSide, object rightHandSide) { }
+        public static CSharpAuthor.LogicStatement LessThanOrEquals(object leftHandSide, object rightHandSide) { }
+        public static CSharpAuthor.LogicStatement Multiply(params object[] andStatements) { }
+        public static CSharpAuthor.NewStatement New(CSharpAuthor.ITypeDefinition typeDefinition, params object[] parameters) { }
+        public static CSharpAuthor.NewStatement New(System.Type type, params object[] parameters) { }
+        public static CSharpAuthor.NewArrayStatement NewArray(CSharpAuthor.ITypeDefinition type, params object[] parameters) { }
+        public static CSharpAuthor.NewArrayStatement NewArray(CSharpAuthor.ITypeDefinition typeDefinition, int length) { }
+        public static CSharpAuthor.NewArrayStatement NewArray(System.Type type, int length) { }
+        public static CSharpAuthor.NewArrayStatement NewArray(System.Type type, params object[] parameters) { }
+        public static CSharpAuthor.LogicStatement NotEquals(object leftHandSide, object rightHandSide) { }
+        public static CSharpAuthor.IOutputComponent Null() { }
+        public static CSharpAuthor.LogicStatement NullCoalesce(object leftHandSide, object rightHandSide) { }
+        public static CSharpAuthor.LogicStatement NullCoalesceEqual(object leftHandSide, object rightHandSide) { }
+        public static CSharpAuthor.LogicStatement Or(System.Collections.Generic.IReadOnlyList<CSharpAuthor.IOutputComponent> orStatements) { }
+        public static CSharpAuthor.LogicStatement Or(params object[] orStatements) { }
+        public static CSharpAuthor.IOutputComponent Parenthesis(object value) { }
+        public static CSharpAuthor.IOutputComponent Property(CSharpAuthor.IOutputComponent outputComponent, string propertyName) { }
+        public static CSharpAuthor.StaticPropertyStatement Property(CSharpAuthor.ITypeDefinition typeDefinition, string propertyName) { }
+        public static CSharpAuthor.IOutputComponent Question(object outputComponent) { }
+        public static string QuoteString(string stringValue) { }
+        public static CSharpAuthor.IOutputComponent StaticCast(CSharpAuthor.ITypeDefinition typeDefinition, object value) { }
+        public static CSharpAuthor.IOutputComponent StaticCast(System.Type type, object value) { }
+        public static CSharpAuthor.LogicStatement Subtract(params object[] andStatements) { }
+        public static CSharpAuthor.IOutputComponent This(params object[] parameters) { }
+        public static CSharpAuthor.IOutputComponent ThisInstance() { }
+        public static CSharpAuthor.IOutputComponent TypeOf(CSharpAuthor.ITypeDefinition typeDefinition) { }
+        public static void WrapInPragma(this CSharpAuthor.BaseOutputComponent baseOutputComponent, params string[] pragma) { }
+        public static CSharpAuthor.WrapStatement YieldReturn(object value) { }
+    }
+    public class TryCatchBlock : CSharpAuthor.BaseBlockDefinition
+    {
+        public TryCatchBlock() { }
+        public CSharpAuthor.BaseBlockDefinition Catch(CSharpAuthor.ITypeDefinition exceptionType, string name = "", CSharpAuthor.IOutputComponent? when = null) { }
+        public CSharpAuthor.BaseBlockDefinition Catch(System.Type exceptionType, string name = "", CSharpAuthor.IOutputComponent? when = null) { }
+        public CSharpAuthor.BaseBlockDefinition Finally() { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class TypeDefinition : CSharpAuthor.BaseTypeDefinition
+    {
+        public TypeDefinition(CSharpAuthor.TypeDefinitionEnum typeDefinitionEnum, string ns, string name, bool isArray, bool isNullable = false) { }
+        public override System.Collections.Generic.IEnumerable<string> KnownNamespaces { get; }
+        public override System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> TypeArguments { get; }
+        public override int CompareTo(CSharpAuthor.ITypeDefinition other) { }
+        public override bool Equals(object obj) { }
+        public override int GetHashCode() { }
+        public override CSharpAuthor.ITypeDefinition MakeArray() { }
+        public override CSharpAuthor.ITypeDefinition MakeNullable(bool nullable = true) { }
+        public override string ToString() { }
+        public override void WriteTypeName(System.Text.StringBuilder builder, CSharpAuthor.TypeOutputMode typeOutputMode = 2) { }
+        public static CSharpAuthor.ITypeDefinition Action(params object[] typeArguments) { }
+        public static CSharpAuthor.ITypeDefinition Func(params object[] typeArguments) { }
+        public static CSharpAuthor.ITypeDefinition Get(System.Type type) { }
+        public static CSharpAuthor.TypeDefinition Get(string ns, string name, bool isArray = false, bool isNullable = false) { }
+        public static CSharpAuthor.TypeDefinition Get(CSharpAuthor.TypeDefinitionEnum definitionEnum, string ns, string name, bool isArray = false, bool isNullable = false) { }
+        public static CSharpAuthor.ITypeDefinition IEnumerable(object typeObject) { }
+        public static CSharpAuthor.ITypeDefinition IOptions(object typeObject) { }
+        public static CSharpAuthor.ITypeDefinition List(object typeObject) { }
+        public static CSharpAuthor.ITypeDefinition Task(object typeObject) { }
+    }
+    public enum TypeDefinitionEnum
+    {
+        ClassDefinition = 0,
+        EnumDefinition = 1,
+        InterfaceDefinition = 2,
+    }
+    public static class TypeExtensions
+    {
+        public static string GetGenericName(this System.Type type) { }
+    }
+    public enum TypeOutputMode
+    {
+        Global = 0,
+        FullName = 1,
+        ShortName = 2,
+    }
+    public class TypeStatement : CSharpAuthor.BaseOutputComponent
+    {
+        public TypeStatement(CSharpAuthor.ITypeDefinition typeDefinition) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class VarStatement : CSharpAuthor.BaseOutputComponent
+    {
+        public VarStatement(CSharpAuthor.IOutputComponent variable) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class WhileDefinition : CSharpAuthor.BaseBlockDefinition
+    {
+        public WhileDefinition(object testStatement) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class WrapStatement : CSharpAuthor.BaseOutputComponent
+    {
+        public WrapStatement(CSharpAuthor.IOutputComponent outputComponent, string prefixString, string postfixString) { }
+        public WrapStatement(CSharpAuthor.IOutputComponent? outputComponent, CSharpAuthor.IOutputComponent? prefixString, CSharpAuthor.IOutputComponent? postfixString) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+}
+namespace DependencyModules.SourceGenerator.Impl
+{
+    public abstract class BaseAttributeSourceGenerator<T> : DependencyModules.SourceGenerator.Impl.IDependencyModuleSourceGenerator
+    {
+        protected BaseAttributeSourceGenerator() { }
+        protected virtual string LoggerName { get; }
+        protected abstract System.Collections.Generic.IEnumerable<CSharpAuthor.ITypeDefinition> AttributeTypes();
+        protected abstract T GenerateAttributeModel(Microsoft.CodeAnalysis.GeneratorSyntaxContext arg1, System.Threading.CancellationToken arg2);
+        protected abstract void GenerateSourceOutput(Microsoft.CodeAnalysis.SourceProductionContext arg1, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Left",
+                "Right",
+                "Left",
+                "Right"})] System.ValueTuple<System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>>, System.Collections.Immutable.ImmutableArray<T>> valueTuple, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger);
+        protected abstract System.Collections.Generic.IEqualityComparer<T> GetComparer();
+        public void SetupGenerator(Microsoft.CodeAnalysis.IncrementalGeneratorInitializationContext context, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Left",
+                "Right"})] Microsoft.CodeAnalysis.IncrementalValuesProvider<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>> incrementalValueProvider) { }
+    }
+    public abstract class BaseAttributeWithConfigSourceGenerator<TModel, TConfig> : DependencyModules.SourceGenerator.Impl.IDependencyModuleSourceGenerator
+    {
+        protected BaseAttributeWithConfigSourceGenerator() { }
+        protected abstract System.Collections.Generic.IEnumerable<CSharpAuthor.ITypeDefinition> AttributeTypes();
+        protected abstract TModel GenerateAttributeModel(Microsoft.CodeAnalysis.GeneratorSyntaxContext arg1, System.Threading.CancellationToken arg2);
+        protected abstract TConfig GenerateConfigAttributeModel(Microsoft.CodeAnalysis.Diagnostics.AnalyzerConfigOptionsProvider arg1, System.Threading.CancellationToken arg2);
+        protected abstract void GenerateSourceOutput(Microsoft.CodeAnalysis.SourceProductionContext arg1, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Left",
+                "Right",
+                "Left",
+                "Right",
+                "Left",
+                "Right"})] System.ValueTuple<System.ValueTuple<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>, TConfig>, System.Collections.Immutable.ImmutableArray<TModel>> arg2);
+        protected abstract System.Collections.Generic.IEqualityComparer<TModel> GetComparer();
+        protected abstract System.Collections.Generic.IEqualityComparer<TConfig> GetConfigComparer();
+        public void SetupGenerator(Microsoft.CodeAnalysis.IncrementalGeneratorInitializationContext context, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Left",
+                "Right"})] Microsoft.CodeAnalysis.IncrementalValuesProvider<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>> incrementalValueProvider) { }
+    }
+    public abstract class BaseSourceGenerator : Microsoft.CodeAnalysis.IIncrementalGenerator
+    {
+        protected BaseSourceGenerator() { }
+        protected virtual bool ShouldAutoApproveCompilationUnit { get; }
+        protected abstract System.Collections.Generic.IEnumerable<DependencyModules.SourceGenerator.Impl.IDependencyModuleSourceGenerator> AttributeSourceGenerators();
+        protected virtual DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel GenerateEntryPointModel(Microsoft.CodeAnalysis.GeneratorSyntaxContext context, System.Threading.CancellationToken cancellation) { }
+        public void Initialize(Microsoft.CodeAnalysis.IncrementalGeneratorInitializationContext context) { }
+        protected virtual CSharpAuthor.ITypeDefinition[] ModuleAttributeTypes() { }
+        protected virtual void SetupRootGenerator(Microsoft.CodeAnalysis.IncrementalGeneratorInitializationContext context, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Left",
+                "Right"})] Microsoft.CodeAnalysis.IncrementalValueProvider<System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>>> valuesProvider) { }
+        public static DependencyModules.SourceGenerator.Impl.Models.RegistrationType GetRegistrationType(string toString) { }
+    }
+    public class CollectionSyntaxDeclaration : CSharpAuthor.BaseOutputComponent
+    {
+        public CollectionSyntaxDeclaration() { }
+        public void Add(object item) { }
+        public override bool Equals(object? obj) { }
+        public override int GetHashCode() { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class DependencyFileWriter
+    {
+        public DependencyFileWriter(DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
+        public string Write(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel configurationModel, System.Collections.Generic.IEnumerable<DependencyModules.SourceGenerator.Impl.Models.ServiceModel> serviceModels, string uniqueId) { }
+    }
+    public static class DependencyModuleDiagnostics
+    {
+        public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor GeneratorFailure;
+        public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ModuleMustBePartial;
+        public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ServiceCannotBeConstructed;
+    }
+    public class DependencyModuleWriter
+    {
+        public DependencyModuleWriter(bool generateAttribute) { }
+        public void GenerateSource(Microsoft.CodeAnalysis.SourceProductionContext context, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Left",
+                "Right"})] System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>> allEntryPoints) { }
+    }
+    public interface IDependencyModuleSourceGenerator
+    {
+        void SetupGenerator(Microsoft.CodeAnalysis.IncrementalGeneratorInitializationContext context, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Left",
+                "Right"})] Microsoft.CodeAnalysis.IncrementalValuesProvider<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>> incrementalValueProvider);
+    }
+    public static class KnownTypes
+    {
+        public static class DependencyModules
+        {
+            public static class Attributes
+            {
+                public const string Namespace = "DependencyModules.Runtime.Attributes";
+                public static readonly CSharpAuthor.ITypeDefinition CrossWireServiceAttribute;
+                public static readonly CSharpAuthor.ITypeDefinition DependencyModuleAttribute;
+                public static readonly CSharpAuthor.ITypeDefinition ScopedServiceAttribute;
+                public static readonly CSharpAuthor.ITypeDefinition SingletonServiceAttribute;
+                public static readonly CSharpAuthor.ITypeDefinition TransientServiceAttribute;
+            }
+            public static class Features
+            {
+                public const string Namespace = "DependencyModules.Runtime.Features";
+                public static readonly CSharpAuthor.ITypeDefinition FeatureApplicator;
+                public static readonly CSharpAuthor.ITypeDefinition IDependencyModuleApplicatorProvider;
+                public static readonly CSharpAuthor.ITypeDefinition IFeatureApplicator;
+            }
+            public static class Helpers
+            {
+                public const string Namespace = "DependencyModules.Runtime.Helpers";
+            }
+            public static class Interfaces
+            {
+                public const string Namespace = "DependencyModules.Runtime.Interfaces";
+                public static readonly CSharpAuthor.ITypeDefinition IDependencyModule;
+                public static readonly CSharpAuthor.ITypeDefinition IDependencyModuleProvider;
+            }
+        }
+        public static class Microsoft
+        {
+            public static class DependencyInjection
+            {
+                public const string Namespace = "Microsoft.Extensions.DependencyInjection";
+                public static readonly CSharpAuthor.ITypeDefinition FromKeyedServicesAttribute;
+                public static readonly CSharpAuthor.ITypeDefinition IServiceCollection;
+                public static readonly CSharpAuthor.ITypeDefinition IServiceProvider;
+                public static readonly CSharpAuthor.ITypeDefinition ServiceDescriptor;
+            }
+            public static class TextJson
+            {
+                public const string Namespace = "System.Text.Json.Serialization";
+                public static readonly CSharpAuthor.ITypeDefinition IJsonTypeInfoResolver;
+                public static readonly CSharpAuthor.ITypeDefinition JsonSourceGenerationOptionsAttribute;
+            }
+        }
+    }
+    public class ModuleAttributeWriter : DependencyModules.SourceGenerator.Impl.Utilities.BaseAttributeWriter<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel>
+    {
+        public ModuleAttributeWriter() { }
+        protected override void CustomImplementation(CSharpAuthor.IConstructContainer container, CSharpAuthor.ClassDefinition attributeClass, DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel model) { }
+    }
+}
+namespace DependencyModules.SourceGenerator.Impl.Models
+{
+    public enum AccessModifier
+    {
+        PublicModifier = 0,
+        PrivateModifier = 1,
+        ProtectedModifier = 2,
+        InternalModifier = 3,
+    }
+    public class AttributeArgumentValue : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.AttributeArgumentValue>
+    {
+        public AttributeArgumentValue(string Name, object? Value) { }
+        public string Name { get; init; }
+        public object? Value { get; init; }
+        public virtual bool Equals(DependencyModules.SourceGenerator.Impl.Models.AttributeArgumentValue? other) { }
+        public override int GetHashCode() { }
+    }
+    public class AttributeClassInfo : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.AttributeClassInfo>
+    {
+        public AttributeClassInfo(DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel ConstructorInfo, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.PropertyInfoModel> Properties) { }
+        public DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel ConstructorInfo { get; init; }
+        public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.PropertyInfoModel> Properties { get; init; }
+    }
+    public class AttributeModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.AttributeModel>
+    {
+        public AttributeModel(CSharpAuthor.ITypeDefinition TypeDefinition, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.AttributeArgumentValue> Arguments, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.AttributeArgumentValue> Properties, System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> ImplementedInterfaces) { }
+        public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.AttributeArgumentValue> Arguments { get; init; }
+        public System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> ImplementedInterfaces { get; init; }
+        public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.AttributeArgumentValue> Properties { get; init; }
+        public CSharpAuthor.ITypeDefinition TypeDefinition { get; init; }
+        public virtual bool Equals(DependencyModules.SourceGenerator.Impl.Models.AttributeModel? other) { }
+        public System.Collections.Generic.IList<CSharpAuthor.IOutputComponent> GetArguments() { }
+        public override int GetHashCode() { }
+        public System.Collections.Generic.IList<CSharpAuthor.IOutputComponent> PropertyValues() { }
+    }
+    public class ConstructorInfoModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel>
+    {
+        public ConstructorInfoModel(System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ParameterInfoModel> Parameters) { }
+        public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ParameterInfoModel> Parameters { get; init; }
+        public virtual bool Equals(DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? other) { }
+        public override int GetHashCode() { }
+    }
+    public class DependencyModuleConfigurationModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>
+    {
+        public DependencyModuleConfigurationModel(DependencyModules.SourceGenerator.Impl.Models.RegistrationType RegistrationType, bool RegisterSourceGenerator, string RootNamespace, string ProjectDir, bool AutoGenerateEntry, string LogOutputFolder, DependencyModules.SourceGenerator.Impl.Models.LogOutputLevel LogOutputLevel, bool GenerateFactories, bool ExcludeGeneratedCodeFromCoverage = true) { }
+        public bool AutoGenerateEntry { get; init; }
+        public bool ExcludeGeneratedCodeFromCoverage { get; init; }
+        public bool GenerateFactories { get; init; }
+        public string LogOutputFolder { get; init; }
+        public DependencyModules.SourceGenerator.Impl.Models.LogOutputLevel LogOutputLevel { get; init; }
+        public string ProjectDir { get; init; }
+        public bool RegisterSourceGenerator { get; init; }
+        public DependencyModules.SourceGenerator.Impl.Models.RegistrationType RegistrationType { get; init; }
+        public string RootNamespace { get; init; }
+    }
+    public class DependencyModuleConfigurationModelComparer : System.Collections.Generic.IEqualityComparer<DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>
+    {
+        public DependencyModuleConfigurationModelComparer() { }
+        public bool Equals(DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel? x, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel? y) { }
+        public int GetHashCode(DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel obj) { }
+    }
+    public delegate CSharpAuthor.IOutputComponent? FactoryOutputDelegate(DependencyModules.SourceGenerator.Impl.Models.ServiceModel serviceModel, DependencyModules.SourceGenerator.Impl.Models.ServiceRegistrationModel registrationModel);
+    public interface IClassModel
+    {
+        System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.AttributeModel> AttributeModels { get; }
+        CSharpAuthor.ITypeDefinition ClassType { get; }
+        System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ParameterInfoModel> Parameters { get; }
+        System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.PropertyInfoModel> PropertyInfoModels { get; }
+    }
+    public enum LogOutputLevel
+    {
+        Debug = 1,
+        Info = 2,
+        Warning = 3,
+        Error = 4,
+        Fatal = 5,
+    }
+    public class MethodInfoModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.MethodInfoModel>
+    {
+        public MethodInfoModel(DependencyModules.SourceGenerator.Impl.Models.AccessModifier AccessModifier, string MethodName, CSharpAuthor.ITypeDefinition ReturnType, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ParameterInfoModel> Parameters, System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> GenericArguments) { }
+        public DependencyModules.SourceGenerator.Impl.Models.AccessModifier AccessModifier { get; init; }
+        public System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> GenericArguments { get; init; }
+        public string MethodName { get; init; }
+        public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ParameterInfoModel> Parameters { get; init; }
+        public CSharpAuthor.ITypeDefinition ReturnType { get; init; }
+    }
+    [System.Flags]
+    public enum ModuleEntryPointFeatures
+    {
+        None = 0,
+        AutoGenerateModule = 1,
+        OnlyRealm = 2,
+        ShouldImplementEquals = 4,
+        IsRecord = 8,
+        NotPartial = 16,
+    }
+    public class ModuleEntryPointModel : DependencyModules.SourceGenerator.Impl.Models.IClassModel, System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel>
+    {
+        public ModuleEntryPointModel(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointFeatures ModuleFeatures, string FileLocation, CSharpAuthor.ITypeDefinition EntryPointType, DependencyModules.SourceGenerator.Impl.Models.RegistrationType? RegistrationType, bool? GenerateAttribute, bool? RegisterJsonSerializers, string? UseMethod, bool? GenerateFactories, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ParameterInfoModel> Parameters, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.PropertyInfoModel> PropertyInfoModels, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.AttributeModel> AttributeModels, System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> AdditionalModules, System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> Features) { }
+        public System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> AdditionalModules { get; init; }
+        public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.AttributeModel> AttributeModels { get; init; }
+        public CSharpAuthor.ITypeDefinition ClassType { get; }
+        public CSharpAuthor.ITypeDefinition EntryPointType { get; init; }
+        public System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> Features { get; init; }
+        public string FileLocation { get; init; }
+        public bool? GenerateAttribute { get; init; }
+        public bool? GenerateFactories { get; init; }
+        public DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointFeatures ModuleFeatures { get; init; }
+        public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ParameterInfoModel> Parameters { get; init; }
+        public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.PropertyInfoModel> PropertyInfoModels { get; init; }
+        public bool? RegisterJsonSerializers { get; init; }
+        public DependencyModules.SourceGenerator.Impl.Models.RegistrationType? RegistrationType { get; init; }
+        public string? UseMethod { get; init; }
+    }
+    public class ModuleEntryPointModelComparer : System.Collections.Generic.IEqualityComparer<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel>
+    {
+        public ModuleEntryPointModelComparer() { }
+        public bool Equals(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel? x, DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel? y) { }
+        public int GetHashCode(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel obj) { }
+    }
+    public static class ModuleEntryPointModelExtensions
+    {
+        public static string UniqueId(this DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel model) { }
+    }
+    public class ParameterInfoModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.ParameterInfoModel>
+    {
+        public ParameterInfoModel(string ParameterName, CSharpAuthor.ITypeDefinition ParameterType, object? DefaultValue, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.AttributeModel> Attributes) { }
+        public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.AttributeModel> Attributes { get; init; }
+        public object? DefaultValue { get; init; }
+        public string ParameterName { get; init; }
+        public CSharpAuthor.ITypeDefinition ParameterType { get; init; }
+        public virtual bool Equals(DependencyModules.SourceGenerator.Impl.Models.ParameterInfoModel? other) { }
+        public override int GetHashCode() { }
+    }
+    public class PropertyInfoModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.PropertyInfoModel>
+    {
+        public PropertyInfoModel(CSharpAuthor.ITypeDefinition PropertyType, string PropertyName, bool IsReadOnly, bool IsStatic) { }
+        public bool IsReadOnly { get; init; }
+        public bool IsStatic { get; init; }
+        public string PropertyName { get; init; }
+        public CSharpAuthor.ITypeDefinition PropertyType { get; init; }
+    }
+    [System.Flags]
+    public enum RegistrationFeature
+    {
+        None = 0,
+        AutoRegisterSourceGenerator = 1,
+        AbstractImplementation = 2,
+        StaticImplementation = 4,
+    }
+    public enum RegistrationType
+    {
+        Add = 0,
+        Try = 1,
+        TryEnumerable = 2,
+        Replace = 3,
+    }
+    public class ServiceFactoryModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.ServiceFactoryModel>
+    {
+        public ServiceFactoryModel(CSharpAuthor.ITypeDefinition TypeDefinition, string MethodName, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ParameterInfoModel> Parameters) { }
+        public string MethodName { get; init; }
+        public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ParameterInfoModel> Parameters { get; init; }
+        public CSharpAuthor.ITypeDefinition TypeDefinition { get; init; }
+        public virtual bool Equals(DependencyModules.SourceGenerator.Impl.Models.ServiceFactoryModel? other) { }
+        public override int GetHashCode() { }
+    }
+    public enum ServiceLifestyle
+    {
+        Transient = 0,
+        Scoped = 1,
+        Singleton = 2,
+    }
+    public class ServiceModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.ServiceModel>
+    {
+        public static DependencyModules.SourceGenerator.Impl.Models.ServiceModel Ignore;
+        public ServiceModel(CSharpAuthor.ITypeDefinition ImplementationType, DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? Constructor, DependencyModules.SourceGenerator.Impl.Models.ServiceFactoryModel? Factory, DependencyModules.SourceGenerator.Impl.Models.FactoryOutputDelegate? FactoryOutput, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ServiceRegistrationModel> Registrations, DependencyModules.SourceGenerator.Impl.Models.RegistrationFeature Features) { }
+        public DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? Constructor { get; init; }
+        public DependencyModules.SourceGenerator.Impl.Models.ServiceFactoryModel? Factory { get; init; }
+        public DependencyModules.SourceGenerator.Impl.Models.FactoryOutputDelegate? FactoryOutput { get; init; }
+        public DependencyModules.SourceGenerator.Impl.Models.RegistrationFeature Features { get; init; }
+        public CSharpAuthor.ITypeDefinition ImplementationType { get; init; }
+        public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ServiceRegistrationModel> Registrations { get; init; }
+    }
+    public class ServiceModelComparer : System.Collections.Generic.IEqualityComparer<DependencyModules.SourceGenerator.Impl.Models.ServiceModel>
+    {
+        public ServiceModelComparer() { }
+        public bool Equals(DependencyModules.SourceGenerator.Impl.Models.ServiceModel? x, DependencyModules.SourceGenerator.Impl.Models.ServiceModel? y) { }
+        public int GetHashCode(DependencyModules.SourceGenerator.Impl.Models.ServiceModel obj) { }
+    }
+    public class ServiceRegistrationModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.ServiceRegistrationModel>
+    {
+        public ServiceRegistrationModel(CSharpAuthor.ITypeDefinition ServiceType, DependencyModules.SourceGenerator.Impl.Models.ServiceLifestyle Lifestyle, DependencyModules.SourceGenerator.Impl.Models.RegistrationType? RegistrationType = default, CSharpAuthor.ITypeDefinition? Realm = null, object? Key = null, bool? CrossWire = false, System.Collections.Generic.IReadOnlyList<string>? Namespaces = null) { }
+        public bool? CrossWire { get; init; }
+        public object? Key { get; init; }
+        public DependencyModules.SourceGenerator.Impl.Models.ServiceLifestyle Lifestyle { get; init; }
+        public System.Collections.Generic.IReadOnlyList<string>? Namespaces { get; init; }
+        public CSharpAuthor.ITypeDefinition? Realm { get; init; }
+        public DependencyModules.SourceGenerator.Impl.Models.RegistrationType? RegistrationType { get; init; }
+        public CSharpAuthor.ITypeDefinition ServiceType { get; init; }
+    }
+}
+namespace DependencyModules.SourceGenerator.Impl.Utilities
+{
+    public static class AttributeModelHelper
+    {
+        public static DependencyModules.SourceGenerator.Impl.Models.AttributeModel? GetAttribute(Microsoft.CodeAnalysis.GeneratorSyntaxContext context, Microsoft.CodeAnalysis.CSharp.Syntax.AttributeSyntax attribute) { }
+        public static DependencyModules.SourceGenerator.Impl.Models.AttributeClassInfo GetAttributeClassInfo(Microsoft.CodeAnalysis.GeneratorSyntaxContext context, System.Threading.CancellationToken cancellationToken) { }
+        public static System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.AttributeModel> GetAttributeModels(Microsoft.CodeAnalysis.GeneratorSyntaxContext context, Microsoft.CodeAnalysis.SyntaxNode node, System.Threading.CancellationToken cancellationToken, System.Func<Microsoft.CodeAnalysis.CSharp.Syntax.AttributeSyntax, bool>? filter = null) { }
+        public static System.Collections.Generic.IEnumerable<DependencyModules.SourceGenerator.Impl.Models.AttributeModel> GetAttributes(Microsoft.CodeAnalysis.GeneratorSyntaxContext context, Microsoft.CodeAnalysis.SyntaxList<Microsoft.CodeAnalysis.CSharp.Syntax.AttributeListSyntax> attributeListSyntax, System.Threading.CancellationToken cancellationToken, System.Func<Microsoft.CodeAnalysis.CSharp.Syntax.AttributeSyntax, bool>? filter = null) { }
+    }
+    public abstract class BaseAttributeWriter<T>
+        where T : DependencyModules.SourceGenerator.Impl.Models.IClassModel
+    {
+        protected BaseAttributeWriter() { }
+        public void CreateAttributeClass(CSharpAuthor.IConstructContainer container, T model) { }
+        protected virtual void CreateConstructor(CSharpAuthor.IConstructContainer container, CSharpAuthor.ClassDefinition attributeClass, T model) { }
+        protected virtual void CreateProperties(CSharpAuthor.IConstructContainer container, CSharpAuthor.ClassDefinition attributeClass, T model) { }
+        protected virtual void CustomImplementation(CSharpAuthor.IConstructContainer container, CSharpAuthor.ClassDefinition attributeClass, T model) { }
+    }
+    public static class BaseMethodHelper
+    {
+        public static System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ParameterInfoModel> GetMethodParameters(this Microsoft.CodeAnalysis.CSharp.Syntax.BaseMethodDeclarationSyntax methodDeclarationSyntax, Microsoft.CodeAnalysis.GeneratorSyntaxContext context, System.Threading.CancellationToken cancellationToken) { }
+        public static System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ParameterInfoModel> GetParameters(this Microsoft.CodeAnalysis.CSharp.Syntax.ParameterListSyntax? parameterList, Microsoft.CodeAnalysis.GeneratorSyntaxContext context, System.Threading.CancellationToken cancellationToken) { }
+    }
+    public abstract class BaseSyntaxSelector
+    {
+        protected BaseSyntaxSelector(params CSharpAuthor.ITypeDefinition[] attributes) { }
+        public string ApproveFilter { get; set; }
+        public bool AutoApproveCompilationUnit { get; set; }
+        protected abstract bool TestForTypes(Microsoft.CodeAnalysis.SyntaxNode node, System.Threading.CancellationToken token);
+        public bool Where(Microsoft.CodeAnalysis.SyntaxNode node, System.Threading.CancellationToken token) { }
+    }
+    public class EntryModelUtil
+    {
+        public EntryModelUtil() { }
+        [return: System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "uniqueEntryPoints",
+                "configurationModel"})]
+        public static System.ValueTuple<System.Collections.Generic.IList<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel>, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel> ConsolidateEntryPointModels([System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Left",
+                "Right"})] System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>> entryPointList) { }
+        public static DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel EnsureNamespace(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel configurationModel) { }
+        public static string GenerateFileName(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel, string uniquePortion) { }
+    }
+    public class FileLogger : System.IDisposable
+    {
+        public FileLogger(DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel configurationModel, string loggerName) { }
+        public void Dispose() { }
+        public void Error(string message) { }
+        public void Error(string message, object data) { }
+        public void Info(string message) { }
+        public void Info(string message, object data) { }
+        public static void Wrap(string loggerName, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel configurationModel, System.Action<DependencyModules.SourceGenerator.Impl.Utilities.FileLogger> logger, System.Action<System.Exception>? reportFailure = null) { }
+    }
+    public static class ITypeDefinitionExtensions
+    {
+        public static string GetFileNameHint(this CSharpAuthor.ITypeDefinition typeDefinition, string rootNamespace, string uniquePart) { }
+    }
+    public class ServiceModelUtility
+    {
+        public ServiceModelUtility() { }
+        public static DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? GetConstructorInfo(Microsoft.CodeAnalysis.GeneratorSyntaxContext context, Microsoft.CodeAnalysis.SyntaxNode node, System.Threading.CancellationToken cancellationToken) { }
+        public static DependencyModules.SourceGenerator.Impl.Models.ServiceModel? GetServiceModel(Microsoft.CodeAnalysis.GeneratorSyntaxContext context, System.Threading.CancellationToken cancellationToken) { }
+    }
+    public static class SyntaxNodeExtensions
+    {
+        public static Microsoft.CodeAnalysis.CSharp.Syntax.AttributeSyntax? GetAttribute(this Microsoft.CodeAnalysis.SyntaxNode node, string attributeName, string ns = "") { }
+        public static System.Collections.Generic.IEnumerable<Microsoft.CodeAnalysis.CSharp.Syntax.AttributeSyntax> GetAttributes(this Microsoft.CodeAnalysis.SyntaxNode node, string attributeName, string ns = "") { }
+        public static string GetNamespace(this Microsoft.CodeAnalysis.CSharp.Syntax.BaseTypeDeclarationSyntax syntax) { }
+        public static CSharpAuthor.ITypeDefinition GetTypeDefinition(this Microsoft.CodeAnalysis.CSharp.Syntax.TypeDeclarationSyntax typeDeclarationSyntax) { }
+        public static bool IsAttributed(this Microsoft.CodeAnalysis.SyntaxNode node, CSharpAuthor.ITypeDefinition typeDefinition) { }
+        public static bool IsAttributed(this Microsoft.CodeAnalysis.SyntaxNode node, string attributeName, string ns = "") { }
+    }
+    public class SyntaxSelector<T> : DependencyModules.SourceGenerator.Impl.Utilities.BaseSyntaxSelector
+        where T : Microsoft.CodeAnalysis.SyntaxNode
+    {
+        public SyntaxSelector(params CSharpAuthor.ITypeDefinition[] attributes) { }
+        protected override bool TestForTypes(Microsoft.CodeAnalysis.SyntaxNode node, System.Threading.CancellationToken token) { }
+    }
+    public class SyntaxSelector<T1, T2> : DependencyModules.SourceGenerator.Impl.Utilities.BaseSyntaxSelector
+        where T1 : Microsoft.CodeAnalysis.SyntaxNode
+        where T2 : Microsoft.CodeAnalysis.SyntaxNode
+    {
+        public SyntaxSelector(params CSharpAuthor.ITypeDefinition[] attributes) { }
+        protected override bool TestForTypes(Microsoft.CodeAnalysis.SyntaxNode node, System.Threading.CancellationToken token) { }
+    }
+    public class SyntaxSelector<T1, T2, T3> : DependencyModules.SourceGenerator.Impl.Utilities.BaseSyntaxSelector
+        where T1 : Microsoft.CodeAnalysis.SyntaxNode
+        where T2 : Microsoft.CodeAnalysis.SyntaxNode
+        where T3 : Microsoft.CodeAnalysis.SyntaxNode
+    {
+        public SyntaxSelector(params CSharpAuthor.ITypeDefinition[] attributes) { }
+        protected override bool TestForTypes(Microsoft.CodeAnalysis.SyntaxNode node, System.Threading.CancellationToken token) { }
+    }
+    public class TypeParameterDefinition : CSharpAuthor.ITypeDefinition, System.IComparable<CSharpAuthor.ITypeDefinition>
+    {
+        public TypeParameterDefinition(CSharpAuthor.TypeDefinitionEnum typeDefinitionEnum, bool isNullable, bool isArray, string name) { }
+        public bool IsArray { get; }
+        public bool IsNullable { get; }
+        public System.Collections.Generic.IEnumerable<string> KnownNamespaces { get; }
+        public string Name { get; }
+        public string Namespace { get; }
+        public System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> TypeArguments { get; }
+        public CSharpAuthor.TypeDefinitionEnum TypeDefinitionEnum { get; }
+        public int CompareTo(CSharpAuthor.ITypeDefinition other) { }
+        public CSharpAuthor.ITypeDefinition MakeArray() { }
+        public CSharpAuthor.ITypeDefinition MakeNullable(bool nullable = true) { }
+        public void WriteTypeName(System.Text.StringBuilder builder, CSharpAuthor.TypeOutputMode typeOutputMode = 2) { }
+    }
+    public static class TypeSyntaxExtensions
+    {
+        public static string GetFullName(this Microsoft.CodeAnalysis.INamespaceSymbol? namespaceSymbol) { }
+        public static CSharpAuthor.ITypeDefinition GetTypeDefinition(this Microsoft.CodeAnalysis.ITypeSymbol typeSymbol) { }
+        public static CSharpAuthor.ITypeDefinition? GetTypeDefinition(this Microsoft.CodeAnalysis.CSharp.Syntax.MemberAccessExpressionSyntax syntax, Microsoft.CodeAnalysis.GeneratorSyntaxContext generatorSyntaxContext) { }
+        public static CSharpAuthor.ITypeDefinition? GetTypeDefinition(this Microsoft.CodeAnalysis.SyntaxNode typeSyntax, Microsoft.CodeAnalysis.GeneratorSyntaxContext generatorSyntaxContext) { }
+        public static CSharpAuthor.ITypeDefinition? GetTypeDefinitionFromNamedSymbol(this Microsoft.CodeAnalysis.INamedTypeSymbol? namedTypeSymbol) { }
+        public static CSharpAuthor.ITypeDefinition? GetTypeDefinitionFromSymbolInfo(Microsoft.CodeAnalysis.SymbolInfo symbolInfo) { }
+    }
+    public class UsageAttributeComponent : CSharpAuthor.BaseOutputComponent
+    {
+        public UsageAttributeComponent(string usage) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+}
+namespace DependencyModules.SourceGenerator
+{
+    public class ServiceSourceGenerator : DependencyModules.SourceGenerator.Impl.BaseAttributeSourceGenerator<DependencyModules.SourceGenerator.Impl.Models.ServiceModel>
+    {
+        public ServiceSourceGenerator() { }
+        protected override System.Collections.Generic.IEnumerable<CSharpAuthor.ITypeDefinition> AttributeTypes() { }
+        protected override DependencyModules.SourceGenerator.Impl.Models.ServiceModel GenerateAttributeModel(Microsoft.CodeAnalysis.GeneratorSyntaxContext context, System.Threading.CancellationToken cancellationToken) { }
+        protected override void GenerateSourceOutput(Microsoft.CodeAnalysis.SourceProductionContext context, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Left",
+                "Right",
+                "Left",
+                "Right"})] System.ValueTuple<System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>>, System.Collections.Immutable.ImmutableArray<DependencyModules.SourceGenerator.Impl.Models.ServiceModel>> inputData, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
+        protected void GenerateSourceOutput(Microsoft.CodeAnalysis.SourceProductionContext context, DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel configurationModel, System.Collections.Immutable.ImmutableArray<DependencyModules.SourceGenerator.Impl.Models.ServiceModel> serviceModels, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
+        protected override System.Collections.Generic.IEqualityComparer<DependencyModules.SourceGenerator.Impl.Models.ServiceModel> GetComparer() { }
+    }
+    [Microsoft.CodeAnalysis.Generator]
+    public class SourceGenerator : DependencyModules.SourceGenerator.Impl.BaseSourceGenerator
+    {
+        public SourceGenerator() { }
+        protected override System.Collections.Generic.IEnumerable<DependencyModules.SourceGenerator.Impl.IDependencyModuleSourceGenerator> AttributeSourceGenerators() { }
+        protected override void SetupRootGenerator(Microsoft.CodeAnalysis.IncrementalGeneratorInitializationContext context, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Left",
+                "Right"})] Microsoft.CodeAnalysis.IncrementalValueProvider<System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>>> valuesProvider) { }
+    }
+}

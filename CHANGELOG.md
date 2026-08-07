@@ -23,6 +23,21 @@ fixes packaging and generated-code defects and commits to the API surface going 
   `DependencyModules_RegistrationType` silently stopped reaching the generator.
 - **`DependencyModules_LogOutputDirectory` is now honoured.** Generator diagnostic logs were
   written to the compiler's working directory instead of the configured folder.
+- **The generator's configuration properties are reachable from a package.** The packaged
+  `build/*.targets` declared only two of the properties the generator reads, so
+  `DependencyModules_LogOutputDirectory`, `DependencyModules_RegisterGenerator`,
+  `DependencyModules_AutoGenerateModule`, and `DependencyModules_GenerateFactories` silently took
+  their defaults for anyone consuming the NuGet package. The diagnostic log in particular could not
+  be switched on at all. This went unnoticed because the integration tests reference the generator
+  as a project rather than a package, which bypasses `build/*.targets` entirely.
+- **A failing generator no longer fails silently.** Exceptions were caught and, with no log
+  directory configured, discarded — which also stopped Roslyn reporting its own CS8785. The build
+  succeeded, no registrations were produced, and nothing said so. The generator now reports DM0001.
+- **`[CrossWireService(Lifetime = ...)]` is honoured.** The lifetime arrived as the source text
+  `"ServiceLifetime.Scoped"`, `Enum.TryParse` failed on the qualified name, and the silent fallback
+  registered every cross-wired service as a singleton no matter what was asked for. The existing
+  test for this could not detect it: it asserted `Assert.Same(interface1, interface1)`, comparing a
+  value to itself.
 - **`[ModuleTest]` cases no longer collide across test classes.** The test case unique ID was the
   bare method name, so two test classes each declaring a same-named test produced colliding IDs and
   xUnit silently dropped one — a green run with tests quietly not executing. Discovery now defers to
@@ -74,6 +89,24 @@ fixes packaging and generated-code defects and commits to the API surface going 
   shipping libraries, and fails below a threshold. CI publishes the summary to the run summary and
   a coverage badge to the `badges` branch. It also fails the build if xUnit reports a
   skipped test case with a duplicate unique ID, so silently dropped tests can never pass unnoticed.
+- Public API approval tests pinning the surface of every package that ships a referenceable
+  assembly, so an accidental breaking change after 1.0.0 fails the build instead of shipping.
+- Behavioural verification of generated code: tests compile with the real compiler, load the
+  emitted assembly, and assert on resolved instances and lifetimes rather than on the shape of the
+  generated text.
+- Direct tests for `ModuleTestDiscoverer`, written as plain `[Fact]` tests. Every integration test
+  runs through `[ModuleTest]`, so a discoverer fault makes that suite quietly smaller rather than
+  red; testing it from outside the framework is what makes such faults visible.
+- Lifetime semantics tests that cross scope boundaries. Resolving twice from one provider cannot
+  tell a singleton from a scoped service, which is why registering singletons as scoped previously
+  went unnoticed by the integration suite.
+- Diagnostics, so mistakes surface at build time rather than when the container is built:
+  DM0001 for a generator failure, DM0002 for a service that cannot be constructed (an abstract or
+  static type, which previously produced a registration that threw at `BuildServiceProvider`), and
+  DM0003 for a module that is not `partial`.
+- A generator log worth reading. It now records the effective configuration, every module and
+  service discovered with its lifetime, key, and realm, and anything skipped along with the reason.
+  Enable it with `<DependencyModules_LogOutputDirectory>`.
 - A tag-driven release workflow publishing to nuget.org and GitHub Packages.
 
 [1.0.0]: https://github.com/ipjohnson/DependencyModules/releases/tag/v1.0.0

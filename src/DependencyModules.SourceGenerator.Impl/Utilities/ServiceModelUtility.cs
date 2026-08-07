@@ -81,6 +81,27 @@ public class ServiceModelUtility {
             methodDeclarationSyntax.GetMethodParameters(context, cancellationToken));
     }
 
+    /// <summary>
+    /// Flags describing why the container could never construct this type, so the generator can
+    /// report it instead of emitting a registration that fails when the provider is built.
+    /// </summary>
+    private static RegistrationFeature GetConstructionFeatures(SyntaxNode node) {
+        if (node is not TypeDeclarationSyntax typeDeclarationSyntax) {
+            return RegistrationFeature.None;
+        }
+
+        var features = RegistrationFeature.None;
+
+        if (typeDeclarationSyntax.Modifiers.Any(m => m.IsKind(SyntaxKind.StaticKeyword))) {
+            features |= RegistrationFeature.StaticImplementation;
+        }
+        else if (typeDeclarationSyntax.Modifiers.Any(m => m.IsKind(SyntaxKind.AbstractKeyword))) {
+            features |= RegistrationFeature.AbstractImplementation;
+        }
+
+        return features;
+    }
+
     private static ServiceModel? GetClassDeclarationServiceModel(GeneratorSyntaxContext context, CancellationToken cancellationToken) {
         var classDefinition = GetClassDefinition(context);
 
@@ -121,7 +142,7 @@ public class ServiceModelUtility {
             null,
             factoryOutput,
             registrations,
-            RegistrationFeature.None);
+            GetConstructionFeatures(context.Node));
     }
 
     public static ConstructorInfoModel? GetConstructorInfo(GeneratorSyntaxContext context, SyntaxNode node, CancellationToken cancellationToken) {
@@ -309,7 +330,16 @@ public class ServiceModelUtility {
     }
 
     private static ServiceLifestyle GetLifestyle(string toString) {
-        if (Enum.TryParse(toString, out ServiceLifestyle lifestyle)) {
+        // The value arrives as written in source, normally qualified: "ServiceLifetime.Scoped".
+        // Parsing that whole string fails, and the silent fallback below then registered every
+        // cross-wired service as a singleton regardless of the lifetime the developer asked for.
+        var separatorIndex = toString.LastIndexOf('.');
+
+        var value = separatorIndex >= 0
+            ? toString.Substring(separatorIndex + 1).Trim()
+            : toString.Trim();
+
+        if (Enum.TryParse(value, out ServiceLifestyle lifestyle)) {
             return lifestyle;
         }
 

@@ -56,4 +56,9 @@
         </PackageReference>
     </ItemGroup>
 
+    <!-- Release tracking for the DM#### diagnostics (RS2008). -->
+    <ItemGroup>
+        <AdditionalFiles Include="AnalyzerReleases.Shipped.md"/>
+        <AdditionalFiles Include="AnalyzerReleases.Unshipped.md"/>
+    </ItemGroup>
 </Project>

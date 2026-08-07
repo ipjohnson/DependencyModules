@@ -38,7 +38,17 @@ public abstract class BaseAttributeSourceGenerator<T> : IDependencyModuleSourceG
 
         if (config != null) {
             FileLogger.Wrap(
-                LoggerName, config,logger => GenerateSourceOutput(context, data,logger));
+                LoggerName,
+                config,
+                logger => GenerateSourceOutput(context, data, logger),
+                // Surfaced as a build error rather than discarded. A generator that fails quietly
+                // produces a green build with no registrations, which is far harder to diagnose
+                // than a failed one.
+                exception => context.ReportDiagnostic(
+                    Diagnostic.Create(
+                        DependencyModuleDiagnostics.GeneratorFailure,
+                        Location.None,
+                        $"{exception.GetType().Name}: {exception.Message}")));
         }
     }
 

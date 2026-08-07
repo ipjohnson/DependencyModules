@@ -3,6 +3,7 @@ using CSharpAuthor;
 using DependencyModules.SourceGenerator.Impl.Models;
 using DependencyModules.SourceGenerator.Impl.Utilities;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -53,9 +54,8 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
                 logOutputFolder = logOutputFolderValue;
             }
             
-            if (options.GlobalOptions.TryGetValue(
-                    "build_property.DependencyModules_RegisterGenerator", out var generator)) {
-                registerSourceGenerator = generator.Equals("true", StringComparison.OrdinalIgnoreCase);
+            if (TryGetBoolean(options, "DependencyModules_RegisterGenerator", out var generator)) {
+                registerSourceGenerator = generator;
             }
 
             if (options.GlobalOptions.TryGetValue("build_property.RootNamespace", out var rootNamespaceString)) {
@@ -66,17 +66,17 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
                 projectDirectory = projectDirString;
             }
             
-            if (options.GlobalOptions.TryGetValue("build_property.DependencyModules_AutoGenerateModule", out var autoGenerateEntryString)) {
-                autoGenerateEntry = autoGenerateEntryString.Equals("true", StringComparison.OrdinalIgnoreCase);
+            if (TryGetBoolean(options, "DependencyModules_AutoGenerateModule", out var autoGenerateEntryValue)) {
+                autoGenerateEntry = autoGenerateEntryValue;
             }
             
-            if (options.GlobalOptions.TryGetValue("build_property.DependencyModules_GenerateFactories", out var generateFactoriesString)) {
-                generateFactories = generateFactoriesString.Equals("true", StringComparison.OrdinalIgnoreCase);
+            if (TryGetBoolean(options, "DependencyModules_GenerateFactories", out var generateFactoriesValue)) {
+                generateFactories = generateFactoriesValue;
             }
 
             var excludeGeneratedCodeFromCoverage = true;
-            if (options.GlobalOptions.TryGetValue("build_property.ExcludeGeneratedCodeFromCoverage", out var excludeCoverageString)) {
-                excludeGeneratedCodeFromCoverage = !excludeCoverageString.Equals("false", StringComparison.OrdinalIgnoreCase);
+            if (TryGetBoolean(options, "ExcludeGeneratedCodeFromCoverage", out var excludeCoverageValue)) {
+                excludeGeneratedCodeFromCoverage = excludeCoverageValue;
             }
 
             return new DependencyModuleConfigurationModel(
@@ -90,6 +90,27 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
                 generateFactories,
                 excludeGeneratedCodeFromCoverage);
         }).WithComparer(new DependencyModuleConfigurationModelComparer());
+    }
+
+    /// <summary>
+    /// Reads a boolean build property, treating an unset or blank value as "not specified".
+    /// </summary>
+    /// <remarks>
+    /// A property listed as CompilerVisibleProperty is always delivered, as an empty string when
+    /// the developer has not set it. Without this check every boolean default would be overwritten
+    /// with false the moment the property was made visible.
+    /// </remarks>
+    private static bool TryGetBoolean(AnalyzerConfigOptionsProvider options, string propertyName, out bool value) {
+        value = false;
+
+        if (!options.GlobalOptions.TryGetValue("build_property." + propertyName, out var raw) ||
+            string.IsNullOrWhiteSpace(raw)) {
+            return false;
+        }
+
+        value = raw.Trim().Equals("true", StringComparison.OrdinalIgnoreCase);
+
+        return true;
     }
 
     protected virtual void SetupRootGenerator(IncrementalGeneratorInitializationContext context,
@@ -152,6 +173,10 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
         }
         else if (!implementsEqualsFlag) {
             features |= ModuleEntryPointFeatures.ShouldImplementEquals;
+        }
+
+        if (!typeDeclarationSyntax.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword))) {
+            features |= ModuleEntryPointFeatures.NotPartial;
         }
         
         return new ModuleEntryPointModel(

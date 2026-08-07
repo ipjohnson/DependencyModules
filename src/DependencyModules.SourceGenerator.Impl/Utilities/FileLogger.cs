@@ -8,13 +8,33 @@ public class FileLogger : IDisposable {
     private readonly string _outputFolder;
     private StringBuilder? _sb;
 
-    public static void Wrap(string loggerName, DependencyModuleConfigurationModel configurationModel, Action<FileLogger> logger) {
+    /// <summary>
+    /// Runs <paramref name="logger"/>, recording any failure to the log and reporting it through
+    /// <paramref name="reportFailure"/>.
+    /// </summary>
+    /// <remarks>
+    /// The exception must not be swallowed. Catching it here also stops Roslyn from reporting its
+    /// own CS8785, so without <paramref name="reportFailure"/> a crashing generator produced a
+    /// successful build, no registrations, and no message of any kind.
+    /// </remarks>
+    public static void Wrap(
+        string loggerName,
+        DependencyModuleConfigurationModel configurationModel,
+        Action<FileLogger> logger,
+        Action<Exception>? reportFailure = null) {
+
         var fileLogger = new FileLogger(configurationModel, loggerName);
         try {
             logger(fileLogger);
         }
         catch (Exception e) {
             fileLogger.Error($"{e.Message}\n{e.StackTrace}");
+
+            if (reportFailure == null) {
+                throw;
+            }
+
+            reportFailure(e);
         }
         finally {
             fileLogger.Dispose();
