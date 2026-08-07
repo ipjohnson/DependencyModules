@@ -19,6 +19,17 @@ public enum RegistrationType {
 public enum RegistrationFeature {
     None= 0,
     AutoRegisterSourceGenerator = 1,
+
+    /// <summary>
+    /// The implementation is abstract. The container cannot construct it, so registering it would
+    /// fail when the provider is built rather than when the code is compiled.
+    /// </summary>
+    AbstractImplementation = 2,
+
+    /// <summary>
+    /// The implementation is a static class, which likewise cannot be constructed.
+    /// </summary>
+    StaticImplementation = 4,
 }
 
 public record ServiceFactoryModel(

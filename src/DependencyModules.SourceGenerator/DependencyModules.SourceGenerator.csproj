@@ -55,4 +55,10 @@
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Compile>
     </ItemGroup>
+
+    <!-- Release tracking for the DM#### diagnostics (RS2008). -->
+    <ItemGroup>
+        <AdditionalFiles Include="../DependencyModules.SourceGenerator.Impl/AnalyzerReleases.Shipped.md"/>
+        <AdditionalFiles Include="../DependencyModules.SourceGenerator.Impl/AnalyzerReleases.Unshipped.md"/>
+    </ItemGroup>
 </Project>

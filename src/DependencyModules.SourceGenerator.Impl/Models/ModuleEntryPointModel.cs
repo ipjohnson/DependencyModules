@@ -9,6 +9,11 @@ public enum ModuleEntryPointFeatures {
     OnlyRealm = 2,
     ShouldImplementEquals = 4,
     IsRecord = 8,
+
+    /// <summary>
+    /// The module was declared without the partial modifier, so the generator cannot complete it.
+    /// </summary>
+    NotPartial = 16,
 }
 
 public record ModuleEntryPointModel(

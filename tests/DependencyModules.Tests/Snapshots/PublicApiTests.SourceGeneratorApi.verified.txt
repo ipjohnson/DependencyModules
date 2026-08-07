@@ -765,6 +765,12 @@ namespace DependencyModules.SourceGenerator.Impl
         public DependencyFileWriter(DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
         public string Write(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel configurationModel, System.Collections.Generic.IEnumerable<DependencyModules.SourceGenerator.Impl.Models.ServiceModel> serviceModels, string uniqueId) { }
     }
+    public static class DependencyModuleDiagnostics
+    {
+        public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor GeneratorFailure;
+        public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ModuleMustBePartial;
+        public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ServiceCannotBeConstructed;
+    }
     public class DependencyModuleWriter
     {
         public DependencyModuleWriter(bool generateAttribute) { }
@@ -927,6 +933,7 @@ namespace DependencyModules.SourceGenerator.Impl.Models
         OnlyRealm = 2,
         ShouldImplementEquals = 4,
         IsRecord = 8,
+        NotPartial = 16,
     }
     public class ModuleEntryPointModel : DependencyModules.SourceGenerator.Impl.Models.IClassModel, System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel>
     {
@@ -979,6 +986,8 @@ namespace DependencyModules.SourceGenerator.Impl.Models
     {
         None = 0,
         AutoRegisterSourceGenerator = 1,
+        AbstractImplementation = 2,
+        StaticImplementation = 4,
     }
     public enum RegistrationType
     {
@@ -1082,7 +1091,7 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities
         public void Error(string message, object data) { }
         public void Info(string message) { }
         public void Info(string message, object data) { }
-        public static void Wrap(string loggerName, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel configurationModel, System.Action<DependencyModules.SourceGenerator.Impl.Utilities.FileLogger> logger) { }
+        public static void Wrap(string loggerName, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel configurationModel, System.Action<DependencyModules.SourceGenerator.Impl.Utilities.FileLogger> logger, System.Action<System.Exception>? reportFailure = null) { }
     }
     public static class ITypeDefinitionExtensions
     {

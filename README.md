@@ -21,6 +21,25 @@ dotnet add package DependencyModules.SourceGenerator
 
 Requires .NET 8.0 or later. See [CHANGELOG.md](CHANGELOG.md) for release notes.
 
+## Reporting a problem
+
+If services are not being registered as you expect, these three steps produce almost everything
+needed to diagnose it:
+
+1. **Look at the generated code.** Set `<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>`
+   and read the files under `obj/`. The registrations the generator produced are the ground truth.
+2. **Turn on the generator log**, which records the configuration in effect, every module and
+   service discovered, and anything skipped along with the reason:
+   ```xml
+   <PropertyGroup>
+     <DependencyModules_LogOutputDirectory>$(MSBuildProjectDirectory)/dmlogs</DependencyModules_LogOutputDirectory>
+   </PropertyGroup>
+   ```
+3. **Check for `DM####` warnings** in the build output. The generator reports these for mistakes it
+   can detect, such as a service type that cannot be constructed or a module missing `partial`.
+
+Please include the log and the generated file in any [issue](https://github.com/ipjohnson/DependencyModules/issues).
+
 ## Service Attributes 
 
 * `[DependencyModule]` - used to attribute class that will become dependency module (must be partial)

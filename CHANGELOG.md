@@ -23,6 +23,16 @@ fixes packaging and generated-code defects and commits to the API surface going 
   `DependencyModules_RegistrationType` silently stopped reaching the generator.
 - **`DependencyModules_LogOutputDirectory` is now honoured.** Generator diagnostic logs were
   written to the compiler's working directory instead of the configured folder.
+- **The generator's configuration properties are reachable from a package.** The packaged
+  `build/*.targets` declared only two of the properties the generator reads, so
+  `DependencyModules_LogOutputDirectory`, `DependencyModules_RegisterGenerator`,
+  `DependencyModules_AutoGenerateModule`, and `DependencyModules_GenerateFactories` silently took
+  their defaults for anyone consuming the NuGet package. The diagnostic log in particular could not
+  be switched on at all. This went unnoticed because the integration tests reference the generator
+  as a project rather than a package, which bypasses `build/*.targets` entirely.
+- **A failing generator no longer fails silently.** Exceptions were caught and, with no log
+  directory configured, discarded — which also stopped Roslyn reporting its own CS8785. The build
+  succeeded, no registrations were produced, and nothing said so. The generator now reports DM0001.
 - **`[CrossWireService(Lifetime = ...)]` is honoured.** The lifetime arrived as the source text
   `"ServiceLifetime.Scoped"`, `Enum.TryParse` failed on the qualified name, and the silent fallback
   registered every cross-wired service as a singleton no matter what was asked for. The existing
@@ -90,6 +100,13 @@ fixes packaging and generated-code defects and commits to the API surface going 
 - Lifetime semantics tests that cross scope boundaries. Resolving twice from one provider cannot
   tell a singleton from a scoped service, which is why registering singletons as scoped previously
   went unnoticed by the integration suite.
+- Diagnostics, so mistakes surface at build time rather than when the container is built:
+  DM0001 for a generator failure, DM0002 for a service that cannot be constructed (an abstract or
+  static type, which previously produced a registration that threw at `BuildServiceProvider`), and
+  DM0003 for a module that is not `partial`.
+- A generator log worth reading. It now records the effective configuration, every module and
+  service discovered with its lifetime, key, and realm, and anything skipped along with the reason.
+  Enable it with `<DependencyModules_LogOutputDirectory>`.
 - A tag-driven release workflow publishing to nuget.org and GitHub Packages.
 
 [1.0.0]: https://github.com/ipjohnson/DependencyModules/releases/tag/v1.0.0
