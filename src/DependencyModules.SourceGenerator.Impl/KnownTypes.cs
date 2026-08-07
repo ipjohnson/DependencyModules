@@ -48,6 +48,12 @@ public static class KnownTypes {
 
             public static readonly ITypeDefinition SingletonServiceAttribute =
                 TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "SingletonServiceAttribute");
+
+            public static readonly ITypeDefinition DecoratorAttribute =
+                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "DecoratorAttribute");
+
+            public static readonly ITypeDefinition DecorateAttribute =
+                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "DecorateAttribute");
             
             public static readonly ITypeDefinition CrossWireServiceAttribute =
                 TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "CrossWireServiceAttribute");
@@ -87,6 +93,12 @@ public static class KnownTypes {
 
         public static class Helpers {
             public const string Namespace = "DependencyModules.Runtime.Helpers";
+
+            public static readonly ITypeDefinition DecoratorHelper =
+                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "DecoratorHelper");
+
+            public static readonly ITypeDefinition DecoratorRegistration =
+                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "DecoratorRegistration");
         }
     }
 }

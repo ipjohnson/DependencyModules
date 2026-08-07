@@ -55,4 +55,18 @@ public static class DependencyModuleDiagnostics {
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
+
+    /// <summary>
+    /// Raised when two decorators of one service share an order. Applying them in an arbitrary order
+    /// would nest them in a way nobody declared, and the two nestings behave differently.
+    /// </summary>
+    public static readonly DiagnosticDescriptor AmbiguousDecoratorOrder = new(
+        id: "DM0007",
+        title: "Decorator order is ambiguous",
+        messageFormat:
+        "'{0}' and '{1}' both decorate '{2}' with order {3}, so the order they nest in is undefined. " +
+        "Give them distinct Order values.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
 }

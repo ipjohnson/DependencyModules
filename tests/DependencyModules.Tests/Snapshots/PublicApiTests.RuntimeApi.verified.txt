@@ -106,6 +106,7 @@ namespace DependencyModules.Runtime.Helpers
     public static class DecoratorHelper
     {
         public static void Decorate(Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Type serviceType, System.Func<System.IServiceProvider, object, object> decoratorFactory) { }
+        public static void Decorate(Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Type serviceType, System.Type decoratorType) { }
     }
     public readonly struct DecoratorRegistration
     {

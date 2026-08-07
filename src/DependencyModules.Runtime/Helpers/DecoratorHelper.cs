@@ -56,6 +56,55 @@ public static class DecoratorHelper {
     }
 
     /// <summary>
+    /// Wraps every registration of <paramref name="serviceType"/> in <paramref name="decoratorType"/>,
+    /// resolving the decorator's remaining constructor parameters from the container.
+    /// </summary>
+    /// <remarks>
+    /// This is the overload generated code calls. Keeping the construction here rather than emitting
+    /// it means the awkward parts — closing an open generic decorator against whichever type
+    /// arguments the registration used, and passing the wrapped instance positionally — are written
+    /// and tested once.
+    /// </remarks>
+    /// <param name="services">The collection to rewrite.</param>
+    /// <param name="serviceType">The service being decorated. May be an open generic.</param>
+    /// <param name="decoratorType">
+    /// The decorator. Must be an open generic when <paramref name="serviceType"/> is, and is closed
+    /// with the type arguments of each matched registration.
+    /// </param>
+    public static void Decorate(IServiceCollection services, Type serviceType, Type decoratorType) {
+        Decorate(services, serviceType, (provider, inner) => {
+            var closedDecorator = decoratorType.IsGenericTypeDefinition
+                ? decoratorType.MakeGenericType(ResolveTypeArguments(inner, serviceType))
+                : decoratorType;
+
+            return ActivatorUtilities.CreateInstance(provider, closedDecorator, inner);
+        });
+    }
+
+    /// <summary>
+    /// The type arguments the wrapped instance closed the decorated open generic with, so the
+    /// decorator can be closed the same way.
+    /// </summary>
+    private static Type[] ResolveTypeArguments(object inner, Type openServiceType) {
+        var innerType = inner.GetType();
+
+        foreach (var candidate in innerType.GetInterfaces()) {
+            if (candidate.IsGenericType && candidate.GetGenericTypeDefinition() == openServiceType) {
+                return candidate.GetGenericArguments();
+            }
+        }
+
+        // The wrapped instance may itself be a closed construction of the decorated type rather than
+        // an implementation of it, which happens when decorators are stacked.
+        if (innerType.IsGenericType && innerType.GetGenericTypeDefinition() == openServiceType) {
+            return innerType.GetGenericArguments();
+        }
+
+        throw new InvalidOperationException(
+            $"'{innerType}' does not implement '{openServiceType}', so the decorator cannot be closed.");
+    }
+
+    /// <summary>
     /// True when a registered service type is the one being decorated, including a closed
     /// construction of a decorated open generic.
     /// </summary>

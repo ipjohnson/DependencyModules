@@ -82,6 +82,14 @@ fixes packaging and generated-code defects and commits to the API surface going 
 
 ### Added
 
+- **Decorators.** `[Decorator]` on a class wraps the registered implementation of the service it
+  implements and takes as a constructor parameter; `[Decorate(service, decorator)]` on a module does
+  the same for types declared elsewhere. `Order` controls nesting, with lower values sitting closer
+  to the implementation, and is compared across every module in an `AddModule(s)` call rather than
+  only within the declaring one. Open generic decorators are supported, so one decorator can wrap
+  every closed registration of a generic service. Two decorators of one service sharing an order is
+  reported as DM0007 rather than nesting arbitrarily.
+
 - `tests/DependencyModules.Tests`: unit tests for `DependencyRegistry<T>` (including its
   thread-safety guarantees), module graph loading, generator configuration, and snapshot tests
   over the generator's full output.

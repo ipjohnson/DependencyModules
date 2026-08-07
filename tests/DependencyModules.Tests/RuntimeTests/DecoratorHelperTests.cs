@@ -223,4 +223,70 @@ public class DecoratorHelperTests {
 
         Assert.Equal("wrapped(thing)", resolved.Describe());
     }
+
+    // --- the type-based overload generated code calls ---
+
+    [Fact]
+    public void DecorateByType_WrapsAndResolvesTheDecoratorsDependencies() {
+        var services = new ServiceCollection();
+        services.AddSingleton<IThing, Thing>();
+        services.AddSingleton<IUnrelated, Unrelated>();
+
+        DecoratorHelper.Decorate(services, typeof(IThing), typeof(DependentWrapper));
+
+        var resolved = Assert.IsType<DependentWrapper>(Resolve(services));
+        Assert.NotNull(resolved.Dependency);
+    }
+
+    [Fact]
+    public void DecorateByType_PassesTheWrappedInstance() {
+        var services = new ServiceCollection();
+        services.AddSingleton<IThing, Thing>();
+
+        DecoratorHelper.Decorate(services, typeof(IThing), typeof(Wrapper));
+
+        Assert.Equal("wrapped(thing)", Resolve(services).Describe());
+    }
+
+    [Fact]
+    public void DecorateByType_OpenGeneric_ClosesTheDecoratorPerRegistration() {
+        var services = new ServiceCollection();
+        services.AddSingleton<IGeneric<string>, GenericThing<string>>();
+        services.AddSingleton<IGeneric<int>, GenericThing<int>>();
+
+        DecoratorHelper.Decorate(services, typeof(IGeneric<>), typeof(GenericWrapper<>));
+
+        var provider = services.BuildServiceProvider();
+
+        Assert.Equal("wrapped(generic<String>)", provider.GetRequiredService<IGeneric<string>>().Describe());
+        Assert.Equal("wrapped(generic<Int32>)", provider.GetRequiredService<IGeneric<int>>().Describe());
+    }
+
+    /// <summary>
+    /// Stacking open generic decorators means the wrapped instance is itself a decorator, so the
+    /// type arguments have to be discovered from whichever of them implements the service.
+    /// </summary>
+    [Fact]
+    public void DecorateByType_OpenGeneric_Stacks() {
+        var services = new ServiceCollection();
+        services.AddSingleton<IGeneric<string>, GenericThing<string>>();
+
+        DecoratorHelper.Decorate(services, typeof(IGeneric<>), typeof(GenericWrapper<>));
+        DecoratorHelper.Decorate(services, typeof(IGeneric<>), typeof(GenericWrapper<>));
+
+        var provider = services.BuildServiceProvider();
+
+        Assert.Equal("wrapped(wrapped(generic<String>))", provider.GetRequiredService<IGeneric<string>>().Describe());
+    }
+
+    [Fact]
+    public void DecorateByType_StacksInApplicationOrder() {
+        var services = new ServiceCollection();
+        services.AddSingleton<IThing, Thing>();
+
+        DecoratorHelper.Decorate(services, typeof(IThing), typeof(Wrapper));
+        DecoratorHelper.Decorate(services, typeof(IThing), typeof(SecondWrapper));
+
+        Assert.Equal("second(wrapped(thing))", Resolve(services).Describe());
+    }
 }

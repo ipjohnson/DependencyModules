@@ -22,6 +22,7 @@ namespace TestNamespace
 }
 
 // ---- TestModule.Module.g.cs ----
+using DependencyModules.Runtime.Helpers;
 using DependencyModules.Runtime.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Generic;
@@ -55,6 +56,12 @@ namespace TestNamespace
         global::System.Collections.Generic.IEnumerable<object> global::DependencyModules.Runtime.Interfaces.IDependencyModule.InternalGetModules()
         {
             return global::DependencyModules.Runtime.Helpers.DependencyRegistry<global::TestNamespace.TestModule>.GetModules();
+        }
+
+        [Browsable(false)]
+        global::System.Collections.Generic.IEnumerable<global::DependencyModules.Runtime.Helpers.DecoratorRegistration> global::DependencyModules.Runtime.Interfaces.IDependencyModule.InternalGetDecorators()
+        {
+            return global::DependencyModules.Runtime.Helpers.DependencyRegistry<global::TestNamespace.TestModule>.GetDecorators();
         }
 
         public override bool Equals(object? obj)

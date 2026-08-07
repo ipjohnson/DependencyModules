@@ -1,8 +1,8 @@
 # Design: convention registration and decorators
 
-Status: proposal. One piece is implemented — `AddDecorator`'s `order` parameter, noted below —
-because it changes public API and was cheaper to settle before 1.0 than after. Everything else is
-design only.
+Status: part 2 phase A is implemented — typed decorators, module-level `[Decorate]`, open generic
+decorators, and global ordering. Convention registration (part 1), generated forwarding (phase B),
+and interceptors (part 3) remain design only.
 
 Two features that would close the functional gap with [Scrutor](https://github.com/khellang/Scrutor)
 without giving up what makes this library different: everything resolved at compile time, no
@@ -543,7 +543,9 @@ Each step is independently shippable and makes the next cheaper.
 | Global decorator ordering | done | `InternalGetDecorators` collects across modules; sorted together |
 | `DecoratorHelper` descriptor rewrite | done | All three descriptor shapes, open generics, keyed, lifetime preserved |
 | `[Decorator]` / `[Decorate]` attributes | done | Runtime surface only; the generator does not read them yet |
-| Generator emission for decorators | **remaining** | Model, provider, `ModuleDecorators` emission, DM0007-DM0010 |
+| Generator emission for decorators | done | `[Decorator]` and `[Decorate]` are read and emitted; DM0007 for ambiguous order |
+| Phase B: generated forwarding | remaining | Opt-in via `partial`; additive |
+| Interceptors | remaining | Reuses the same descriptor rewrite |
 | Wire `ConfigureDecorators` | done | Was a public no-op; now invoked after all services are registered |
 | Convention registration | days | Independent of decorators; can proceed in parallel |
 | Phase A, typed decorators | ~1 day | Closes the Scrutor gap. Emit the body through a template |
