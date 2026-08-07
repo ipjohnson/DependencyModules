@@ -104,7 +104,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # A version carrying a prerelease label must not appear as a stable release.
+          case "${{ steps.version.outputs.version }}" in
+            *-*) prerelease="--prerelease" ;;
+            *)   prerelease="" ;;
+          esac
+
           gh release create "${GITHUB_REF_NAME}" \
             --title "${GITHUB_REF_NAME}" \
             --generate-notes \
+            ${prerelease} \
             ./artifacts/*.nupkg
