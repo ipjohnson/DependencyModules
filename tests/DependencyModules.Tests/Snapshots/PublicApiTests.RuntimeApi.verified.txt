@@ -95,7 +95,7 @@ namespace DependencyModules.Runtime.Helpers
             where TInstance :  class { }
         public static int Add<TInstance>(System.Type implementationType, Microsoft.Extensions.DependencyInjection.ServiceLifetime lifetime = 2, object? serviceKey = null)
             where TInstance :  class { }
-        public static int AddDecorator(DependencyModules.Runtime.Helpers.RegistryFunc registryFunc) { }
+        public static int AddDecorator(DependencyModules.Runtime.Helpers.RegistryFunc registryFunc, int order = 0) { }
         public static int AddModule(params DependencyModules.Runtime.Interfaces.IDependencyModule[] modules) { }
         public static void ApplyDecorators(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection) { }
         public static void ApplyServices(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection) { }

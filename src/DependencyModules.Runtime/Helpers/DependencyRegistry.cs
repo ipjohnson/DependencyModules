@@ -21,7 +21,7 @@ public class DependencyRegistry<T> {
     // ReSharper disable StaticMemberInGenericType
     private static readonly object SyncLock = new();
     private static readonly List<RegistryFunc> RegistryFuncs = [];
-    private static readonly List<RegistryFunc> Decorators = [];
+    private static readonly List<DecoratorRegistration> Decorators = [];
     private static readonly List<IDependencyModule> Modules = [];
 
     /// <summary>
@@ -84,11 +84,19 @@ public class DependencyRegistry<T> {
     /// <summary>
     ///      Add decorator func
     /// </summary>
-    /// <param name="registryFunc"></param>
+    /// <param name="registryFunc">Function that decorates registrations already in the collection.</param>
+    /// <param name="order">
+    ///     Controls how decorators nest. Lower values are applied first and therefore sit closer to
+    ///     the implementation; higher values wrap them. Decorators sharing an order are applied in
+    ///     registration order.
+    ///
+    ///     By convention, framework packages use 0-999 and application code uses 1000 and above, so
+    ///     that an application's decorators wrap those contributed by the libraries it consumes.
+    /// </param>
     /// <returns></returns>
-    public static int AddDecorator(RegistryFunc registryFunc) {
+    public static int AddDecorator(RegistryFunc registryFunc, int order = 0) {
         lock (SyncLock) {
-            Decorators.Add(registryFunc);
+            Decorators.Add(new DecoratorRegistration(order, registryFunc));
         }
 
         return 1;
@@ -142,14 +150,22 @@ public class DependencyRegistry<T> {
     /// </summary>
     /// <param name="serviceCollection"></param>
     public static void ApplyDecorators(IServiceCollection serviceCollection) {
-        RegistryFunc[] snapshot;
+        DecoratorRegistration[] snapshot;
         lock (SyncLock) {
             snapshot = Decorators.ToArray();
         }
 
-        foreach (var registryFunc in snapshot) {
-            registryFunc(serviceCollection);
+        // OrderBy is a stable sort, so decorators sharing an order keep their registration order
+        // rather than nesting arbitrarily.
+        foreach (var decorator in snapshot.OrderBy(decorator => decorator.Order)) {
+            decorator.RegistryFunc(serviceCollection);
         }
+    }
+
+    private readonly struct DecoratorRegistration(int order, RegistryFunc registryFunc) {
+        public int Order { get; } = order;
+
+        public RegistryFunc RegistryFunc { get; } = registryFunc;
     }
 
     /// <summary>
