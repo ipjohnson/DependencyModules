@@ -33,6 +33,9 @@ fixes packaging and generated-code defects and commits to the API surface going 
 - **A failing generator no longer fails silently.** Exceptions were caught and, with no log
   directory configured, discarded — which also stopped Roslyn reporting its own CS8785. The build
   succeeded, no registrations were produced, and nothing said so. The generator now reports DM0001.
+- **`IServiceCollectionConfiguration.ConfigureDecorators` is invoked.** It was declared on the public
+  interface and never called by anything, so a module that implemented it silently did nothing.
+  It now runs after every module has registered its services, which is what decoration requires.
 - **`[CrossWireService(Lifetime = ...)]` is honoured.** The lifetime arrived as the source text
   `"ServiceLifetime.Scoped"`, `Enum.TryParse` failed on the qualified name, and the silent fallback
   registered every cross-wired service as a singleton no matter what was asked for. The existing
@@ -78,6 +81,14 @@ fixes packaging and generated-code defects and commits to the API surface going 
   strong naming has no benefit for packages that only ship `net8.0` assemblies.
 
 ### Added
+
+- **Decorators.** `[Decorator]` on a class wraps the registered implementation of the service it
+  implements and takes as a constructor parameter; `[Decorate(service, decorator)]` on a module does
+  the same for types declared elsewhere. `Order` controls nesting, with lower values sitting closer
+  to the implementation, and is compared across every module in an `AddModule(s)` call rather than
+  only within the declaring one. Open generic decorators are supported, so one decorator can wrap
+  every closed registration of a generic service. Two decorators of one service sharing an order is
+  reported as DM0007 rather than nesting arbitrarily.
 
 - `tests/DependencyModules.Tests`: unit tests for `DependencyRegistry<T>` (including its
   thread-safety guarantees), module graph loading, generator configuration, and snapshot tests

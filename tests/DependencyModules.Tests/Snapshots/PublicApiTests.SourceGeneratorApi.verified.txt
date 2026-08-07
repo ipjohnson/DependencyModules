@@ -702,6 +702,44 @@ namespace CSharpAuthor
         protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
     }
 }
+namespace DependencyModules.SourceGenerator
+{
+    public class DecoratorSourceGenerator : DependencyModules.SourceGenerator.Impl.BaseAttributeSourceGenerator<DependencyModules.SourceGenerator.Impl.Models.DecoratorModel>
+    {
+        public DecoratorSourceGenerator() { }
+        protected override string LoggerName { get; }
+        protected override System.Collections.Generic.IEnumerable<CSharpAuthor.ITypeDefinition> AttributeTypes() { }
+        protected override DependencyModules.SourceGenerator.Impl.Models.DecoratorModel GenerateAttributeModel(Microsoft.CodeAnalysis.GeneratorSyntaxContext context, System.Threading.CancellationToken cancellationToken) { }
+        protected override void GenerateSourceOutput(Microsoft.CodeAnalysis.SourceProductionContext context, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Left",
+                "Right",
+                "Left",
+                "Right"})] System.ValueTuple<System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>>, System.Collections.Immutable.ImmutableArray<DependencyModules.SourceGenerator.Impl.Models.DecoratorModel>> inputData, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
+        protected override System.Collections.Generic.IEqualityComparer<DependencyModules.SourceGenerator.Impl.Models.DecoratorModel> GetComparer() { }
+    }
+    public class ServiceSourceGenerator : DependencyModules.SourceGenerator.Impl.BaseAttributeSourceGenerator<DependencyModules.SourceGenerator.Impl.Models.ServiceModel>
+    {
+        public ServiceSourceGenerator() { }
+        protected override System.Collections.Generic.IEnumerable<CSharpAuthor.ITypeDefinition> AttributeTypes() { }
+        protected override DependencyModules.SourceGenerator.Impl.Models.ServiceModel GenerateAttributeModel(Microsoft.CodeAnalysis.GeneratorSyntaxContext context, System.Threading.CancellationToken cancellationToken) { }
+        protected override void GenerateSourceOutput(Microsoft.CodeAnalysis.SourceProductionContext context, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Left",
+                "Right",
+                "Left",
+                "Right"})] System.ValueTuple<System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>>, System.Collections.Immutable.ImmutableArray<DependencyModules.SourceGenerator.Impl.Models.ServiceModel>> inputData, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
+        protected void GenerateSourceOutput(Microsoft.CodeAnalysis.SourceProductionContext context, DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel configurationModel, System.Collections.Immutable.ImmutableArray<DependencyModules.SourceGenerator.Impl.Models.ServiceModel> serviceModels, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
+        protected override System.Collections.Generic.IEqualityComparer<DependencyModules.SourceGenerator.Impl.Models.ServiceModel> GetComparer() { }
+    }
+    [Microsoft.CodeAnalysis.Generator]
+    public class SourceGenerator : DependencyModules.SourceGenerator.Impl.BaseSourceGenerator
+    {
+        public SourceGenerator() { }
+        protected override System.Collections.Generic.IEnumerable<DependencyModules.SourceGenerator.Impl.IDependencyModuleSourceGenerator> AttributeSourceGenerators() { }
+        protected override void SetupRootGenerator(Microsoft.CodeAnalysis.IncrementalGeneratorInitializationContext context, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Left",
+                "Right"})] Microsoft.CodeAnalysis.IncrementalValueProvider<System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>>> valuesProvider) { }
+    }
+}
 namespace DependencyModules.SourceGenerator.Impl
 {
     public abstract class BaseAttributeSourceGenerator<T> : DependencyModules.SourceGenerator.Impl.IDependencyModuleSourceGenerator
@@ -760,6 +798,11 @@ namespace DependencyModules.SourceGenerator.Impl
         public override int GetHashCode() { }
         protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
     }
+    public class DecoratorFileWriter
+    {
+        public DecoratorFileWriter() { }
+        public string Write(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel configurationModel, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.DecoratorModel> decorators) { }
+    }
     public class DependencyFileWriter
     {
         public DependencyFileWriter(DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
@@ -767,6 +810,7 @@ namespace DependencyModules.SourceGenerator.Impl
     }
     public static class DependencyModuleDiagnostics
     {
+        public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor AmbiguousDecoratorOrder;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor GeneratorFailure;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ModuleMustBePartial;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ServiceCannotBeConstructed;
@@ -792,6 +836,8 @@ namespace DependencyModules.SourceGenerator.Impl
             {
                 public const string Namespace = "DependencyModules.Runtime.Attributes";
                 public static readonly CSharpAuthor.ITypeDefinition CrossWireServiceAttribute;
+                public static readonly CSharpAuthor.ITypeDefinition DecorateAttribute;
+                public static readonly CSharpAuthor.ITypeDefinition DecoratorAttribute;
                 public static readonly CSharpAuthor.ITypeDefinition DependencyModuleAttribute;
                 public static readonly CSharpAuthor.ITypeDefinition ScopedServiceAttribute;
                 public static readonly CSharpAuthor.ITypeDefinition SingletonServiceAttribute;
@@ -807,6 +853,8 @@ namespace DependencyModules.SourceGenerator.Impl
             public static class Helpers
             {
                 public const string Namespace = "DependencyModules.Runtime.Helpers";
+                public static readonly CSharpAuthor.ITypeDefinition DecoratorHelper;
+                public static readonly CSharpAuthor.ITypeDefinition DecoratorRegistration;
             }
             public static class Interfaces
             {
@@ -880,6 +928,22 @@ namespace DependencyModules.SourceGenerator.Impl.Models
         public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ParameterInfoModel> Parameters { get; init; }
         public virtual bool Equals(DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? other) { }
         public override int GetHashCode() { }
+    }
+    public class DecoratorModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.DecoratorModel>
+    {
+        public static readonly DependencyModules.SourceGenerator.Impl.Models.DecoratorModel Ignore;
+        public DecoratorModel(CSharpAuthor.ITypeDefinition ServiceType, CSharpAuthor.ITypeDefinition DecoratorType, int Order, CSharpAuthor.ITypeDefinition? Realm) { }
+        public CSharpAuthor.ITypeDefinition DecoratorType { get; init; }
+        public bool IsIgnored { get; }
+        public int Order { get; init; }
+        public CSharpAuthor.ITypeDefinition? Realm { get; init; }
+        public CSharpAuthor.ITypeDefinition ServiceType { get; init; }
+    }
+    public class DecoratorModelComparer : System.Collections.Generic.IEqualityComparer<DependencyModules.SourceGenerator.Impl.Models.DecoratorModel>
+    {
+        public DecoratorModelComparer() { }
+        public bool Equals(DependencyModules.SourceGenerator.Impl.Models.DecoratorModel? x, DependencyModules.SourceGenerator.Impl.Models.DecoratorModel? y) { }
+        public int GetHashCode(DependencyModules.SourceGenerator.Impl.Models.DecoratorModel obj) { }
     }
     public class DependencyModuleConfigurationModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>
     {
@@ -1071,6 +1135,11 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities
         protected abstract bool TestForTypes(Microsoft.CodeAnalysis.SyntaxNode node, System.Threading.CancellationToken token);
         public bool Where(Microsoft.CodeAnalysis.SyntaxNode node, System.Threading.CancellationToken token) { }
     }
+    public static class DecoratorModelUtility
+    {
+        public static DependencyModules.SourceGenerator.Impl.Models.DecoratorModel? GetDecoratorModel(Microsoft.CodeAnalysis.GeneratorSyntaxContext context, System.Threading.CancellationToken cancellationToken) { }
+        public static System.Collections.Generic.IEnumerable<DependencyModules.SourceGenerator.Impl.Models.DecoratorModel> GetModuleDeclaredDecorators(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel) { }
+    }
     public class EntryModelUtil
     {
         public EntryModelUtil() { }
@@ -1161,30 +1230,5 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities
     {
         public UsageAttributeComponent(string usage) { }
         protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
-    }
-}
-namespace DependencyModules.SourceGenerator
-{
-    public class ServiceSourceGenerator : DependencyModules.SourceGenerator.Impl.BaseAttributeSourceGenerator<DependencyModules.SourceGenerator.Impl.Models.ServiceModel>
-    {
-        public ServiceSourceGenerator() { }
-        protected override System.Collections.Generic.IEnumerable<CSharpAuthor.ITypeDefinition> AttributeTypes() { }
-        protected override DependencyModules.SourceGenerator.Impl.Models.ServiceModel GenerateAttributeModel(Microsoft.CodeAnalysis.GeneratorSyntaxContext context, System.Threading.CancellationToken cancellationToken) { }
-        protected override void GenerateSourceOutput(Microsoft.CodeAnalysis.SourceProductionContext context, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
-                "Left",
-                "Right",
-                "Left",
-                "Right"})] System.ValueTuple<System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>>, System.Collections.Immutable.ImmutableArray<DependencyModules.SourceGenerator.Impl.Models.ServiceModel>> inputData, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
-        protected void GenerateSourceOutput(Microsoft.CodeAnalysis.SourceProductionContext context, DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel configurationModel, System.Collections.Immutable.ImmutableArray<DependencyModules.SourceGenerator.Impl.Models.ServiceModel> serviceModels, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
-        protected override System.Collections.Generic.IEqualityComparer<DependencyModules.SourceGenerator.Impl.Models.ServiceModel> GetComparer() { }
-    }
-    [Microsoft.CodeAnalysis.Generator]
-    public class SourceGenerator : DependencyModules.SourceGenerator.Impl.BaseSourceGenerator
-    {
-        public SourceGenerator() { }
-        protected override System.Collections.Generic.IEnumerable<DependencyModules.SourceGenerator.Impl.IDependencyModuleSourceGenerator> AttributeSourceGenerators() { }
-        protected override void SetupRootGenerator(Microsoft.CodeAnalysis.IncrementalGeneratorInitializationContext context, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
-                "Left",
-                "Right"})] Microsoft.CodeAnalysis.IncrementalValueProvider<System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>>> valuesProvider) { }
     }
 }

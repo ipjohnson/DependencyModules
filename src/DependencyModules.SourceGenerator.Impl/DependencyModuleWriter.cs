@@ -139,7 +139,9 @@ public class DependencyModuleWriter {
         InternalApplyServicesMethod(classDefinition, model);
 
         InternalGetModulesMethod(classDefinition, model);
-        
+
+        InternalGetDecoratorsMethod(classDefinition, model);
+
         FeatureMethod(classDefinition, model);
 
         if ((model.ModuleFeatures & ModuleEntryPointFeatures.ShouldImplementEquals) == 
@@ -222,6 +224,33 @@ public class DependencyModuleWriter {
         equalMethod.AddParameter(TypeDefinition.Get(typeof(object)).MakeNullable(), "obj");
 
         equalMethod.Return($"obj is {model.EntryPointType.Name}");
+    }
+
+    /// <summary>
+    /// Hands the module's decorators to the runtime rather than applying them, so decorators from
+    /// every module can be sorted together. Emitted unconditionally: a module may gain decorators
+    /// from a source the registrations file never saw, and returning an empty list costs nothing.
+    /// </summary>
+    private void InternalGetDecoratorsMethod(ClassDefinition classDefinition, ModuleEntryPointModel model) {
+        var method = classDefinition.AddMethod("InternalGetDecorators");
+
+        method.AddLeadingTrait(CodeOutputComponent.Get("[Browsable(false)]", true));
+        method.AddUsingNamespace("System.ComponentModel");
+
+        method.InterfaceImplementation = KnownTypes.DependencyModules.Interfaces.IDependencyModule;
+        method.SetReturnType(
+            new GenericTypeDefinition(
+                typeof(IEnumerable<>),
+                new[] { KnownTypes.DependencyModules.Helpers.DecoratorRegistration }));
+
+        var closedType = new GenericTypeDefinition(
+            TypeDefinitionEnum.ClassDefinition, KnownTypes.DependencyModules.Helpers.Namespace, "DependencyRegistry", new[] {
+                model.EntryPointType
+            });
+
+        method.Return(new StaticInvokeStatement(closedType, "GetDecorators", new List<IOutputComponent>()) {
+            Indented = false
+        });
     }
 
     private void InternalGetModulesMethod(ClassDefinition classDefinition, ModuleEntryPointModel model) {

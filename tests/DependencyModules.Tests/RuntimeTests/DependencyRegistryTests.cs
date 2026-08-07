@@ -78,6 +78,75 @@ public class DependencyRegistryTests {
 
     private class KeyedMarker;
 
+    /// <summary>
+    /// Order controls how decorators nest: lower values are applied first and end up closer to the
+    /// implementation. Pipeline behaviours contributed by different packages rely on this, so the
+    /// ordering has to hold across every decorator in the registry, not just within one group.
+    /// </summary>
+    [Fact]
+    public void ApplyDecorators_AppliesInAscendingOrder() {
+        var applied = new List<string>();
+
+        DependencyRegistry<OrderedDecoratorMarker>.AddDecorator(_ => applied.Add("third"), 30);
+        DependencyRegistry<OrderedDecoratorMarker>.AddDecorator(_ => applied.Add("first"), 10);
+        DependencyRegistry<OrderedDecoratorMarker>.AddDecorator(_ => applied.Add("second"), 20);
+
+        DependencyRegistry<OrderedDecoratorMarker>.ApplyDecorators(new ServiceCollection());
+
+        Assert.Equal(["first", "second", "third"], applied);
+    }
+
+    private class OrderedDecoratorMarker;
+
+    [Fact]
+    public void ApplyDecorators_WithoutAnOrder_AppliesInRegistrationOrder() {
+        var applied = new List<string>();
+
+        DependencyRegistry<UnorderedDecoratorMarker>.AddDecorator(_ => applied.Add("first"));
+        DependencyRegistry<UnorderedDecoratorMarker>.AddDecorator(_ => applied.Add("second"));
+
+        DependencyRegistry<UnorderedDecoratorMarker>.ApplyDecorators(new ServiceCollection());
+
+        Assert.Equal(["first", "second"], applied);
+    }
+
+    private class UnorderedDecoratorMarker;
+
+    /// <summary>
+    /// Equal orders must not nest arbitrarily; the sort has to be stable so the result is
+    /// reproducible between runs.
+    /// </summary>
+    [Fact]
+    public void ApplyDecorators_WithEqualOrders_KeepsRegistrationOrder() {
+        var applied = new List<string>();
+
+        DependencyRegistry<StableDecoratorMarker>.AddDecorator(_ => applied.Add("first"), 5);
+        DependencyRegistry<StableDecoratorMarker>.AddDecorator(_ => applied.Add("second"), 5);
+        DependencyRegistry<StableDecoratorMarker>.AddDecorator(_ => applied.Add("third"), 5);
+
+        DependencyRegistry<StableDecoratorMarker>.ApplyDecorators(new ServiceCollection());
+
+        Assert.Equal(["first", "second", "third"], applied);
+    }
+
+    private class StableDecoratorMarker;
+
+    [Fact]
+    public void ApplyDecorators_MixesOrderedAndUnorderedRegistrations() {
+        var applied = new List<string>();
+
+        // An unordered decorator defaults to 0, so a negative order still sits inside it.
+        DependencyRegistry<MixedDecoratorMarker>.AddDecorator(_ => applied.Add("default"));
+        DependencyRegistry<MixedDecoratorMarker>.AddDecorator(_ => applied.Add("application"), 1000);
+        DependencyRegistry<MixedDecoratorMarker>.AddDecorator(_ => applied.Add("innermost"), -10);
+
+        DependencyRegistry<MixedDecoratorMarker>.ApplyDecorators(new ServiceCollection());
+
+        Assert.Equal(["innermost", "default", "application"], applied);
+    }
+
+    private class MixedDecoratorMarker;
+
     [Fact]
     public void ApplyDecorators_RunsSeparatelyFromServices() {
         DependencyRegistry<DecoratorMarker>.Add(services => services.AddSingleton<IThing, Thing>());

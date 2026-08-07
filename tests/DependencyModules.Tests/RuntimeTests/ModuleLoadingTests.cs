@@ -106,6 +106,45 @@ public class ModuleLoadingTests {
         Assert.True(module.FeatureAppliedBeforeConfigure);
     }
 
+    /// <summary>
+    /// Regression test: ConfigureDecorators was declared on IServiceCollectionConfiguration and
+    /// never invoked by anything, so a module implementing it silently did nothing.
+    /// </summary>
+    [Fact]
+    public void LoadModules_InvokesConfigureDecorators() {
+        var module = new DecoratingModule();
+
+        DependencyRegistry<object>.LoadModules(new ServiceCollection(), module);
+
+        Assert.True(module.ConfigureDecoratorsCalled);
+    }
+
+    /// <summary>
+    /// Decoration rewrites existing registrations, so it has to run after every module has
+    /// registered its services or there would be nothing to decorate.
+    /// </summary>
+    [Fact]
+    public void LoadModules_RunsConfigureDecoratorsAfterAllServices() {
+        var decorating = new DecoratingModule();
+        var registering = new ConfiguringModule();
+
+        var collection = new ServiceCollection();
+        DependencyRegistry<object>.LoadModules(collection, decorating, registering);
+
+        Assert.True(decorating.ConfigureDecoratorsCalled);
+        Assert.Contains(typeof(IThing), decorating.ServicesVisibleWhenDecorating!);
+    }
+
+    [Fact]
+    public void LoadModules_CanDecorateARegistrationFromAnotherModule() {
+        var collection = new ServiceCollection();
+        DependencyRegistry<object>.LoadModules(collection, new DecoratingModule(), new ConfiguringModule());
+
+        var provider = collection.BuildServiceProvider();
+
+        Assert.IsType<DecoratedThing>(provider.GetService<IThing>());
+    }
+
     [Fact]
     public void LoadModules_AppliesFeaturesInOrder() {
         var module = new OrderedFeatureModule();
@@ -176,6 +215,39 @@ public class ModuleLoadingTests {
         public override bool Equals(object? obj) => obj is EquatableModule other && other.Key == Key;
 
         public override int GetHashCode() => Key.GetHashCode();
+    }
+
+    private class DecoratedThing(IThing inner) : IThing {
+        public IThing Inner { get; } = inner;
+    }
+
+    private class DecoratingModule : IDependencyModule, IServiceCollectionConfiguration {
+        public bool ConfigureDecoratorsCalled { get; private set; }
+
+        public IReadOnlyList<Type>? ServicesVisibleWhenDecorating { get; private set; }
+
+        public void PopulateServiceCollection(IServiceCollection serviceCollection) { }
+
+        public void ConfigureServices(IServiceCollection services) { }
+
+        public void ConfigureDecorators(IServiceCollection services) {
+            ConfigureDecoratorsCalled = true;
+            ServicesVisibleWhenDecorating = services.Select(descriptor => descriptor.ServiceType).ToList();
+
+            for (var i = services.Count - 1; i >= 0; i--) {
+                if (services[i].ServiceType != typeof(IThing)) {
+                    continue;
+                }
+
+                // Capture before replacing, or the factory closes over its own replacement.
+                var inner = services[i];
+                services[i] = new ServiceDescriptor(
+                    typeof(IThing),
+                    provider => new DecoratedThing(
+                        (IThing)ActivatorUtilities.CreateInstance(provider, inner.ImplementationType!)),
+                    inner.Lifetime);
+            }
+        }
     }
 
     private class ConfiguringModule : IDependencyModule, IServiceCollectionConfiguration {

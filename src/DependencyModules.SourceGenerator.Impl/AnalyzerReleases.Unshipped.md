@@ -8,3 +8,4 @@ Rule ID | Category | Severity | Notes
 DM0001 | DependencyModules | Error | The generator failed; registrations may be missing.
 DM0002 | DependencyModules | Warning | A service type cannot be constructed and was not registered.
 DM0003 | DependencyModules | Error | A module marked with [DependencyModule] is not partial.
+DM0007 | DependencyModules | Error | Two decorators of one service share an order.
