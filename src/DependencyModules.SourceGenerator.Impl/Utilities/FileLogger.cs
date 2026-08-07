@@ -5,6 +5,7 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities;
 
 public class FileLogger : IDisposable {
     private readonly string _loggerName;
+    private readonly string _outputFolder;
     private StringBuilder? _sb;
 
     public static void Wrap(string loggerName, DependencyModuleConfigurationModel configurationModel, Action<FileLogger> logger) {
@@ -22,7 +23,8 @@ public class FileLogger : IDisposable {
     
     public FileLogger(DependencyModuleConfigurationModel configurationModel, string loggerName) {
         _loggerName = loggerName;
-        if (!string.IsNullOrEmpty(configurationModel.LogOutputFolder)) {
+        _outputFolder = configurationModel.LogOutputFolder;
+        if (!string.IsNullOrEmpty(_outputFolder)) {
             _sb = new StringBuilder();
         }
     }
@@ -53,10 +55,22 @@ public class FileLogger : IDisposable {
     }
     
     public void Dispose() {
-        if (_sb != null) {
-#pragma warning disable RS1035
-            File.WriteAllText($"{_loggerName}.{DateTimeOffset.Now.ToUnixTimeMilliseconds()}.txt", _sb.ToString());
-#pragma warning restore RS1035
+        if (_sb == null) {
+            return;
         }
+
+        var fileName = $"{_loggerName}.{DateTimeOffset.Now.ToUnixTimeMilliseconds()}.txt";
+
+#pragma warning disable RS1035
+        try {
+            // _sb is only allocated when an output folder was configured, so honour it here rather
+            // than dropping the log into whatever directory the compiler happens to be running in.
+            Directory.CreateDirectory(_outputFolder);
+            File.WriteAllText(Path.Combine(_outputFolder, fileName), _sb.ToString());
+        }
+        catch (Exception) {
+            // Diagnostic logging must never fail a build.
+        }
+#pragma warning restore RS1035
     }
 }

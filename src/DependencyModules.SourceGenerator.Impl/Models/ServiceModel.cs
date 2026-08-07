@@ -24,7 +24,24 @@ public enum RegistrationFeature {
 public record ServiceFactoryModel(
     ITypeDefinition TypeDefinition,
     string MethodName,
-    IReadOnlyList<ParameterInfoModel> Parameters);
+    IReadOnlyList<ParameterInfoModel> Parameters) {
+
+    // Structural equality over Parameters; see ModelEquality.
+    public virtual bool Equals(ServiceFactoryModel? other) =>
+        other is not null &&
+        TypeDefinition.Equals(other.TypeDefinition) &&
+        MethodName == other.MethodName &&
+        ModelEquality.ListEquals(Parameters, other.Parameters);
+
+    public override int GetHashCode() {
+        unchecked {
+            var hash = TypeDefinition.GetHashCode();
+            hash = hash * 31 + MethodName.GetHashCode();
+            hash = hash * 31 + ModelEquality.ListHashCode(Parameters);
+            return hash;
+        }
+    }
+}
 
 public record ServiceRegistrationModel(
     ITypeDefinition ServiceType,

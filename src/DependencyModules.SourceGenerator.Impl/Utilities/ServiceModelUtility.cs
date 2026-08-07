@@ -192,22 +192,37 @@ public class ServiceModelUtility {
 
     private static ITypeDefinition GetTypeDeclarationDefinition(TypeDeclarationSyntax typeDeclarationSyntax) {
         ITypeDefinition classTypeDefinition;
+        var declaredName = GetDeclaredName(typeDeclarationSyntax);
+
         if (typeDeclarationSyntax.TypeParameterList is { Parameters.Count: > 0 }) {
             classTypeDefinition =
                 new GenericTypeDefinition(
                     TypeDefinitionEnum.ClassDefinition,
                     typeDeclarationSyntax.GetNamespace(),
-                    typeDeclarationSyntax.Identifier.ToString(),
+                    declaredName,
                     typeDeclarationSyntax.TypeParameterList.Parameters.Select(_ => TypeDefinition.Get("", ""))
                         .ToArray()
                 );
         }
         else {
-            classTypeDefinition = TypeDefinition.Get(typeDeclarationSyntax.GetNamespace(),
-                typeDeclarationSyntax.Identifier.ToString());
+            classTypeDefinition = TypeDefinition.Get(typeDeclarationSyntax.GetNamespace(), declaredName);
         }
 
         return classTypeDefinition;
+    }
+
+    /// <summary>
+    /// The type's name qualified by any containing types, so a nested service is referenced as
+    /// Outer.Inner rather than Inner, which would resolve against the namespace and fail to compile.
+    /// </summary>
+    private static string GetDeclaredName(TypeDeclarationSyntax typeDeclarationSyntax) {
+        var name = typeDeclarationSyntax.Identifier.ToString();
+
+        foreach (var containingType in typeDeclarationSyntax.Ancestors().OfType<TypeDeclarationSyntax>()) {
+            name = containingType.Identifier + "." + name;
+        }
+
+        return name;
     }
 
     private static List<ServiceRegistrationModel> GetRegistrations(GeneratorSyntaxContext context, ITypeDefinition classDefinition, IReadOnlyList<AttributeModel> attributes, CancellationToken cancellationToken) {

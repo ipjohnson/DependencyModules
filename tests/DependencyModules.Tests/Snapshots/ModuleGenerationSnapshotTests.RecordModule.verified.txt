@@ -1,0 +1,76 @@
+// ---- TestModule.Dependencies.g.cs ----
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using System.Diagnostics.CodeAnalysis;
+
+namespace TestNamespace
+{
+    [ExcludeFromCodeCoverage]
+    public partial record class TestModule
+    {
+        [DynamicDependency(nameof(ModuleDependencies))]
+        private static int moduleField = global::DependencyModules.Runtime.Helpers.DependencyRegistry<global::TestNamespace.TestModule>.Add(ModuleDependencies        );
+
+        private static void ModuleDependencies(global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)
+        {
+            services.AddSingleton(
+                typeof(global::TestNamespace.IThing), 
+                typeof(global::TestNamespace.Thing)
+            );
+        }
+    }
+}
+
+// ---- TestModule.Module.g.cs ----
+using DependencyModules.Runtime.Interfaces;
+using Microsoft.Extensions.DependencyInjection;
+using System.Collections.Generic;
+using System.ComponentModel;
+
+namespace TestNamespace
+{
+    #nullable enable
+    public partial record class TestModule : global::DependencyModules.Runtime.Interfaces.IDependencyModule
+    {
+
+        static TestModule()
+        {
+        }
+
+        public void PopulateServiceCollection(global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)
+        {
+            global::DependencyModules.Runtime.Helpers.DependencyRegistry<global::TestNamespace.TestModule>.LoadModules(
+                services, 
+                this
+            );
+        }
+
+        [Browsable(false)]
+        void global::DependencyModules.Runtime.Interfaces.IDependencyModule.InternalApplyServices(global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)
+        {
+            global::DependencyModules.Runtime.Helpers.DependencyRegistry<global::TestNamespace.TestModule>.ApplyServices(services            );
+        }
+
+        [Browsable(false)]
+        global::System.Collections.Generic.IEnumerable<object> global::DependencyModules.Runtime.Interfaces.IDependencyModule.InternalGetModules()
+        {
+            return global::DependencyModules.Runtime.Helpers.DependencyRegistry<global::TestNamespace.TestModule>.GetModules();
+        }
+    }
+    #nullable disable
+
+    #nullable enable
+    #pragma warning disable CS0472
+    [global::System.AttributeUsage(global::System.AttributeTargets.Class | global::System.AttributeTargets.Assembly | global::System.AttributeTargets.Method | global::System.AttributeTargets.Parameter, AllowMultiple = true)]
+    public partial class TestModuleAttribute : global::System.Attribute, global::DependencyModules.Runtime.Interfaces.IDependencyModuleProvider
+    {
+
+        public global::DependencyModules.Runtime.Interfaces.IDependencyModule GetModule()
+        {
+            var newModule = new global::TestNamespace.TestModule();
+            return newModule;
+        }
+    }
+    #nullable disable
+    #pragma warning restore CS0472
+}

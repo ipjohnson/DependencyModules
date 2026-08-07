@@ -1,17 +1,15 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-
     <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <IsPackable>True</IsPackable>
         <PackageId>DependencyModules.xUnit.NSubstitute</PackageId>
-        <PublishRepositoryUrl>true</PublishRepositoryUrl>
-        <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
+        <Description>NSubstitute mocking support for DependencyModules.xUnit. Add [NSubstituteSupport] to resolve any unregistered dependency as an NSubstitute mock, and use [Mock] on a test parameter to inject and configure it.</Description>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
     </PropertyGroup>
-    
+
     <ItemGroup>
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1"/>
         <PackageReference Include="NSubstitute" Version="5.3.0"/>
@@ -21,9 +19,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\DependencyModules.Runtime\DependencyModules.Runtime.csproj"/>
-        <ProjectReference Include="..\DependencyModules.xUnit\DependencyModules.xUnit.csproj" />
+        <ProjectReference Include="..\DependencyModules.xUnit\DependencyModules.xUnit.csproj"/>
     </ItemGroup>
-
-    <Import Project="../nuget.props"/>
 
 </Project>

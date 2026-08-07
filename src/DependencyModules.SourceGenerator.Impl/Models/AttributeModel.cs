@@ -4,13 +4,45 @@ using CSharpAuthor;
 
 namespace DependencyModules.SourceGenerator.Impl.Models;
 
-public record AttributeArgumentValue(string Name, object? Value);
+public record AttributeArgumentValue(string Name, object? Value) {
+    // Value arrives as object and may be an array, which the compiler-generated record equality
+    // would compare by reference. See ModelEquality for why that breaks incremental caching.
+    public virtual bool Equals(AttributeArgumentValue? other) =>
+        other is not null &&
+        Name == other.Name &&
+        ModelEquality.ValueEquals(Value, other.Value);
+
+    public override int GetHashCode() {
+        unchecked {
+            return Name.GetHashCode() * 31 + ModelEquality.ValueHashCode(Value);
+        }
+    }
+}
 
 public record AttributeModel(
     ITypeDefinition TypeDefinition,
     IReadOnlyList<AttributeArgumentValue> Arguments,
     IReadOnlyList<AttributeArgumentValue> Properties,
     IReadOnlyList<ITypeDefinition> ImplementedInterfaces) {
+
+    // Structural equality over the list members; see ModelEquality.
+    public virtual bool Equals(AttributeModel? other) =>
+        other is not null &&
+        TypeDefinition.Equals(other.TypeDefinition) &&
+        ModelEquality.ListEquals(Arguments, other.Arguments) &&
+        ModelEquality.ListEquals(Properties, other.Properties) &&
+        ModelEquality.ListEquals(ImplementedInterfaces, other.ImplementedInterfaces);
+
+    public override int GetHashCode() {
+        unchecked {
+            var hash = TypeDefinition.GetHashCode();
+            hash = hash * 31 + ModelEquality.ListHashCode(Arguments);
+            hash = hash * 31 + ModelEquality.ListHashCode(Properties);
+            hash = hash * 31 + ModelEquality.ListHashCode(ImplementedInterfaces);
+            return hash;
+        }
+    }
+
 
     public IList<IOutputComponent> GetArguments() {
         var list = new List<IOutputComponent>();

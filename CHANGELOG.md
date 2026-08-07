@@ -1,0 +1,67 @@
+# Changelog
+
+All notable changes to this project are documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.0.0] - 2026-08-06
+
+First stable release. The public API is unchanged from the `1.0.0-rc*` line; this release
+fixes packaging and generated-code defects and commits to the API surface going forward.
+
+### Fixed
+
+- **Generated code no longer requires `ImplicitUsings`.** The generated module attribute was
+  emitted as a bare `[AttributeUsage(AttributeTargets...)]`, which only compiled because the
+  consuming project happened to have implicit usings enabled. Projects with
+  `<ImplicitUsings>disable</ImplicitUsings>` failed with `CS0246`/`CS0103` on every generated
+  module. The attribute is now fully qualified.
+- **`build/*.props` and `build/*.targets` are packed at the path NuGet honours.** A trailing
+  backslash in `PackagePath` produced `build//<PackageId>.props` when packing on Linux or macOS,
+  so NuGet did not auto-import them and `ExcludeGeneratedCodeFromCoverage` and
+  `DependencyModules_RegistrationType` silently stopped reaching the generator.
+- **`DependencyModules_LogOutputDirectory` is now honoured.** Generator diagnostic logs were
+  written to the compiler's working directory instead of the configured folder.
+- **Nested service classes generate valid code.** A service declared inside another type was
+  emitted without its containing type — `Namespace.Inner` instead of `Namespace.Outer.Inner` —
+  so the generated registration failed to compile with `CS0234`. Note that modules themselves
+  still have to be declared directly in a namespace; see the README.
+- **Incremental generation now caches.** The generator's model records compared their
+  `IReadOnlyList` members by reference, which a positional record does by default. Because every
+  module carries at least the `[DependencyModule]` attribute, and the attribute list is rebuilt on
+  each run, no two runs ever produced equal models — so Roslyn re-ran full generation on every
+  keystroke instead of reusing cached output. `AttributeModel`, `AttributeArgumentValue`,
+  `ParameterInfoModel`, `ConstructorInfoModel`, and `ServiceFactoryModel` now compare
+  structurally.
+
+### Changed
+
+- `DependencyModules.SourceGenerator` no longer flows `Microsoft.CodeAnalysis.CSharp`,
+  `Microsoft.Extensions.Primitives`, or `System.Memory` to consumers. Roslyn supplies these to
+  the analyzer at load time; they were never needed in a consumer's dependency graph.
+  `DependencyModules.SourceGenerator.Impl` still flows them, because consumers of that
+  source-only package compile the shipped sources into their own generator.
+- All packages now carry a real description, copyright, and tags instead of NuGet's placeholder
+  `Package Description`.
+- Packages are built deterministically with [SourceLink](https://github.com/dotnet/sourcelink)
+  and ship `.snupkg` symbol packages, so consumers can step into library code.
+- Removed the unused `SignAssembly` property and `DependencyModules.snk`. Neither had any
+  effect — no key file was wired up, so nothing was ever strong-named. Per
+  [Microsoft's library guidance](https://learn.microsoft.com/en-us/dotnet/standard/library-guidance/strong-naming),
+  strong naming has no benefit for packages that only ship `net8.0` assemblies.
+
+### Added
+
+- `tests/DependencyModules.Tests`: unit tests for `DependencyRegistry<T>` (including its
+  thread-safety guarantees), module graph loading, generator configuration, and snapshot tests
+  over the generator's full output.
+- `scripts/verify-packages.sh`: packs the libraries and consumes them from a throwaway project
+  the way a real user would, asserting on package layout, metadata, generator execution, and
+  MSBuild property flow. Runs in CI.
+- `scripts/coverage.sh`: runs every suite with coverage collection, merges the results across the
+  shipping libraries, and fails below a threshold. CI publishes the summary to the run summary and
+  a coverage badge to the `badges` branch.
+- A tag-driven release workflow publishing to nuget.org and GitHub Packages.
+
+[1.0.0]: https://github.com/ipjohnson/DependencyModules/releases/tag/v1.0.0
