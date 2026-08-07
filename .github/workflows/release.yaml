@@ -34,6 +34,14 @@ jobs:
       - name: Resolve version
         id: version
         run: |
+          # A manual dispatch runs against whatever ref was selected, and that selector remembers
+          # the last branch used. Without this, an unreviewed branch could be published to
+          # nuget.org, where a version can be unlisted but never removed.
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            echo "::error::Releases may only be dispatched from main. This run is on '${GITHUB_REF_NAME}'."
+            exit 1
+          fi
+
           if [ -n "${{ github.event.inputs.version }}" ]; then
             VERSION="${{ github.event.inputs.version }}"
           else
