@@ -150,22 +150,25 @@ public class DependencyRegistry<T> {
     /// </summary>
     /// <param name="serviceCollection"></param>
     public static void ApplyDecorators(IServiceCollection serviceCollection) {
-        DecoratorRegistration[] snapshot;
-        lock (SyncLock) {
-            snapshot = Decorators.ToArray();
-        }
-
         // OrderBy is a stable sort, so decorators sharing an order keep their registration order
         // rather than nesting arbitrarily.
-        foreach (var decorator in snapshot.OrderBy(decorator => decorator.Order)) {
+        foreach (var decorator in GetDecorators().OrderBy(decorator => decorator.Order)) {
             decorator.RegistryFunc(serviceCollection);
         }
     }
 
-    private readonly struct DecoratorRegistration(int order, RegistryFunc registryFunc) {
-        public int Order { get; } = order;
-
-        public RegistryFunc RegistryFunc { get; } = registryFunc;
+    /// <summary>
+    /// The decorators registered for this type, unsorted.
+    /// </summary>
+    /// <remarks>
+    /// Generated modules return these from <see cref="IDependencyModule.InternalGetDecorators"/> so
+    /// that decorators from every module can be sorted together. Applying each module's decorators
+    /// separately would make module discovery order outrank the declared order.
+    /// </remarks>
+    public static IReadOnlyList<DecoratorRegistration> GetDecorators() {
+        lock (SyncLock) {
+            return Decorators.ToArray();
+        }
     }
 
     /// <summary>
@@ -191,13 +194,31 @@ public class DependencyRegistry<T> {
     }
 
     private static void ApplyDecorators(IServiceCollection serviceCollection, IReadOnlyList<IDependencyModule> modules) {
+        // Gathered from every module and sorted together, the same way ApplyFeatures collects and
+        // sorts feature applicators. Applying each module's decorators in turn would let module
+        // discovery order outrank the declared order, which breaks a pipeline assembled from more
+        // than one package.
+        var decorators = new List<DecoratorRegistration>();
+
+        for (var i = 0; i < modules.Count; i++) {
+            decorators.AddRange(modules[i].InternalGetDecorators());
+        }
+
+        if (decorators.Count > 0) {
+            foreach (var decorator in decorators.OrderBy(decorator => decorator.Order)) {
+                decorator.RegistryFunc(serviceCollection);
+            }
+        }
+
         for (var i = 0; i < modules.Count; i++) {
             var module = modules[i];
+
+            // Retained for hand-written modules that decorate directly. Generated modules use
+            // InternalGetDecorators so their decorators take part in the global ordering.
             module.InternalApplyDecorators(serviceCollection);
 
-            // Mirrors how ApplyServices invokes ConfigureServices. Without this,
-            // IServiceCollectionConfiguration.ConfigureDecorators was declared but never called by
-            // anything, so a module that implemented it silently did nothing.
+            // Mirrors how ApplyServices invokes ConfigureServices. Runs last, so the manual escape
+            // hatch sees every declared decorator already in place.
             if (module is IServiceCollectionConfiguration serviceCollectionConfigure) {
                 serviceCollectionConfigure.ConfigureDecorators(serviceCollection);
             }

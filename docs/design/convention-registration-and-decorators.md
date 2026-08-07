@@ -540,6 +540,10 @@ Each step is independently shippable and makes the next cheaper.
 | Step | Effort | Notes |
 |---|---|---|
 | `AddDecorator` order parameter | done | Implemented; source-compatible |
+| Global decorator ordering | done | `InternalGetDecorators` collects across modules; sorted together |
+| `DecoratorHelper` descriptor rewrite | done | All three descriptor shapes, open generics, keyed, lifetime preserved |
+| `[Decorator]` / `[Decorate]` attributes | done | Runtime surface only; the generator does not read them yet |
+| Generator emission for decorators | **remaining** | Model, provider, `ModuleDecorators` emission, DM0007-DM0010 |
 | Wire `ConfigureDecorators` | done | Was a public no-op; now invoked after all services are registered |
 | Convention registration | days | Independent of decorators; can proceed in parallel |
 | Phase A, typed decorators | ~1 day | Closes the Scrutor gap. Emit the body through a template |

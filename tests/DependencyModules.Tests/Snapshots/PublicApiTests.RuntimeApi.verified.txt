@@ -18,6 +18,22 @@ namespace DependencyModules.Runtime.Attributes
         public System.Type? Realm { get; set; }
         public DependencyModules.Runtime.Attributes.RegistrationType Using { get; set; }
     }
+    [System.AttributeUsage(System.AttributeTargets.Class, AllowMultiple=true, Inherited=false)]
+    public class DecorateAttribute : System.Attribute
+    {
+        public DecorateAttribute(System.Type service, System.Type decorator) { }
+        public System.Type Decorator { get; }
+        public int Order { get; set; }
+        public System.Type Service { get; }
+    }
+    [System.AttributeUsage(System.AttributeTargets.Class, AllowMultiple=false, Inherited=false)]
+    public class DecoratorAttribute : System.Attribute
+    {
+        public DecoratorAttribute() { }
+        public int Order { get; set; }
+        public System.Type? Realm { get; set; }
+        public System.Type? Service { get; set; }
+    }
     [System.AttributeUsage(System.AttributeTargets.Assembly | System.AttributeTargets.Class, Inherited=false)]
     public class DependencyModuleAttribute : System.Attribute
     {
@@ -87,6 +103,16 @@ namespace DependencyModules.Runtime.Features
 }
 namespace DependencyModules.Runtime.Helpers
 {
+    public static class DecoratorHelper
+    {
+        public static void Decorate(Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Type serviceType, System.Func<System.IServiceProvider, object, object> decoratorFactory) { }
+    }
+    public readonly struct DecoratorRegistration
+    {
+        public DecoratorRegistration(int order, DependencyModules.Runtime.Helpers.RegistryFunc registryFunc) { }
+        public int Order { get; }
+        public DependencyModules.Runtime.Helpers.RegistryFunc RegistryFunc { get; }
+    }
     public class DependencyRegistry<T>
     {
         public DependencyRegistry() { }
@@ -99,6 +125,7 @@ namespace DependencyModules.Runtime.Helpers
         public static int AddModule(params DependencyModules.Runtime.Interfaces.IDependencyModule[] modules) { }
         public static void ApplyDecorators(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection) { }
         public static void ApplyServices(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection) { }
+        public static System.Collections.Generic.IReadOnlyList<DependencyModules.Runtime.Helpers.DecoratorRegistration> GetDecorators() { }
         public static System.Collections.Generic.IEnumerable<object> GetModules(params object[] modules) { }
         public static void LoadModules(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection, params DependencyModules.Runtime.Interfaces.IDependencyModule[] dependencyModules) { }
     }
@@ -114,6 +141,8 @@ namespace DependencyModules.Runtime.Interfaces
         void InternalApplyDecorators(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection);
         [System.ComponentModel.Browsable(false)]
         void InternalApplyServices(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection);
+        [System.ComponentModel.Browsable(false)]
+        System.Collections.Generic.IEnumerable<DependencyModules.Runtime.Helpers.DecoratorRegistration> InternalGetDecorators();
         [System.ComponentModel.Browsable(false)]
         System.Collections.Generic.IEnumerable<object> InternalGetModules();
         void PopulateServiceCollection(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection);
