@@ -1,0 +1,150 @@
+namespace DependencyModules.Runtime.Attributes
+{
+    public abstract class BaseServiceAttribute : System.Attribute, DependencyModules.Runtime.Attributes.IServiceRegistrationAttribute
+    {
+        protected BaseServiceAttribute() { }
+        public System.Type? As { get; set; }
+        public object? Key { get; set; }
+        protected abstract Microsoft.Extensions.DependencyInjection.ServiceLifetime Lifetime { get; }
+        public System.Type? Realm { get; set; }
+        public DependencyModules.Runtime.Attributes.RegistrationType Using { get; set; }
+    }
+    [System.AttributeUsage(System.AttributeTargets.Class | System.AttributeTargets.Method, AllowMultiple=true, Inherited=false)]
+    public class CrossWireServiceAttribute : System.Attribute, DependencyModules.Runtime.Attributes.IServiceRegistrationAttribute
+    {
+        public CrossWireServiceAttribute() { }
+        public object? Key { get; set; }
+        public Microsoft.Extensions.DependencyInjection.ServiceLifetime Lifetime { get; set; }
+        public System.Type? Realm { get; set; }
+        public DependencyModules.Runtime.Attributes.RegistrationType Using { get; set; }
+    }
+    [System.AttributeUsage(System.AttributeTargets.Assembly | System.AttributeTargets.Class, Inherited=false)]
+    public class DependencyModuleAttribute : System.Attribute
+    {
+        public DependencyModuleAttribute() { }
+        public bool GenerateAttribute { get; set; }
+        public bool GenerateFactories { get; set; }
+        public string? GenerateUseMethod { get; set; }
+        public bool OnlyRealm { get; set; }
+        public bool RegisterJsonSerializers { get; set; }
+        public DependencyModules.Runtime.Attributes.RegistrationType Using { get; set; }
+    }
+    public interface IServiceRegistrationAttribute
+    {
+        System.Type? As { get; set; }
+        object? Key { get; set; }
+        Microsoft.Extensions.DependencyInjection.ServiceLifetime Lifetime { get; set; }
+        DependencyModules.Runtime.Attributes.RegistrationType Using { get; set; }
+    }
+    public enum RegistrationType
+    {
+        Add = 0,
+        Try = 1,
+        TryEnumerable = 2,
+        Replace = 3,
+    }
+    [System.AttributeUsage(System.AttributeTargets.Class | System.AttributeTargets.Method, AllowMultiple=true, Inherited=false)]
+    public class ScopedServiceAttribute : DependencyModules.Runtime.Attributes.BaseServiceAttribute
+    {
+        public ScopedServiceAttribute() { }
+        protected override Microsoft.Extensions.DependencyInjection.ServiceLifetime Lifetime { get; }
+    }
+    [System.AttributeUsage(System.AttributeTargets.Class | System.AttributeTargets.Method, AllowMultiple=true, Inherited=false)]
+    public class SingletonServiceAttribute : DependencyModules.Runtime.Attributes.BaseServiceAttribute
+    {
+        public SingletonServiceAttribute() { }
+        protected override Microsoft.Extensions.DependencyInjection.ServiceLifetime Lifetime { get; }
+    }
+    [System.AttributeUsage(System.AttributeTargets.Class | System.AttributeTargets.Method, AllowMultiple=true, Inherited=false)]
+    public class TransientServiceAttribute : DependencyModules.Runtime.Attributes.BaseServiceAttribute
+    {
+        public TransientServiceAttribute() { }
+        protected override Microsoft.Extensions.DependencyInjection.ServiceLifetime Lifetime { get; }
+    }
+}
+namespace DependencyModules.Runtime.Features
+{
+    public class FeatureApplicator<TFeature> : DependencyModules.Runtime.Features.IFeatureApplicator
+    {
+        public FeatureApplicator(DependencyModules.Runtime.Features.IDependencyModuleFeature<TFeature> handler) { }
+        public int Order { get; }
+        public void Apply(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection, System.Collections.Generic.IReadOnlyList<DependencyModules.Runtime.Interfaces.IDependencyModule> modules) { }
+    }
+    public interface IDependencyModuleApplicatorProvider
+    {
+        System.Collections.Generic.IEnumerable<DependencyModules.Runtime.Features.IFeatureApplicator> FeatureApplicators();
+    }
+    public interface IDependencyModuleFeature<in TFeature>
+    {
+        int Order { get; }
+        void HandleFeature(Microsoft.Extensions.DependencyInjection.IServiceCollection collection, System.Collections.Generic.IEnumerable<TFeature> feature);
+    }
+    public interface IFeatureApplicator
+    {
+        int Order { get; }
+        void Apply(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection, System.Collections.Generic.IReadOnlyList<DependencyModules.Runtime.Interfaces.IDependencyModule> modules);
+    }
+}
+namespace DependencyModules.Runtime.Helpers
+{
+    public class DependencyRegistry<T>
+    {
+        public DependencyRegistry() { }
+        public static int Add(DependencyModules.Runtime.Helpers.RegistryFunc registryFunc) { }
+        public static int Add<TInstance>(System.Func<System.IServiceProvider, TInstance> provider, Microsoft.Extensions.DependencyInjection.ServiceLifetime lifetime = 2)
+            where TInstance :  class { }
+        public static int Add<TInstance>(System.Type implementationType, Microsoft.Extensions.DependencyInjection.ServiceLifetime lifetime = 2, object? serviceKey = null)
+            where TInstance :  class { }
+        public static int AddDecorator(DependencyModules.Runtime.Helpers.RegistryFunc registryFunc) { }
+        public static int AddModule(params DependencyModules.Runtime.Interfaces.IDependencyModule[] modules) { }
+        public static void ApplyDecorators(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection) { }
+        public static void ApplyServices(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection) { }
+        public static System.Collections.Generic.IEnumerable<object> GetModules(params object[] modules) { }
+        public static void LoadModules(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection, params DependencyModules.Runtime.Interfaces.IDependencyModule[] dependencyModules) { }
+    }
+    public delegate void RegistryFunc(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection);
+}
+namespace DependencyModules.Runtime.Interfaces
+{
+    public interface IDependencyModule
+    {
+        bool LoadModule { get; }
+        System.Collections.Generic.IEnumerable<DependencyModules.Runtime.Interfaces.IDependencyModule> GetModules();
+        [System.ComponentModel.Browsable(false)]
+        void InternalApplyDecorators(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection);
+        [System.ComponentModel.Browsable(false)]
+        void InternalApplyServices(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection);
+        [System.ComponentModel.Browsable(false)]
+        System.Collections.Generic.IEnumerable<object> InternalGetModules();
+        void PopulateServiceCollection(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection);
+    }
+    public interface IDependencyModuleProvider
+    {
+        DependencyModules.Runtime.Interfaces.IDependencyModule GetModule();
+    }
+    public interface IEnvironmentServiceCollectionConfiguration
+    {
+        void ConfigureServices(Microsoft.Extensions.DependencyInjection.IServiceCollection services, DependencyModules.Runtime.Interfaces.IModuleEnvironment? environment);
+    }
+    public interface IModuleEnvironment
+    {
+        string EnvironmentName { get; }
+        string? Value(string name);
+    }
+    public interface IServiceCollectionConfiguration
+    {
+        void ConfigureDecorators(Microsoft.Extensions.DependencyInjection.IServiceCollection services);
+        void ConfigureServices(Microsoft.Extensions.DependencyInjection.IServiceCollection services);
+    }
+}
+namespace DependencyModules.Runtime
+{
+    public static class ServiceCollectionExtensions
+    {
+        public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddModule(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, DependencyModules.Runtime.Interfaces.IDependencyModule module) { }
+        public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddModule<T>(this Microsoft.Extensions.DependencyInjection.IServiceCollection services)
+            where T : DependencyModules.Runtime.Interfaces.IDependencyModule, new () { }
+        public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddModules(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, params DependencyModules.Runtime.Interfaces.IDependencyModule[] modules) { }
+        public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddModules(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, DependencyModules.Runtime.Interfaces.IModuleEnvironment? environment, params DependencyModules.Runtime.Interfaces.IDependencyModule[] modules) { }
+    }
+}

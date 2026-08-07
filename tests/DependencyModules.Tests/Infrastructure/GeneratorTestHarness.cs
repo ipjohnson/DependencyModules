@@ -26,7 +26,8 @@ public static class GeneratorTestHarness {
     public static GeneratorResult Run(
         IReadOnlyDictionary<string, string> sources,
         IReadOnlyDictionary<string, string>? buildProperties = null,
-        OutputKind outputKind = OutputKind.DynamicallyLinkedLibrary) {
+        OutputKind outputKind = OutputKind.DynamicallyLinkedLibrary,
+        string assemblyName = "GeneratorTestAssembly") {
 
         // MSBuild hands the compiler absolute paths, and the generator compares a file's location
         // against ProjectDir to decide whether it owns the auto-generated ApplicationModule.
@@ -41,7 +42,7 @@ public static class GeneratorTestHarness {
             .ToArray();
 
         var compilation = CSharpCompilation.Create(
-            "GeneratorTestAssembly",
+            assemblyName,
             syntaxTrees,
             References.Value,
             new CSharpCompilationOptions(outputKind, nullableContextOptions: NullableContextOptions.Enable));

@@ -309,7 +309,16 @@ public class ServiceModelUtility {
     }
 
     private static ServiceLifestyle GetLifestyle(string toString) {
-        if (Enum.TryParse(toString, out ServiceLifestyle lifestyle)) {
+        // The value arrives as written in source, normally qualified: "ServiceLifetime.Scoped".
+        // Parsing that whole string fails, and the silent fallback below then registered every
+        // cross-wired service as a singleton regardless of the lifetime the developer asked for.
+        var separatorIndex = toString.LastIndexOf('.');
+
+        var value = separatorIndex >= 0
+            ? toString.Substring(separatorIndex + 1).Trim()
+            : toString.Trim();
+
+        if (Enum.TryParse(value, out ServiceLifestyle lifestyle)) {
             return lifestyle;
         }
 
