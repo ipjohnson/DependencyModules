@@ -194,6 +194,13 @@ public class DependencyRegistry<T> {
         for (var i = 0; i < modules.Count; i++) {
             var module = modules[i];
             module.InternalApplyDecorators(serviceCollection);
+
+            // Mirrors how ApplyServices invokes ConfigureServices. Without this,
+            // IServiceCollectionConfiguration.ConfigureDecorators was declared but never called by
+            // anything, so a module that implemented it silently did nothing.
+            if (module is IServiceCollectionConfiguration serviceCollectionConfigure) {
+                serviceCollectionConfigure.ConfigureDecorators(serviceCollection);
+            }
         }
     }
 

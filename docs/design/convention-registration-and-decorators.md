@@ -37,9 +37,9 @@ ApplyServices(serviceCollection, modules);      // every module's registrations
 ApplyDecorators(serviceCollection, modules);    // then every module's decorators
 ```
 
-`IDependencyModule.InternalApplyDecorators` exists as a default no-op. What is missing is the
-generator half — nothing emits an override — and `IServiceCollectionConfiguration.ConfigureDecorators`
-is declared but never invoked by anything.
+`IDependencyModule.InternalApplyDecorators` exists as a default no-op. `ConfigureDecorators` is now
+invoked; what remains missing is the generator half, since nothing emits an `InternalApplyDecorators`
+override.
 
 **This ordering is the feature, not an accident.** Decorators observe everything registered by every
 module in the `AddModule(s)` call, so cross-module decoration works without the developer sequencing
@@ -540,7 +540,7 @@ Each step is independently shippable and makes the next cheaper.
 | Step | Effort | Notes |
 |---|---|---|
 | `AddDecorator` order parameter | done | Implemented; source-compatible |
-| Wire or remove `ConfigureDecorators` | ~2 lines | **Before 1.0.** It is a public no-op today, and this is the last chance to remove it without a breaking change |
+| Wire `ConfigureDecorators` | done | Was a public no-op; now invoked after all services are registered |
 | Convention registration | days | Independent of decorators; can proceed in parallel |
 | Phase A, typed decorators | ~1 day | Closes the Scrutor gap. Emit the body through a template |
 | Phase B, generated forwarding | 4–6× A | Only worth it if C is plausible; keep signature and body separate |

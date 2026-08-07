@@ -33,6 +33,9 @@ fixes packaging and generated-code defects and commits to the API surface going 
 - **A failing generator no longer fails silently.** Exceptions were caught and, with no log
   directory configured, discarded — which also stopped Roslyn reporting its own CS8785. The build
   succeeded, no registrations were produced, and nothing said so. The generator now reports DM0001.
+- **`IServiceCollectionConfiguration.ConfigureDecorators` is invoked.** It was declared on the public
+  interface and never called by anything, so a module that implemented it silently did nothing.
+  It now runs after every module has registered its services, which is what decoration requires.
 - **`[CrossWireService(Lifetime = ...)]` is honoured.** The lifetime arrived as the source text
   `"ServiceLifetime.Scoped"`, `Enum.TryParse` failed on the qualified name, and the silent fallback
   registered every cross-wired service as a singleton no matter what was asked for. The existing
