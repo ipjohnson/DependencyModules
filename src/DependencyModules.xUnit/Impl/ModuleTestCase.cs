@@ -5,6 +5,7 @@ using DependencyModules.xUnit.Attributes;
 using DependencyModules.xUnit.Attributes.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit.Internal;
+using Xunit.Sdk;
 using Xunit.v3;
 
 namespace DependencyModules.xUnit.Impl;
@@ -193,7 +194,7 @@ public class ModuleTestCase : XunitTestCase {
                         TestMethod,
                         Explicit,
                         theoryDataRow.Skip ?? SkipReason,
-                        TestCaseDisplayName,
+                        GetRowDisplayName(theoryDataRow, data),
                         unitTests.Count,
                         theoryDataRow.Traits?.ToReadOnly() ?? Traits.ToReadOnly(),
                         theoryDataRow.Timeout ?? Timeout,
@@ -204,6 +205,22 @@ public class ModuleTestCase : XunitTestCase {
         }
 
         return unitTests;
+    }
+
+    /// <summary>
+    /// Names a data row after its own arguments, the way [Theory] does. Without this every row of
+    /// a data-driven module test carries the same display name and the rows cannot be told apart
+    /// in test explorers or result files.
+    /// </summary>
+    /// <remarks>
+    /// Only the row's own data is used. The remaining parameters are resolved from the container
+    /// at execution time, and naming a test after a service instance would be neither readable
+    /// nor stable between runs.
+    /// </remarks>
+    private string GetRowDisplayName(Xunit.ITheoryDataRow theoryDataRow, object?[] data) {
+        var baseDisplayName = theoryDataRow.TestDisplayName ?? TestCaseDisplayName;
+
+        return TestMethod.GetDisplayName(baseDisplayName, data, null);
     }
 
     private async Task<IReadOnlyCollection<IXunitTest>> UnitTestWithNoDataAttributes() {
