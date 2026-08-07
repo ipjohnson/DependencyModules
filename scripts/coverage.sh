@@ -30,6 +30,8 @@ PROJECTS=(
     "integ-tests/web/WebApiApp.Tests/WebApiApp.Tests.csproj"
 )
 
+TEST_LOG="${RAW}/test-output.log"
+
 for project in "${PROJECTS[@]}"; do
     echo "==> ${project}"
     dotnet test "${REPO_ROOT}/${project}" \
@@ -37,8 +39,22 @@ for project in "${PROJECTS[@]}"; do
         --collect:"XPlat Code Coverage" \
         --settings "${REPO_ROOT}/tests/coverlet.runsettings" \
         --results-directory "${RAW}" \
-        --nologo
+        --nologo | tee -a "${TEST_LOG}"
+
+    # tee masks the exit status, so consult the pipeline's first element.
+    status="${PIPESTATUS[0]}"
+    [ "${status}" -eq 0 ] || exit "${status}"
 done
+
+# xUnit drops a test case whose unique ID collides with one already discovered, and it does so
+# without failing the run: the suite stays green while tests quietly stop executing. Promote that
+# warning to a build failure so it can never pass unnoticed.
+if grep -q "duplicate ID" "${TEST_LOG}"; then
+    echo >&2
+    echo "FAIL: xUnit skipped a test case with a duplicate unique ID. Tests were silently dropped." >&2
+    grep "duplicate ID" "${TEST_LOG}" >&2
+    exit 1
+fi
 
 if ! command -v reportgenerator >/dev/null 2>&1; then
     echo "==> Installing reportgenerator"

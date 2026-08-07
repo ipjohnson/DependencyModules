@@ -1,4 +1,5 @@
 using DependencyModules.xUnit.Attributes;
+using Xunit.Internal;
 using Xunit.Sdk;
 using Xunit.v3;
 
@@ -35,13 +36,25 @@ public class ModuleTestDiscoverer : IXunitTestCaseDiscoverer {
     public ValueTask<IReadOnlyCollection<IXunitTestCase>> Discover(
         ITestFrameworkDiscoveryOptions discoveryOptions, IXunitTestMethod testMethod, IFactAttribute factAttribute) {
 
+        // Delegate to xUnit's own introspection rather than deriving these by hand. The bare method
+        // name is not unique across test classes, and xUnit silently drops a test case whose ID
+        // collides with one already discovered. This also picks up display name formatting, the
+        // skip and explicit attributes, and the timeout, consistently with [Fact] and [Theory].
+        var details = TestIntrospectionHelper.GetTestCaseDetails(discoveryOptions, testMethod, factAttribute);
+
         return new ValueTask<IReadOnlyCollection<IXunitTestCase>>(
             new[] {
                 new ModuleTestCase(
-                    testMethod,
-                    testMethod.MethodName,
-                    testMethod.MethodName,
-                    false
+                    details.ResolvedTestMethod,
+                    details.TestCaseDisplayName,
+                    details.UniqueID,
+                    details.Explicit,
+                    details.SkipReason,
+                    details.SkipType,
+                    details.SkipUnless,
+                    details.SkipWhen,
+                    testMethod.Traits.ToReadWrite(StringComparer.OrdinalIgnoreCase),
+                    timeout: details.Timeout
                 )
             }
         );

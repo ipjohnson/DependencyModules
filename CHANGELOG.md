@@ -23,6 +23,17 @@ fixes packaging and generated-code defects and commits to the API surface going 
   `DependencyModules_RegistrationType` silently stopped reaching the generator.
 - **`DependencyModules_LogOutputDirectory` is now honoured.** Generator diagnostic logs were
   written to the compiler's working directory instead of the configured folder.
+- **`[ModuleTest]` cases no longer collide across test classes.** The test case unique ID was the
+  bare method name, so two test classes each declaring a same-named test produced colliding IDs and
+  xUnit silently dropped one — a green run with tests quietly not executing. Discovery now defers to
+  xUnit's own `TestIntrospectionHelper`, which derives the ID through the assembly, collection,
+  class, and method chain, and also picks up display name formatting, skip and explicit attributes,
+  and timeouts consistently with `[Fact]` and `[Theory]`. Test case display names are now
+  fully qualified, matching xUnit's convention.
+- **Data-driven `[ModuleTest]` rows are named individually.** Every row of an `[InlineData]` module
+  test shared one display name, so rows were indistinguishable in test explorers and result files.
+  Each row is now named after its own arguments. Parameters injected from the container show as
+  `???`, which is xUnit's rendering for a parameter with no discovery-time value.
 - **Nested service classes generate valid code.** A service declared inside another type was
   emitted without its containing type — `Namespace.Inner` instead of `Namespace.Outer.Inner` —
   so the generated registration failed to compile with `CS0234`. Note that modules themselves
@@ -61,7 +72,8 @@ fixes packaging and generated-code defects and commits to the API surface going 
   MSBuild property flow. Runs in CI.
 - `scripts/coverage.sh`: runs every suite with coverage collection, merges the results across the
   shipping libraries, and fails below a threshold. CI publishes the summary to the run summary and
-  a coverage badge to the `badges` branch.
+  a coverage badge to the `badges` branch. It also fails the build if xUnit reports a
+  skipped test case with a duplicate unique ID, so silently dropped tests can never pass unnoticed.
 - A tag-driven release workflow publishing to nuget.org and GitHub Packages.
 
 [1.0.0]: https://github.com/ipjohnson/DependencyModules/releases/tag/v1.0.0
