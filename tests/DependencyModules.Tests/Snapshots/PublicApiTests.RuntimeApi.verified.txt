@@ -52,6 +52,14 @@ namespace DependencyModules.Runtime.Attributes
         Microsoft.Extensions.DependencyInjection.ServiceLifetime Lifetime { get; set; }
         DependencyModules.Runtime.Attributes.RegistrationType Using { get; set; }
     }
+    [System.AttributeUsage(System.AttributeTargets.Class, AllowMultiple=true, Inherited=false)]
+    public class InterceptAttribute : System.Attribute
+    {
+        public InterceptAttribute(params System.Type[] interceptors) { }
+        public System.Type[] Interceptors { get; }
+        public int Order { get; set; }
+        public System.Type? Service { get; set; }
+    }
     public enum RegistrationType
     {
         Add = 0,
@@ -131,6 +139,22 @@ namespace DependencyModules.Runtime.Helpers
         public static void LoadModules(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection, params DependencyModules.Runtime.Interfaces.IDependencyModule[] dependencyModules) { }
     }
     public delegate void RegistryFunc(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection);
+}
+namespace DependencyModules.Runtime.Interception
+{
+    public interface IInterceptor
+    {
+        void OnEnter(in DependencyModules.Runtime.Interception.InvocationContext context);
+        void OnError(in DependencyModules.Runtime.Interception.InvocationContext context, System.Exception exception);
+        void OnExit(in DependencyModules.Runtime.Interception.InvocationContext context);
+    }
+    public readonly struct InvocationContext
+    {
+        public InvocationContext(System.Type serviceType, string memberName) { }
+        public string MemberName { get; }
+        public System.Type ServiceType { get; }
+        public override string ToString() { }
+    }
 }
 namespace DependencyModules.Runtime.Interfaces
 {

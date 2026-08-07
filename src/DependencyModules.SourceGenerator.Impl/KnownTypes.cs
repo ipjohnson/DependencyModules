@@ -54,6 +54,9 @@ public static class KnownTypes {
 
             public static readonly ITypeDefinition DecorateAttribute =
                 TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "DecorateAttribute");
+
+            public static readonly ITypeDefinition InterceptAttribute =
+                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "InterceptAttribute");
             
             public static readonly ITypeDefinition CrossWireServiceAttribute =
                 TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "CrossWireServiceAttribute");

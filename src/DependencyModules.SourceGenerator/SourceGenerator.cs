@@ -11,6 +11,7 @@ public class SourceGenerator : BaseSourceGenerator {
     protected override IEnumerable<IDependencyModuleSourceGenerator> AttributeSourceGenerators() {
         yield return new ServiceSourceGenerator();
         yield return new DecoratorSourceGenerator();
+        yield return new InterceptorSourceGenerator();
     }
 
     protected override void SetupRootGenerator(IncrementalGeneratorInitializationContext context,

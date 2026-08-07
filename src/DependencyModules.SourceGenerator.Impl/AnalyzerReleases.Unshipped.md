@@ -9,3 +9,4 @@ DM0001 | DependencyModules | Error | The generator failed; registrations may be 
 DM0002 | DependencyModules | Warning | A service type cannot be constructed and was not registered.
 DM0003 | DependencyModules | Error | A module marked with [DependencyModule] is not partial.
 DM0007 | DependencyModules | Error | Two decorators of one service share an order.
+DM0008 | DependencyModules | Warning | A service marked for interception cannot be wrapped.

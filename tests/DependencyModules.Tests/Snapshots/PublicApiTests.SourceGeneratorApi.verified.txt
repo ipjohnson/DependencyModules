@@ -717,6 +717,19 @@ namespace DependencyModules.SourceGenerator
                 "Right"})] System.ValueTuple<System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>>, System.Collections.Immutable.ImmutableArray<DependencyModules.SourceGenerator.Impl.Models.DecoratorModel>> inputData, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
         protected override System.Collections.Generic.IEqualityComparer<DependencyModules.SourceGenerator.Impl.Models.DecoratorModel> GetComparer() { }
     }
+    public class InterceptorSourceGenerator : DependencyModules.SourceGenerator.Impl.BaseAttributeSourceGenerator<DependencyModules.SourceGenerator.Impl.Models.InterceptorModel>
+    {
+        public InterceptorSourceGenerator() { }
+        protected override string LoggerName { get; }
+        protected override System.Collections.Generic.IEnumerable<CSharpAuthor.ITypeDefinition> AttributeTypes() { }
+        protected override DependencyModules.SourceGenerator.Impl.Models.InterceptorModel GenerateAttributeModel(Microsoft.CodeAnalysis.GeneratorSyntaxContext context, System.Threading.CancellationToken cancellationToken) { }
+        protected override void GenerateSourceOutput(Microsoft.CodeAnalysis.SourceProductionContext context, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Left",
+                "Right",
+                "Left",
+                "Right"})] System.ValueTuple<System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>>, System.Collections.Immutable.ImmutableArray<DependencyModules.SourceGenerator.Impl.Models.InterceptorModel>> inputData, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
+        protected override System.Collections.Generic.IEqualityComparer<DependencyModules.SourceGenerator.Impl.Models.InterceptorModel> GetComparer() { }
+    }
     public class ServiceSourceGenerator : DependencyModules.SourceGenerator.Impl.BaseAttributeSourceGenerator<DependencyModules.SourceGenerator.Impl.Models.ServiceModel>
     {
         public ServiceSourceGenerator() { }
@@ -811,6 +824,7 @@ namespace DependencyModules.SourceGenerator.Impl
     public static class DependencyModuleDiagnostics
     {
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor AmbiguousDecoratorOrder;
+        public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor CannotIntercept;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor GeneratorFailure;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ModuleMustBePartial;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ServiceCannotBeConstructed;
@@ -828,6 +842,16 @@ namespace DependencyModules.SourceGenerator.Impl
                 "Left",
                 "Right"})] Microsoft.CodeAnalysis.IncrementalValuesProvider<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>> incrementalValueProvider);
     }
+    public class InterceptorFileWriter
+    {
+        public InterceptorFileWriter() { }
+        public string Write(DependencyModules.SourceGenerator.Impl.Models.InterceptorModel model, string wrapperName, string namespaceName) { }
+    }
+    public class InterceptorRegistrationWriter
+    {
+        public InterceptorRegistrationWriter() { }
+        public string Write(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel configurationModel, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptorModel> models) { }
+    }
     public static class KnownTypes
     {
         public static class DependencyModules
@@ -839,6 +863,7 @@ namespace DependencyModules.SourceGenerator.Impl
                 public static readonly CSharpAuthor.ITypeDefinition DecorateAttribute;
                 public static readonly CSharpAuthor.ITypeDefinition DecoratorAttribute;
                 public static readonly CSharpAuthor.ITypeDefinition DependencyModuleAttribute;
+                public static readonly CSharpAuthor.ITypeDefinition InterceptAttribute;
                 public static readonly CSharpAuthor.ITypeDefinition ScopedServiceAttribute;
                 public static readonly CSharpAuthor.ITypeDefinition SingletonServiceAttribute;
                 public static readonly CSharpAuthor.ITypeDefinition TransientServiceAttribute;
@@ -972,6 +997,31 @@ namespace DependencyModules.SourceGenerator.Impl.Models
         System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ParameterInfoModel> Parameters { get; }
         System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.PropertyInfoModel> PropertyInfoModels { get; }
     }
+    public class InterceptedMemberModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.InterceptedMemberModel>
+    {
+        public InterceptedMemberModel(string Declaration, string Name, string ArgumentList, DependencyModules.SourceGenerator.Impl.Models.ReturnShape ReturnShape) { }
+        public string ArgumentList { get; init; }
+        public string Declaration { get; init; }
+        public string Name { get; init; }
+        public DependencyModules.SourceGenerator.Impl.Models.ReturnShape ReturnShape { get; init; }
+    }
+    public class InterceptorModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.InterceptorModel>
+    {
+        public static readonly DependencyModules.SourceGenerator.Impl.Models.InterceptorModel Ignore;
+        public InterceptorModel(CSharpAuthor.ITypeDefinition ServiceType, CSharpAuthor.ITypeDefinition ImplementationType, System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> Interceptors, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedMemberModel> Members, int Order) { }
+        public CSharpAuthor.ITypeDefinition ImplementationType { get; init; }
+        public System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> Interceptors { get; init; }
+        public bool IsIgnored { get; }
+        public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedMemberModel> Members { get; init; }
+        public int Order { get; init; }
+        public CSharpAuthor.ITypeDefinition ServiceType { get; init; }
+    }
+    public class InterceptorModelComparer : System.Collections.Generic.IEqualityComparer<DependencyModules.SourceGenerator.Impl.Models.InterceptorModel>
+    {
+        public InterceptorModelComparer() { }
+        public bool Equals(DependencyModules.SourceGenerator.Impl.Models.InterceptorModel? x, DependencyModules.SourceGenerator.Impl.Models.InterceptorModel? y) { }
+        public int GetHashCode(DependencyModules.SourceGenerator.Impl.Models.InterceptorModel obj) { }
+    }
     public enum LogOutputLevel
     {
         Debug = 1,
@@ -1059,6 +1109,15 @@ namespace DependencyModules.SourceGenerator.Impl.Models
         Try = 1,
         TryEnumerable = 2,
         Replace = 3,
+    }
+    public enum ReturnShape
+    {
+        Void = 0,
+        Value = 1,
+        Task = 2,
+        TaskOfValue = 3,
+        ValueTask = 4,
+        ValueTaskOfValue = 5,
     }
     public class ServiceFactoryModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.ServiceFactoryModel>
     {
@@ -1165,6 +1224,14 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities
     public static class ITypeDefinitionExtensions
     {
         public static string GetFileNameHint(this CSharpAuthor.ITypeDefinition typeDefinition, string rootNamespace, string uniquePart) { }
+    }
+    public static class InterceptedMemberReader
+    {
+        public static System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedMemberModel>? Read(Microsoft.CodeAnalysis.INamedTypeSymbol serviceType, out string? unsupported) { }
+    }
+    public static class InterceptorModelUtility
+    {
+        public static DependencyModules.SourceGenerator.Impl.Models.InterceptorModel? GetInterceptorModel(Microsoft.CodeAnalysis.GeneratorSyntaxContext context, System.Threading.CancellationToken cancellationToken, out string? unsupported) { }
     }
     public class ServiceModelUtility
     {
