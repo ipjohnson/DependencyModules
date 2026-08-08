@@ -32,11 +32,13 @@ public class DecoratorSourceGenerator : BaseAttributeSourceGenerator<DecoratorMo
         return _attributeTypes;
     }
 
+    protected override DecoratorModel IgnoredModel => DecoratorModel.Ignore;
+
     protected override IEqualityComparer<DecoratorModel> GetComparer() {
         return _comparer;
     }
 
-    protected override DecoratorModel GenerateAttributeModel(GeneratorSyntaxContext context, CancellationToken cancellationToken) {
+    protected override DecoratorModel GenerateAttributeModel(GeneratorAttributeSyntaxContext context, CancellationToken cancellationToken) {
         cancellationToken.ThrowIfCancellationRequested();
 
         return DecoratorModelUtility.GetDecoratorModel(context, cancellationToken) ?? DecoratorModel.Ignore;

@@ -775,9 +775,10 @@ namespace DependencyModules.SourceGenerator
     public class DecoratorSourceGenerator : DependencyModules.SourceGenerator.Impl.BaseAttributeSourceGenerator<DependencyModules.SourceGenerator.Impl.Models.DecoratorModel>
     {
         public DecoratorSourceGenerator() { }
+        protected override DependencyModules.SourceGenerator.Impl.Models.DecoratorModel IgnoredModel { get; }
         protected override string LoggerName { get; }
         protected override System.Collections.Generic.IEnumerable<CSharpAuthor.ITypeDefinition> AttributeTypes() { }
-        protected override DependencyModules.SourceGenerator.Impl.Models.DecoratorModel GenerateAttributeModel(Microsoft.CodeAnalysis.GeneratorSyntaxContext context, System.Threading.CancellationToken cancellationToken) { }
+        protected override DependencyModules.SourceGenerator.Impl.Models.DecoratorModel GenerateAttributeModel(Microsoft.CodeAnalysis.GeneratorAttributeSyntaxContext context, System.Threading.CancellationToken cancellationToken) { }
         protected override void GenerateSourceOutput(Microsoft.CodeAnalysis.SourceProductionContext context, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
                 "Left",
                 "Right",
@@ -788,9 +789,10 @@ namespace DependencyModules.SourceGenerator
     public class InterceptorSourceGenerator : DependencyModules.SourceGenerator.Impl.BaseAttributeSourceGenerator<DependencyModules.SourceGenerator.Impl.Models.InterceptorModel>
     {
         public InterceptorSourceGenerator() { }
+        protected override DependencyModules.SourceGenerator.Impl.Models.InterceptorModel IgnoredModel { get; }
         protected override string LoggerName { get; }
         protected override System.Collections.Generic.IEnumerable<CSharpAuthor.ITypeDefinition> AttributeTypes() { }
-        protected override DependencyModules.SourceGenerator.Impl.Models.InterceptorModel GenerateAttributeModel(Microsoft.CodeAnalysis.GeneratorSyntaxContext context, System.Threading.CancellationToken cancellationToken) { }
+        protected override DependencyModules.SourceGenerator.Impl.Models.InterceptorModel GenerateAttributeModel(Microsoft.CodeAnalysis.GeneratorAttributeSyntaxContext context, System.Threading.CancellationToken cancellationToken) { }
         protected override void GenerateSourceOutput(Microsoft.CodeAnalysis.SourceProductionContext context, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
                 "Left",
                 "Right",
@@ -801,8 +803,9 @@ namespace DependencyModules.SourceGenerator
     public class ServiceSourceGenerator : DependencyModules.SourceGenerator.Impl.BaseAttributeSourceGenerator<DependencyModules.SourceGenerator.Impl.Models.ServiceModel>
     {
         public ServiceSourceGenerator() { }
+        protected override DependencyModules.SourceGenerator.Impl.Models.ServiceModel IgnoredModel { get; }
         protected override System.Collections.Generic.IEnumerable<CSharpAuthor.ITypeDefinition> AttributeTypes() { }
-        protected override DependencyModules.SourceGenerator.Impl.Models.ServiceModel GenerateAttributeModel(Microsoft.CodeAnalysis.GeneratorSyntaxContext context, System.Threading.CancellationToken cancellationToken) { }
+        protected override DependencyModules.SourceGenerator.Impl.Models.ServiceModel GenerateAttributeModel(Microsoft.CodeAnalysis.GeneratorAttributeSyntaxContext context, System.Threading.CancellationToken cancellationToken) { }
         protected override void GenerateSourceOutput(Microsoft.CodeAnalysis.SourceProductionContext context, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
                 "Left",
                 "Right",
@@ -826,9 +829,10 @@ namespace DependencyModules.SourceGenerator.Impl
     public abstract class BaseAttributeSourceGenerator<T> : DependencyModules.SourceGenerator.Impl.IDependencyModuleSourceGenerator
     {
         protected BaseAttributeSourceGenerator() { }
+        protected abstract T IgnoredModel { get; }
         protected virtual string LoggerName { get; }
         protected abstract System.Collections.Generic.IEnumerable<CSharpAuthor.ITypeDefinition> AttributeTypes();
-        protected abstract T GenerateAttributeModel(Microsoft.CodeAnalysis.GeneratorSyntaxContext arg1, System.Threading.CancellationToken arg2);
+        protected abstract T GenerateAttributeModel(Microsoft.CodeAnalysis.GeneratorAttributeSyntaxContext arg1, System.Threading.CancellationToken arg2);
         protected abstract void GenerateSourceOutput(Microsoft.CodeAnalysis.SourceProductionContext arg1, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
                 "Left",
                 "Right",
@@ -1328,10 +1332,10 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities
 {
     public static class AttributeModelHelper
     {
-        public static DependencyModules.SourceGenerator.Impl.Models.AttributeModel? GetAttribute(Microsoft.CodeAnalysis.GeneratorSyntaxContext context, Microsoft.CodeAnalysis.CSharp.Syntax.AttributeSyntax attribute) { }
-        public static DependencyModules.SourceGenerator.Impl.Models.AttributeClassInfo GetAttributeClassInfo(Microsoft.CodeAnalysis.GeneratorSyntaxContext context, System.Threading.CancellationToken cancellationToken) { }
-        public static System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.AttributeModel> GetAttributeModels(Microsoft.CodeAnalysis.GeneratorSyntaxContext context, Microsoft.CodeAnalysis.SyntaxNode node, System.Threading.CancellationToken cancellationToken, System.Func<Microsoft.CodeAnalysis.CSharp.Syntax.AttributeSyntax, bool>? filter = null) { }
-        public static System.Collections.Generic.IEnumerable<DependencyModules.SourceGenerator.Impl.Models.AttributeModel> GetAttributes(Microsoft.CodeAnalysis.GeneratorSyntaxContext context, Microsoft.CodeAnalysis.SyntaxList<Microsoft.CodeAnalysis.CSharp.Syntax.AttributeListSyntax> attributeListSyntax, System.Threading.CancellationToken cancellationToken, System.Func<Microsoft.CodeAnalysis.CSharp.Syntax.AttributeSyntax, bool>? filter = null) { }
+        public static DependencyModules.SourceGenerator.Impl.Models.AttributeModel? GetAttribute(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, Microsoft.CodeAnalysis.CSharp.Syntax.AttributeSyntax attribute) { }
+        public static DependencyModules.SourceGenerator.Impl.Models.AttributeClassInfo GetAttributeClassInfo(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, System.Threading.CancellationToken cancellationToken) { }
+        public static System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.AttributeModel> GetAttributeModels(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, Microsoft.CodeAnalysis.SyntaxNode node, System.Threading.CancellationToken cancellationToken, System.Func<Microsoft.CodeAnalysis.CSharp.Syntax.AttributeSyntax, bool>? filter = null) { }
+        public static System.Collections.Generic.IEnumerable<DependencyModules.SourceGenerator.Impl.Models.AttributeModel> GetAttributes(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, Microsoft.CodeAnalysis.SyntaxList<Microsoft.CodeAnalysis.CSharp.Syntax.AttributeListSyntax> attributeListSyntax, System.Threading.CancellationToken cancellationToken, System.Func<Microsoft.CodeAnalysis.CSharp.Syntax.AttributeSyntax, bool>? filter = null) { }
     }
     public abstract class BaseAttributeWriter<T>
         where T : DependencyModules.SourceGenerator.Impl.Models.IClassModel
@@ -1344,8 +1348,8 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities
     }
     public static class BaseMethodHelper
     {
-        public static System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ParameterInfoModel> GetMethodParameters(this Microsoft.CodeAnalysis.CSharp.Syntax.BaseMethodDeclarationSyntax methodDeclarationSyntax, Microsoft.CodeAnalysis.GeneratorSyntaxContext context, System.Threading.CancellationToken cancellationToken) { }
-        public static System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ParameterInfoModel> GetParameters(this Microsoft.CodeAnalysis.CSharp.Syntax.ParameterListSyntax? parameterList, Microsoft.CodeAnalysis.GeneratorSyntaxContext context, System.Threading.CancellationToken cancellationToken) { }
+        public static System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ParameterInfoModel> GetMethodParameters(this Microsoft.CodeAnalysis.CSharp.Syntax.BaseMethodDeclarationSyntax methodDeclarationSyntax, DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, System.Threading.CancellationToken cancellationToken) { }
+        public static System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ParameterInfoModel> GetParameters(this Microsoft.CodeAnalysis.CSharp.Syntax.ParameterListSyntax? parameterList, DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, System.Threading.CancellationToken cancellationToken) { }
     }
     public abstract class BaseSyntaxSelector
     {
@@ -1357,7 +1361,7 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities
     }
     public static class DecoratorModelUtility
     {
-        public static DependencyModules.SourceGenerator.Impl.Models.DecoratorModel? GetDecoratorModel(Microsoft.CodeAnalysis.GeneratorSyntaxContext context, System.Threading.CancellationToken cancellationToken) { }
+        public static DependencyModules.SourceGenerator.Impl.Models.DecoratorModel? GetDecoratorModel(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, System.Threading.CancellationToken cancellationToken) { }
         public static System.Collections.Generic.IEnumerable<DependencyModules.SourceGenerator.Impl.Models.DecoratorModel> GetModuleDeclaredDecorators(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel) { }
     }
     public class EntryModelUtil
@@ -1392,13 +1396,13 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities
     }
     public static class InterceptorModelUtility
     {
-        public static DependencyModules.SourceGenerator.Impl.Models.InterceptorModel GetInterceptorModel(Microsoft.CodeAnalysis.GeneratorSyntaxContext context, System.Threading.CancellationToken cancellationToken) { }
+        public static DependencyModules.SourceGenerator.Impl.Models.InterceptorModel GetInterceptorModel(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, System.Threading.CancellationToken cancellationToken) { }
     }
     public class ServiceModelUtility
     {
         public ServiceModelUtility() { }
-        public static DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? GetConstructorInfo(Microsoft.CodeAnalysis.GeneratorSyntaxContext context, Microsoft.CodeAnalysis.SyntaxNode node, System.Threading.CancellationToken cancellationToken) { }
-        public static DependencyModules.SourceGenerator.Impl.Models.ServiceModel? GetServiceModel(Microsoft.CodeAnalysis.GeneratorSyntaxContext context, System.Threading.CancellationToken cancellationToken) { }
+        public static DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? GetConstructorInfo(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, Microsoft.CodeAnalysis.SyntaxNode node, System.Threading.CancellationToken cancellationToken) { }
+        public static DependencyModules.SourceGenerator.Impl.Models.ServiceModel? GetServiceModel(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, System.Threading.CancellationToken cancellationToken) { }
     }
     public static class SyntaxNodeExtensions
     {
@@ -1430,12 +1434,20 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities
         public SyntaxSelector(params CSharpAuthor.ITypeDefinition[] attributes) { }
         protected override bool TestForTypes(Microsoft.CodeAnalysis.SyntaxNode node, System.Threading.CancellationToken token) { }
     }
+    public readonly struct SyntaxTransformContext
+    {
+        public SyntaxTransformContext(Microsoft.CodeAnalysis.SyntaxNode node, Microsoft.CodeAnalysis.SemanticModel semanticModel) { }
+        public Microsoft.CodeAnalysis.SyntaxNode Node { get; }
+        public Microsoft.CodeAnalysis.SemanticModel SemanticModel { get; }
+        public static DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext op_Implicit(Microsoft.CodeAnalysis.GeneratorAttributeSyntaxContext context) { }
+        public static DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext op_Implicit(Microsoft.CodeAnalysis.GeneratorSyntaxContext context) { }
+    }
     public static class TypeSyntaxExtensions
     {
         public static string GetFullName(this Microsoft.CodeAnalysis.INamespaceSymbol? namespaceSymbol) { }
         public static CSharpAuthor.ITypeDefinition GetTypeDefinition(this Microsoft.CodeAnalysis.ITypeSymbol typeSymbol) { }
-        public static CSharpAuthor.ITypeDefinition? GetTypeDefinition(this Microsoft.CodeAnalysis.CSharp.Syntax.MemberAccessExpressionSyntax syntax, Microsoft.CodeAnalysis.GeneratorSyntaxContext generatorSyntaxContext) { }
-        public static CSharpAuthor.ITypeDefinition? GetTypeDefinition(this Microsoft.CodeAnalysis.SyntaxNode typeSyntax, Microsoft.CodeAnalysis.GeneratorSyntaxContext generatorSyntaxContext) { }
+        public static CSharpAuthor.ITypeDefinition? GetTypeDefinition(this Microsoft.CodeAnalysis.CSharp.Syntax.MemberAccessExpressionSyntax syntax, DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext generatorSyntaxContext) { }
+        public static CSharpAuthor.ITypeDefinition? GetTypeDefinition(this Microsoft.CodeAnalysis.SyntaxNode typeSyntax, DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext generatorSyntaxContext) { }
         public static CSharpAuthor.ITypeDefinition? GetTypeDefinitionFromNamedSymbol(this Microsoft.CodeAnalysis.INamedTypeSymbol? namedTypeSymbol) { }
         public static CSharpAuthor.ITypeDefinition? GetTypeDefinitionFromSymbolInfo(Microsoft.CodeAnalysis.SymbolInfo symbolInfo) { }
     }

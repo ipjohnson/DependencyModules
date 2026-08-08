@@ -29,11 +29,13 @@ public class InterceptorSourceGenerator : BaseAttributeSourceGenerator<Intercept
         return _attributeTypes;
     }
 
+    protected override InterceptorModel IgnoredModel => InterceptorModel.Ignore;
+
     protected override IEqualityComparer<InterceptorModel> GetComparer() {
         return _comparer;
     }
 
-    protected override InterceptorModel GenerateAttributeModel(GeneratorSyntaxContext context, CancellationToken cancellationToken) {
+    protected override InterceptorModel GenerateAttributeModel(GeneratorAttributeSyntaxContext context, CancellationToken cancellationToken) {
         // A refusal travels on the model so the output stage, which owns the diagnostic context, can
         // report it. Reporting from the transform is not possible.
         return InterceptorModelUtility.GetInterceptorModel(context, cancellationToken);

@@ -14,7 +14,7 @@ public static class DecoratorModelUtility {
     /// <summary>
     /// Reads a <c>[Decorator]</c> class declaration.
     /// </summary>
-    public static DecoratorModel? GetDecoratorModel(GeneratorSyntaxContext context, CancellationToken cancellationToken) {
+    public static DecoratorModel? GetDecoratorModel(SyntaxTransformContext context, CancellationToken cancellationToken) {
         cancellationToken.ThrowIfCancellationRequested();
 
         if (context.Node is not TypeDeclarationSyntax typeDeclarationSyntax) {
@@ -103,7 +103,7 @@ public static class DecoratorModelUtility {
     /// </summary>
     private static ITypeDefinition? InferDecoratedService(
         TypeDeclarationSyntax typeDeclarationSyntax,
-        GeneratorSyntaxContext context,
+        SyntaxTransformContext context,
         IReadOnlyList<ITypeDefinition> implemented) {
 
         if (implemented.Count == 0) {
@@ -122,7 +122,7 @@ public static class DecoratorModelUtility {
     }
 
     private static IEnumerable<ITypeDefinition> GetConstructorParameterTypes(
-        TypeDeclarationSyntax typeDeclarationSyntax, GeneratorSyntaxContext context) {
+        TypeDeclarationSyntax typeDeclarationSyntax, SyntaxTransformContext context) {
 
         if (typeDeclarationSyntax.ParameterList != null) {
             foreach (var parameter in typeDeclarationSyntax.ParameterList.Parameters) {
@@ -146,7 +146,7 @@ public static class DecoratorModelUtility {
     }
 
     private static IReadOnlyList<ITypeDefinition> GetImplementedInterfaces(
-        TypeDeclarationSyntax typeDeclarationSyntax, GeneratorSyntaxContext context) {
+        TypeDeclarationSyntax typeDeclarationSyntax, SyntaxTransformContext context) {
 
         var interfaces = new List<ITypeDefinition>();
 
@@ -180,7 +180,7 @@ public static class DecoratorModelUtility {
             generic.TypeArguments.Select(_ => (ITypeDefinition)TypeDefinition.Get("", "")).ToArray());
     }
 
-    private static ITypeDefinition GetDeclaredType(TypeDeclarationSyntax typeDeclarationSyntax, GeneratorSyntaxContext context) {
+    private static ITypeDefinition GetDeclaredType(TypeDeclarationSyntax typeDeclarationSyntax, SyntaxTransformContext context) {
         var name = typeDeclarationSyntax.Identifier.ToString();
 
         foreach (var containing in typeDeclarationSyntax.Ancestors().OfType<TypeDeclarationSyntax>()) {
@@ -200,7 +200,7 @@ public static class DecoratorModelUtility {
         return TypeDefinition.Get(namespaceName, name);
     }
 
-    private static ITypeDefinition? GetTypeOfArgument(AttributeArgumentSyntax argument, GeneratorSyntaxContext context) {
+    private static ITypeDefinition? GetTypeOfArgument(AttributeArgumentSyntax argument, SyntaxTransformContext context) {
         return argument.Expression is TypeOfExpressionSyntax typeOf
             ? typeOf.Type.GetTypeDefinition(context)
             : null;

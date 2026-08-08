@@ -9,7 +9,7 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities;
 public static class AttributeModelHelper {
 
     public static IReadOnlyList<AttributeModel> GetAttributeModels(
-        GeneratorSyntaxContext context,
+        SyntaxTransformContext context,
         SyntaxNode node,
         CancellationToken cancellationToken,
         Func<AttributeSyntax, bool>? filter = null) {
@@ -36,7 +36,7 @@ public static class AttributeModelHelper {
     }
 
     public static AttributeClassInfo GetAttributeClassInfo(
-        GeneratorSyntaxContext context,
+        SyntaxTransformContext context,
         CancellationToken cancellationToken) {
         var propertyList = new List<PropertyInfoModel>();
 
@@ -69,7 +69,7 @@ public static class AttributeModelHelper {
     }
 
     public static IEnumerable<AttributeModel> GetAttributes(
-        GeneratorSyntaxContext context,
+        SyntaxTransformContext context,
         SyntaxList<AttributeListSyntax> attributeListSyntax,
         CancellationToken cancellationToken,
         Func<AttributeSyntax, bool>? filter = null) {
@@ -88,14 +88,14 @@ public static class AttributeModelHelper {
         }
     }
 
-    public static AttributeModel? GetAttribute(GeneratorSyntaxContext context, AttributeSyntax attribute) {
+    public static AttributeModel? GetAttribute(SyntaxTransformContext context, AttributeSyntax attribute) {
         var operation = ModelExtensions.GetTypeInfo(context.SemanticModel, attribute);
 
         return operation.Type != null ? InternalAttributeModel(context, attribute, operation) : null;
     }
 
     private static AttributeModel InternalAttributeModel(
-        GeneratorSyntaxContext context, AttributeSyntax attribute, TypeInfo operation) {
+        SyntaxTransformContext context, AttributeSyntax attribute, TypeInfo operation) {
         var arguments = new List<AttributeArgumentValue>();
         var properties = new List<AttributeArgumentValue>();
 
@@ -154,7 +154,7 @@ public static class AttributeModelHelper {
             GetInterfaces(context, attribute));
     }
 
-    private static object? GetOperationValue(GeneratorSyntaxContext context, IOperation operationValue) {
+    private static object? GetOperationValue(SyntaxTransformContext context, IOperation operationValue) {
         if (operationValue.ConstantValue.HasValue) {
             return operationValue.ConstantValue.Value;
         }
@@ -162,7 +162,7 @@ public static class AttributeModelHelper {
         return GetOperationValue(context, operationValue.Syntax);
     }
 
-    private static object GetOperationValue(GeneratorSyntaxContext context, SyntaxNode syntaxNode) {
+    private static object GetOperationValue(SyntaxTransformContext context, SyntaxNode syntaxNode) {
 
         if (syntaxNode is CollectionExpressionSyntax collectionExpressionSyntax) {
             var collection = new List<object>();
@@ -194,7 +194,7 @@ public static class AttributeModelHelper {
     }
 
     private static IReadOnlyList<ITypeDefinition> GetInterfaces(
-        GeneratorSyntaxContext context, AttributeSyntax attribute) {
+        SyntaxTransformContext context, AttributeSyntax attribute) {
         var interfaces = new List<ITypeDefinition>();
 
         var symbol =

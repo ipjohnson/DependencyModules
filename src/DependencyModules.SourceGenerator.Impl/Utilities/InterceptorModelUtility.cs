@@ -23,7 +23,7 @@ public static class InterceptorModelUtility {
     /// A diagnostic cannot be raised from here — the transform holds no context that can.
     /// </returns>
     public static InterceptorModel GetInterceptorModel(
-        GeneratorSyntaxContext context, CancellationToken cancellationToken) {
+        SyntaxTransformContext context, CancellationToken cancellationToken) {
 
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -158,7 +158,7 @@ public static class InterceptorModelUtility {
 
     private static void ReadAttribute(
         AttributeSyntax attribute,
-        GeneratorSyntaxContext context,
+        SyntaxTransformContext context,
         CancellationToken cancellationToken,
         List<INamedTypeSymbol> interceptors,
         ref int order,
@@ -199,7 +199,7 @@ public static class InterceptorModelUtility {
     }
 
     private static INamedTypeSymbol? ResolveType(
-        TypeOfExpressionSyntax typeOf, GeneratorSyntaxContext context, CancellationToken cancellationToken) =>
+        TypeOfExpressionSyntax typeOf, SyntaxTransformContext context, CancellationToken cancellationToken) =>
         context.SemanticModel.GetTypeInfo(typeOf.Type, cancellationToken).Type as INamedTypeSymbol;
 
     /// <summary>

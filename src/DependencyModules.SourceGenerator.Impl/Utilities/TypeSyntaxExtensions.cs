@@ -6,7 +6,7 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities;
 
 public static class TypeSyntaxExtensions {
     public static ITypeDefinition? GetTypeDefinition(this SyntaxNode typeSyntax,
-        GeneratorSyntaxContext generatorSyntaxContext) {
+        SyntaxTransformContext generatorSyntaxContext) {
         var symbolInfo = generatorSyntaxContext.SemanticModel.GetSymbolInfo(typeSyntax);
 
         var type = GetTypeDefinitionFromSymbolInfo(symbolInfo);
@@ -18,7 +18,7 @@ public static class TypeSyntaxExtensions {
         return type;
     }
 
-    public static ITypeDefinition? GetTypeDefinition(this MemberAccessExpressionSyntax syntax, GeneratorSyntaxContext generatorSyntaxContext) {
+    public static ITypeDefinition? GetTypeDefinition(this MemberAccessExpressionSyntax syntax, SyntaxTransformContext generatorSyntaxContext) {
         var typeInfo = generatorSyntaxContext.SemanticModel.GetSymbolInfo(syntax.Expression);
         
         if (typeInfo.Symbol is INamedTypeSymbol namedTypeSymbol) {
