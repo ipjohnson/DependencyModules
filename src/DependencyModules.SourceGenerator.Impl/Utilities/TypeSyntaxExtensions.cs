@@ -51,8 +51,7 @@ public static class TypeSyntaxExtensions {
         // as T. Falling through to the qualified path below renders it as the type that declared it,
         // IWork.T, which names nothing.
         if (typeSymbol is ITypeParameterSymbol) {
-            var typeParameter = new TypeParameterDefinition(
-                TypeDefinitionEnum.ClassDefinition, false, false, typeSymbol.Name);
+            var typeParameter = new TypeParameterDefinition(typeSymbol.Name);
 
             return typeSymbol.NullableAnnotation == NullableAnnotation.Annotated
                 ? typeParameter.MakeNullable()
@@ -181,11 +180,7 @@ public static class TypeSyntaxExtensions {
         }
         
         if (typeSymbol is ITypeParameterSymbol || typeSymbol is IErrorTypeSymbol) {
-            return new TypeParameterDefinition(
-                TypeDefinitionEnum.ClassDefinition, 
-                false, 
-                false, 
-                typeSymbol.Name);
+            return new TypeParameterDefinition(typeSymbol.Name);
         }
 
         if (typeSymbol is IArrayTypeSymbol arrayTypeSymbol) {
