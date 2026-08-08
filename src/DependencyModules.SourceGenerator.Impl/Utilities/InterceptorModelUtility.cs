@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using CSharpAuthor;
 using DependencyModules.SourceGenerator.Impl.Models;
 using Microsoft.CodeAnalysis;
@@ -48,7 +49,8 @@ public static class InterceptorModelUtility {
         if (implementationSymbol.IsGenericType) {
             return InterceptorModel.Refused(
                 $"'{implementationSymbol.Name}' is generic, so it registers as an open generic, and " +
-                "decorating an open generic registration is not supported yet");
+                "decorating an open generic registration is not supported. Register a closed " +
+                $"construction instead, such as a class deriving from '{implementationSymbol.Name}<...>'");
         }
 
         var interceptorSymbols = new List<INamedTypeSymbol>();
@@ -210,21 +212,21 @@ public static class InterceptorModelUtility {
 
         unsupported = null;
 
-        var interfaces = implementation.Interfaces;
-
-        if (interfaces.Length == 0) {
-            unsupported = $"'{implementation.Name}' implements no interface, so there is nothing to intercept";
-            return null;
-        }
-
         if (explicitService != null) {
-            foreach (var candidate in interfaces) {
+            foreach (var candidate in implementation.AllInterfaces) {
                 if (SymbolEqualityComparer.Default.Equals(candidate, explicitService)) {
                     return candidate;
                 }
             }
 
             unsupported = $"'{implementation.Name}' does not implement '{explicitService.Name}'";
+            return null;
+        }
+
+        var interfaces = DeclaredInterfaces(implementation);
+
+        if (interfaces.Length == 0) {
+            unsupported = $"'{implementation.Name}' implements no interface, so there is nothing to intercept";
             return null;
         }
 
@@ -235,6 +237,30 @@ public static class InterceptorModelUtility {
         }
 
         return interfaces[0];
+    }
+
+    /// <summary>
+    /// The interfaces the service is registered as: the ones the type declares, or failing that the
+    /// ones it inherits from the nearest base that declares any.
+    /// </summary>
+    /// <remarks>
+    /// This matches how a service registration picks its interface. Looking only at the type's own
+    /// interfaces disagreed with it, and disagreed on exactly the shape that closes a generic
+    /// service — <c>class StringRepo : Repo&lt;string&gt;</c> reaches its interface only through the
+    /// base, and registered as <c>IRepo&lt;string&gt;</c> while interception said it implemented
+    /// none.
+    ///
+    /// Not <c>AllInterfaces</c>, which flattens what the interfaces themselves extend and would
+    /// report a plain <c>IDerived</c> as ambiguous with the <c>IBase</c> behind it.
+    /// </remarks>
+    private static ImmutableArray<INamedTypeSymbol> DeclaredInterfaces(INamedTypeSymbol implementation) {
+        for (var type = implementation; type != null; type = type.BaseType) {
+            if (type.Interfaces.Length > 0) {
+                return type.Interfaces;
+            }
+        }
+
+        return ImmutableArray<INamedTypeSymbol>.Empty;
     }
 
     private static ITypeDefinition ToTypeDefinition(INamedTypeSymbol symbol) {

@@ -607,6 +607,39 @@ public class InterceptorGenerationTests {
         Assert.Contains("open generic", diagnostic.GetMessage());
     }
 
+    /// <summary>
+    /// A closed construction of a generic service, which is the answer to the refusal above. The
+    /// interface is reached through the base rather than declared, and a service registration finds
+    /// it that way too — interception used to disagree and report that the class implemented none.
+    /// </summary>
+    [Fact]
+    public void ClosedConstructionOfAGenericService_IsIntercepted() {
+        var generated = GeneratedAssembly.Create(
+            $$"""
+              {{Preamble}}
+
+              {{Tracing("Tracing", "tracing")}}
+
+              public interface IRepo<T> { string Name(); }
+
+              public class Repo<T> : IRepo<T> { public string Name() => "repo"; }
+
+              [SingletonService]
+              [Intercept(typeof(TracingInterceptor))]
+              public class StringRepo : Repo<string> { }
+
+              [DependencyModule]
+              public partial class TestModule;
+              """);
+
+        var provider = generated.BuildProvider();
+        var resolved = provider.GetService(generated.Type("IRepo`1").MakeGenericType(typeof(string)))!;
+
+        Assert.EndsWith("_Intercepted", resolved.GetType().Name);
+        Assert.Equal("repo", resolved.GetType().GetMethod("Name")!.Invoke(resolved, null));
+        Assert.Equal(["enter tracing Name", "exit tracing Name"], Log(generated));
+    }
+
     [Fact]
     public void RefParameter_ReportsDM0008() {
         var result = GeneratorTestHarness.Run(
