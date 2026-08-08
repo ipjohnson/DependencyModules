@@ -41,12 +41,14 @@ public static class InterceptorModelUtility {
             return InterceptorModel.Ignore;
         }
 
-        // An open generic is registered as a definition rather than a constructed type, so there is
-        // no instance for a wrapper to be built around.
+        // A generic implementation registers as an open generic, and decorating one of those is not
+        // supported: DecoratorHelper rewrites the registration into a factory, which the container
+        // rejects for an open generic service type. Refusing here turns what would be an
+        // ArgumentException when the provider is built into a message naming the declaration.
         if (implementationSymbol.IsGenericType) {
             return InterceptorModel.Refused(
-                $"'{implementationSymbol.Name}' is generic, and an open generic registration has no " +
-                "constructed instance to wrap");
+                $"'{implementationSymbol.Name}' is generic, so it registers as an open generic, and " +
+                "decorating an open generic registration is not supported yet");
         }
 
         var interceptorSymbols = new List<INamedTypeSymbol>();

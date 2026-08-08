@@ -578,6 +578,35 @@ public class InterceptorGenerationTests {
         Assert.Equal("Work", resolved.GetType().Name);
     }
 
+    /// <summary>
+    /// A generic implementation registers as an open generic, and decorating one of those rewrites
+    /// the registration into a factory, which the container rejects for an open generic service
+    /// type. Refused here so the failure names the declaration rather than surfacing as an
+    /// ArgumentException when the provider is built.
+    /// </summary>
+    [Fact]
+    public void GenericImplementation_ReportsDM0008() {
+        var result = GeneratorTestHarness.Run(
+            $$"""
+              {{Preamble}}
+
+              {{Tracing("Tracing", "tracing")}}
+
+              public interface IRepo<T> { void Run(); }
+
+              [SingletonService]
+              [Intercept(typeof(TracingInterceptor))]
+              public class Repo<T> : IRepo<T> { public void Run() { } }
+
+              [DependencyModule]
+              public partial class TestModule;
+              """);
+
+        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0008");
+
+        Assert.Contains("open generic", diagnostic.GetMessage());
+    }
+
     [Fact]
     public void RefParameter_ReportsDM0008() {
         var result = GeneratorTestHarness.Run(
