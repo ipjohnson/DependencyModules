@@ -52,6 +52,14 @@ namespace DependencyModules.Runtime.Attributes
         Microsoft.Extensions.DependencyInjection.ServiceLifetime Lifetime { get; set; }
         DependencyModules.Runtime.Attributes.RegistrationType Using { get; set; }
     }
+    [System.AttributeUsage(System.AttributeTargets.Class, AllowMultiple=true, Inherited=false)]
+    public class InterceptAttribute : System.Attribute
+    {
+        public InterceptAttribute(params System.Type[] interceptors) { }
+        public System.Type[] Interceptors { get; }
+        public int Order { get; set; }
+        public System.Type? Service { get; set; }
+    }
     public enum RegistrationType
     {
         Add = 0,
@@ -131,6 +139,82 @@ namespace DependencyModules.Runtime.Helpers
         public static void LoadModules(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection, params DependencyModules.Runtime.Interfaces.IDependencyModule[] dependencyModules) { }
     }
     public delegate void RegistryFunc(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection);
+}
+namespace DependencyModules.Runtime.Interception
+{
+    public readonly struct AsyncInvocationContext<TResult>
+    {
+        public AsyncInvocationContext(DependencyModules.Runtime.Interception.AsyncInvocationState<TResult> state, int stage) { }
+        public DependencyModules.Runtime.Interception.IArguments Arguments { get; }
+        public DependencyModules.Runtime.Interception.CallerInfo Caller { get; }
+        public System.Threading.Tasks.ValueTask<TResult> ProceedAsync() { }
+    }
+    public abstract class AsyncInvocationState<TResult> : DependencyModules.Runtime.Interception.InvocationState
+    {
+        protected AsyncInvocationState() { }
+        public abstract System.Threading.Tasks.ValueTask<TResult> Invoke(int stage);
+    }
+    public readonly struct CallerInfo
+    {
+        public CallerInfo(System.Type serviceType, string memberName) { }
+        public string MemberName { get; }
+        public System.Type ServiceType { get; }
+        public override string ToString() { }
+    }
+    public interface IArguments
+    {
+        int Count { get; }
+        object? this[int index] { get; set; }
+        string NameAt(int index);
+    }
+    public interface IAsyncEnumerableInterceptor
+    {
+        System.Collections.Generic.IAsyncEnumerable<TItem> InterceptStream<TItem>(DependencyModules.Runtime.Interception.StreamInvocationContext<TItem> context);
+    }
+    public interface IAsyncInterceptor
+    {
+        System.Threading.Tasks.ValueTask<TResult> InterceptAsync<TResult>(DependencyModules.Runtime.Interception.AsyncInvocationContext<TResult> context);
+    }
+    public interface IInterceptor
+    {
+        TResult Intercept<TResult>(DependencyModules.Runtime.Interception.InvocationContext<TResult> context);
+    }
+    public readonly struct InvocationContext<TResult>
+    {
+        public InvocationContext(DependencyModules.Runtime.Interception.InvocationState<TResult> state, int stage) { }
+        public DependencyModules.Runtime.Interception.IArguments Arguments { get; }
+        public DependencyModules.Runtime.Interception.CallerInfo Caller { get; }
+        public TResult Proceed() { }
+    }
+    public abstract class InvocationState : DependencyModules.Runtime.Interception.IArguments
+    {
+        protected InvocationState() { }
+        public abstract DependencyModules.Runtime.Interception.CallerInfo Caller { get; }
+        public abstract int Count { get; }
+        public abstract object? this[int index] { get; set; }
+        public abstract string NameAt(int index);
+    }
+    public abstract class InvocationState<TResult> : DependencyModules.Runtime.Interception.InvocationState
+    {
+        protected InvocationState() { }
+        public abstract TResult Invoke(int stage);
+    }
+    public readonly struct NoResult
+    {
+        public override string ToString() { }
+    }
+    public readonly struct StreamInvocationContext<TItem>
+    {
+        public StreamInvocationContext(DependencyModules.Runtime.Interception.StreamInvocationState<TItem> state, int stage) { }
+        public DependencyModules.Runtime.Interception.IArguments Arguments { get; }
+        public DependencyModules.Runtime.Interception.CallerInfo Caller { get; }
+        public System.Collections.Generic.IAsyncEnumerable<TItem> Proceed() { }
+    }
+    public abstract class StreamInvocationState<TItem> : DependencyModules.Runtime.Interception.InvocationState
+    {
+        protected StreamInvocationState() { }
+        public abstract System.Collections.Generic.IAsyncEnumerable<TItem> Invoke(int stage);
+    }
 }
 namespace DependencyModules.Runtime.Interfaces
 {

@@ -20,6 +20,15 @@ public static class KnownTypes {
             
             public static readonly ITypeDefinition FromKeyedServicesAttribute =
                 TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "FromKeyedServicesAttribute");
+
+            /// <summary>
+            /// Home of the TryAdd family. Invoked statically so the generated file needs no using.
+            /// </summary>
+            public static readonly ITypeDefinition ServiceCollectionDescriptorExtensions =
+                TypeDefinition.Get(
+                    TypeDefinitionEnum.ClassDefinition,
+                    Namespace + ".Extensions",
+                    "ServiceCollectionDescriptorExtensions");
         }
         
         public static class TextJson {
@@ -54,6 +63,9 @@ public static class KnownTypes {
 
             public static readonly ITypeDefinition DecorateAttribute =
                 TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "DecorateAttribute");
+
+            public static readonly ITypeDefinition InterceptAttribute =
+                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "InterceptAttribute");
             
             public static readonly ITypeDefinition CrossWireServiceAttribute =
                 TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "CrossWireServiceAttribute");
@@ -100,5 +112,57 @@ public static class KnownTypes {
             public static readonly ITypeDefinition DecoratorRegistration =
                 TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "DecoratorRegistration");
         }
+
+        /// <summary>
+        /// The runtime types a generated interception wrapper is built out of.
+        /// </summary>
+        /// <remarks>
+        /// The state and context types are generic over the member's result, so they are built per
+        /// member rather than being constants.
+        /// </remarks>
+        public static class Interception {
+            public const string Namespace = "DependencyModules.Runtime.Interception";
+
+            public static readonly ITypeDefinition CallerInfo =
+                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "CallerInfo");
+
+            public static readonly ITypeDefinition NoResult =
+                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "NoResult");
+
+            public static ITypeDefinition InvocationState(ITypeDefinition result) =>
+                Close("InvocationState", result);
+
+            public static ITypeDefinition AsyncInvocationState(ITypeDefinition result) =>
+                Close("AsyncInvocationState", result);
+
+            public static ITypeDefinition StreamInvocationState(ITypeDefinition item) =>
+                Close("StreamInvocationState", item);
+
+            public static ITypeDefinition InvocationContext(ITypeDefinition result) =>
+                Close("InvocationContext", result);
+
+            public static ITypeDefinition AsyncInvocationContext(ITypeDefinition result) =>
+                Close("AsyncInvocationContext", result);
+
+            public static ITypeDefinition StreamInvocationContext(ITypeDefinition item) =>
+                Close("StreamInvocationContext", item);
+
+            private static ITypeDefinition Close(string name, ITypeDefinition argument) =>
+                new GenericTypeDefinition(
+                    TypeDefinitionEnum.ClassDefinition, Namespace, name, new[] { argument });
+        }
+    }
+
+    public static class System {
+        public static readonly ITypeDefinition ArgumentOutOfRangeException =
+            TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, "System", "ArgumentOutOfRangeException");
+
+        public static ITypeDefinition ValueTask(ITypeDefinition result) =>
+            new GenericTypeDefinition(
+                TypeDefinitionEnum.ClassDefinition, "System.Threading.Tasks", "ValueTask", new[] { result });
+
+        public static ITypeDefinition AsyncEnumerable(ITypeDefinition item) =>
+            new GenericTypeDefinition(
+                TypeDefinitionEnum.InterfaceDefinition, "System.Collections.Generic", "IAsyncEnumerable", new[] { item });
     }
 }

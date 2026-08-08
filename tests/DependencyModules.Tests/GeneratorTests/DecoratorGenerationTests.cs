@@ -110,6 +110,72 @@ public class DecoratorGenerationTests {
             Invoke(provider.GetService(handler.MakeGenericType(typeof(int)))!, "Handle"));
     }
 
+    /// <summary>
+    /// A service registered as an open generic cannot be decorated, and saying so while the module
+    /// is being applied beats the ArgumentException the container throws when the provider is built,
+    /// which names the service and neither the decorator nor the way out.
+    /// </summary>
+    [Fact]
+    public void OpenGenericRegistration_IsRefusedWhileTheModuleIsApplied() {
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => GeneratedAssembly.Create(
+                """
+                using DependencyModules.Runtime.Attributes;
+
+                namespace TestNamespace;
+
+                public interface IRepo<T> { string Name(); }
+
+                [SingletonService]
+                public class Repo<T> : IRepo<T> { public string Name() => "repo"; }
+
+                [Decorator]
+                public class LoggingRepo<T>(IRepo<T> inner) : IRepo<T> {
+                    public string Name() => $"logged({inner.Name()})";
+                }
+
+                [DependencyModule]
+                public partial class TestModule;
+                """));
+
+        Assert.Contains("open generic", exception.Message);
+        Assert.Contains("LoggingRepo", exception.Message);
+        Assert.Contains("closed constructions", exception.Message);
+    }
+
+    /// <summary>
+    /// The way through, end to end: a closed construction of the generic service is decorated.
+    /// </summary>
+    [Fact]
+    public void ClosedConstructionOfAGenericService_IsDecorated() {
+        var generated = GeneratedAssembly.Create(
+            """
+            using DependencyModules.Runtime.Attributes;
+
+            namespace TestNamespace;
+
+            public interface IRepo<T> { string Name(); }
+
+            public class Repo<T> : IRepo<T> { public string Name() => "repo"; }
+
+            [SingletonService]
+            public class StringRepo : Repo<string> { }
+
+            [Decorator]
+            public class LoggingRepo<T>(IRepo<T> inner) : IRepo<T> {
+                public string Name() => $"logged({inner.Name()})";
+            }
+
+            [DependencyModule]
+            public partial class TestModule;
+            """);
+
+        var provider = generated.BuildProvider();
+        var resolved = provider.GetService(generated.Type("IRepo`1").MakeGenericType(typeof(string)))!;
+
+        Assert.Equal("logged(repo)", Invoke(resolved, "Name"));
+    }
+
     [Fact]
     public void ModuleLevelDecorate_WrapsAServiceTheModuleDoesNotDeclare() {
         var generated = GeneratedAssembly.Create(

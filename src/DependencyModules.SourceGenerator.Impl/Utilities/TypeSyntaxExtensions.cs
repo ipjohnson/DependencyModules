@@ -46,7 +46,23 @@ public static class TypeSyntaxExtensions {
         if (typeSymbol is INamedTypeSymbol namedTypeSymbol) {
             return InternalGetTypeDefinitionFromNamedSymbol(namedTypeSymbol);
         }
-        
+
+        // A type parameter has no namespace and no containing type to qualify it with: T is written
+        // as T. Falling through to the qualified path below renders it as the type that declared it,
+        // IWork.T, which names nothing.
+        if (typeSymbol is ITypeParameterSymbol) {
+            var typeParameter = new TypeParameterDefinition(
+                TypeDefinitionEnum.ClassDefinition, false, false, typeSymbol.Name);
+
+            return typeSymbol.NullableAnnotation == NullableAnnotation.Annotated
+                ? typeParameter.MakeNullable()
+                : typeParameter;
+        }
+
+        if (typeSymbol is IArrayTypeSymbol arrayTypeSymbol) {
+            return arrayTypeSymbol.ElementType.GetTypeDefinition().MakeArray();
+        }
+
         var typeEnum = GetTypeSymbolKind(typeSymbol);
 
         return TypeDefinition.Get(typeEnum, typeSymbol.ContainingNamespace.GetFullName(), GetTypeName(typeSymbol));

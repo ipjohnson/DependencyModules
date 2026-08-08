@@ -32,6 +32,20 @@ public class DecoratorHelperTests {
         public string Describe() => $"second({inner.Describe()})";
     }
 
+    private interface IRepo<T> {
+        string Describe();
+    }
+
+    private class Repo<T> : IRepo<T> {
+        public string Describe() => "repo";
+    }
+
+    private class RepoWrapper<T>(IRepo<T> inner) : IRepo<T> {
+        public string Describe() => $"wrapped({inner.Describe()})";
+    }
+
+    private class StringRepo : Repo<string>;
+
     private static IThing Resolve(IServiceCollection services) =>
         services.BuildServiceProvider().GetRequiredService<IThing>();
 
@@ -288,5 +302,38 @@ public class DecoratorHelperTests {
         DecoratorHelper.Decorate(services, typeof(IThing), typeof(SecondWrapper));
 
         Assert.Equal("second(wrapped(thing))", Resolve(services).Describe());
+    }
+
+    /// <summary>
+    /// Decoration replaces a registration with a factory, and the container will not take a factory
+    /// for an open generic service type. Left alone it throws from BuildServiceProvider naming only
+    /// the service, so it is refused here instead, where the decorator is still known.
+    /// </summary>
+    [Fact]
+    public void Decorate_RefusesAnOpenGenericRegistration() {
+        var services = new ServiceCollection();
+        services.AddSingleton(typeof(IRepo<>), typeof(Repo<>));
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => DecoratorHelper.Decorate(services, typeof(IRepo<>), typeof(RepoWrapper<>)));
+
+        Assert.Contains("open generic", exception.Message);
+        Assert.Contains("RepoWrapper", exception.Message);
+        Assert.Contains("closed constructions", exception.Message);
+    }
+
+    /// <summary>
+    /// The way through: a closed construction is decorated like any other registration.
+    /// </summary>
+    [Fact]
+    public void Decorate_WrapsAClosedConstructionOfAGenericService() {
+        var services = new ServiceCollection();
+        services.AddSingleton(typeof(IRepo<string>), typeof(StringRepo));
+
+        DecoratorHelper.Decorate(services, typeof(IRepo<>), typeof(RepoWrapper<>));
+
+        Assert.Equal(
+            "wrapped(repo)",
+            services.BuildServiceProvider().GetRequiredService<IRepo<string>>().Describe());
     }
 }

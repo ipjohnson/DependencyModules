@@ -69,4 +69,18 @@ public static class DependencyModuleDiagnostics {
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
+
+    /// <summary>
+    /// Raised when a class marked for interception cannot be wrapped. Interception works through an
+    /// interface, and a few member shapes cannot be forwarded; saying so beats emitting a wrapper
+    /// that does not compile.
+    /// </summary>
+    public static readonly DiagnosticDescriptor CannotIntercept = new(
+        id: "DM0008",
+        title: "Service cannot be intercepted",
+        messageFormat: "This service cannot be intercepted: {0}",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
 }
