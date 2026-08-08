@@ -24,7 +24,7 @@ public class ServiceModelUtility {
     };
 
     public static ServiceModel? GetServiceModel(
-        GeneratorSyntaxContext context, CancellationToken cancellationToken) {
+        SyntaxTransformContext context, CancellationToken cancellationToken) {
         cancellationToken.ThrowIfCancellationRequested();
         if (context.Node is ClassDeclarationSyntax or RecordDeclarationSyntax) {
             return GetClassDeclarationServiceModel(context, cancellationToken);
@@ -37,7 +37,7 @@ public class ServiceModelUtility {
         return null;
     }
 
-    private static ServiceModel? MethodDeclarationServiceModel(GeneratorSyntaxContext context, MethodDeclarationSyntax methodDeclarationSyntax, CancellationToken cancellationToken) {
+    private static ServiceModel? MethodDeclarationServiceModel(SyntaxTransformContext context, MethodDeclarationSyntax methodDeclarationSyntax, CancellationToken cancellationToken) {
         // only support public or internal factory methods
         if (methodDeclarationSyntax.Modifiers.Any(
                 m => m.IsKind(SyntaxKind.PrivateKeyword) || m.IsKind(SyntaxKind.ProtectedKeyword))) {
@@ -67,7 +67,7 @@ public class ServiceModelUtility {
             RegistrationFeature.None);
     }
 
-    private static ServiceFactoryModel? GetFactoryModel(GeneratorSyntaxContext context, MethodDeclarationSyntax methodDeclarationSyntax, CancellationToken cancellationToken) {
+    private static ServiceFactoryModel? GetFactoryModel(SyntaxTransformContext context, MethodDeclarationSyntax methodDeclarationSyntax, CancellationToken cancellationToken) {
         var factoryClass = methodDeclarationSyntax.FirstAncestorOrSelf<TypeDeclarationSyntax>();
         if (factoryClass == null) {
             return null;
@@ -102,7 +102,7 @@ public class ServiceModelUtility {
         return features;
     }
 
-    private static ServiceModel? GetClassDeclarationServiceModel(GeneratorSyntaxContext context, CancellationToken cancellationToken) {
+    private static ServiceModel? GetClassDeclarationServiceModel(SyntaxTransformContext context, CancellationToken cancellationToken) {
         var classDefinition = GetClassDefinition(context);
 
         if (classDefinition == null) {
@@ -145,7 +145,7 @@ public class ServiceModelUtility {
             GetConstructionFeatures(context.Node));
     }
 
-    public static ConstructorInfoModel? GetConstructorInfo(GeneratorSyntaxContext context, SyntaxNode node, CancellationToken cancellationToken) {
+    public static ConstructorInfoModel? GetConstructorInfo(SyntaxTransformContext context, SyntaxNode node, CancellationToken cancellationToken) {
         var constructorList = new List<ConstructorDeclarationSyntax>();
 
         foreach (var constructor in node.DescendantNodes().OfType<ConstructorDeclarationSyntax>()) {
@@ -201,7 +201,7 @@ public class ServiceModelUtility {
         return component;
     }
 
-    private static ITypeDefinition? GetClassDefinition(GeneratorSyntaxContext context) {
+    private static ITypeDefinition? GetClassDefinition(SyntaxTransformContext context) {
         ITypeDefinition? classTypeDefinition = null;
 
         if (context.Node is TypeDeclarationSyntax typeDeclarationSyntax) {
@@ -246,7 +246,7 @@ public class ServiceModelUtility {
         return name;
     }
 
-    private static List<ServiceRegistrationModel> GetRegistrations(GeneratorSyntaxContext context, ITypeDefinition classDefinition, IReadOnlyList<AttributeModel> attributes, CancellationToken cancellationToken) {
+    private static List<ServiceRegistrationModel> GetRegistrations(SyntaxTransformContext context, ITypeDefinition classDefinition, IReadOnlyList<AttributeModel> attributes, CancellationToken cancellationToken) {
         var list = new List<ServiceRegistrationModel>();
 
         foreach (var attributeSyntax in
@@ -269,7 +269,7 @@ public class ServiceModelUtility {
         return list;
     }
 
-    private static IEnumerable<ServiceRegistrationModel> GetCrossWiredService(GeneratorSyntaxContext context, AttributeSyntax attributeSyntax, ITypeDefinition classDefinition) {
+    private static IEnumerable<ServiceRegistrationModel> GetCrossWiredService(SyntaxTransformContext context, AttributeSyntax attributeSyntax, ITypeDefinition classDefinition) {
 
         RegistrationType? registrationType = null;
         ITypeDefinition? realm = null;
@@ -346,7 +346,7 @@ public class ServiceModelUtility {
         return ServiceLifestyle.Singleton;
     }
 
-    private static ServiceRegistrationModel GetServiceRegistration(GeneratorSyntaxContext context, AttributeSyntax attributeSyntax, ITypeDefinition classDefinition) {
+    private static ServiceRegistrationModel GetServiceRegistration(SyntaxTransformContext context, AttributeSyntax attributeSyntax, ITypeDefinition classDefinition) {
         var lifestyle = ServiceLifestyle.Transient;
 
         if (attributeSyntax.Name.ToString().StartsWith("Singleton")) {
@@ -413,11 +413,11 @@ public class ServiceModelUtility {
     }
 
     private static ITypeDefinition GetServiceTypeFromClass(
-        GeneratorSyntaxContext context, ITypeDefinition classDefinition) {
+        SyntaxTransformContext context, ITypeDefinition classDefinition) {
         return GetBaseTypeRegistration(context) ?? classDefinition;
     }
 
-    private static ITypeDefinition? GetBaseTypeRegistration(GeneratorSyntaxContext context) {
+    private static ITypeDefinition? GetBaseTypeRegistration(SyntaxTransformContext context) {
         if (context.Node is TypeDeclarationSyntax typeDeclarationSyntax) {
             if (typeDeclarationSyntax.BaseList != null) {
                 INamedTypeSymbol? baseTypeSymbol = null;
@@ -453,7 +453,7 @@ public class ServiceModelUtility {
     }
 
 
-    private static ITypeDefinition? GetBaseInterface(GeneratorSyntaxContext context, INamedTypeSymbol baseTypeSymbol) {
+    private static ITypeDefinition? GetBaseInterface(SyntaxTransformContext context, INamedTypeSymbol baseTypeSymbol) {
         foreach (var interfaceSymbol in baseTypeSymbol.Interfaces) {
             var interfaceType =
                 interfaceSymbol.GetTypeDefinitionFromNamedSymbol();

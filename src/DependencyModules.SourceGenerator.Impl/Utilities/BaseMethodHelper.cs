@@ -8,7 +8,7 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities;
 public static class BaseMethodHelper {
     public static IReadOnlyList<ParameterInfoModel> GetMethodParameters(
         this BaseMethodDeclarationSyntax methodDeclarationSyntax,
-        GeneratorSyntaxContext context,
+        SyntaxTransformContext context,
         CancellationToken cancellationToken
         ) {
         var parameterList = methodDeclarationSyntax.ParameterList;
@@ -16,7 +16,7 @@ public static class BaseMethodHelper {
         return GetParameters(parameterList, context, cancellationToken);
     }
 
-    public static IReadOnlyList<ParameterInfoModel> GetParameters(this ParameterListSyntax? parameterList, GeneratorSyntaxContext context, CancellationToken cancellationToken) {
+    public static IReadOnlyList<ParameterInfoModel> GetParameters(this ParameterListSyntax? parameterList, SyntaxTransformContext context, CancellationToken cancellationToken) {
         if (parameterList == null) {
             return Array.Empty<ParameterInfoModel>();
         }

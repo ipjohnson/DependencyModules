@@ -164,11 +164,13 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
         (serviceModel.Features.HasFlag(RegistrationFeature.AbstractImplementation) ||
          serviceModel.Features.HasFlag(RegistrationFeature.StaticImplementation));
 
+    protected override ServiceModel IgnoredModel => ServiceModel.Ignore;
+
     protected override IEqualityComparer<ServiceModel> GetComparer() {
         return _serviceEqualityComparer;
     }
 
-    protected override ServiceModel GenerateAttributeModel(GeneratorSyntaxContext context, CancellationToken cancellationToken) {
+    protected override ServiceModel GenerateAttributeModel(GeneratorAttributeSyntaxContext context, CancellationToken cancellationToken) {
         var serviceModel = ServiceModelUtility.GetServiceModel(context, cancellationToken);
         
         return serviceModel ?? ServiceModel.Ignore;

@@ -68,7 +68,7 @@ public class ConfigurationTests {
             OutputKind.ConsoleApplication);
 
         result.AssertNoErrors();
-        Assert.Contains("namespace ConfiguredRoot", result.SourceContaining("ApplicationModule"));
+        Assert.Contains("namespace ConfiguredRoot", result.SourceContaining("ApplicationModule.Module"));
     }
 
     [Fact]

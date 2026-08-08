@@ -94,6 +94,63 @@ public class ServiceRegistrationTests {
         Assert.Contains("global::TestNamespace.IThing", generated);
     }
 
+    /// <summary>
+    /// Both spellings of the same attribute select the declaration.
+    /// </summary>
+    /// <remarks>
+    /// A namespace-qualified usage is selected too, but the model builder still classifies
+    /// attributes by their written name, so it produces no registrations from one. That is a
+    /// separate limitation and not asserted here.
+    /// </remarks>
+    [Theory]
+    [InlineData("[SingletonService]")]
+    [InlineData("[SingletonServiceAttribute]")]
+    public void ServiceAttribute_IsMatchedHoweverItIsWritten(string attribute) {
+        var generated = GeneratedAssembly.Create(
+            $$"""
+              using DependencyModules.Runtime.Attributes;
+
+              namespace TestNamespace;
+
+              public interface IThing;
+
+              {{attribute}}
+              public class Thing : IThing;
+
+              [DependencyModule]
+              public partial class TestModule;
+              """);
+
+        Assert.NotNull(generated.ResolveRequired("IThing"));
+    }
+
+    /// <summary>
+    /// And an attribute that merely shares a name is not one of ours.
+    /// </summary>
+    [Fact]
+    public void SameNamedAttributeFromAnotherNamespace_IsIgnored() {
+        var generated = GeneratedAssembly.Create(
+            """
+            using DependencyModules.Runtime.Attributes;
+
+            namespace Other {
+                public class SingletonServiceAttribute : System.Attribute;
+            }
+
+            namespace TestNamespace {
+                public interface IThing;
+
+                [Other.SingletonService]
+                public class Thing : IThing;
+
+                [DependencyModule]
+                public partial class TestModule;
+            }
+            """);
+
+        Assert.Empty(generated.Descriptors("IThing"));
+    }
+
     [Fact]
     public void OpenGenericService_RegistersOpenGenericTypes() {
         var result = GeneratorTestHarness.Run(
