@@ -10,4 +10,3 @@ DM0002 | DependencyModules | Warning | A service type cannot be constructed and 
 DM0003 | DependencyModules | Error | A module marked with [DependencyModule] is not partial.
 DM0007 | DependencyModules | Error | Two decorators of one service share an order.
 DM0008 | DependencyModules | Warning | A service marked for interception cannot be wrapped.
-DM0009 | DependencyModules | Warning | An interceptor cannot be placed around one of the members it was given.

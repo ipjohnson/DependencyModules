@@ -826,7 +826,6 @@ namespace DependencyModules.SourceGenerator.Impl
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor AmbiguousDecoratorOrder;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor CannotIntercept;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor GeneratorFailure;
-        public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor InterceptorCannotServeMember;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ModuleMustBePartial;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ServiceCannotBeConstructed;
     }
@@ -1077,8 +1076,7 @@ namespace DependencyModules.SourceGenerator.Impl.Models
     }
     public class InterceptionRefusal : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.InterceptionRefusal>
     {
-        public InterceptionRefusal(DependencyModules.SourceGenerator.Impl.Models.RefusalKind Kind, string Message) { }
-        public DependencyModules.SourceGenerator.Impl.Models.RefusalKind Kind { get; init; }
+        public InterceptionRefusal(string Message) { }
         public string Message { get; init; }
     }
     public enum InterceptorKind
@@ -1099,7 +1097,7 @@ namespace DependencyModules.SourceGenerator.Impl.Models
         public int Order { get; init; }
         public DependencyModules.SourceGenerator.Impl.Models.InterceptionRefusal? Refusal { get; init; }
         public CSharpAuthor.ITypeDefinition ServiceType { get; init; }
-        public static DependencyModules.SourceGenerator.Impl.Models.InterceptorModel Refused(DependencyModules.SourceGenerator.Impl.Models.RefusalKind kind, string message) { }
+        public static DependencyModules.SourceGenerator.Impl.Models.InterceptorModel Refused(string message) { }
     }
     public class InterceptorModelComparer : System.Collections.Generic.IEqualityComparer<DependencyModules.SourceGenerator.Impl.Models.InterceptorModel>
     {
@@ -1188,11 +1186,6 @@ namespace DependencyModules.SourceGenerator.Impl.Models
         public bool IsStatic { get; init; }
         public string PropertyName { get; init; }
         public CSharpAuthor.ITypeDefinition PropertyType { get; init; }
-    }
-    public enum RefusalKind
-    {
-        CannotIntercept = 0,
-        InterceptorCannotServeMember = 1,
     }
     [System.Flags]
     public enum RegistrationFeature

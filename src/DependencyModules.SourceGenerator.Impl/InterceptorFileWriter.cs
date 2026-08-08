@@ -44,7 +44,9 @@ public class InterceptorFileWriter {
         }
 
         for (var index = 0; index < model.Members.Count; index++) {
-            WriteState(wrapper, model, model.Members[index], index, wrapperName);
+            if (IsIntercepted(model, model.Members[index])) {
+                WriteState(wrapper, model, model.Members[index], index, wrapperName);
+            }
         }
 
         // The indexer hands arguments back as object?, so the file needs an annotation context.
@@ -70,8 +72,13 @@ public class InterceptorFileWriter {
         }
 
         // Everything identifying a member is known now, so one caller is built per member and shared
-        // by every call rather than constructed per invocation.
+        // by every call rather than constructed per invocation. A member nothing intercepts has no
+        // caller, because it has no pipeline to report itself to.
         for (var index = 0; index < model.Members.Count; index++) {
+            if (!IsIntercepted(model, model.Members[index])) {
+                continue;
+            }
+
             var caller = wrapper.AddField(
                 Interception.CallerInfo, CallerField(index));
 
@@ -103,7 +110,7 @@ public class InterceptorFileWriter {
 
         switch (declaration.Kind) {
             case DeclarationKind.Method:
-                WriteForwardingMethod(wrapper, model.Members[declaration.First], declaration.First);
+                WriteForwardingMethod(wrapper, model, model.Members[declaration.First], declaration.First);
                 break;
 
             case DeclarationKind.Property:
@@ -133,7 +140,7 @@ public class InterceptorFileWriter {
         property.Modifiers |= ComponentModifier.Public;
 
         if (declaration.First >= 0) {
-            WriteAccessorBody(property.Get, model.Members[declaration.First], declaration.First);
+            WriteAccessorBody(property.Get, model, model.Members[declaration.First], declaration.First);
         }
 
         if (declaration.Second < 0) {
@@ -141,7 +148,7 @@ public class InterceptorFileWriter {
             // not have, and PropertyDefinition writes an empty pair as an auto-property.
             property.Set = null;
         } else {
-            WriteAccessorBody(property.Set!, model.Members[declaration.Second], declaration.Second);
+            WriteAccessorBody(property.Set!, model, model.Members[declaration.Second], declaration.Second);
         }
     }
 
@@ -160,13 +167,13 @@ public class InterceptorFileWriter {
         if (declaration.First >= 0) {
             member.First = new PropertyMethodDefinition();
 
-            WriteAccessorBody(member.First, model.Members[declaration.First], declaration.First);
+            WriteAccessorBody(member.First, model, model.Members[declaration.First], declaration.First);
         }
 
         if (declaration.Second >= 0) {
             member.Second = new PropertyMethodDefinition();
 
-            WriteAccessorBody(member.Second, model.Members[declaration.Second], declaration.Second);
+            WriteAccessorBody(member.Second, model, model.Members[declaration.Second], declaration.Second);
         }
 
         wrapper.AddComponent(member);
@@ -177,7 +184,13 @@ public class InterceptorFileWriter {
     /// order the CLR gives an accessor: any indices, then the assigned value.
     /// </summary>
     private static void WriteAccessorBody(
-        PropertyMethodDefinition accessor, InterceptedMemberModel member, int index) {
+        PropertyMethodDefinition accessor, InterceptorModel model, InterceptedMemberModel member, int index) {
+
+        if (!IsIntercepted(model, member)) {
+            WritePassThrough(accessor, member);
+
+            return;
+        }
 
         var arguments = new List<string> { "this" };
 
@@ -196,10 +209,29 @@ public class InterceptorFileWriter {
     }
 
     /// <summary>
+    /// A member no interceptor serves, forwarded straight to the implementation.
+    /// </summary>
+    /// <remarks>
+    /// An interface is intercepted as a whole, and one that mixes synchronous and asynchronous
+    /// members is the normal case rather than a mistake — an interceptor implements the interfaces
+    /// it can serve and has nothing to say about the rest. Those members build no state and
+    /// allocate nothing.
+    /// </remarks>
+    private static void WritePassThrough(BaseBlockDefinition block, InterceptedMemberModel member) {
+        var call = InnerCall(member, InnerField);
+
+        if (member.ReturnShape == ReturnShape.Void) {
+            block.AddIndentedStatement(call);
+        } else {
+            block.Return(call);
+        }
+    }
+
+    /// <summary>
     /// The method as the interface declares it, forwarding into the pipeline.
     /// </summary>
     private static void WriteForwardingMethod(
-        ClassDefinition wrapper, InterceptedMemberModel member, int index) {
+        ClassDefinition wrapper, InterceptorModel model, InterceptedMemberModel member, int index) {
 
         var method = wrapper.AddMethod(member.Identifier);
 
@@ -229,6 +261,12 @@ public class InterceptorFileWriter {
             }
 
             arguments.Add(parameter.Identifier);
+        }
+
+        if (!IsIntercepted(model, member)) {
+            WritePassThrough(method, member);
+
+            return;
         }
 
         // A ValueTask cannot be built from the pipeline's ValueTask<NoResult> without either an await
@@ -426,10 +464,21 @@ public class InterceptorFileWriter {
 
         var switchBlock = invoke.Switch("stage");
 
+        // The stage is this member's position in its own pipeline, which is not the interceptor's
+        // position in the attribute: an interceptor that cannot serve this member is not a stage of
+        // it. Proceed() walks stage + 1, so the numbering has to be contiguous.
+        var stage = 0;
+
         for (var index = 0; index < model.Interceptors.Count; index++) {
-            switchBlock.AddCase(index).Return(
+            if (!model.Interceptors[index].CanServe(member.Kind)) {
+                continue;
+            }
+
+            switchBlock.AddCase(stage).Return(
                 CodeOutputComponent.Get($"_self.{InterceptorField(index)}")
-                    .Invoke(interceptMethod, New(contextType, "this", index)));
+                    .Invoke(interceptMethod, New(contextType, "this", stage)));
+
+            stage++;
         }
 
         var last = switchBlock.AddDefault();
@@ -477,29 +526,53 @@ public class InterceptorFileWriter {
     /// event accessor are assignments, and an indexer is indexed, so each is written as its syntax
     /// rather than as <c>get_Count()</c>.
     /// </remarks>
-    private static string InnerCall(InterceptedMemberModel member) {
-        var target = $"_self.{InnerField}";
+    /// <summary>
+    /// The call to the implementation, written the way the member is reached.
+    /// </summary>
+    /// <remarks>
+    /// An accessor cannot be called by the name the CLR gives it. A getter is read, a setter and an
+    /// event accessor are assignments, and an indexer is indexed, so each is written as its syntax
+    /// rather than as <c>get_Count()</c>.
+    ///
+    /// The last stage of a pipeline reads the arguments off the state; a member nothing intercepts
+    /// has no state and passes on the parameters it was handed.
+    /// </remarks>
+    private static string InnerCall(InterceptedMemberModel member, string? passThroughTarget = null) {
+        var target = passThroughTarget ?? $"_self.{InnerField}";
         var last = member.Parameters.Count - 1;
+
+        string Argument(int index) =>
+            passThroughTarget == null ? ArgumentField(index) : member.Parameters[index].Identifier;
+
+        string Arguments(int start, int end) {
+            var arguments = new List<string>();
+
+            for (var index = start; index < end; index++) {
+                arguments.Add(Argument(index));
+            }
+
+            return string.Join(", ", arguments);
+        }
 
         switch (member.Form) {
             case AccessorForm.PropertyGet:
                 return $"{target}.{member.Identifier}";
 
             case AccessorForm.PropertySet:
-                return $"{target}.{member.Identifier} = {ArgumentField(last)}";
+                return $"{target}.{member.Identifier} = {Argument(last)}";
 
             case AccessorForm.IndexerGet:
-                return $"{target}[{ArgumentFields(0, member.Parameters.Count)}]";
+                return $"{target}[{Arguments(0, member.Parameters.Count)}]";
 
             // The assigned value is the last argument, and everything before it indexes.
             case AccessorForm.IndexerSet:
-                return $"{target}[{ArgumentFields(0, last)}] = {ArgumentField(last)}";
+                return $"{target}[{Arguments(0, last)}] = {Argument(last)}";
 
             case AccessorForm.EventAdd:
-                return $"{target}.{member.Identifier} += {ArgumentField(0)}";
+                return $"{target}.{member.Identifier} += {Argument(0)}";
 
             case AccessorForm.EventRemove:
-                return $"{target}.{member.Identifier} -= {ArgumentField(0)}";
+                return $"{target}.{member.Identifier} -= {Argument(0)}";
 
             default:
                 var typeArguments = member.TypeParameters.Count == 0
@@ -507,18 +580,21 @@ public class InterceptorFileWriter {
                     : "<" + string.Join(", ", member.TypeParameters.Select(parameter => parameter.Name)) + ">";
 
                 return $"{target}.{member.Identifier}{typeArguments}" +
-                       $"({ArgumentFields(0, member.Parameters.Count)})";
+                       $"({Arguments(0, member.Parameters.Count)})";
         }
     }
 
-    private static string ArgumentFields(int start, int end) {
-        var arguments = new List<string>();
-
-        for (var index = start; index < end; index++) {
-            arguments.Add(ArgumentField(index));
+    /// <summary>
+    /// Whether any of the service's interceptors can be placed around this member.
+    /// </summary>
+    private static bool IsIntercepted(InterceptorModel model, InterceptedMemberModel member) {
+        foreach (var interceptor in model.Interceptors) {
+            if (interceptor.CanServe(member.Kind)) {
+                return true;
+            }
         }
 
-        return string.Join(", ", arguments);
+        return false;
     }
 
     /// <summary>

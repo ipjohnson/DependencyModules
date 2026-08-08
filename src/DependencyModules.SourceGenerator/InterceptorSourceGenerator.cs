@@ -100,9 +100,7 @@ public class InterceptorSourceGenerator : BaseAttributeSourceGenerator<Intercept
 
                 context.ReportDiagnostic(
                     Diagnostic.Create(
-                        model.Refusal.Kind == RefusalKind.InterceptorCannotServeMember
-                            ? DependencyModuleDiagnostics.InterceptorCannotServeMember
-                            : DependencyModuleDiagnostics.CannotIntercept,
+                        DependencyModuleDiagnostics.CannotIntercept,
                         Location.None,
                         model.Refusal.Message));
 

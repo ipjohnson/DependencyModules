@@ -36,21 +36,10 @@ public enum InterceptorKind {
 }
 
 /// <summary>
-/// Why a declaration marked for interception produced no wrapper.
-/// </summary>
-public enum RefusalKind {
-    /// <summary>The service cannot be wrapped at all. Reported as DM0008.</summary>
-    CannotIntercept,
-
-    /// <summary>An interceptor cannot serve one of the service's members. Reported as DM0009.</summary>
-    InterceptorCannotServeMember
-}
-
-/// <summary>
 /// A refusal to generate, carried on the model because a diagnostic cannot be reported from the
 /// syntax transform — only the output stage holds the context that can report one.
 /// </summary>
-public record InterceptionRefusal(RefusalKind Kind, string Message);
+public record InterceptionRefusal(string Message);
 
 /// <summary>
 /// How the last stage reaches the implementation.
@@ -311,8 +300,8 @@ public record InterceptorModel(
     /// A model that generates nothing and explains why, so an unsupported shape produces a
     /// diagnostic rather than a wrapper that does not compile.
     /// </summary>
-    public static InterceptorModel Refused(RefusalKind kind, string message) =>
-        Ignore with { Refusal = new InterceptionRefusal(kind, message) };
+    public static InterceptorModel Refused(string message) =>
+        Ignore with { Refusal = new InterceptionRefusal(message) };
 
     public bool IsIgnored => ReferenceEquals(this, Ignore);
 }

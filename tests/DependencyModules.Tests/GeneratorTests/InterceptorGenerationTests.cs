@@ -414,9 +414,148 @@ public class InterceptorGenerationTests {
         Assert.Equal(["enter alpha Run", "exit alpha Run"], Log(generated));
     }
 
+    /// <summary>
+    /// An interface is intercepted as a whole, and one mixing synchronous and asynchronous members
+    /// is ordinary. A sync-only interceptor serves the sync members and has nothing to say about the
+    /// rest, which are forwarded untouched rather than costing the sync members their interception.
+    /// </summary>
     [Fact]
-    public void InterceptorMissingTheAsyncInterface_ReportsDM0009() {
-        var result = GeneratorTestHarness.Run(
+    public async Task SyncOnlyInterceptor_ServesSyncMembersAndPassesAsyncOnesThrough() {
+        var generated = GeneratedAssembly.Create(
+            $$"""
+              {{Preamble}}
+
+              public class SyncOnlyInterceptor : IInterceptor {
+                  public TResult Intercept<TResult>(InvocationContext<TResult> context) {
+                      Recorder.Entries.Add($"enter {context.Caller.MemberName}");
+
+                      try {
+                          return context.Proceed();
+                      } finally {
+                          Recorder.Entries.Add($"exit {context.Caller.MemberName}");
+                      }
+                  }
+              }
+
+              public interface IWork {
+                  int Sync(int a);
+                  Task<int> Async(int a);
+              }
+
+              [SingletonService]
+              [Intercept(typeof(SyncOnlyInterceptor))]
+              public class Work : IWork {
+                  public int Sync(int a) => a * 2;
+                  public Task<int> Async(int a) => Task.FromResult(a * 3);
+              }
+
+              [DependencyModule]
+              public partial class TestModule;
+              """);
+
+        var work = generated.ResolveRequired("IWork");
+
+        Assert.Equal(10, Invoke(work, "Sync", 5));
+        Assert.Equal(["enter Sync", "exit Sync"], Log(generated));
+
+        Assert.Equal(15, await (Task<int>)Invoke(work, "Async", 5)!);
+        Assert.Equal(["enter Sync", "exit Sync"], Log(generated));
+    }
+
+    /// <summary>
+    /// The mirror of the above, so neither direction is the special case.
+    /// </summary>
+    [Fact]
+    public async Task AsyncOnlyInterceptor_ServesAsyncMembersAndPassesSyncOnesThrough() {
+        var generated = GeneratedAssembly.Create(
+            $$"""
+              {{Preamble}}
+
+              public class AsyncOnlyInterceptor : IAsyncInterceptor {
+                  public async ValueTask<TResult> InterceptAsync<TResult>(AsyncInvocationContext<TResult> context) {
+                      Recorder.Entries.Add($"enter {context.Caller.MemberName}");
+
+                      try {
+                          return await context.ProceedAsync();
+                      } finally {
+                          Recorder.Entries.Add($"exit {context.Caller.MemberName}");
+                      }
+                  }
+              }
+
+              public interface IWork {
+                  int Sync(int a);
+                  Task<int> Async(int a);
+              }
+
+              [SingletonService]
+              [Intercept(typeof(AsyncOnlyInterceptor))]
+              public class Work : IWork {
+                  public int Sync(int a) => a * 2;
+                  public Task<int> Async(int a) => Task.FromResult(a * 3);
+              }
+
+              [DependencyModule]
+              public partial class TestModule;
+              """);
+
+        var work = generated.ResolveRequired("IWork");
+
+        Assert.Equal(10, Invoke(work, "Sync", 5));
+        Assert.Empty(Log(generated));
+
+        Assert.Equal(15, await (Task<int>)Invoke(work, "Async", 5)!);
+        Assert.Equal(["enter Async", "exit Async"], Log(generated));
+    }
+
+    /// <summary>
+    /// Each member's pipeline is only the interceptors that can serve it, so the stage a proceed
+    /// walks to is its position in that pipeline rather than in the attribute.
+    /// </summary>
+    [Fact]
+    public void MixedInterceptors_NestOnlyThoseThatServeTheMember() {
+        var generated = GeneratedAssembly.Create(
+            $$"""
+              {{Preamble}}
+
+              public class SyncOnlyInterceptor : IInterceptor {
+                  public TResult Intercept<TResult>(InvocationContext<TResult> context) {
+                      Recorder.Entries.Add("enter sync-only");
+
+                      try {
+                          return context.Proceed();
+                      } finally {
+                          Recorder.Entries.Add("exit sync-only");
+                      }
+                  }
+              }
+
+              {{Tracing("Both", "both")}}
+
+              public interface IWork { int Sync(int a); }
+
+              [SingletonService]
+              [Intercept(typeof(SyncOnlyInterceptor), typeof(BothInterceptor))]
+              public class Work : IWork { public int Sync(int a) => a; }
+
+              [DependencyModule]
+              public partial class TestModule;
+              """);
+
+        Invoke(generated.ResolveRequired("IWork"), "Sync", 1);
+
+        Assert.Equal(
+            ["enter sync-only", "enter both Sync", "exit both Sync", "exit sync-only"],
+            Log(generated));
+    }
+
+    /// <summary>
+    /// An interceptor that can serve nothing on the service produces no wrapper at all, so the
+    /// service resolves as the implementation registered it.
+    /// </summary>
+    [Fact]
+    public void InterceptorThatServesNothing_GeneratesNoWrapper() {
+        var generated = GeneratedAssembly.Create(
             $$"""
               {{Preamble}}
 
@@ -424,46 +563,19 @@ public class InterceptorGenerationTests {
                   public TResult Intercept<TResult>(InvocationContext<TResult> context) => context.Proceed();
               }
 
-              public interface IWork { System.Threading.Tasks.Task Run(); }
+              public interface IWork { Task<int> Async(int a); }
 
               [SingletonService]
               [Intercept(typeof(SyncOnlyInterceptor))]
-              public class Work : IWork {
-                  public System.Threading.Tasks.Task Run() => System.Threading.Tasks.Task.CompletedTask;
-              }
+              public class Work : IWork { public Task<int> Async(int a) => Task.FromResult(a); }
 
               [DependencyModule]
               public partial class TestModule;
               """);
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0009");
+        var resolved = generated.ResolveRequired("IWork");
 
-        Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
-        Assert.Contains("IAsyncInterceptor", diagnostic.GetMessage());
-        Assert.Contains("Run", diagnostic.GetMessage());
-    }
-
-    [Fact]
-    public void InterceptorImplementingNoInterceptorInterface_ReportsDM0009() {
-        var result = GeneratorTestHarness.Run(
-            $$"""
-              {{Preamble}}
-
-              public class NotAnInterceptor { }
-
-              public interface IWork { void Run(); }
-
-              [SingletonService]
-              [Intercept(typeof(NotAnInterceptor))]
-              public class Work : IWork { public void Run() { } }
-
-              [DependencyModule]
-              public partial class TestModule;
-              """);
-
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0009");
-
-        Assert.Contains("implements none of", diagnostic.GetMessage());
+        Assert.Equal("Work", resolved.GetType().Name);
     }
 
     [Fact]

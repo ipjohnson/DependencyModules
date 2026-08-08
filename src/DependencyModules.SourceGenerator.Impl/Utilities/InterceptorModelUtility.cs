@@ -45,7 +45,6 @@ public static class InterceptorModelUtility {
         // no instance for a wrapper to be built around.
         if (implementationSymbol.IsGenericType) {
             return InterceptorModel.Refused(
-                RefusalKind.CannotIntercept,
                 $"'{implementationSymbol.Name}' is generic, and an open generic registration has no " +
                 "constructed instance to wrap");
         }
@@ -72,31 +71,19 @@ public static class InterceptorModelUtility {
 
         if (members.Count == 0) {
             return InterceptorModel.Refused(
-                RefusalKind.CannotIntercept,
                 $"'{serviceSymbol.Name}' declares nothing to intercept");
         }
 
         var interceptors = new List<InterceptorTypeModel>();
 
         foreach (var interceptorSymbol in interceptorSymbols) {
-            var interceptor = ReadInterceptorType(interceptorSymbol);
+            interceptors.Add(ReadInterceptorType(interceptorSymbol));
+        }
 
-            if (!interceptor.Sync && !interceptor.Async && !interceptor.Stream) {
-                return InterceptorModel.Refused(
-                    RefusalKind.InterceptorCannotServeMember,
-                    $"'{interceptorSymbol.Name}' implements none of IInterceptor, IAsyncInterceptor or " +
-                    "IAsyncEnumerableInterceptor, so it cannot intercept anything");
-            }
-
-            var uncovered = FindUncoveredMember(interceptor, members);
-
-            if (uncovered != null) {
-                return InterceptorModel.Refused(
-                    RefusalKind.InterceptorCannotServeMember,
-                    Uncovered(interceptorSymbol.Name, uncovered));
-            }
-
-            interceptors.Add(interceptor);
+        // Nothing here can be placed around anything, so the wrapper would forward every call
+        // untouched. Not generating one leaves the service registered as it already was.
+        if (!AnyMemberIsIntercepted(interceptors, members)) {
+            return InterceptorModel.Ignore;
         }
 
         return new InterceptorModel(
@@ -111,7 +98,7 @@ public static class InterceptorModelUtility {
     private static InterceptorModel Refuse(string? reason) =>
         reason == null
             ? InterceptorModel.Ignore
-            : InterceptorModel.Refused(RefusalKind.CannotIntercept, reason);
+            : InterceptorModel.Refused(reason);
 
     /// <summary>
     /// The interfaces an interceptor implements, which decide the members it can be placed around.
@@ -143,31 +130,26 @@ public static class InterceptorModelUtility {
     }
 
     /// <summary>
-    /// The first member this interceptor has no way to serve. Reporting it is the point: skipping it
-    /// silently would leave a call unintercepted with nothing to say so.
+    /// Whether any interceptor can be placed around any member.
     /// </summary>
-    private static InterceptedMemberModel? FindUncoveredMember(
-        InterceptorTypeModel interceptor, IReadOnlyList<InterceptedMemberModel> members) {
+    /// <remarks>
+    /// An interface is intercepted as a whole, and one mixing synchronous, asynchronous and stream
+    /// members is ordinary rather than a mistake: an interceptor implements the interfaces it can
+    /// serve and has nothing to say about the rest, so those members are forwarded untouched. Only
+    /// when none of them matches at all is there no wrapper worth generating.
+    /// </remarks>
+    private static bool AnyMemberIsIntercepted(
+        IReadOnlyList<InterceptorTypeModel> interceptors, IReadOnlyList<InterceptedMemberModel> members) {
 
         foreach (var member in members) {
-            if (!interceptor.CanServe(member.Kind)) {
-                return member;
+            foreach (var interceptor in interceptors) {
+                if (interceptor.CanServe(member.Kind)) {
+                    return true;
+                }
             }
         }
 
-        return null;
-    }
-
-    private static string Uncovered(string interceptorName, InterceptedMemberModel member) {
-        var (required, because) = member.Kind switch {
-            InterceptorKind.Async => ("IAsyncInterceptor", "returns a task"),
-            InterceptorKind.Stream => ("IAsyncEnumerableInterceptor", "returns an async stream"),
-            _ => ("IInterceptor", "returns its result directly")
-        };
-
-        return $"'{interceptorName}' does not implement {required}, which '{member.Name}' needs " +
-               $"because it {because}. Implement {required} on '{interceptorName}', or intercept a " +
-               "service without that member";
+        return false;
     }
 
     private static void ReadAttribute(

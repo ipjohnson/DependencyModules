@@ -83,17 +83,4 @@ public static class DependencyModuleDiagnostics {
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
-    /// <summary>
-    /// Raised when an interceptor has no way to be placed around one of the members it was asked to
-    /// intercept. A sync interceptor holds no way to await, so it cannot serve a member returning a
-    /// task; wrapping the member anyway would report completion when the task was handed back.
-    /// Generating the wrapper without that member would leave the call unintercepted silently.
-    /// </summary>
-    public static readonly DiagnosticDescriptor InterceptorCannotServeMember = new(
-        id: "DM0009",
-        title: "Interceptor cannot intercept a member",
-        messageFormat: "No interception was generated for this service: {0}",
-        category: Category,
-        defaultSeverity: DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
 }
