@@ -10,72 +10,173 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities;
 /// </summary>
 public static class InterceptorModelUtility {
 
+    private const string InterceptionNamespace = "DependencyModules.Runtime.Interception";
+
     /// <summary>
-    /// Reads the attribute and the interface it intercepts. Returns null when the declaration cannot
-    /// be intercepted, with <paramref name="unsupported"/> describing why so the caller can report it.
+    /// Reads the attribute, the interface it intercepts, and the interfaces its interceptors
+    /// implement.
     /// </summary>
-    public static InterceptorModel? GetInterceptorModel(
-        GeneratorSyntaxContext context, CancellationToken cancellationToken, out string? unsupported) {
+    /// <returns>
+    /// A usable model, <see cref="InterceptorModel.Ignore"/> when the node has nothing to generate
+    /// and nothing to report, or a refusal carrying the reason so the output stage can report it.
+    /// A diagnostic cannot be raised from here — the transform holds no context that can.
+    /// </returns>
+    public static InterceptorModel GetInterceptorModel(
+        GeneratorSyntaxContext context, CancellationToken cancellationToken) {
 
         cancellationToken.ThrowIfCancellationRequested();
-        unsupported = null;
 
         if (context.Node is not TypeDeclarationSyntax typeDeclarationSyntax) {
-            return null;
+            return InterceptorModel.Ignore;
         }
 
         var attribute = FindAttribute(typeDeclarationSyntax);
 
         if (attribute == null) {
-            return null;
+            return InterceptorModel.Ignore;
         }
 
         if (context.SemanticModel.GetDeclaredSymbol(typeDeclarationSyntax, cancellationToken)
             is not INamedTypeSymbol implementationSymbol) {
-            return null;
+            return InterceptorModel.Ignore;
         }
 
-        var interceptors = new List<ITypeDefinition>();
+        // An open generic is registered as a definition rather than a constructed type, so there is
+        // no instance for a wrapper to be built around.
+        if (implementationSymbol.IsGenericType) {
+            return InterceptorModel.Refused(
+                RefusalKind.CannotIntercept,
+                $"'{implementationSymbol.Name}' is generic, and an open generic registration has no " +
+                "constructed instance to wrap");
+        }
+
+        var interceptorSymbols = new List<INamedTypeSymbol>();
         var order = 0;
-        ITypeDefinition? explicitService = null;
+        INamedTypeSymbol? explicitService = null;
 
-        ReadAttribute(attribute, context, interceptors, ref order, ref explicitService);
+        ReadAttribute(attribute, context, cancellationToken, interceptorSymbols, ref order, ref explicitService);
 
-        if (interceptors.Count == 0) {
-            return null;
+        if (interceptorSymbols.Count == 0) {
+            return InterceptorModel.Ignore;
         }
 
-        var serviceSymbol = ResolveServiceInterface(implementationSymbol, explicitService, out unsupported);
+        var serviceSymbol = ResolveServiceInterface(implementationSymbol, explicitService, out var unsupported);
 
         if (serviceSymbol == null) {
-            return null;
+            return Refuse(unsupported);
         }
 
-        var members = InterceptedMemberReader.Read(serviceSymbol, out unsupported);
-
-        if (members == null) {
-            return null;
+        if (!InterceptedMemberReader.Read(serviceSymbol, out var members, out var declarations, out unsupported)) {
+            return Refuse(unsupported);
         }
 
         if (members.Count == 0) {
-            unsupported = $"'{serviceSymbol.Name}' declares no methods to intercept";
-            return null;
+            return InterceptorModel.Refused(
+                RefusalKind.CannotIntercept,
+                $"'{serviceSymbol.Name}' declares nothing to intercept");
+        }
+
+        var interceptors = new List<InterceptorTypeModel>();
+
+        foreach (var interceptorSymbol in interceptorSymbols) {
+            var interceptor = ReadInterceptorType(interceptorSymbol);
+
+            if (!interceptor.Sync && !interceptor.Async && !interceptor.Stream) {
+                return InterceptorModel.Refused(
+                    RefusalKind.InterceptorCannotServeMember,
+                    $"'{interceptorSymbol.Name}' implements none of IInterceptor, IAsyncInterceptor or " +
+                    "IAsyncEnumerableInterceptor, so it cannot intercept anything");
+            }
+
+            var uncovered = FindUncoveredMember(interceptor, members);
+
+            if (uncovered != null) {
+                return InterceptorModel.Refused(
+                    RefusalKind.InterceptorCannotServeMember,
+                    Uncovered(interceptorSymbol.Name, uncovered));
+            }
+
+            interceptors.Add(interceptor);
         }
 
         return new InterceptorModel(
-            ToTypeDefinition(serviceSymbol),
+            serviceSymbol.GetTypeDefinition(),
             ToTypeDefinition(implementationSymbol),
             interceptors,
             members,
+            declarations,
             order);
+    }
+
+    private static InterceptorModel Refuse(string? reason) =>
+        reason == null
+            ? InterceptorModel.Ignore
+            : InterceptorModel.Refused(RefusalKind.CannotIntercept, reason);
+
+    /// <summary>
+    /// The interfaces an interceptor implements, which decide the members it can be placed around.
+    /// </summary>
+    private static InterceptorTypeModel ReadInterceptorType(INamedTypeSymbol symbol) {
+        var sync = false;
+        var async = false;
+        var stream = false;
+
+        foreach (var implemented in symbol.AllInterfaces) {
+            if (implemented.ContainingNamespace?.ToDisplayString() != InterceptionNamespace) {
+                continue;
+            }
+
+            switch (implemented.Name) {
+                case "IInterceptor":
+                    sync = true;
+                    break;
+                case "IAsyncInterceptor":
+                    async = true;
+                    break;
+                case "IAsyncEnumerableInterceptor":
+                    stream = true;
+                    break;
+            }
+        }
+
+        return new InterceptorTypeModel(symbol.GetTypeDefinition(), sync, async, stream);
+    }
+
+    /// <summary>
+    /// The first member this interceptor has no way to serve. Reporting it is the point: skipping it
+    /// silently would leave a call unintercepted with nothing to say so.
+    /// </summary>
+    private static InterceptedMemberModel? FindUncoveredMember(
+        InterceptorTypeModel interceptor, IReadOnlyList<InterceptedMemberModel> members) {
+
+        foreach (var member in members) {
+            if (!interceptor.CanServe(member.Kind)) {
+                return member;
+            }
+        }
+
+        return null;
+    }
+
+    private static string Uncovered(string interceptorName, InterceptedMemberModel member) {
+        var (required, because) = member.Kind switch {
+            InterceptorKind.Async => ("IAsyncInterceptor", "returns a task"),
+            InterceptorKind.Stream => ("IAsyncEnumerableInterceptor", "returns an async stream"),
+            _ => ("IInterceptor", "returns its result directly")
+        };
+
+        return $"'{interceptorName}' does not implement {required}, which '{member.Name}' needs " +
+               $"because it {because}. Implement {required} on '{interceptorName}', or intercept a " +
+               "service without that member";
     }
 
     private static void ReadAttribute(
         AttributeSyntax attribute,
         GeneratorSyntaxContext context,
-        List<ITypeDefinition> interceptors,
+        CancellationToken cancellationToken,
+        List<INamedTypeSymbol> interceptors,
         ref int order,
-        ref ITypeDefinition? explicitService) {
+        ref INamedTypeSymbol? explicitService) {
 
         if (attribute.ArgumentList == null) {
             return;
@@ -86,10 +187,10 @@ public static class InterceptorModelUtility {
 
             if (name == null) {
                 if (argument.Expression is TypeOfExpressionSyntax typeOf) {
-                    var type = typeOf.Type.GetTypeDefinition(context);
+                    var symbol = ResolveType(typeOf, context, cancellationToken);
 
-                    if (type != null) {
-                        interceptors.Add(type);
+                    if (symbol != null) {
+                        interceptors.Add(symbol);
                     }
                 }
 
@@ -104,12 +205,16 @@ public static class InterceptorModelUtility {
                     break;
                 case "Service":
                     if (argument.Expression is TypeOfExpressionSyntax serviceTypeOf) {
-                        explicitService = serviceTypeOf.Type.GetTypeDefinition(context);
+                        explicitService = ResolveType(serviceTypeOf, context, cancellationToken);
                     }
                     break;
             }
         }
     }
+
+    private static INamedTypeSymbol? ResolveType(
+        TypeOfExpressionSyntax typeOf, GeneratorSyntaxContext context, CancellationToken cancellationToken) =>
+        context.SemanticModel.GetTypeInfo(typeOf.Type, cancellationToken).Type as INamedTypeSymbol;
 
     /// <summary>
     /// The interface to wrap. Interception works through an interface: a call the implementation
@@ -117,7 +222,7 @@ public static class InterceptorModelUtility {
     /// to wrap.
     /// </summary>
     private static INamedTypeSymbol? ResolveServiceInterface(
-        INamedTypeSymbol implementation, ITypeDefinition? explicitService, out string? unsupported) {
+        INamedTypeSymbol implementation, INamedTypeSymbol? explicitService, out string? unsupported) {
 
         unsupported = null;
 
@@ -130,7 +235,7 @@ public static class InterceptorModelUtility {
 
         if (explicitService != null) {
             foreach (var candidate in interfaces) {
-                if (candidate.Name == explicitService.Name) {
+                if (SymbolEqualityComparer.Default.Equals(candidate, explicitService)) {
                     return candidate;
                 }
             }

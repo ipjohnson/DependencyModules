@@ -826,6 +826,7 @@ namespace DependencyModules.SourceGenerator.Impl
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor AmbiguousDecoratorOrder;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor CannotIntercept;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor GeneratorFailure;
+        public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor InterceptorCannotServeMember;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ModuleMustBePartial;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ServiceCannotBeConstructed;
     }
@@ -881,6 +882,18 @@ namespace DependencyModules.SourceGenerator.Impl
                 public static readonly CSharpAuthor.ITypeDefinition DecoratorHelper;
                 public static readonly CSharpAuthor.ITypeDefinition DecoratorRegistration;
             }
+            public static class Interception
+            {
+                public const string Namespace = "DependencyModules.Runtime.Interception";
+                public static readonly CSharpAuthor.ITypeDefinition CallerInfo;
+                public static readonly CSharpAuthor.ITypeDefinition NoResult;
+                public static CSharpAuthor.ITypeDefinition AsyncInvocationContext(CSharpAuthor.ITypeDefinition result) { }
+                public static CSharpAuthor.ITypeDefinition AsyncInvocationState(CSharpAuthor.ITypeDefinition result) { }
+                public static CSharpAuthor.ITypeDefinition InvocationContext(CSharpAuthor.ITypeDefinition result) { }
+                public static CSharpAuthor.ITypeDefinition InvocationState(CSharpAuthor.ITypeDefinition result) { }
+                public static CSharpAuthor.ITypeDefinition StreamInvocationContext(CSharpAuthor.ITypeDefinition item) { }
+                public static CSharpAuthor.ITypeDefinition StreamInvocationState(CSharpAuthor.ITypeDefinition item) { }
+            }
             public static class Interfaces
             {
                 public const string Namespace = "DependencyModules.Runtime.Interfaces";
@@ -896,6 +909,7 @@ namespace DependencyModules.SourceGenerator.Impl
                 public static readonly CSharpAuthor.ITypeDefinition FromKeyedServicesAttribute;
                 public static readonly CSharpAuthor.ITypeDefinition IServiceCollection;
                 public static readonly CSharpAuthor.ITypeDefinition IServiceProvider;
+                public static readonly CSharpAuthor.ITypeDefinition ServiceCollectionDescriptorExtensions;
                 public static readonly CSharpAuthor.ITypeDefinition ServiceDescriptor;
             }
             public static class TextJson
@@ -904,6 +918,12 @@ namespace DependencyModules.SourceGenerator.Impl
                 public static readonly CSharpAuthor.ITypeDefinition IJsonTypeInfoResolver;
                 public static readonly CSharpAuthor.ITypeDefinition JsonSourceGenerationOptionsAttribute;
             }
+        }
+        public static class System
+        {
+            public static readonly CSharpAuthor.ITypeDefinition ArgumentOutOfRangeException;
+            public static CSharpAuthor.ITypeDefinition AsyncEnumerable(CSharpAuthor.ITypeDefinition item) { }
+            public static CSharpAuthor.ITypeDefinition ValueTask(CSharpAuthor.ITypeDefinition result) { }
         }
     }
     public class ModuleAttributeWriter : DependencyModules.SourceGenerator.Impl.Utilities.BaseAttributeWriter<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel>
@@ -920,6 +940,16 @@ namespace DependencyModules.SourceGenerator.Impl.Models
         PrivateModifier = 1,
         ProtectedModifier = 2,
         InternalModifier = 3,
+    }
+    public enum AccessorForm
+    {
+        Method = 0,
+        PropertyGet = 1,
+        PropertySet = 2,
+        IndexerGet = 3,
+        IndexerSet = 4,
+        EventAdd = 5,
+        EventRemove = 6,
     }
     public class AttributeArgumentValue : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.AttributeArgumentValue>
     {
@@ -953,6 +983,13 @@ namespace DependencyModules.SourceGenerator.Impl.Models
         public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ParameterInfoModel> Parameters { get; init; }
         public virtual bool Equals(DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? other) { }
         public override int GetHashCode() { }
+    }
+    public enum DeclarationKind
+    {
+        Method = 0,
+        Property = 1,
+        Indexer = 2,
+        Event = 3,
     }
     public class DecoratorModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.DecoratorModel>
     {
@@ -997,30 +1034,87 @@ namespace DependencyModules.SourceGenerator.Impl.Models
         System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ParameterInfoModel> Parameters { get; }
         System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.PropertyInfoModel> PropertyInfoModels { get; }
     }
+    public class InterceptedDeclarationModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.InterceptedDeclarationModel>
+    {
+        public InterceptedDeclarationModel(DependencyModules.SourceGenerator.Impl.Models.DeclarationKind Kind, string Identifier, CSharpAuthor.ITypeDefinition? Type, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedParameterModel> Indices, int First, int Second) { }
+        public int First { get; init; }
+        public string Identifier { get; init; }
+        public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedParameterModel> Indices { get; init; }
+        public DependencyModules.SourceGenerator.Impl.Models.DeclarationKind Kind { get; init; }
+        public int Second { get; init; }
+        public CSharpAuthor.ITypeDefinition? Type { get; init; }
+        public virtual bool Equals(DependencyModules.SourceGenerator.Impl.Models.InterceptedDeclarationModel? other) { }
+        public override int GetHashCode() { }
+    }
     public class InterceptedMemberModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.InterceptedMemberModel>
     {
-        public InterceptedMemberModel(string Declaration, string Name, string ArgumentList, DependencyModules.SourceGenerator.Impl.Models.ReturnShape ReturnShape) { }
-        public string ArgumentList { get; init; }
-        public string Declaration { get; init; }
+        public InterceptedMemberModel(string Name, string Identifier, DependencyModules.SourceGenerator.Impl.Models.AccessorForm Form, CSharpAuthor.ITypeDefinition? ReturnType, CSharpAuthor.ITypeDefinition ResultType, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedParameterModel> Parameters, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedTypeParameterModel> TypeParameters, DependencyModules.SourceGenerator.Impl.Models.ReturnShape ReturnShape) { }
+        public DependencyModules.SourceGenerator.Impl.Models.AccessorForm Form { get; init; }
+        public string Identifier { get; init; }
+        public DependencyModules.SourceGenerator.Impl.Models.InterceptorKind Kind { get; }
         public string Name { get; init; }
+        public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedParameterModel> Parameters { get; init; }
+        public CSharpAuthor.ITypeDefinition ResultType { get; init; }
         public DependencyModules.SourceGenerator.Impl.Models.ReturnShape ReturnShape { get; init; }
+        public CSharpAuthor.ITypeDefinition? ReturnType { get; init; }
+        public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedTypeParameterModel> TypeParameters { get; init; }
+        public virtual bool Equals(DependencyModules.SourceGenerator.Impl.Models.InterceptedMemberModel? other) { }
+        public override int GetHashCode() { }
+    }
+    public class InterceptedParameterModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.InterceptedParameterModel>
+    {
+        public InterceptedParameterModel(string Name, string Identifier, CSharpAuthor.ITypeDefinition Type, string? DefaultValue) { }
+        public string? DefaultValue { get; init; }
+        public string Identifier { get; init; }
+        public string Name { get; init; }
+        public CSharpAuthor.ITypeDefinition Type { get; init; }
+    }
+    public class InterceptedTypeParameterModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.InterceptedTypeParameterModel>
+    {
+        public InterceptedTypeParameterModel(string Name, string Constraints) { }
+        public string Constraints { get; init; }
+        public string Name { get; init; }
+    }
+    public class InterceptionRefusal : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.InterceptionRefusal>
+    {
+        public InterceptionRefusal(DependencyModules.SourceGenerator.Impl.Models.RefusalKind Kind, string Message) { }
+        public DependencyModules.SourceGenerator.Impl.Models.RefusalKind Kind { get; init; }
+        public string Message { get; init; }
+    }
+    public enum InterceptorKind
+    {
+        Sync = 0,
+        Async = 1,
+        Stream = 2,
     }
     public class InterceptorModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.InterceptorModel>
     {
         public static readonly DependencyModules.SourceGenerator.Impl.Models.InterceptorModel Ignore;
-        public InterceptorModel(CSharpAuthor.ITypeDefinition ServiceType, CSharpAuthor.ITypeDefinition ImplementationType, System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> Interceptors, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedMemberModel> Members, int Order) { }
+        public InterceptorModel(CSharpAuthor.ITypeDefinition ServiceType, CSharpAuthor.ITypeDefinition ImplementationType, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptorTypeModel> Interceptors, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedMemberModel> Members, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedDeclarationModel> Declarations, int Order, DependencyModules.SourceGenerator.Impl.Models.InterceptionRefusal? Refusal = null) { }
+        public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedDeclarationModel> Declarations { get; init; }
         public CSharpAuthor.ITypeDefinition ImplementationType { get; init; }
-        public System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> Interceptors { get; init; }
+        public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptorTypeModel> Interceptors { get; init; }
         public bool IsIgnored { get; }
         public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedMemberModel> Members { get; init; }
         public int Order { get; init; }
+        public DependencyModules.SourceGenerator.Impl.Models.InterceptionRefusal? Refusal { get; init; }
         public CSharpAuthor.ITypeDefinition ServiceType { get; init; }
+        public static DependencyModules.SourceGenerator.Impl.Models.InterceptorModel Refused(DependencyModules.SourceGenerator.Impl.Models.RefusalKind kind, string message) { }
     }
     public class InterceptorModelComparer : System.Collections.Generic.IEqualityComparer<DependencyModules.SourceGenerator.Impl.Models.InterceptorModel>
     {
         public InterceptorModelComparer() { }
         public bool Equals(DependencyModules.SourceGenerator.Impl.Models.InterceptorModel? x, DependencyModules.SourceGenerator.Impl.Models.InterceptorModel? y) { }
         public int GetHashCode(DependencyModules.SourceGenerator.Impl.Models.InterceptorModel obj) { }
+    }
+    public class InterceptorTypeModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.InterceptorTypeModel>
+    {
+        public InterceptorTypeModel(CSharpAuthor.ITypeDefinition Type, bool Sync, bool Async, bool Stream) { }
+        public bool Async { get; init; }
+        public bool Stream { get; init; }
+        public bool Sync { get; init; }
+        public CSharpAuthor.ITypeDefinition Type { get; init; }
+        public bool CanServe(DependencyModules.SourceGenerator.Impl.Models.InterceptorKind kind) { }
     }
     public enum LogOutputLevel
     {
@@ -1095,6 +1189,11 @@ namespace DependencyModules.SourceGenerator.Impl.Models
         public string PropertyName { get; init; }
         public CSharpAuthor.ITypeDefinition PropertyType { get; init; }
     }
+    public enum RefusalKind
+    {
+        CannotIntercept = 0,
+        InterceptorCannotServeMember = 1,
+    }
     [System.Flags]
     public enum RegistrationFeature
     {
@@ -1118,6 +1217,7 @@ namespace DependencyModules.SourceGenerator.Impl.Models
         TaskOfValue = 3,
         ValueTask = 4,
         ValueTaskOfValue = 5,
+        AsyncEnumerable = 6,
     }
     public class ServiceFactoryModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.ServiceFactoryModel>
     {
@@ -1165,6 +1265,17 @@ namespace DependencyModules.SourceGenerator.Impl.Models
 }
 namespace DependencyModules.SourceGenerator.Impl.Utilities
 {
+    public class AccessorMemberDefinition : CSharpAuthor.BaseOutputComponent, CSharpAuthor.INamedComponent
+    {
+        public CSharpAuthor.PropertyMethodDefinition? First { get; set; }
+        public string Name { get; }
+        public System.Collections.Generic.List<CSharpAuthor.ParameterDefinition> Parameters { get; }
+        public CSharpAuthor.PropertyMethodDefinition? Second { get; set; }
+        public CSharpAuthor.ITypeDefinition Type { get; }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+        public static DependencyModules.SourceGenerator.Impl.Utilities.AccessorMemberDefinition Event(CSharpAuthor.ITypeDefinition handlerType, string name) { }
+        public static DependencyModules.SourceGenerator.Impl.Utilities.AccessorMemberDefinition Indexer(CSharpAuthor.ITypeDefinition valueType) { }
+    }
     public static class AttributeModelHelper
     {
         public static DependencyModules.SourceGenerator.Impl.Models.AttributeModel? GetAttribute(Microsoft.CodeAnalysis.GeneratorSyntaxContext context, Microsoft.CodeAnalysis.CSharp.Syntax.AttributeSyntax attribute) { }
@@ -1193,6 +1304,23 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities
         public bool AutoApproveCompilationUnit { get; set; }
         protected abstract bool TestForTypes(Microsoft.CodeAnalysis.SyntaxNode node, System.Threading.CancellationToken token);
         public bool Where(Microsoft.CodeAnalysis.SyntaxNode node, System.Threading.CancellationToken token) { }
+    }
+    public class ConstrainedTypeDefinition : CSharpAuthor.ITypeDefinition, System.IComparable<CSharpAuthor.ITypeDefinition>
+    {
+        public ConstrainedTypeDefinition(CSharpAuthor.ITypeDefinition baseType, string constraints) { }
+        public bool IsArray { get; }
+        public bool IsNullable { get; }
+        public System.Collections.Generic.IEnumerable<string> KnownNamespaces { get; }
+        public string Name { get; }
+        public string Namespace { get; }
+        public System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> TypeArguments { get; }
+        public CSharpAuthor.TypeDefinitionEnum TypeDefinitionEnum { get; }
+        public int CompareTo(CSharpAuthor.ITypeDefinition other) { }
+        public override bool Equals(object obj) { }
+        public override int GetHashCode() { }
+        public CSharpAuthor.ITypeDefinition MakeArray() { }
+        public CSharpAuthor.ITypeDefinition MakeNullable(bool nullable = true) { }
+        public void WriteTypeName(System.Text.StringBuilder builder, CSharpAuthor.TypeOutputMode typeOutputMode = 2) { }
     }
     public static class DecoratorModelUtility
     {
@@ -1227,11 +1355,11 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities
     }
     public static class InterceptedMemberReader
     {
-        public static System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedMemberModel>? Read(Microsoft.CodeAnalysis.INamedTypeSymbol serviceType, out string? unsupported) { }
+        public static bool Read(Microsoft.CodeAnalysis.INamedTypeSymbol serviceType, out System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedMemberModel> members, out System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedDeclarationModel> declarations, out string? unsupported) { }
     }
     public static class InterceptorModelUtility
     {
-        public static DependencyModules.SourceGenerator.Impl.Models.InterceptorModel? GetInterceptorModel(Microsoft.CodeAnalysis.GeneratorSyntaxContext context, System.Threading.CancellationToken cancellationToken, out string? unsupported) { }
+        public static DependencyModules.SourceGenerator.Impl.Models.InterceptorModel GetInterceptorModel(Microsoft.CodeAnalysis.GeneratorSyntaxContext context, System.Threading.CancellationToken cancellationToken) { }
     }
     public class ServiceModelUtility
     {
@@ -1280,6 +1408,8 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities
         public System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> TypeArguments { get; }
         public CSharpAuthor.TypeDefinitionEnum TypeDefinitionEnum { get; }
         public int CompareTo(CSharpAuthor.ITypeDefinition other) { }
+        public override bool Equals(object obj) { }
+        public override int GetHashCode() { }
         public CSharpAuthor.ITypeDefinition MakeArray() { }
         public CSharpAuthor.ITypeDefinition MakeNullable(bool nullable = true) { }
         public void WriteTypeName(System.Text.StringBuilder builder, CSharpAuthor.TypeOutputMode typeOutputMode = 2) { }

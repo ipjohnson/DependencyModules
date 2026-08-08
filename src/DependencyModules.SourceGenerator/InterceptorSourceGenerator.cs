@@ -34,17 +34,9 @@ public class InterceptorSourceGenerator : BaseAttributeSourceGenerator<Intercept
     }
 
     protected override InterceptorModel GenerateAttributeModel(GeneratorSyntaxContext context, CancellationToken cancellationToken) {
-        var model = InterceptorModelUtility.GetInterceptorModel(context, cancellationToken, out var unsupported);
-
-        if (model != null) {
-            return model;
-        }
-
-        // The reason travels on the sentinel so the output stage, which owns the diagnostic context,
-        // can report it. Reporting from the transform is not possible.
-        return unsupported == null
-            ? InterceptorModel.Ignore
-            : InterceptorModel.Ignore with { ServiceType = TypeDefinition.Get("", unsupported) };
+        // A refusal travels on the model so the output stage, which owns the diagnostic context, can
+        // report it. Reporting from the transform is not possible.
+        return InterceptorModelUtility.GetInterceptorModel(context, cancellationToken);
     }
 
     protected override void GenerateSourceOutput(
@@ -72,7 +64,7 @@ public class InterceptorSourceGenerator : BaseAttributeSourceGenerator<Intercept
 
             var wrapperName = $"{model.ImplementationType.Name.Replace(".", "_")}_Intercepted";
 
-            logger.Info($"Generating '{wrapperName}' for '{model.ServiceType.Name}' with {model.Members.Count} member(s).");
+            logger.Info($"Generating '{wrapperName}' for '{model.ServiceType}' with {model.Members.Count} member(s).");
 
             context.AddSource(
                 $"{wrapperName}.g.cs",
@@ -103,24 +95,25 @@ public class InterceptorSourceGenerator : BaseAttributeSourceGenerator<Intercept
         var usable = new List<InterceptorModel>();
 
         foreach (var model in models) {
-            if (!model.IsIgnored && model.Members.Count > 0) {
-                usable.Add(model);
+            if (model.Refusal != null) {
+                logger.Error($"Cannot intercept: {model.Refusal.Message}");
+
+                context.ReportDiagnostic(
+                    Diagnostic.Create(
+                        model.Refusal.Kind == RefusalKind.InterceptorCannotServeMember
+                            ? DependencyModuleDiagnostics.InterceptorCannotServeMember
+                            : DependencyModuleDiagnostics.CannotIntercept,
+                        Location.None,
+                        model.Refusal.Message));
+
                 continue;
             }
 
-            var reason = model.ServiceType.Name;
-
-            if (model.IsIgnored || string.IsNullOrEmpty(reason) || reason == "Ignore") {
+            if (model.IsIgnored || model.Members.Count == 0) {
                 continue;
             }
 
-            logger.Error($"Cannot intercept: {reason}");
-
-            context.ReportDiagnostic(
-                Diagnostic.Create(
-                    DependencyModuleDiagnostics.CannotIntercept,
-                    Location.None,
-                    reason));
+            usable.Add(model);
         }
 
         return usable;
