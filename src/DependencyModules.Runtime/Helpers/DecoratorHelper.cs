@@ -29,12 +29,23 @@ public static class DecoratorHelper {
         Type serviceType,
         Func<IServiceProvider, object, object> decoratorFactory) {
 
+        Decorate(services, serviceType, decoratorFactory, null);
+    }
+
+    private static void Decorate(
+        IServiceCollection services,
+        Type serviceType,
+        Func<IServiceProvider, object, object> decoratorFactory,
+        Type? decoratorType) {
+
         for (var i = services.Count - 1; i >= 0; i--) {
             var descriptor = services[i];
 
             if (!Matches(descriptor.ServiceType, serviceType)) {
                 continue;
             }
+
+            GuardOpenGenericRegistration(descriptor, decoratorType);
 
             // Captured before the slot is overwritten. Reading services[i] inside the factory would
             // close over the replacement and recurse until the stack runs out, at a point far from
@@ -72,13 +83,48 @@ public static class DecoratorHelper {
     /// with the type arguments of each matched registration.
     /// </param>
     public static void Decorate(IServiceCollection services, Type serviceType, Type decoratorType) {
-        Decorate(services, serviceType, (provider, inner) => {
-            var closedDecorator = decoratorType.IsGenericTypeDefinition
-                ? decoratorType.MakeGenericType(ResolveTypeArguments(inner, serviceType))
-                : decoratorType;
+        Decorate(
+            services,
+            serviceType,
+            (provider, inner) => {
+                var closedDecorator = decoratorType.IsGenericTypeDefinition
+                    ? decoratorType.MakeGenericType(ResolveTypeArguments(inner, serviceType))
+                    : decoratorType;
 
-            return ActivatorUtilities.CreateInstance(provider, closedDecorator, inner);
-        });
+                return ActivatorUtilities.CreateInstance(provider, closedDecorator, inner);
+            },
+            decoratorType);
+    }
+
+    /// <summary>
+    /// Refuses to decorate a registration made against an open generic service type.
+    /// </summary>
+    /// <remarks>
+    /// Decoration replaces a registration with a factory, and the container will not accept a
+    /// factory for an open generic service type — it needs an open generic implementation type so it
+    /// can close one per request. Registering the rewrite anyway throws from
+    /// <c>BuildServiceProvider</c>, naming the service and nothing else, arbitrarily far from the
+    /// declaration that caused it.
+    ///
+    /// This cannot be caught when the code is generated: a decorator names an open generic service
+    /// type in order to match every closed registration of it, which works, and whether any given
+    /// registration is open or closed is only known here.
+    ///
+    /// Closed registrations of a generic service are decorated normally, so declaring a closed
+    /// construction is the way through.
+    /// </remarks>
+    private static void GuardOpenGenericRegistration(ServiceDescriptor descriptor, Type? decoratorType) {
+        if (!descriptor.ServiceType.IsGenericTypeDefinition) {
+            return;
+        }
+
+        var by = decoratorType == null ? "" : $" by '{decoratorType}'";
+
+        throw new InvalidOperationException(
+            $"'{descriptor.ServiceType}' is registered as an open generic and cannot be decorated{by}. " +
+            "Decorating replaces a registration with a factory, which the container does not allow " +
+            "for an open generic service type. Register closed constructions of the service instead, " +
+            "such as a class deriving from the generic implementation.");
     }
 
     /// <summary>
