@@ -118,16 +118,11 @@ public class InterceptorFileWriter {
                 break;
 
             case DeclarationKind.Indexer:
-                WriteAccessorMember(
-                    wrapper, model, declaration, AccessorMemberDefinition.Indexer(declaration.Type!));
+                WriteIndexer(wrapper, model, declaration);
                 break;
 
             case DeclarationKind.Event:
-                WriteAccessorMember(
-                    wrapper,
-                    model,
-                    declaration,
-                    AccessorMemberDefinition.Event(declaration.Type!, declaration.Identifier));
+                WriteEvent(wrapper, model, declaration);
                 break;
         }
     }
@@ -152,31 +147,37 @@ public class InterceptorFileWriter {
         }
     }
 
-    private static void WriteAccessorMember(
-        ClassDefinition wrapper,
-        InterceptorModel model,
-        InterceptedDeclarationModel declaration,
-        AccessorMemberDefinition member) {
+    private static void WriteIndexer(
+        ClassDefinition wrapper, InterceptorModel model, InterceptedDeclarationModel declaration) {
 
-        member.Modifiers |= ComponentModifier.Public;
+        var indexer = wrapper.AddProperty(declaration.Type!, "this");
+
+        indexer.Modifiers |= ComponentModifier.Public;
 
         foreach (var index in declaration.Indices) {
-            member.Parameters.Add(new ParameterDefinition(index.Type, index.Identifier));
+            indexer.AddIndexParameter(index.Type, index.Identifier);
         }
 
         if (declaration.First >= 0) {
-            member.First = new PropertyMethodDefinition();
-
-            WriteAccessorBody(member.First, model, model.Members[declaration.First], declaration.First);
+            WriteAccessorBody(indexer.Get, model, model.Members[declaration.First], declaration.First);
         }
 
-        if (declaration.Second >= 0) {
-            member.Second = new PropertyMethodDefinition();
-
-            WriteAccessorBody(member.Second, model, model.Members[declaration.Second], declaration.Second);
+        if (declaration.Second < 0) {
+            indexer.Set = null;
+        } else {
+            WriteAccessorBody(indexer.Set!, model, model.Members[declaration.Second], declaration.Second);
         }
+    }
 
-        wrapper.AddComponent(member);
+    private static void WriteEvent(
+        ClassDefinition wrapper, InterceptorModel model, InterceptedDeclarationModel declaration) {
+
+        var declared = wrapper.AddEvent(declaration.Type!, declaration.Identifier);
+
+        declared.Modifiers |= ComponentModifier.Public;
+
+        WriteAccessorBody(declared.Add, model, model.Members[declaration.First], declaration.First);
+        WriteAccessorBody(declared.Remove, model, model.Members[declaration.Second], declaration.Second);
     }
 
     /// <summary>
@@ -197,7 +198,7 @@ public class InterceptorFileWriter {
         arguments.AddRange(member.Parameters.Select(parameter => parameter.Identifier));
 
         accessor.AddIndentedStatement(
-            $"var state = new {StateName(member, index)}({string.Join(", ", arguments)})");
+            $"var state = new {ClosedStateName(member, index)}({string.Join(", ", arguments)})");
 
         accessor.NewLine();
 
@@ -242,14 +243,10 @@ public class InterceptorFileWriter {
         }
 
         foreach (var typeParameter in member.TypeParameters) {
-            method.AddGenericParameter(TypeParameter(typeParameter.Name));
+            method.AddGenericParameter(new TypeParameterDefinition(typeParameter.Name));
         }
 
-        var constraints = RenderConstraints(member);
-
-        if (constraints != null) {
-            method.WhereStatement = new CodeOutputComponent(" " + constraints) { Indented = false };
-        }
+        method.WhereStatement = Constraints(member);
 
         var arguments = new List<string> { "this" };
 
@@ -276,7 +273,7 @@ public class InterceptorFileWriter {
         }
 
         method.AddIndentedStatement(
-            $"var state = new {StateName(member, index)}({string.Join(", ", arguments)})");
+            $"var state = new {ClosedStateName(member, index)}({string.Join(", ", arguments)})");
 
         method.NewLine();
 
@@ -321,17 +318,21 @@ public class InterceptorFileWriter {
             _ => Interception.InvocationState(member.ResultType)
         };
 
-        var constraints = RenderConstraints(member);
+        var state = wrapper.AddClass(StateName(index));
 
-        var state = wrapper.AddClass(StateName(member, index));
+        state.Modifiers |= ComponentModifier.Private | ComponentModifier.Sealed;
+        state.AddBaseType(baseType);
 
-        state.Modifiers |= ComponentModifier.Private;
-        state.AddBaseType(constraints == null ? baseType : new ConstrainedTypeDefinition(baseType, constraints));
+        foreach (var typeParameter in member.TypeParameters) {
+            state.AddGenericParameter(typeParameter.Name);
+        }
+
+        state.WhereStatement = Constraints(member);
 
         WriteStateFields(state, member, wrapperName);
         WriteStateConstructor(state, member, index, wrapperName);
         WriteCallerAndCount(state, member, index);
-        WriteIndexer(state, member);
+        WriteArgumentsIndexer(state, member);
         WriteNameAt(state, member);
         WriteInvoke(state, model, member, wrapperName);
     }
@@ -355,11 +356,7 @@ public class InterceptorFileWriter {
     private static void WriteStateConstructor(
         ClassDefinition state, InterceptedMemberModel member, int index, string wrapperName) {
 
-        // Named without the type parameters: a constructor is DmState0, while the class it belongs
-        // to is DmState0<T>. AddConstructor would take the class name whole.
-        var constructor = new ConstructorDefinition($"DmState{index}");
-
-        state.AddComponent(constructor);
+        var constructor = state.AddConstructor();
 
         constructor.AddParameter(TypeDefinition.Get("", wrapperName), "self");
         constructor.AddIndentedStatement("_self = self");
@@ -390,7 +387,7 @@ public class InterceptorFileWriter {
     /// Reading boxes, and writing replaces the field the last stage passes on, so an interceptor
     /// that ignores the arguments pays for neither.
     /// </summary>
-    private static void WriteIndexer(ClassDefinition state, InterceptedMemberModel member) {
+    private static void WriteArgumentsIndexer(ClassDefinition state, InterceptedMemberModel member) {
         var indexer = state.AddProperty(TypeDefinition.Get(typeof(object)).MakeNullable(), "this");
 
         indexer.Modifiers |= ComponentModifier.Public | ComponentModifier.Override;
@@ -597,31 +594,36 @@ public class InterceptorFileWriter {
         return false;
     }
 
+    private static string StateName(int index) => $"DmState{index}";
+
     /// <summary>
-    /// The state class repeats the member's type parameters, since a nested type cannot close over a
-    /// method's.
+    /// The state class is constructed closed over the member's type parameters, since a nested type
+    /// cannot close over a method's.
     /// </summary>
-    private static string StateName(InterceptedMemberModel member, int index) {
+    private static string ClosedStateName(InterceptedMemberModel member, int index) {
         if (member.TypeParameters.Count == 0) {
-            return $"DmState{index}";
+            return StateName(index);
         }
 
-        return $"DmState{index}<" +
+        return $"{StateName(index)}<" +
                string.Join(", ", member.TypeParameters.Select(parameter => parameter.Name)) +
                ">";
     }
 
-    private static string? RenderConstraints(InterceptedMemberModel member) {
+    /// <summary>
+    /// The constraints the member declares, which both the forwarding member and the state class
+    /// have to repeat or the call they forward will not satisfy them.
+    /// </summary>
+    private static IOutputComponent? Constraints(InterceptedMemberModel member) {
         var clauses = member.TypeParameters
             .Where(parameter => parameter.Constraints.Length > 0)
             .Select(parameter => $"where {parameter.Name} : {parameter.Constraints}")
             .ToList();
 
-        return clauses.Count == 0 ? null : string.Join(" ", clauses);
+        return clauses.Count == 0
+            ? null
+            : new CodeOutputComponent(" " + string.Join(" ", clauses)) { Indented = false };
     }
-
-    private static ITypeDefinition TypeParameter(string name) =>
-        new TypeParameterDefinition(TypeDefinitionEnum.ClassDefinition, false, false, name);
 
     private static string InterceptorField(int index) => $"_dmInterceptor{index}";
 

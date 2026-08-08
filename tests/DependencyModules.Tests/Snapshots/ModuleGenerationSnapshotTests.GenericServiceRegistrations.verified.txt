@@ -9,16 +9,16 @@ namespace TestNamespace
     public partial class TestModule
     {
         [DynamicDependency(nameof(ModuleDependencies))]
-        private static int moduleField = global::DependencyModules.Runtime.Helpers.DependencyRegistry<global::TestNamespace.TestModule>.Add(ModuleDependencies        );
+        private static int moduleField = global::DependencyModules.Runtime.Helpers.DependencyRegistry<global::TestNamespace.TestModule>.Add(ModuleDependencies);
 
         private static void ModuleDependencies(global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)
         {
             services.AddSingleton(
-                typeof(global::TestNamespace.IGeneric<string>), 
+                typeof(global::TestNamespace.IGeneric<string>),
                 typeof(global::TestNamespace.ClosedGeneric)
             );
             services.AddSingleton(
-                typeof(global::TestNamespace.IGeneric<>), 
+                typeof(global::TestNamespace.IGeneric<>),
                 typeof(global::TestNamespace.OpenGeneric<>)
             );
         }
@@ -45,7 +45,7 @@ namespace TestNamespace
         public void PopulateServiceCollection(global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)
         {
             global::DependencyModules.Runtime.Helpers.DependencyRegistry<global::TestNamespace.TestModule>.LoadModules(
-                services, 
+                services,
                 this
             );
         }
@@ -53,7 +53,7 @@ namespace TestNamespace
         [Browsable(false)]
         void global::DependencyModules.Runtime.Interfaces.IDependencyModule.InternalApplyServices(global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)
         {
-            global::DependencyModules.Runtime.Helpers.DependencyRegistry<global::TestNamespace.TestModule>.ApplyServices(services            );
+            global::DependencyModules.Runtime.Helpers.DependencyRegistry<global::TestNamespace.TestModule>.ApplyServices(services);
         }
 
         [Browsable(false)]
