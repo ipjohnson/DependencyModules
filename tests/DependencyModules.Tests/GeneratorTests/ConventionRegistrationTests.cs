@@ -633,6 +633,158 @@ public class ConventionRegistrationTests {
         Assert.NotEmpty(assembly.Services);
     }
 
+    private const string Validators =
+        """
+        public interface IRule { }
+        public interface IValidator { }
+        public interface IValidator<T> : IValidator { }
+
+        public abstract class AbstractValidator<T> : IValidator<T>, System.Collections.Generic.IEnumerable<IRule> {
+            public System.Collections.Generic.IEnumerator<IRule> GetEnumerator() => null!;
+            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => null!;
+        }
+
+        public class Foo { }
+
+        public class FooValidator : AbstractValidator<Foo> { }
+        """;
+
+    /// <summary>
+    /// The FluentValidation shape: registered as the matched interface and as the concrete type.
+    /// </summary>
+    [Fact]
+    public void AlsoAsSelfRegistersTheInterfaceAndTheType() {
+        var assembly = Compile(
+            Validators +
+            """
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll(typeof(IValidator<>)).IncludeBaseClasses().AlsoAsSelf().AsScoped();
+                }
+            }
+            """);
+
+        Assert.Contains(assembly.Services, d => d.ServiceType.Name == "IValidator`1");
+        Assert.Contains(assembly.Services, d => d.ServiceType == assembly.Type("FooValidator"));
+    }
+
+    /// <summary>
+    /// Cross-wired, so both routes give one instance per scope. FluentValidation registers the pair
+    /// independently and hands you two; this is a deliberate difference.
+    /// </summary>
+    [Fact]
+    public void AlsoAsSelfSharesOneInstance() {
+        var assembly = Compile(
+            Validators +
+            """
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll(typeof(IValidator<>)).IncludeBaseClasses().AlsoAsSelf().AsScoped();
+                }
+            }
+            """);
+
+        var provider = assembly.BuildProvider();
+        using var scope = provider.CreateScope();
+
+        var validatorInterface = assembly.Services
+            .First(d => d.ServiceType.Name == "IValidator`1").ServiceType;
+
+        Assert.Same(
+            scope.ServiceProvider.GetService(validatorInterface),
+            scope.ServiceProvider.GetService(assembly.Type("FooValidator")));
+    }
+
+    /// <summary>
+    /// Only the interfaces the convention matched, not everything the type can reach.
+    /// </summary>
+    [Fact]
+    public void AlsoAsSelfDoesNotPullInUnmatchedInterfaces() {
+        var assembly = Compile(
+            Validators +
+            """
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll(typeof(IValidator<>)).IncludeBaseClasses().AlsoAsSelf().AsScoped();
+                }
+            }
+            """);
+
+        // IValidator and the enumerable interfaces are reachable but were not matched.
+        Assert.DoesNotContain(assembly.Services, d => d.ServiceType == assembly.Type("IValidator"));
+        Assert.DoesNotContain(assembly.Services, d => d.ServiceType.Namespace?.StartsWith("System") == true);
+    }
+
+    [Fact]
+    public void AsSelfAndAlsoAsSelfTogetherIsRefused() {
+        var result = Run(
+            """
+            public interface IFoo { }
+            public class Foo : IFoo { }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll<IFoo>().AsSelf().AlsoAsSelf().AsSingleton();
+                }
+            }
+            """);
+
+        Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0009");
+    }
+
+    /// <summary>
+    /// A handler closing two messages asks for the self registration twice and means it once. One
+    /// convention repeating itself is not an ambiguity.
+    /// </summary>
+    [Fact]
+    public void AlsoAsSelfRegistersTheTypeOnceAcrossSeveralClosings() {
+        var result = Run(
+            """
+            public interface IHandler<T> { }
+
+            public class A { }
+            public class B { }
+
+            public class Both : IHandler<A>, IHandler<B> { }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll(typeof(IHandler<>)).AlsoAsSelf().AsScoped();
+                }
+            }
+            """);
+
+        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0004");
+
+        var assembly = Compile(
+            """
+            public interface IHandler<T> { }
+
+            public class A { }
+            public class B { }
+
+            public class Both : IHandler<A>, IHandler<B> { }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll(typeof(IHandler<>)).AlsoAsSelf().AsScoped();
+                }
+            }
+            """);
+
+        Assert.Single(assembly.Services, d => d.ServiceType == assembly.Type("Both"));
+        Assert.Equal(2, assembly.Services.Count(d => d.ServiceType.Name == "IHandler`1"));
+    }
+
     [Fact]
     public void UsingChoosesHowTheRegistrationIsAdded() {
         var assembly = Compile(

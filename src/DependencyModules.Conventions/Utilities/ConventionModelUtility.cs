@@ -49,6 +49,7 @@ public static class ConventionModelUtility {
     private static readonly Dictionary<string, ConventionRegisterAs> RegisterAsCalls = new() {
         ["AsSelf"] = ConventionRegisterAs.Self,
         ["AsSelfWithInterfaces"] = ConventionRegisterAs.SelfAndInterfaces,
+        ["AlsoAsSelf"] = ConventionRegisterAs.AlsoSelf,
     };
 
     /// <summary>

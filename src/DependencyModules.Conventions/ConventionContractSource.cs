@@ -193,6 +193,34 @@ public static class ConventionContractSource {
                 IConventionRegistration AsSelf();
 
                 /// <summary>
+                /// Registers each match as the service type the convention matched <i>and</i> as its
+                /// own concrete type, sharing one instance between them.
+                /// </summary>
+                /// <remarks>
+                /// <para>
+                /// Additive, where <c>AsSelf</c> replaces: <c>AsSelf</c> means "instead of the
+                /// interface", this means "as well as it". Only the interfaces the convention
+                /// matched are registered, not every interface the type can reach — that is
+                /// <see cref="AsSelfWithInterfaces"/>.
+                /// </para>
+                /// <para>
+                /// The shape FluentValidation wants. It registers each validator as
+                /// <c>IValidator&lt;T&gt;</c> and as the concrete type, independently, which hands
+                /// you two instances per scope; cross-wiring them gives one, which is the better
+                /// behaviour and a deliberate difference.
+                /// </para>
+                /// <example>
+                /// <code>
+                /// conventions.RegisterAll(typeof(IValidator&lt;&gt;))
+                ///     .IncludeBaseClasses()
+                ///     .AlsoAsSelf()
+                ///     .AsScoped();
+                /// </code>
+                /// </example>
+                /// </remarks>
+                IConventionRegistration AlsoAsSelf();
+
+                /// <summary>
                 /// Registers each match as its own type <i>and</i> as every interface it implements,
                 /// sharing one instance between them.
                 /// </summary>

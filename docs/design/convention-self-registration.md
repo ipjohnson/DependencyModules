@@ -1,7 +1,20 @@
 # Convention self-registration: the missing shape, and what `AsSelfWithInterfaces` should exclude
 
-Status: designed, not implemented. Two independent changes, both in
-`ConventionMatcher.BuildRegistrations`. Written as a work order.
+Status: **implemented**, both items. Kept for the reasoning and the FluentValidation measurement,
+which the code cannot carry.
+
+Two notes where the plan and the outcome differ:
+
+- **`AlsoAsSelf` emits only the cross-wired matched interface, not a self registration as well.**
+  The writer already adds the implementation registration once per service model whenever anything
+  is cross-wired, so emitting one here produced the type twice. Caught by the test for a handler
+  closing two messages. What separates `AlsoAsSelf` from `AsSelfWithInterfaces` is therefore which
+  interfaces are expanded, not what "self" costs.
+- The *Watch `RegistrationKey`* warning was right, and the fix is the one it describes: the
+  ambiguity check now runs over emitted registrations rather than over matches, so a duplicated
+  registration cannot drag an unrelated one from the same match down with it. That restructuring
+  stands on its own — it also makes two conventions using `AsSelfWithInterfaces` on one type collide
+  per interface rather than once.
 
 Both come out of measuring convention registration against FluentValidation, which is the one library
 of its kind that conventions can replace outright. (MediatR cannot be replaced and does not need to

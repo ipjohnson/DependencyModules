@@ -45,6 +45,12 @@ public enum ConventionRegisterAs {
     SelfAndInterfaces,
 
     /// <summary>
+    /// As the service types the convention matched, and also as the concrete type, sharing one
+    /// instance. Additive where <see cref="Self"/> replaces.
+    /// </summary>
+    AlsoSelf,
+
+    /// <summary>
     /// As one service type named by <c>As&lt;T&gt;()</c>, whatever the match matched through.
     /// </summary>
     Explicit,

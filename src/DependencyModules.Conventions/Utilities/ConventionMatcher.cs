@@ -21,6 +21,19 @@ public record ConventionRegistrationMatch(
     ImplementedInterfaceModel? Interface);
 
 /// <summary>
+/// One registration a match produces, before the ambiguity check has run.
+/// </summary>
+/// <remarks>
+/// A match and a registration are not one to one: <c>AsSelfWithInterfaces</c> produces several, and
+/// <c>AlsoAsSelf</c> produces an interface registration and a self one. The ambiguity check works on
+/// these rather than on matches, so a duplicated self registration does not take an interface
+/// registration down with it.
+/// </remarks>
+internal record PendingRegistration(
+    ConventionRegistrationMatch Match,
+    ServiceRegistrationModel Registration);
+
+/// <summary>
 /// Matches a module's conventions against the candidates in the compilation.
 /// </summary>
 /// <remarks>
@@ -57,11 +70,23 @@ public static class ConventionMatcher {
             CollectMatches(convention, merged, moduleName, matches, report, logger);
         }
 
-        var usable = RemoveAmbiguous(matches, moduleName, report, logger);
+        // Registrations are built before the ambiguity check, not after. A shape like AlsoAsSelf
+        // produces both an interface registration and a self registration from one match, and the
+        // two collide with other conventions on entirely different terms — checking per match would
+        // drag a perfectly good interface registration down with a duplicated self one.
+        var pending = new List<PendingRegistration>();
+
+        foreach (var match in matches) {
+            foreach (var registration in BuildRegistrations(match, entryPointModel)) {
+                pending.Add(new PendingRegistration(match, registration));
+            }
+        }
+
+        var usable = RemoveAmbiguous(pending, moduleName, report, logger);
 
         ReportExposure(usable, moduleName, report);
 
-        return BuildServiceModels(usable, entryPointModel, logger);
+        return BuildServiceModels(usable, logger);
     }
 
     private static void CollectMatches(
@@ -124,8 +149,10 @@ public static class ConventionMatcher {
                 }
 
                 // AsSelf and AsSelfWithInterfaces name the implementation, so several matching
-                // closings still produce one registration rather than one per closing.
-                matched = convention.RegisterAs == ConventionRegisterAs.Interfaces
+                // closings still produce one registration rather than one per closing. The default
+                // and AlsoAsSelf register each matched closing.
+                matched = convention.RegisterAs is ConventionRegisterAs.Interfaces
+                    or ConventionRegisterAs.AlsoSelf
                     ? reachable.Cast<ImplementedInterfaceModel?>().ToList()
                     : new List<ImplementedInterfaceModel?> { reachable[0] };
             }
@@ -395,33 +422,34 @@ public static class ConventionMatcher {
     /// Reported rather than resolved. Picking one silently produces a registration nobody can
     /// predict from reading the module, which is the outcome DM0004 exists to prevent.
     /// </remarks>
-    private static List<ConventionRegistrationMatch> RemoveAmbiguous(
-        List<ConventionRegistrationMatch> matches,
+    private static List<PendingRegistration> RemoveAmbiguous(
+        List<PendingRegistration> pending,
         string moduleName,
         Action<Diagnostic> report,
         FileLogger logger) {
 
-        // Keyed on what the match will actually register as, not on the implementation alone. A type
-        // filling two roles registers twice; one service type claimed twice is the ambiguity.
+        // Keyed on what actually reaches the container: this implementation, under this service
+        // type. A type filling two roles registers twice; one service type claimed twice is the
+        // ambiguity.
         var byRegistration =
             new Dictionary<(ITypeDefinition Implementation, ITypeDefinition Service),
-                List<ConventionRegistrationMatch>>();
+                List<PendingRegistration>>();
 
         var order = new List<(ITypeDefinition Implementation, ITypeDefinition Service)>();
 
-        foreach (var match in matches) {
-            var key = RegistrationKey(match);
+        foreach (var entry in pending) {
+            var key = (entry.Match.Candidate.ImplementationType, entry.Registration.ServiceType);
 
             if (!byRegistration.TryGetValue(key, out var list)) {
-                list = new List<ConventionRegistrationMatch>();
+                list = new List<PendingRegistration>();
                 byRegistration[key] = list;
                 order.Add(key);
             }
 
-            list.Add(match);
+            list.Add(entry);
         }
 
-        var usable = new List<ConventionRegistrationMatch>();
+        var usable = new List<PendingRegistration>();
 
         // Insertion order rather than dictionary order: the emitted registration order feeds the
         // module snapshots, and a hash order would move them for unrelated reasons.
@@ -436,21 +464,21 @@ public static class ConventionMatcher {
 
             var first = group[0];
             var second = group[1];
-            var serviceName = ServiceTypeNameOf(first);
+            var serviceName = key.Service.Name;
 
-            var difference = first.Convention.Lifestyle == second.Convention.Lifestyle
+            var difference = first.Match.Convention.Lifestyle == second.Match.Convention.Lifestyle
                 ? "The declaration is duplicated."
-                : $"They declare different lifetimes ({first.Convention.Lifestyle} and " +
-                  $"{second.Convention.Lifestyle}).";
+                : $"They declare different lifetimes ({first.Match.Convention.Lifestyle} and " +
+                  $"{second.Match.Convention.Lifestyle}).";
 
             logger.Error(
-                $"{moduleName}: '{first.Candidate.ImplementationType.Name}' is registered as " +
+                $"{moduleName}: '{key.Implementation.Name}' is registered as " +
                 $"'{serviceName}' by two conventions. {difference}");
 
             report(Diagnostic.Create(
                 DependencyModuleDiagnostics.AmbiguousConventionMatch,
-                LocationOf(first),
-                first.Candidate.ImplementationType.Name,
+                LocationOf(first.Match),
+                key.Implementation.Name,
                 moduleName,
                 serviceName,
                 difference));
@@ -560,28 +588,23 @@ public static class ConventionMatcher {
     /// match was not direct.
     /// </summary>
     private static void ReportExposure(
-        IReadOnlyList<ConventionRegistrationMatch> matches, string moduleName, Action<Diagnostic> report) {
+        IReadOnlyList<PendingRegistration> usable, string moduleName, Action<Diagnostic> report) {
 
-        foreach (var match in matches) {
-            var location = LocationOf(match);
+        foreach (var entry in usable) {
+            var serviceType = entry.Registration.ServiceType;
 
-            // A filter-selected convention reached the type directly, so there is no interface to
-            // name and the type is exposed as itself.
-            if (match.Interface == null) {
-                report(Diagnostic.Create(
-                    DependencyModuleDiagnostics.ExposedByConvention,
-                    location,
-                    $"{match.Candidate.ImplementationType.Name} in {moduleName}"));
-
-                continue;
-            }
-
-            var via = match.Interface.ViaTypeName == null ? "" : $" (via {match.Interface.ViaTypeName})";
+            // The interface a convention matched through explains a match that was not direct, and
+            // only applies when this registration is that interface.
+            var via = entry.Match.Interface != null &&
+                      entry.Match.Interface.InterfaceType.Equals(serviceType) &&
+                      entry.Match.Interface.ViaTypeName != null
+                ? $" (via {entry.Match.Interface.ViaTypeName})"
+                : "";
 
             report(Diagnostic.Create(
                 DependencyModuleDiagnostics.ExposedByConvention,
-                location,
-                $"{match.Interface.InterfaceType.Name} in {moduleName}{via}"));
+                LocationOf(entry.Match),
+                $"{serviceType.Name} in {moduleName}{via}"));
         }
     }
 
@@ -589,31 +612,25 @@ public static class ConventionMatcher {
     /// Produces the same models the attribute path produces, so emission needs no special case.
     /// </summary>
     private static IReadOnlyList<ServiceModel> BuildServiceModels(
-        IReadOnlyList<ConventionRegistrationMatch> matches,
-        ModuleEntryPointModel entryPointModel,
-        FileLogger logger) {
+        IReadOnlyList<PendingRegistration> usable, FileLogger logger) {
 
         // One model per implementation, carrying every registration it produces — the shape
-        // ServiceModelUtility builds for the attribute path. Emitting one model per match would put
-        // two models with the same ImplementationType in front of DependencyFileWriter, which
-        // duplicates the per-implementation state it reads: constructor, conditions, cross-wire.
+        // ServiceModelUtility builds for the attribute path. Two models with the same
+        // ImplementationType would duplicate the per-implementation state the writer reads:
+        // constructor, conditions, cross-wire.
         var byImplementation = new Dictionary<ITypeDefinition, List<ServiceRegistrationModel>>();
         var order = new List<ConventionRegistrationMatch>();
 
-        foreach (var match in matches) {
-            var registrations = BuildRegistrations(match, entryPointModel);
+        foreach (var entry in usable) {
+            var implementation = entry.Match.Candidate.ImplementationType;
 
-            if (registrations.Count == 0) {
-                continue;
-            }
-
-            if (!byImplementation.TryGetValue(match.Candidate.ImplementationType, out var list)) {
+            if (!byImplementation.TryGetValue(implementation, out var list)) {
                 list = new List<ServiceRegistrationModel>();
-                byImplementation[match.Candidate.ImplementationType] = list;
-                order.Add(match);
+                byImplementation[implementation] = list;
+                order.Add(entry.Match);
             }
 
-            list.AddRange(registrations);
+            list.Add(entry.Registration);
         }
 
         var models = new List<ServiceModel>(order.Count);
@@ -673,6 +690,15 @@ public static class ConventionMatcher {
         switch (convention.RegisterAs) {
             case ConventionRegisterAs.Self:
                 return new[] { Registration(match.Candidate.ImplementationType) };
+
+            case ConventionRegisterAs.AlsoSelf:
+                // Only the matched interface, cross-wired. The writer adds the implementation
+                // registration itself once per service model whenever anything is cross-wired, so
+                // emitting one here too produced the type twice. The difference from
+                // SelfAndInterfaces is which interfaces are expanded, not what self costs.
+                return match.Interface == null
+                    ? new[] { Registration(match.Candidate.ImplementationType) }
+                    : new[] { Registration(match.Interface.InterfaceType, crossWire: true) };
 
             case ConventionRegisterAs.Explicit:
                 return new[] { Registration(convention.ExplicitServiceType!) };
