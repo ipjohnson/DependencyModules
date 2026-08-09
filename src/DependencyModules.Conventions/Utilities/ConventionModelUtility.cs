@@ -30,11 +30,29 @@ public static class ConventionModelUtility {
 
     private const string RegisterAll = "RegisterAll";
     private const string IncludeBaseClasses = "IncludeBaseClasses";
+    private const string UsingCall = "Using";
+    private const string WithKeyCall = "WithKey";
 
     private static readonly Dictionary<string, ServiceLifestyle> LifetimeCalls = new() {
         ["AsSingleton"] = ServiceLifestyle.Singleton,
         ["AsScoped"] = ServiceLifestyle.Scoped,
         ["AsTransient"] = ServiceLifestyle.Transient,
+    };
+
+    private static readonly Dictionary<string, ConventionRegisterAs> RegisterAsCalls = new() {
+        ["AsSelf"] = ConventionRegisterAs.Self,
+        ["AsSelfWithInterfaces"] = ConventionRegisterAs.SelfAndInterfaces,
+    };
+
+    /// <summary>
+    /// The namespace filter calls, and the shape of filter each produces.
+    /// </summary>
+    private static readonly Dictionary<string, (bool Exact, bool Exclude)> NamespaceCalls = new() {
+        ["InNamespaceOf"] = (false, false),
+        ["InNamespaces"] = (false, false),
+        ["InExactNamespaces"] = (true, false),
+        ["NotInNamespaceOf"] = (false, true),
+        ["NotInNamespaces"] = (false, true),
     };
 
     /// <summary>
@@ -197,21 +215,38 @@ public static class ConventionModelUtility {
             return null;
         }
 
-        var serviceType = ReadServiceType(context, head, out var isOpenGeneric);
+        // No type argument and no argument at all is the filter-selected form, which is valid and
+        // has no service type. Anything else that fails to resolve is a mistake.
+        var selectsByFilter =
+            head.Expression is MemberAccessExpressionSyntax { Name: not GenericNameSyntax } &&
+            head.ArgumentList.Arguments.Count == 0;
 
-        if (serviceType == null) {
-            reason =
-                $"could not resolve the service type; write {RegisterAll}<IService>() or " +
-                $"{RegisterAll}(typeof(IService<>))";
+        ITypeDefinition? serviceType = null;
+        var isOpenGeneric = false;
 
-            return null;
+        if (!selectsByFilter) {
+            serviceType = ReadServiceType(context, head, out isOpenGeneric);
+
+            if (serviceType == null) {
+                reason =
+                    $"could not resolve the service type; write {RegisterAll}<IService>(), " +
+                    $"{RegisterAll}(typeof(IService<>)) or {RegisterAll}() with a filter";
+
+                return null;
+            }
         }
 
         ServiceLifestyle? lifestyle = null;
         var includeBaseClasses = false;
+        var registerAs = ConventionRegisterAs.Interfaces;
+        List<NamespaceFilterModel>? namespaceFilters = null;
+        RegistrationType? registrationType = null;
+        object? key = null;
+        IReadOnlyList<string>? keyNamespaces = null;
 
         for (var i = 1; i < chain.Count; i++) {
-            var name = MethodNameOf(chain[i]);
+            var call = chain[i];
+            var name = MethodNameOf(call);
 
             if (LifetimeCalls.TryGetValue(name, out var candidateLifestyle)) {
                 if (lifestyle != null) {
@@ -231,20 +266,140 @@ public static class ConventionModelUtility {
                 continue;
             }
 
+            if (RegisterAsCalls.TryGetValue(name, out var candidateRegisterAs)) {
+                if (registerAs != ConventionRegisterAs.Interfaces && registerAs != candidateRegisterAs) {
+                    reason = "a convention registers matches one way, and this one says more than one";
+
+                    return null;
+                }
+
+                registerAs = candidateRegisterAs;
+
+                continue;
+            }
+
+            if (name == UsingCall) {
+                var argument = call.ArgumentList.Arguments.FirstOrDefault()?.Expression;
+
+                registrationType = argument == null
+                    ? null
+                    : SourceGenerator.Impl.BaseSourceGenerator.GetRegistrationType(argument.ToString());
+
+                if (registrationType == null) {
+                    reason = $"'{name}' needs a RegistrationType it can read at compile time";
+
+                    return null;
+                }
+
+                continue;
+            }
+
+            if (name == WithKeyCall) {
+                var argument = call.ArgumentList.Arguments.FirstOrDefault()?.Expression;
+
+                if (argument == null) {
+                    reason = $"'{name}' needs a key";
+
+                    return null;
+                }
+
+                // Kept as it was written, the way the attribute path keeps it, so a literal, a const
+                // and an enum member all reach the emitted registration unchanged.
+                key = argument.ToString();
+
+                if (argument is MemberAccessExpressionSyntax memberAccess) {
+                    keyNamespaces = memberAccess.GetTypeDefinition(context)?.KnownNamespaces.ToArray();
+                }
+
+                continue;
+            }
+
+            if (NamespaceCalls.TryGetValue(name, out var namespaceCall)) {
+                var read = ReadNamespaceFilters(context, call, namespaceCall);
+
+                if (read == null) {
+                    reason = $"'{name}' needs a namespace it can read at compile time";
+
+                    return null;
+                }
+
+                namespaceFilters ??= new List<NamespaceFilterModel>();
+                namespaceFilters.AddRange(read);
+
+                continue;
+            }
+
             reason = $"'{name}' is not a convention call";
 
             return null;
         }
 
-        // Left null on purpose. A lifetime nobody wrote down is the most expensive thing for a
-        // registration to get wrong, so it is reported at output rather than defaulted here.
+        if (selectsByFilter) {
+            if (registerAs == ConventionRegisterAs.Interfaces) {
+                reason =
+                    $"{RegisterAll}() names no service type, so there is nothing to register the " +
+                    "matches as; call AsSelf() or AsSelfWithInterfaces()";
+
+                return null;
+            }
+
+            if (namespaceFilters == null || namespaceFilters.All(filter => filter.Exclude)) {
+                reason =
+                    $"{RegisterAll}() with no filter matches every class in the compilation; " +
+                    "narrow it with InNamespaceOf<T>() or InNamespaces(...)";
+
+                return null;
+            }
+        }
+
+        // Lifestyle left null on purpose. A lifetime nobody wrote down is the most expensive thing
+        // for a registration to get wrong, so it is reported at output rather than defaulted here.
         return new ConventionModel(
             serviceType,
-            ConventionTypeKey.For(serviceType),
+            serviceType == null ? null : ConventionTypeKey.For(serviceType),
             isOpenGeneric,
             lifestyle,
             includeBaseClasses,
-            LocationModel.From(statement));
+            LocationModel.From(statement),
+            registerAs,
+            namespaceFilters,
+            registrationType,
+            key,
+            keyNamespaces);
+    }
+
+    /// <summary>
+    /// Reads the namespaces one filter call names, from a marker type argument or from string
+    /// literals.
+    /// </summary>
+    private static List<NamespaceFilterModel>? ReadNamespaceFilters(
+        SyntaxTransformContext context, InvocationExpressionSyntax call, (bool Exact, bool Exclude) form) {
+
+        var filters = new List<NamespaceFilterModel>();
+
+        // InNamespaceOf<TMarker>() — the namespace is wherever the marker type lives.
+        if (call.Expression is MemberAccessExpressionSyntax { Name: GenericNameSyntax generic } &&
+            generic.TypeArgumentList.Arguments.Count == 1) {
+            var marker = generic.TypeArgumentList.Arguments[0].GetTypeDefinition(context);
+
+            if (marker == null) {
+                return null;
+            }
+
+            filters.Add(new NamespaceFilterModel(marker.Namespace ?? "", form.Exact, form.Exclude));
+
+            return filters;
+        }
+
+        foreach (var argument in call.ArgumentList.Arguments) {
+            if (context.SemanticModel.GetConstantValue(argument.Expression).Value is not string value) {
+                return null;
+            }
+
+            filters.Add(new NamespaceFilterModel(value, form.Exact, form.Exclude));
+        }
+
+        return filters.Count > 0 ? filters : null;
     }
 
     /// <summary>

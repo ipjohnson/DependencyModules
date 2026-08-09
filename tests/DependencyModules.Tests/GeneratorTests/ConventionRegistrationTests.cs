@@ -70,6 +70,514 @@ public class ConventionRegistrationTests {
         Assert.Equal(expected, assembly.Descriptors("IFoo").Count);
     }
 
+    /// <summary>
+    /// A partial class whose parts each reach the scanned interface is one candidate, not two.
+    /// </summary>
+    /// <remarks>
+    /// The candidate provider runs per declaration, so a two-part partial produced two candidate
+    /// models with the same implementation type, and the ambiguity check — which groups by
+    /// implementation type — read that as one class matched by two conventions. It reported DM0004
+    /// and registered nothing. One convention, named twice.
+    /// </remarks>
+    [Fact]
+    public void APartialClassReachingTheServiceFromTwoPartsIsNotAmbiguous() {
+        const string source =
+            """
+            public interface IFoo { }
+
+            public abstract class FooBase : IFoo { }
+
+            public partial class Foo : IFoo { }
+            public partial class Foo : FooBase { }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll<IFoo>().AsSingleton().IncludeBaseClasses();
+                }
+            }
+            """;
+
+        Assert.DoesNotContain(Run(source).GeneratorDiagnostics, d => d.Id == "DM0004");
+
+        var assembly = Compile(source);
+
+        Assert.Equal(assembly.Type("Foo"), assembly.Descriptor("IFoo").ImplementationType);
+    }
+
+    /// <summary>
+    /// Two parts declaring different interfaces that both reach the scanned one is still one class.
+    /// </summary>
+    [Fact]
+    public void APartialClassDeclaringTheServiceTwiceIsNotAmbiguous() {
+        const string source =
+            """
+            public interface IFoo { }
+            public interface IFooPrime : IFoo { }
+
+            public partial class Foo : IFoo { }
+            public partial class Foo : IFooPrime { }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll<IFoo>().AsSingleton();
+                }
+            }
+            """;
+
+        Assert.DoesNotContain(Run(source).GeneratorDiagnostics, d => d.Id == "DM0004");
+
+        Assert.Single(Compile(source).Descriptors("IFoo"));
+    }
+
+    /// <summary>
+    /// Declaring the interface in any part is a declared match, so the base-class opt-in is not
+    /// needed even when another part reaches the same interface through a base class.
+    /// </summary>
+    [Fact]
+    public void APartDeclaringTheServiceMakesItADeclaredMatch() {
+        const string source =
+            """
+            public interface IFoo { }
+
+            public abstract class FooBase : IFoo { }
+
+            public partial class Foo : IFoo { }
+            public partial class Foo : FooBase { }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll<IFoo>().AsSingleton();
+                }
+            }
+            """;
+
+        Assert.Single(Compile(source).Descriptors("IFoo"));
+    }
+
+    /// <summary>
+    /// The constructor can be declared in a different part from the one that names the interface.
+    /// </summary>
+    /// <remarks>
+    /// Each part reports its own constructors, and a part that declares none reports an empty
+    /// parameter list. Taking the first part's would emit a call to a constructor the type does not
+    /// have, which is a CS error inside generated code.
+    /// </remarks>
+    [Fact]
+    public void TheConstructorMayBeDeclaredInAnotherPart() {
+        const string source =
+            """
+            public interface IDep { }
+
+            [SingletonService]
+            public class Dep : IDep { }
+
+            public interface IFoo { }
+
+            public abstract class FooBase : IFoo { }
+
+            public partial class Foo : IFoo { }
+
+            public partial class Foo : FooBase {
+                public Foo(IDep dep) { Dep = dep; }
+                public IDep Dep { get; }
+            }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll<IFoo>().AsSingleton();
+                }
+            }
+            """;
+
+        var assembly = Compile(source);
+
+        Assert.IsType(assembly.Type("Foo"), assembly.ResolveRequired("IFoo"));
+    }
+
+    /// <summary>
+    /// A type filling two roles registers as both. This is the ordinary shape of a MediatR handler,
+    /// and the two registrations are independently predictable from reading the module.
+    /// </summary>
+    [Fact]
+    public void ATypeMatchedThroughDifferentInterfacesRegistersAsBoth() {
+        const string source =
+            """
+            public interface IFoo { }
+            public interface IBar { }
+
+            public partial class Thing : IFoo { }
+            public partial class Thing : IBar { }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll<IFoo>().AsSingleton();
+                    conventions.RegisterAll<IBar>().AsSingleton();
+                }
+            }
+            """;
+
+        Assert.DoesNotContain(Run(source).GeneratorDiagnostics, d => d.Id == "DM0004");
+
+        var assembly = Compile(source);
+
+        Assert.Equal(assembly.Type("Thing"), assembly.Descriptor("IFoo").ImplementationType);
+        Assert.Equal(assembly.Type("Thing"), assembly.Descriptor("IBar").ImplementationType);
+    }
+
+    /// <summary>
+    /// Each role keeps its own lifetime, and two singletons of one implementation registered under
+    /// different service types are two instances — which is what Scrutor and MediatR both produce.
+    /// Sharing one instance is <c>AsSelfWithInterfaces</c>, and it is opt-in.
+    /// </summary>
+    [Fact]
+    public void EachRoleKeepsItsOwnLifetimeAndItsOwnInstance() {
+        var assembly = Compile(
+            """
+            public interface IFoo { }
+            public interface IBar { }
+
+            public class Thing : IFoo, IBar { }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll<IFoo>().AsSingleton();
+                    conventions.RegisterAll<IBar>().AsScoped();
+                }
+            }
+            """);
+
+        Assert.Equal(ServiceLifetime.Singleton, assembly.Descriptor("IFoo").Lifetime);
+        Assert.Equal(ServiceLifetime.Scoped, assembly.Descriptor("IBar").Lifetime);
+
+        var provider = assembly.BuildProvider();
+
+        Assert.NotSame(
+            provider.GetService(assembly.Type("IFoo")),
+            provider.GetService(assembly.Type("IBar")));
+    }
+
+    /// <summary>
+    /// A handler covering several messages registers against every closing it implements.
+    /// </summary>
+    /// <remarks>
+    /// The MediatR shape. Registering only the first closing left the second silently unregistered:
+    /// green build, no diagnostic, and an event that never fires.
+    /// </remarks>
+    [Fact]
+    public void OneConventionRegistersEveryClosingACandidateImplements() {
+        var assembly = Compile(
+            """
+            public interface INotificationHandler<T> { }
+
+            public class OrderPlaced { }
+            public class OrderShipped { }
+
+            public class OrderEvents : INotificationHandler<OrderPlaced>, INotificationHandler<OrderShipped> { }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll(typeof(INotificationHandler<>)).AsTransient();
+                }
+            }
+            """);
+
+        var handlerType = assembly.Type("INotificationHandler`1");
+
+        var placed = handlerType.MakeGenericType(assembly.Type("OrderPlaced"));
+        var shipped = handlerType.MakeGenericType(assembly.Type("OrderShipped"));
+
+        var provider = assembly.BuildProvider();
+
+        Assert.IsType(assembly.Type("OrderEvents"), provider.GetService(placed));
+        Assert.IsType(assembly.Type("OrderEvents"), provider.GetService(shipped));
+    }
+
+    /// <summary>
+    /// Several closings on one type are one implementation with several registrations, not several
+    /// implementations — the shape the attribute path produces and the writer relies on.
+    /// </summary>
+    [Fact]
+    public void SeveralClosingsProduceOneImplementationWithSeveralRegistrations() {
+        var assembly = Compile(
+            """
+            public interface IHandler<T> { }
+
+            public class A { }
+            public class B { }
+
+            public class Both : IHandler<A>, IHandler<B> { }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll(typeof(IHandler<>)).AsTransient();
+                }
+            }
+            """);
+
+        var registered = assembly.Services
+            .Where(d => d.ImplementationType == assembly.Type("Both"))
+            .ToArray();
+
+        Assert.Equal(2, registered.Length);
+    }
+
+    [Fact]
+    public void UsingChoosesHowTheRegistrationIsAdded() {
+        var assembly = Compile(
+            """
+            public interface IFoo { }
+            public class FooOne : IFoo { }
+            public class FooTwo : IFoo { }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll<IFoo>().AsSingleton().Using(RegistrationType.Try);
+                }
+            }
+            """);
+
+        // Try registers the service type once and skips the second match.
+        Assert.Single(assembly.Descriptors("IFoo"));
+    }
+
+    [Fact]
+    public void WithKeyRegistersUnderAServiceKey() {
+        var assembly = Compile(
+            """
+            public interface IFoo { }
+            public class Foo : IFoo { }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll<IFoo>().AsSingleton().WithKey("primary");
+                }
+            }
+            """);
+
+        var descriptor = assembly.Descriptor("IFoo");
+
+        Assert.True(descriptor.IsKeyedService);
+        Assert.Equal("primary", descriptor.ServiceKey);
+
+        Assert.IsType(
+            assembly.Type("Foo"),
+            assembly.BuildProvider().GetRequiredKeyedService(assembly.Type("IFoo"), "primary"));
+    }
+
+    /// <summary>
+    /// The case DM0004 exists for: one service type claimed twice, so one lifetime has to win and
+    /// the source does not say which.
+    /// </summary>
+    [Fact]
+    public void TwoConventionsRegisteringOneServiceTypeIsAmbiguous() {
+        var result = Run(
+            """
+            public interface IFoo { }
+            public interface IFooPrime : IFoo { }
+
+            public class Thing : IFooPrime { }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll<IFoo>().AsScoped();
+                    conventions.RegisterAll<IFoo>().AsSingleton();
+                }
+            }
+            """);
+
+        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0004");
+
+        Assert.Contains("different lifetimes", diagnostic.GetMessage());
+        Assert.Contains("IFoo", diagnostic.GetMessage());
+    }
+
+    /// <summary>
+    /// Equal lifetimes are still an error. The outcome is predictable, but the declaration is
+    /// redundant and collapsing it silently is the failure mode this codebase avoids.
+    /// </summary>
+    [Fact]
+    public void ADuplicatedConventionIsAmbiguousEvenWithEqualLifetimes() {
+        var result = Run(
+            """
+            public interface IFoo { }
+
+            public class Thing : IFoo { }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll<IFoo>().AsSingleton();
+                    conventions.RegisterAll<IFoo>().AsSingleton();
+                }
+            }
+            """);
+
+        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0004");
+
+        Assert.Contains("duplicated", diagnostic.GetMessage());
+    }
+
+    [Fact]
+    public void AsSelfRegistersTheConcreteTypeRatherThanTheService() {
+        var assembly = Compile(
+            """
+            public interface IFoo { }
+            public class Foo : IFoo { }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll<IFoo>().AsSelf().AsSingleton();
+                }
+            }
+            """);
+
+        Assert.Empty(assembly.Descriptors("IFoo"));
+        Assert.Single(assembly.Descriptors("Foo"));
+    }
+
+    /// <summary>
+    /// AsSelfWithInterfaces promises one instance reachable through the type and every interface,
+    /// which is why it emits the cross-wire shape rather than two independent registrations.
+    /// </summary>
+    [Fact]
+    public void AsSelfWithInterfacesSharesOneInstance() {
+        var assembly = Compile(
+            """
+            public interface IFoo { }
+            public interface IBar { }
+            public class Foo : IFoo, IBar { }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll<IFoo>().AsSelfWithInterfaces().AsSingleton();
+                }
+            }
+            """);
+
+        var provider = assembly.BuildProvider();
+
+        var asFoo = provider.GetService(assembly.Type("Foo"));
+        var asIFoo = provider.GetService(assembly.Type("IFoo"));
+        var asIBar = provider.GetService(assembly.Type("IBar"));
+
+        Assert.NotNull(asFoo);
+        Assert.Same(asFoo, asIFoo);
+        Assert.Same(asFoo, asIBar);
+    }
+
+    /// <summary>
+    /// The hole this closes: a concrete class implementing nothing, selected by namespace.
+    /// </summary>
+    [Fact]
+    public void AConcreteTypeWithNoInterfaceRegistersByNamespace() {
+        var assembly = Compile(
+            """
+            public class OrderCalculator { }
+            public class OrderValidator { }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll().InNamespaceOf<OrderCalculator>().AsSelf().AsScoped();
+                }
+            }
+            """);
+
+        Assert.Single(assembly.Descriptors("OrderCalculator"));
+        Assert.Single(assembly.Descriptors("OrderValidator"));
+    }
+
+    [Fact]
+    public void NamespaceFiltersNarrowAnAssignabilityConvention() {
+        var result = Run(
+            """
+            public interface IFoo { }
+            public class Foo : IFoo { }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll<IFoo>().InNamespaces("SomewhereElse").AsSingleton();
+                }
+            }
+            """);
+
+        // Filtered out entirely, which is DM0005 rather than silence.
+        Assert.Contains(result.GeneratorDiagnostics, d => d.Id == "DM0005");
+    }
+
+    [Fact]
+    public void NotInNamespacesExcludesAfterInclusions() {
+        var assembly = Compile(
+            """
+            public interface IFoo { }
+            public class Foo : IFoo { }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll<IFoo>().NotInNamespaces("TestNamespace").AsSingleton();
+                }
+            }
+            """);
+
+        Assert.Empty(assembly.Descriptors("IFoo"));
+    }
+
+    [Fact]
+    public void RegisterAllWithNoServiceTypeNeedsAShape() {
+        var result = Run(
+            """
+            public class Thing { }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll().InNamespaceOf<Thing>().AsScoped();
+                }
+            }
+            """);
+
+        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0009");
+
+        Assert.Contains("AsSelf", diagnostic.GetMessage());
+    }
+
+    /// <summary>
+    /// Without a filter it would match every class in the compilation, so it is refused.
+    /// </summary>
+    [Fact]
+    public void RegisterAllWithNoServiceTypeAndNoFilterIsRefused() {
+        var result = Run(
+            """
+            public class Thing { }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll().AsSelf().AsScoped();
+                }
+            }
+            """);
+
+        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0009");
+
+        Assert.Contains("every class", diagnostic.GetMessage());
+    }
+
     [Fact]
     public void RegistersEveryTypeDeclaringTheServiceInterface() {
         var assembly = Compile(
@@ -333,28 +841,11 @@ public class ConventionRegistrationTests {
         Assert.Contains(result.GeneratorDiagnostics, d => d.Id == "DM0009");
     }
 
-    [Fact]
-    public void TwoConventionsMatchingOneTypeIsAmbiguous() {
-        var result = Run(
-            """
-            public interface IFoo { }
-            public interface IBar { }
-
-            public class Both : IFoo, IBar { }
-
-            [DependencyModule]
-            public partial class TestModule : IConventionModule {
-                void IConventionModule.Conventions(IConventionDefinitions conventions) {
-                    conventions.RegisterAll<IFoo>().AsSingleton();
-                    conventions.RegisterAll<IBar>().AsScoped();
-                }
-            }
-            """);
-
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0004");
-
-        Assert.Contains("Both", diagnostic.GetMessage());
-    }
+    // TwoConventionsMatchingOneTypeIsAmbiguous lived here. It asserted DM0004 for a type matched
+    // through two different interfaces, which is now a legal two-role registration; see
+    // EachRoleKeepsItsOwnLifetimeAndItsOwnInstance, which covers the same source and asserts what it
+    // registers rather than that it refuses. TwoConventionsRegisteringOneServiceTypeIsAmbiguous
+    // keeps DM0004 honest for the case it exists for.
 
     [Fact]
     public void AConcreteTypeWithNoAccessibleConstructorIsReported() {

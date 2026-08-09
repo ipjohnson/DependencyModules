@@ -57,14 +57,25 @@ public static class DependencyModuleDiagnostics {
         isEnabledByDefault: true);
 
     /// <summary>
-    /// Raised when two conventions in one module both match a type. Picking one silently would
-    /// produce a registration nobody can predict from reading the module.
+    /// Raised when two conventions in one module register a type as the <i>same</i> service type.
     /// </summary>
+    /// <remarks>
+    /// Not raised for a type filling more than one role. A class implementing both
+    /// <c>INotificationHandler&lt;OrderPlaced&gt;</c> and <c>IRequestPreProcessor&lt;ShipOrder&gt;</c>
+    /// is the ordinary shape of a MediatR handler, and the two registrations are independently
+    /// predictable from reading the module. It is one service type claimed twice that nobody can
+    /// resolve by reading the source, because one lifetime has to win and the declaration does not
+    /// say which.
+    ///
+    /// Equal lifetimes on the same service type are an error too. The outcome is predictable, but
+    /// the declaration is redundant, and silently collapsing a duplicate is the failure mode this
+    /// codebase avoids.
+    /// </remarks>
     public static readonly DiagnosticDescriptor AmbiguousConventionMatch = new(
         id: "DM0004",
         title: "Convention match is ambiguous",
         messageFormat:
-        "'{0}' is matched by more than one convention in '{1}' — as '{2}' and as '{3}'. " +
+        "'{0}' is matched by two conventions in '{1}' that both register it as '{2}'. {3} " +
         "Narrow one of them, or move it to another module.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,

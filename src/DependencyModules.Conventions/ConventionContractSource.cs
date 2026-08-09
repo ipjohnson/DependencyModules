@@ -128,6 +128,29 @@ public static class ConventionContractSource {
                 /// </remarks>
                 /// <param name="serviceType">The service type to scan for, open or closed.</param>
                 IConventionRegistration RegisterAll(global::System.Type serviceType);
+
+                /// <summary>
+                /// Registers types selected by something other than the service they implement.
+                /// </summary>
+                /// <remarks>
+                /// <para>
+                /// With no service type there is nothing to register the matches <i>as</i>, so this
+                /// form requires <see cref="IConventionRegistration.AsSelf"/> or
+                /// <see cref="IConventionRegistration.AsSelfWithInterfaces"/>. It is how a concrete
+                /// class that implements no interface gets registered by convention.
+                /// </para>
+                /// <para>
+                /// It also requires at least one filter. Without one it would match every class in
+                /// the compilation, which is never what anybody means and is reported rather than
+                /// obeyed.
+                /// </para>
+                /// <example>
+                /// <code>
+                /// conventions.RegisterAll().InNamespaceOf&lt;OrderMarker&gt;().AsSelf().AsScoped();
+                /// </code>
+                /// </example>
+                /// </remarks>
+                IConventionRegistration RegisterAll();
             }
 
             /// <summary>
@@ -159,6 +182,90 @@ public static class ConventionContractSource {
                 /// of that base joining the convention without anyone revisiting it.
                 /// </remarks>
                 IConventionRegistration IncludeBaseClasses();
+
+                /// <summary>
+                /// Registers each match as its own concrete type rather than as the service type.
+                /// </summary>
+                /// <remarks>
+                /// <c>RegisterAll&lt;IHandler&gt;().AsSelf()</c> puts <c>CreateOrderHandler</c> in
+                /// the container under <c>CreateOrderHandler</c>, not under <c>IHandler</c>.
+                /// </remarks>
+                IConventionRegistration AsSelf();
+
+                /// <summary>
+                /// Registers each match as its own type <i>and</i> as every interface it implements,
+                /// sharing one instance between them.
+                /// </summary>
+                /// <remarks>
+                /// The same contract as <c>[CrossWireService]</c>: resolving the concrete type and
+                /// resolving any of its interfaces gives the same instance, rather than one instance
+                /// per service type as two independent registrations would.
+                /// </remarks>
+                IConventionRegistration AsSelfWithInterfaces();
+
+                /// <summary>
+                /// Limits matches to the namespace of <typeparamref name="TMarker"/> and the
+                /// namespaces beneath it.
+                /// </summary>
+                /// <remarks>
+                /// A type argument rather than a string, so a namespace that does not exist cannot
+                /// be named. Several namespace filters combine with <b>or</b>.
+                /// </remarks>
+                /// <typeparam name="TMarker">Any type in the namespace to scan.</typeparam>
+                IConventionRegistration InNamespaceOf<TMarker>();
+
+                /// <summary>
+                /// Limits matches to the given namespaces and the namespaces beneath them.
+                /// </summary>
+                /// <param name="namespaces">Namespaces to include.</param>
+                IConventionRegistration InNamespaces(params string[] namespaces);
+
+                /// <summary>
+                /// Limits matches to exactly the given namespaces, excluding those beneath them.
+                /// </summary>
+                /// <param name="namespaces">Namespaces to include.</param>
+                IConventionRegistration InExactNamespaces(params string[] namespaces);
+
+                /// <summary>
+                /// Excludes the namespace of <typeparamref name="TMarker"/> and those beneath it.
+                /// </summary>
+                /// <remarks>
+                /// Exclusions are applied after inclusions, and a match excluded by any of them is
+                /// out however many inclusions it satisfied.
+                /// </remarks>
+                /// <typeparam name="TMarker">Any type in the namespace to exclude.</typeparam>
+                IConventionRegistration NotInNamespaceOf<TMarker>();
+
+                /// <summary>
+                /// Excludes the given namespaces and those beneath them.
+                /// </summary>
+                /// <param name="namespaces">Namespaces to exclude.</param>
+                IConventionRegistration NotInNamespaces(params string[] namespaces);
+
+                /// <summary>
+                /// Chooses how each match is added to the service collection.
+                /// </summary>
+                /// <remarks>
+                /// The same choice <c>[SingletonService(Using = ...)]</c> makes, and the answer to
+                /// Scrutor's <c>RegistrationStrategy</c>: <c>Try</c> skips a service type already
+                /// registered, <c>TryEnumerable</c> allows several implementations of one service,
+                /// and <c>Replace</c> takes over an existing registration. Defaults to <c>Add</c>.
+                /// </remarks>
+                /// <param name="registrationType">How to add the registration.</param>
+                IConventionRegistration Using(
+                    global::DependencyModules.Runtime.Attributes.RegistrationType registrationType);
+
+                /// <summary>
+                /// Registers every match under a service key.
+                /// </summary>
+                /// <remarks>
+                /// The key is written into the registration as you wrote it, so a string literal, a
+                /// <c>const</c> or an enum member all work. Every match of this convention shares
+                /// the key — there is no way to vary it per type, because that would take a lambda
+                /// over types the generator is only describing.
+                /// </remarks>
+                /// <param name="key">The service key.</param>
+                IConventionRegistration WithKey(object key);
             }
         }
         """;
