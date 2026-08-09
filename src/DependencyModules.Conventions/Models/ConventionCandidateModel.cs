@@ -61,7 +61,17 @@ public record ConventionCandidateModel(
     /// and an alias. Only collected for declarations that carry attributes at all, which is what
     /// keeps it off the cost of the wider candidate population.
     /// </remarks>
-    IReadOnlyList<string>? AttributeTypeKeys = null) {
+    IReadOnlyList<string>? AttributeTypeKeys = null,
+    /// <summary>
+    /// The referenced assembly this candidate was read from, or null when it comes from the
+    /// compilation being built.
+    /// </summary>
+    /// <remarks>
+    /// A convention sees one source or the other, never both: a scan of the project being built
+    /// should not silently pick up a type from a package, and a scan of a package should not pick up
+    /// a local one.
+    /// </remarks>
+    string? AssemblyName = null) {
 
     public static readonly ConventionCandidateModel Ignore = new(
         TypeDefinition.Get("", "Ignore"),
@@ -92,7 +102,8 @@ public record ConventionCandidateModel(
         ((Conditions?.Count ?? 0) == 0 && (other.Conditions?.Count ?? 0) == 0 ||
          ModelEquality.ListEquals(Conditions, other.Conditions)) &&
         ((AttributeTypeKeys?.Count ?? 0) == 0 && (other.AttributeTypeKeys?.Count ?? 0) == 0 ||
-         ModelEquality.ListEquals(AttributeTypeKeys, other.AttributeTypeKeys));
+         ModelEquality.ListEquals(AttributeTypeKeys, other.AttributeTypeKeys)) &&
+        AssemblyName == other.AssemblyName;
 
     private static bool CompareConstructor(ConstructorInfoModel? x, ConstructorInfoModel? y) {
         if (x is null && y is null) return true;

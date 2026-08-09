@@ -97,6 +97,12 @@ public static class ConventionMatcher {
                 continue;
             }
 
+            // One source or the other. A scan of the project being built must not pick up a type
+            // from a package, and a scan of a package must not pick up a local one.
+            if (candidate.AssemblyName != convention.AssemblyName) {
+                continue;
+            }
+
             if (!convention.NamespaceMatches(candidate.ImplementationType.Namespace) ||
                 !convention.AttributesMatch(candidate.AttributeTypeKeys) ||
                 !NameMatches(nameFilters, candidate.ImplementationType)) {
@@ -135,7 +141,9 @@ public static class ConventionMatcher {
 
                 report(Diagnostic.Create(
                     DependencyModuleDiagnostics.ConventionMatchNotConstructable,
-                    candidate.Location.ToLocationOrNone(),
+                    candidate.Location == LocationModel.None
+                        ? convention.Location.ToLocationOrNone()
+                        : candidate.Location.ToLocation(),
                     candidate.ImplementationType.Name,
                     serviceName,
                     moduleName));
@@ -441,7 +449,7 @@ public static class ConventionMatcher {
 
             report(Diagnostic.Create(
                 DependencyModuleDiagnostics.AmbiguousConventionMatch,
-                first.Candidate.Location.ToLocationOrNone(),
+                LocationOf(first),
                 first.Candidate.ImplementationType.Name,
                 moduleName,
                 serviceName,
@@ -482,6 +490,20 @@ public static class ConventionMatcher {
             _ => (implementation, implementation),
         };
     }
+
+    /// <summary>
+    /// Where to report a diagnostic about a match.
+    /// </summary>
+    /// <remarks>
+    /// The class itself when it is in this compilation, which is the affordance that makes DM0010
+    /// worth having — "this type is in the container as IFoo" answered in the IDE, at the type. A
+    /// match read out of a referenced assembly has no class to squiggle, so it reports at the
+    /// convention that asked for it, which is the only place the developer can act on it.
+    /// </remarks>
+    private static Location LocationOf(ConventionRegistrationMatch match) =>
+        match.Candidate.Location == LocationModel.None
+            ? match.Convention.Location.ToLocationOrNone()
+            : match.Candidate.Location.ToLocation();
 
     /// <summary>
     /// Whether an interface is one the BCL declares, and so not something to expand a service into.
@@ -541,12 +563,14 @@ public static class ConventionMatcher {
         IReadOnlyList<ConventionRegistrationMatch> matches, string moduleName, Action<Diagnostic> report) {
 
         foreach (var match in matches) {
+            var location = LocationOf(match);
+
             // A filter-selected convention reached the type directly, so there is no interface to
             // name and the type is exposed as itself.
             if (match.Interface == null) {
                 report(Diagnostic.Create(
                     DependencyModuleDiagnostics.ExposedByConvention,
-                    match.Candidate.Location.ToLocationOrNone(),
+                    location,
                     $"{match.Candidate.ImplementationType.Name} in {moduleName}"));
 
                 continue;
@@ -556,7 +580,7 @@ public static class ConventionMatcher {
 
             report(Diagnostic.Create(
                 DependencyModuleDiagnostics.ExposedByConvention,
-                match.Candidate.Location.ToLocationOrNone(),
+                location,
                 $"{match.Interface.InterfaceType.Name} in {moduleName}{via}"));
         }
     }

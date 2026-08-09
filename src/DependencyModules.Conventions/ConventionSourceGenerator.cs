@@ -70,20 +70,41 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
             .Where(model => !model.IsIgnored)
             .Collect();
 
+        // Candidates from assemblies a convention names with InAssemblyOf<T>. Combined with the
+        // compilation, so this Select re-runs whenever the compilation changes — which is every
+        // keystroke — but its result is compared by value, so the emission downstream stays cached
+        // unless the scanned assembly's public surface actually differs. When no convention names an
+        // assembly it returns an empty list after one pass over the conventions, which is the common
+        // case and costs nothing.
+        var metadataCandidates = conventionModules
+            .Combine(context.CompilationProvider)
+            .Select((pair, cancellation) =>
+                new EquatableList<ConventionCandidateModel>(
+                    MetadataCandidateUtility.Collect(pair.Left, pair.Right, cancellation)));
+
         context.RegisterSourceOutput(
-            incrementalValueProvider.Collect().Combine(conventionModules).Combine(candidates),
+            incrementalValueProvider.Collect()
+                .Combine(conventionModules)
+                .Combine(candidates)
+                .Combine(metadataCandidates),
             GenerateSourceOutput);
     }
 
     private void GenerateSourceOutput(
         SourceProductionContext context,
-        ((ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> Left,
+        (((ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> Left,
             ImmutableArray<ConventionModuleModel> Right) Left,
-            ImmutableArray<ConventionCandidateModel> Right) data) {
+            ImmutableArray<ConventionCandidateModel> Right) Left,
+            EquatableList<ConventionCandidateModel> Right) data) {
 
-        var entryPoints = data.Left.Left;
-        var conventionModules = data.Left.Right;
-        var candidates = data.Right;
+        var entryPoints = data.Left.Left.Left;
+        var conventionModules = data.Left.Left.Right;
+
+        // In-compilation candidates and metadata candidates travel together; a convention sees one
+        // source or the other, decided by whether it named an assembly.
+        var candidates = data.Left.Right.Length == 0
+            ? (IReadOnlyList<ConventionCandidateModel>)data.Right
+            : data.Left.Right.Concat(data.Right).ToArray();
 
         if (entryPoints.Length == 0 || conventionModules.Length == 0) {
             return;
@@ -108,14 +129,14 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
         SourceProductionContext context,
         ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> entryPoints,
         ImmutableArray<ConventionModuleModel> conventionModules,
-        ImmutableArray<ConventionCandidateModel> candidates,
+        IReadOnlyList<ConventionCandidateModel> candidates,
         FileLogger logger) {
 
         var (entryPointList, configurationModel) = EntryModelUtil.ConsolidateEntryPointModels(entryPoints);
 
         logger.Info(
             $"Discovered {conventionModules.Length} convention module(s) and " +
-            $"{candidates.Length} candidate type(s).");
+            $"{candidates.Count} candidate type(s).");
 
         var claimed = new HashSet<ConventionModuleModel>();
 
@@ -143,7 +164,7 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
         ModuleEntryPointModel entryPointModel,
         DependencyModuleConfigurationModel configurationModel,
         ConventionModuleModel conventionModule,
-        ImmutableArray<ConventionCandidateModel> candidates,
+        IReadOnlyList<ConventionCandidateModel> candidates,
         FileLogger logger) {
 
         var withNamespace = EntryModelUtil.EnsureNamespace(entryPointModel, configurationModel);

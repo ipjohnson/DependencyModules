@@ -37,6 +37,7 @@ public static class ConventionModelUtility {
     private const string WithoutNameCall = "WithoutName";
     private const string AsCall = "As";
     private const string AsMatchingInterfaceCall = "AsMatchingInterface";
+    private const string InAssemblyOfCall = "InAssemblyOf";
     private const string WithKeyCall = "WithKey";
 
     private static readonly Dictionary<string, ServiceLifestyle> LifetimeCalls = new() {
@@ -252,6 +253,7 @@ public static class ConventionModelUtility {
         List<AttributeFilterModel>? attributeFilters = null;
         List<NameFilterModel>? nameFilters = null;
         ITypeDefinition? explicitServiceType = null;
+        string? assemblyName = null;
 
         for (var i = 1; i < chain.Count; i++) {
             var call = chain[i];
@@ -318,6 +320,18 @@ public static class ConventionModelUtility {
 
                 if (argument is MemberAccessExpressionSyntax memberAccess) {
                     keyNamespaces = memberAccess.GetTypeDefinition(context)?.KnownNamespaces.ToArray();
+                }
+
+                continue;
+            }
+
+            if (name == InAssemblyOfCall) {
+                assemblyName = MarkerAssemblyNameOf(context, call);
+
+                if (assemblyName == null) {
+                    reason = $"'{name}' needs a type argument from the assembly to scan";
+
+                    return null;
                 }
 
                 continue;
@@ -436,7 +450,8 @@ public static class ConventionModelUtility {
             keyNamespaces,
             attributeFilters,
             nameFilters,
-            explicitServiceType);
+            explicitServiceType,
+            assemblyName);
     }
 
     /// <summary>
@@ -458,6 +473,27 @@ public static class ConventionModelUtility {
         }
 
         return values;
+    }
+
+    /// <summary>
+    /// The name of the assembly the call's marker type lives in.
+    /// </summary>
+    /// <remarks>
+    /// A name rather than a symbol, because this lands in an incremental model and symbols are not
+    /// equatable. It is also what lets a reference be rejected before any symbol work happens, which
+    /// is what keeps a metadata scan affordable.
+    /// </remarks>
+    private static string? MarkerAssemblyNameOf(
+        SyntaxTransformContext context, InvocationExpressionSyntax call) {
+
+        if (call.Expression is not MemberAccessExpressionSyntax { Name: GenericNameSyntax generic } ||
+            generic.TypeArgumentList.Arguments.Count != 1) {
+            return null;
+        }
+
+        var symbol = context.SemanticModel.GetSymbolInfo(generic.TypeArgumentList.Arguments[0]).Symbol;
+
+        return symbol?.ContainingAssembly?.Name;
     }
 
     /// <summary>

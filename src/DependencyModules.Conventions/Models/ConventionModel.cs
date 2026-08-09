@@ -149,6 +149,10 @@ public record AttributeFilterModel(string TypeKey, bool Exclude);
 /// <param name="AttributeFilters">
 /// Set by <c>WithAttribute</c> and <c>WithoutAttribute</c>. All of them have to hold.
 /// </param>
+/// <param name="AssemblyName">
+/// Set by <c>InAssemblyOf&lt;T&gt;()</c>. Null scans the compilation being built, which is the
+/// default and the common case. A convention only ever sees candidates from one source.
+/// </param>
 public record ConventionModel(
     ITypeDefinition? ServiceType,
     string? DefinitionKey,
@@ -163,7 +167,8 @@ public record ConventionModel(
     IReadOnlyList<string>? KeyNamespaces = null,
     IReadOnlyList<AttributeFilterModel>? AttributeFilters = null,
     IReadOnlyList<NameFilterModel>? NameFilters = null,
-    ITypeDefinition? ExplicitServiceType = null) {
+    ITypeDefinition? ExplicitServiceType = null,
+    string? AssemblyName = null) {
 
     /// <summary>
     /// Whether the attributes a candidate carries pass the filters.
@@ -237,7 +242,8 @@ public record ConventionModel(
         ModelEquality.ListEquals(KeyNamespaces, other.KeyNamespaces) &&
         ModelEquality.ListEquals(AttributeFilters, other.AttributeFilters) &&
         ModelEquality.ListEquals(NameFilters, other.NameFilters) &&
-        Equals(ExplicitServiceType, other.ExplicitServiceType);
+        Equals(ExplicitServiceType, other.ExplicitServiceType) &&
+        AssemblyName == other.AssemblyName;
 
     public override int GetHashCode() {
         unchecked {
@@ -254,6 +260,7 @@ public record ConventionModel(
             hash = hash * 31 + ModelEquality.ListHashCode(AttributeFilters);
             hash = hash * 31 + ModelEquality.ListHashCode(NameFilters);
             hash = hash * 31 + (ExplicitServiceType?.GetHashCode() ?? 0);
+            hash = hash * 31 + (AssemblyName?.GetHashCode() ?? 0);
             return hash;
         }
     }

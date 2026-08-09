@@ -319,6 +319,40 @@ public static class ConventionContractSource {
                 IConventionRegistration As<TService>();
 
                 /// <summary>
+                /// Scans the assembly <typeparamref name="TMarker"/> lives in, instead of the
+                /// project being built.
+                /// </summary>
+                /// <remarks>
+                /// <para>
+                /// For registering types out of a package you do not own. A project you <i>do</i>
+                /// own is better served by giving it its own module with its own conventions and
+                /// composing through module attributes — explicit, ordered, and cross-assembly by
+                /// construction.
+                /// </para>
+                /// <para>
+                /// The assembly is always named, and named by a type rather than a string, so an
+                /// assembly that is not referenced cannot be asked for. There is deliberately no
+                /// "scan everything I depend on": measured, walking every reference visits 5,350
+                /// types where one named assembly visits 10, on every keystroke.
+                /// </para>
+                /// <para>
+                /// Only <c>public</c> types are visible across an assembly boundary, where a scan of
+                /// the project being built also sees <c>internal</c> ones. Nothing can report the
+                /// <c>internal</c> type it cannot see, so this is a difference to know rather than
+                /// one that can be diagnosed.
+                /// </para>
+                /// <example>
+                /// <code>
+                /// conventions.RegisterAll(typeof(IHandler&lt;,&gt;))
+                ///     .InAssemblyOf&lt;SomeTypeInThatPackage&gt;()
+                ///     .AsScoped();
+                /// </code>
+                /// </example>
+                /// </remarks>
+                /// <typeparam name="TMarker">Any type in the assembly to scan.</typeparam>
+                IConventionRegistration InAssemblyOf<TMarker>();
+
+                /// <summary>
                 /// Registers each match as the interface named after it — <c>Foo</c> as
                 /// <c>IFoo</c>.
                 /// </summary>
