@@ -1,6 +1,11 @@
 # Attributes
 
-Every attribute lives in `DependencyModules.Runtime.Attributes`.
+Every attribute this library defines, with its properties — for looking one up once you know what you
+are after. If you are working out *which* attribute you want, the guide covers that:
+[registering services](/guide/services), [modules](/guide/modules),
+[decorators](/guide/decorators) and [environments](/guide/environments).
+
+All of them live in `DependencyModules.Runtime.Attributes`.
 
 ## Modules
 

@@ -5,10 +5,131 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2026-08-06
+## [1.0.0-rc9210] - 2026-08-09
 
-First stable release. The public API is unchanged from the `1.0.0-rc*` line; this release
-fixes packaging and generated-code defects and commits to the API surface going forward.
+Everything since `1.0.0-rc9200`. Still a release candidate: convention registration is new and
+large, and the environment API changed shape late, so the surface is not committed to yet.
+
+### Added
+
+- **Moq and FakeItEasy mocking support**, in new `DependencyModules.Moq` and
+  `DependencyModules.FakeItEasy` packages. Apply `[MoqSupport]` or `[FakeItEasySupport]` where you
+  would have applied `[NSubstituteSupport]`; `[Mock]` then works the same way. With NSubstitute and
+  FakeItEasy the injected instance is also what you configure, while Moq separates the two, so the
+  container receives `Mock<T>.Object` and the mock is reached with `Mock.Get(instance)`.
+- **`DependencyModules.Testing`**, a test-framework-neutral package holding the pieces the mocking
+  packages need — `IMockSupportAttribute`, `IOrderedAttribute`, `IInjectValueAttribute`,
+  `InjectValuesAttribute` and `AttributeUtility`. None of them referenced xUnit, but living in
+  `DependencyModules.xUnit` meant every mocking package had to depend on a test framework it does not
+  use.
+- **Convention registration**, in a new `DependencyModules.Conventions` package. A module
+  implements `IConventionModule` and declares what to register; the generator resolves the matches
+  at compile time and emits ordinary registrations. Selection by assignability, namespace,
+  attribute or name glob; shapes `AsSelf`, `AlsoAsSelf`, `AsSelfWithInterfaces`,
+  `AsMatchingInterface` and `As<T>`; `Using` and `WithKey` pass through to the registration. The
+  declaration body is read rather than executed, so anything that cannot be evaluated at build time
+  is reported as DM0009 instead of ignored. Ships as its own analyzer, so a project that does not
+  use conventions never loads the class-scanning providers.
+- **Scanning a referenced assembly.** `InAssemblyOf<T>()` points a convention at a package instead
+  of the project being built. Types are read as symbols during the build and emitted as literal
+  `typeof()`, so this survives trimming where a reflection-based scan does not. One named assembly
+  at a time; only `public` types are visible.
+- **Interception.** `[Intercept]` wraps a service in a generated type that routes every member
+  through an interceptor. `IInterceptor`, `IAsyncInterceptor` and `IAsyncEnumerableInterceptor` are
+  chosen per member, and a member no interceptor can serve is forwarded untouched. Properties,
+  indexers and events are supported; shapes that cannot be wrapped are refused with DM0008.
+- **Environment-conditional registration.** `[IfEnvironment]`, `[IfNotEnvironment]`,
+  `[IfEnvironmentValue]` and `[IfNotEnvironmentValue]` gate a registration on the environment.
+  Conditions of different kinds combine with and. `ModuleEnvironment.Default` reads
+  `ASPNETCORE_ENVIRONMENT`, then `DOTNET_ENVIRONMENT`, then `"Production"`. A `ModuleEnvironment` is
+  a collection of its values, so they can be written inline —
+  `new ModuleEnvironment("Development") { { "REGION", "eu" } }` — and enumerated back out. A key not
+  written there falls back to an environment variable of that name; a key written as `null` hides
+  one. Lead with `false` — `new ModuleEnvironment(false, "Development")` — to read only what is at
+  the call site, which is what a test asserting registrations wants. Conditional registrations are
+  emitted after unconditional ones so they can override a default; across modules, module order
+  decides.
+- **A documentation site** at <https://ipjohnson.github.io/DependencyModules/>, covering conventions,
+  decorators, interception, environments, testing, trimming and AOT, and a DM diagnostics reference —
+  all of which were previously undocumented.
+- DM0004 through DM0012, covering convention ambiguity, a convention matching nothing, an
+  unconstructable match, an unreadable declaration, provenance for convention registrations, and
+  environment conditions.
+
+### Changed
+
+- **`DependencyModules.xUnit.NSubstitute` is now `DependencyModules.NSubstitute`.** The mocking
+  packages do not touch xUnit, and naming one of them after it would have been misleading next to
+  `DependencyModules.Moq` and `DependencyModules.FakeItEasy`. Update the `PackageReference` and the
+  `using` — the attribute itself is unchanged. Types that moved to `DependencyModules.Testing`
+  changed namespace to match, so `DependencyModules.xUnit.Attributes.InjectValuesAttribute` is now
+  `DependencyModules.Testing.Attributes.InjectValuesAttribute`, and the extension methods on
+  `MethodInfo`/`ParameterInfo` moved from `DependencyModules.xUnit.Impl` to
+  `DependencyModules.Testing.Impl`. The xUnit-bound interfaces — `ITestStartupAttribute`,
+  `ITestParameterValueProvider` and `IServiceProviderBuilderAttribute`, all of which take an
+  `IXunitTestMethod` — stay where they were.
+- **`IEnvironmentServiceCollectionConfiguration.ConfigureServices` takes a non-nullable
+  `IModuleEnvironment`.** There is now always an environment, so an implementation that branched on
+  `null` takes the other branch. Existing implementations still compile.
+- **`AddModules` registers the environment it used.** Previously nothing was registered when none
+  was supplied, so `GetRequiredService<IModuleEnvironment>()` threw while conditions had been decided
+  against the process default. An environment passed to `AddModules` now replaces one already in the
+  collection rather than joining it.
+- **An `IModuleEnvironment` registered by type or factory is refused.** It cannot be constructed
+  while the collection is still being populated, and was previously ignored in favour of the process
+  default — so a service gated on `"Development"` quietly took its production branch.
+- Generated modules implement both overloads of `InternalApplyServices`. The generator package
+  declares no dependency on the runtime package, so a new generator paired with an older runtime
+  would otherwise register nothing at all.
+- Attribute providers use `ForAttributeWithMetadataName`, roughly halving generator time on a
+  2,000-class compilation. This also fixed selection of namespace-qualified attribute usages, which
+  were silently not matched.
+
+### Fixed
+
+- **A capability interface could win the default service type.** The service type is inferred from
+  the first interface a class declares, so `class ConnectionPool : IDisposable, IPool` registered as
+  `IDisposable` and was unresolvable as `IPool` — and a class whose only interface was `IDisposable`
+  registered as `IDisposable` rather than as itself. Interfaces describing what a class *can do*
+  rather than what it *is* are now passed over: `IDisposable`, `IAsyncDisposable`, `IEquatable<T>`,
+  `IComparable`, `ICloneable`, `IConvertible`, `IFormattable`, `IParsable<T>`, `ISerializable`,
+  `IEnumerable`/`IEnumerable<T>` and the `INotify*` family. Interfaces that are genuine service roles
+  are untouched, including framework ones such as `IEqualityComparer<T>`, `IJsonTypeInfoResolver` and
+  `IHttpClientFactory`, as is any type named with `As`. Previously only `INotifyPropertyChanged` was
+  skipped.
+- **A handler implementing several closings of one interface registered only the first**, silently.
+  The MediatR notification shape — one class handling two events — lost every event but one.
+- **A `[Decorator]` was matched by conventions as though it were a service.** A decorator implements
+  the interface it decorates, so a convention scanning that interface matched the decorator; being
+  generic and closing nothing it registered as an open generic, and decoration then refused
+  everything with an error blaming the open generic limitation. One open generic decorator over
+  convention-registered handlers — the ordinary MediatR shape — could not work.
+- **A partial class was two convention candidates**, so a type whose parts each reached the scanned
+  interface was reported as ambiguous and registered nothing.
+- **A nested type's constructor was used as the outer type's.** Constructor discovery walked the
+  whole subtree rather than the type's own members, so a service containing a nested class with a
+  parameterised constructor was registered against that constructor. Only visible with
+  `DependencyModules_GenerateFactories`.
+- **A decorator or interceptor file declared a record module a class**, failing the build with
+  CS0261. Two of the four writers contributing to a module's partial carried the record rewrite and
+  two did not.
+- **`AsSelfWithInterfaces` cross-wired BCL interfaces**, so any type whose base implemented
+  `IDisposable` became resolvable as `IDisposable`. Interfaces in `System` and below are no longer
+  expanded into.
+- **A metadata scan re-registered a package's own services**, ignoring the service attributes that
+  exclude a type in the project being built.
+- Constructor discovery no longer walks every method body of every candidate, which was the dominant
+  cost of the generator on ordinary code: 73 ms to 12 ms on a 2,000-class compilation, measured on
+  the run after an edit.
+- The README had a code fence opened at *Unit testing* and closed at *Implementation*, so the whole
+  *Reporting a problem* section rendered as a C# block on GitHub and on every NuGet package page.
+
+---
+
+## Earlier, in the 1.0.0-rc line
+
+The entries below were written for a 1.0.0 that was not cut. They describe the state reached at
+`1.0.0-rc9200` and the decorator work that followed it, and are kept here rather than restated.
 
 ### Fixed
 
@@ -120,4 +241,4 @@ fixes packaging and generated-code defects and commits to the API surface going 
   Enable it with `<DependencyModules_LogOutputDirectory>`.
 - A tag-driven release workflow publishing to nuget.org and GitHub Packages.
 
-[1.0.0]: https://github.com/ipjohnson/DependencyModules/releases/tag/v1.0.0
+[1.0.0-rc9210]: https://github.com/ipjohnson/DependencyModules/releases/tag/v1.0.0-rc9210

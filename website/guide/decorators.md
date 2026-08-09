@@ -1,8 +1,25 @@
 # Decorators
 
-A decorator wraps a registered service with a type you write. You get real signatures, real
-parameter names, and no generics gymnastics — which is what makes it the right tool when you want to
-do something specific to one member.
+## The problem
+
+You want to cache the results of a repository:
+
+```csharp
+[SingletonService]
+public class SqlRepository : IRepository {
+    public Item Get(int id) => /* a database round trip */;
+}
+```
+
+Putting the cache inside `SqlRepository` gives that class a second job and makes it harder to test.
+Putting it in every caller is worse. What you want is something that sits **between** the callers and
+the repository, without either side knowing.
+
+Microsoft's container has no built-in way to express that.
+
+## How DependencyModules helps
+
+Write the wrapper as an ordinary class, mark it `[Decorator]`, and it takes over the registration:
 
 ```csharp
 public interface IRepository { Item Get(int id); }
@@ -18,22 +35,23 @@ public class CachingRepository(IRepository inner, IMemoryCache cache) : IReposit
 }
 ```
 
-Resolving `IRepository` now gives you `CachingRepository` wrapping `SqlRepository`.
+Resolving `IRepository` now gives you `CachingRepository` wrapping `SqlRepository`. Neither the
+callers nor `SqlRepository` changed.
 
 ## How it is wired
 
 The **first constructor parameter is the wrapped instance**; every other parameter is resolved from
-the container. You never register the decorator yourself — `[Decorator]` is enough, and the
-decorator is not registered as a service in its own right.
+the container normally. That is the whole convention.
 
-This matters with [conventions](/guide/conventions): a decorator implements the interface it
-decorates, and `[Decorator]` keeps it out of convention matching so it is not registered as a service
-in its own right.
+You never register the decorator yourself — `[Decorator]` is enough, and the decorator is not
+registered as a service in its own right. This also keeps it out of
+[convention](/guide/conventions) matching, which matters because a decorator implements the very
+interface a convention over that interface would be looking for.
 
 ## Ordering
 
-Decorators are sorted across **every module** in an `AddModule(s)` call, not just within the module
-that declared them. Lower orders sit closer to the implementation; higher ones wrap them.
+With more than one decorator, `Order` decides the nesting. **Lower orders sit closer to the
+implementation**; higher ones wrap them:
 
 ```csharp
 [Decorator(Order = 10)] public class Retrying(IRepository inner) : IRepository { }
@@ -42,15 +60,21 @@ that declared them. Lower orders sit closer to the implementation; higher ones w
 // resolves as Logging(Retrying(SqlRepository))
 ```
 
-By convention framework packages use 0–999 and application code 1000 and above, so an application's
-decorators wrap those contributed by the libraries it consumes.
+So a logged call reports the whole retry sequence as one operation, which is usually what you want.
 
-Two decorators of one service sharing an order is [DM0007](/reference/diagnostics#dm0007).
+Ordering is global — decorators are sorted across **every module** in an `AddModule(s)` call, not
+just within the module that declared them. By convention framework packages use 0–999 and application
+code 1000 and above, so an application's decorators wrap the ones contributed by libraries it
+consumes.
 
-## Open generics
+Two decorators of one service sharing an order is [DM0007](/reference/diagnostics#dm0007), since
+their nesting would be ambiguous.
 
-One decorator can wrap every closed registration of an open generic. This is the shape that makes
-cross-cutting behaviour over MediatR handlers or FluentValidation validators a single declaration:
+## One decorator over every closed generic
+
+This is where decorators earn their keep. A single declaration can wrap **every** closed registration
+of an open generic — cross-cutting behaviour over all your MediatR handlers or FluentValidation
+validators, written once:
 
 ```csharp
 [Decorator]
@@ -65,15 +89,15 @@ public class LoggingHandler<TRequest, TResponse>(
 }
 ```
 
-Combined with a convention, that is the whole setup:
+Combined with a convention, that is the entire setup:
 
 ```csharp
 conventions.RegisterAll(typeof(IRequestHandler<,>)).AsScoped();
 ```
 
-Every handler is registered and every handler is wrapped.
+Every handler registered, every handler wrapped, and a new handler joins both by existing.
 
-## Decorating from the module
+## Decorating a type you do not own
 
 When the service, the decorator, or both come from an assembly you do not control, there is nowhere
 to put `[Decorator]`. Declare it on the module instead:
@@ -84,18 +108,19 @@ to put `[Decorator]`. Declare it on the module instead:
 public partial class DataModule;
 ```
 
-## Ordering relative to services
+## When decoration happens
 
 Decoration runs as a distinct phase **after** every module's registrations, so a decorator sees
-everything registered by every module in the call and you do not have to sequence anything.
+everything registered by every module in the call, regardless of the order they were added in. You do
+not have to sequence anything.
 
-A decorator sees the services registered by the modules in its `AddModule(s)` call. Anything you
-register afterwards is outside that scope.
+The boundary is the `AddModule(s)` call: anything you register afterwards is outside that scope and
+will not be decorated.
 
 ## One limitation
 
-A service **registered as an open generic** — a single generic implementation serving every closing
-— cannot be decorated:
+A service **registered as an open generic** — one generic implementation serving every closing —
+cannot be decorated:
 
 ```csharp
 [SingletonService]
@@ -112,14 +137,17 @@ decorated by 'CachingRepository`1'. …
 
 Register closed constructions instead.
 
-This is about the *registration*, not the decorator. An open generic decorator over closed
-registrations — the example further up — works, and is the common case.
+Note that this is about the **registration**, not the decorator. An open generic decorator over
+closed registrations — the example further up — works, and is the common case.
 
 ## Decorator or interceptor?
 
 |  | Decorator | [Interception](/guide/interception) |
 |---|---|---|
-| Who writes the wrapper | you | the generator, every member |
+| Who writes the wrapper | you | the generator, for every member |
 | Applies to | one interface | many unrelated services |
-| Member access | real signatures | uniform, `TResult` and `IArguments` |
+| Member access | real signatures and parameter names | uniform, `TResult` and `IArguments` |
 | Reach for it when | caching *this* method, validating *that* one | logging, timing, retry, tracing |
+
+If you need to do something specific to one member, write a decorator. If you need to do the same
+thing to every member of thirty services, read on.

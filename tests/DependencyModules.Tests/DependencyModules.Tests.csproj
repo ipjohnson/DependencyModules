@@ -25,7 +25,9 @@
                           OutputItemType="Analyzer" ReferenceOutputAssembly="true"
                           Aliases="ConventionsGen"/>
         <ProjectReference Include="..\..\src\DependencyModules.xUnit\DependencyModules.xUnit.csproj"/>
-        <ProjectReference Include="..\..\src\DependencyModules.xUnit.NSubstitute\DependencyModules.xUnit.NSubstitute.csproj"/>
+        <ProjectReference Include="..\..\src\DependencyModules.NSubstitute\DependencyModules.NSubstitute.csproj"/>
+        <ProjectReference Include="..\..\src\DependencyModules.Moq\DependencyModules.Moq.csproj"/>
+        <ProjectReference Include="..\..\src\DependencyModules.FakeItEasy\DependencyModules.FakeItEasy.csproj"/>
     </ItemGroup>
 
     <ItemGroup>

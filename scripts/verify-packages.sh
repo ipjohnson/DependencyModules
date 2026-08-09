@@ -33,8 +33,11 @@ for proj in \
     src/DependencyModules.SourceGenerator/DependencyModules.SourceGenerator.csproj \
     src/DependencyModules.SourceGenerator.Impl/DependencyModules.SourceGenerator.Impl.csproj \
     src/DependencyModules.Conventions/DependencyModules.Conventions.csproj \
+    src/DependencyModules.Testing/DependencyModules.Testing.csproj \
     src/DependencyModules.xUnit/DependencyModules.xUnit.csproj \
-    src/DependencyModules.xUnit.NSubstitute/DependencyModules.xUnit.NSubstitute.csproj; do
+    src/DependencyModules.NSubstitute/DependencyModules.NSubstitute.csproj \
+    src/DependencyModules.Moq/DependencyModules.Moq.csproj \
+    src/DependencyModules.FakeItEasy/DependencyModules.FakeItEasy.csproj; do
     dotnet pack "${REPO_ROOT}/${proj}" -c Release -o "${FEED}" \
         "/p:PackageVersion=${VERSION}" --nologo -v quiet
 done

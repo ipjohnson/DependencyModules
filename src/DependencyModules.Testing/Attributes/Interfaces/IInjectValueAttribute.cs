@@ -1,6 +1,6 @@
 using System.Reflection;
 
-namespace DependencyModules.xUnit.Attributes.Interfaces;
+namespace DependencyModules.Testing.Attributes.Interfaces;
 
 /// <summary>
 /// Attribute interface that can be used when resolving concrete types under test

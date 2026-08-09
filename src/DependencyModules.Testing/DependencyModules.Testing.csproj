@@ -1,0 +1,13 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsPackable>True</IsPackable>
+        <PackageId>DependencyModules.Testing</PackageId>
+        <Description>Test-framework-neutral building blocks for DependencyModules test integrations. Contains the mocking seam (IMockSupportAttribute) that the DependencyModules.NSubstitute, DependencyModules.Moq and DependencyModules.FakeItEasy packages implement, plus attribute discovery helpers. Reference a test framework integration such as DependencyModules.xUnit rather than this package directly.</Description>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    </PropertyGroup>
+
+</Project>

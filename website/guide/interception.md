@@ -1,8 +1,23 @@
 # Interception
 
-An interceptor runs around every call to a service. Unlike a [decorator](/guide/decorators) you do
-not write the wrapper — the generator emits a type implementing the service interface and routes
-every member through your interceptor.
+## The problem
+
+A [decorator](/guide/decorators) works well when you want to do something to one member. It scales
+badly in two directions.
+
+**Wide interfaces.** To time one method on an interface with twenty members, you write a decorator
+with twenty methods — nineteen of which are pass-throughs that exist only to compile, and which
+someone has to remember to update when a twenty-first member appears.
+
+**Many services.** To time thirty unrelated services, you write thirty decorators. The behaviour is
+identical in all of them; only the interface differs.
+
+In both cases you are writing forwarding code by hand, and the actual logic is four lines.
+
+## How DependencyModules helps
+
+Write the behaviour once, as an interceptor. The generator emits a type implementing the service
+interface and routes **every member** through it:
 
 ```csharp
 public class TimingInterceptor(ILogger log) : IInterceptor {
@@ -16,23 +31,28 @@ public class TimingInterceptor(ILogger log) : IInterceptor {
         }
     }
 }
+```
 
+Apply it to any service, however many members it has:
+
+```csharp
 [SingletonService]
 [Intercept(typeof(TimingInterceptor))]
 public class Repository : IRepository { }
 ```
 
-The return type comes from the generated call site, so nothing is boxed and nothing is inspected at
-run time.
+The return type comes from the generated call site rather than from reflection, so nothing is boxed
+and nothing is inspected at run time.
 
-::: info Only calls through the interface
-A call the implementation makes to itself does not pass through the wrapper.
+::: info Only calls through the interface are intercepted
+A call the implementation makes to *itself* does not pass through the wrapper — it is an ordinary
+method call inside one object.
 :::
 
 ## Three interfaces, chosen per member
 
 A synchronous interceptor cannot serve a `Task`-returning member, because it has nowhere to await.
-Implement whichever you need:
+Implement whichever kinds your services actually have:
 
 | Interface | For members returning |
 |---|---|
@@ -40,8 +60,7 @@ Implement whichever you need:
 | `IAsyncInterceptor` | `Task`, `Task<T>`, `ValueTask`, `ValueTask<T>` |
 | `IAsyncEnumerableInterceptor` | `IAsyncEnumerable<T>` |
 
-A type may implement any combination. **The generator picks per member**, and a member no
-interceptor can serve is forwarded untouched with no allocation.
+One type may implement any combination, and **the generator picks per member**:
 
 ```csharp
 public class TracingInterceptor : IInterceptor, IAsyncInterceptor {
@@ -55,14 +74,15 @@ public class TracingInterceptor : IInterceptor, IAsyncInterceptor {
 }
 ```
 
-An interceptor implementing only `IAsyncInterceptor`, applied to a service with both synchronous and
-asynchronous members, intercepts the asynchronous ones and passes the rest straight through.
+A member that no interceptor can serve is forwarded untouched, with no allocation. So an interceptor
+implementing only `IAsyncInterceptor`, applied to a service with both synchronous and asynchronous
+members, intercepts the asynchronous ones and leaves the rest alone.
 
 ## Awaiting is yours
 
-The generated wrapper awaits nothing on your behalf. An interceptor awaits `ProceedAsync()` itself,
-so anything after the await happens once the work has finished — and because the call is held in a
-single method body, state spanning it is an ordinary local:
+The generated wrapper awaits nothing on your behalf. Your interceptor awaits `ProceedAsync()` itself,
+which means anything after the await runs once the work has genuinely finished — and because the
+whole call sits in one method body, state that spans it is an ordinary local:
 
 ```csharp
 public async ValueTask<TResult> InterceptAsync<TResult>(AsyncInvocationContext<TResult> context) {
@@ -72,12 +92,12 @@ public async ValueTask<TResult> InterceptAsync<TResult>(AsyncInvocationContext<T
 }
 ```
 
-
+That `using` disposes after the awaited work completes, not when the `Task` was handed back.
 
 ## Streams
 
-An `IAsyncEnumerable<T>` member hands its stream back immediately. A stream interceptor enumerates
-it, so it observes each item as it is produced:
+An `IAsyncEnumerable<T>` member returns its stream immediately, before any item exists. A stream
+interceptor enumerates it, so it observes each item as it is produced:
 
 ```csharp
 public async IAsyncEnumerable<TItem> InterceptStream<TItem>(StreamInvocationContext<TItem> context) {
@@ -109,12 +129,13 @@ Arguments cost nothing until you read one.
 public class Repository : IRepository { }
 ```
 
-They nest in declaration order. Each is resolved from the container, so an interceptor may take its
-own dependencies.
+They nest in declaration order. Each is resolved from the container, so an interceptor can take
+dependencies of its own — as `TimingInterceptor` does with its `ILogger`.
 
 ## What cannot be intercepted
 
-These are reported as [DM0008](/reference/diagnostics#dm0008) and left unwrapped:
+The generator has to emit a real override, so some shapes are impossible. These are reported as
+[DM0008](/reference/diagnostics#dm0008) and left unwrapped rather than failing the build:
 
 - `ref`, `in` and `out` parameters, and `ref struct` parameters
 - by-reference returns
@@ -122,4 +143,4 @@ These are reported as [DM0008](/reference/diagnostics#dm0008) and left unwrapped
 - static members
 - generic implementations, which register as an open generic
 
-Custom decorators remain the answer for those.
+Write a [decorator](/guide/decorators) for those.

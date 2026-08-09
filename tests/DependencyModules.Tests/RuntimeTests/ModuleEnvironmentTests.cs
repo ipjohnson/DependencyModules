@@ -28,6 +28,183 @@ public class ModuleEnvironmentTests {
     }
 
     [Fact]
+    public void ValuesCanBeWrittenInAnInitializer() {
+        var environment = new ModuleEnvironment("Development") {
+            { "A", "1" },
+            { "Null", null }
+        };
+
+        Assert.Equal("1", environment.Value("A"));
+        Assert.Null(environment.Value("Null"));
+        Assert.Null(environment.Value("Missing"));
+    }
+
+    /// <summary>
+    /// So a fixed set can be seeded and then adjusted, rather than the two forms being exclusive.
+    /// </summary>
+    [Fact]
+    public void AnInitializerOverridesAValueFromTheConstructor() {
+        var environment = new ModuleEnvironment(
+            "Development",
+            new Dictionary<string, string?> { ["Seed"] = "original", ["Kept"] = "kept" }) {
+            { "Seed", "replaced" }
+        };
+
+        Assert.Equal("replaced", environment.Value("Seed"));
+        Assert.Equal("kept", environment.Value("Kept"));
+    }
+
+    /// <summary>
+    /// The values are copied, so the dictionary the caller still holds is not written to.
+    /// </summary>
+    [Fact]
+    public void AddDoesNotWriteToTheCallersDictionary() {
+        var values = new Dictionary<string, string?> { ["A"] = "1" };
+        var environment = new ModuleEnvironment("Development", values) { { "B", "2" } };
+
+        Assert.Equal("2", environment.Value("B"));
+        Assert.DoesNotContain("B", values.Keys);
+    }
+
+    /// <summary>
+    /// A comparer is a deliberate choice — most often to match how Windows treats variable names —
+    /// so copying the values must not quietly reset it to ordinal.
+    /// </summary>
+    [Fact]
+    public void ACallersComparerSurvivesTheCopy() {
+        var values = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase) {
+            ["Key"] = "value"
+        };
+
+        var environment = new ModuleEnvironment("Development", values);
+
+        Assert.Equal("value", environment.Value("KEY"));
+    }
+
+    [Fact]
+    public void ValuesEnumerate() {
+        var environment = new ModuleEnvironment("Development") {
+            { "A", "1" },
+            { "B", "2" }
+        };
+
+        Assert.Equal(
+            new Dictionary<string, string?> { ["A"] = "1", ["B"] = "2" },
+            environment.ToDictionary(pair => pair.Key, pair => pair.Value));
+    }
+
+    /// <summary>
+    /// Shared by every application in the process, so it cannot be one of the mutable ones.
+    /// </summary>
+    [Fact]
+    public void NoneCannotBeGivenValues() {
+        Assert.IsNotType<ModuleEnvironment>(ModuleEnvironment.None);
+    }
+
+    /// <summary>
+    /// Uniquely named so nothing else in the suite, and nothing on the machine, can be looking at it.
+    /// </summary>
+    private static string UniqueKey() => "DM_TEST_" + Guid.NewGuid().ToString("N");
+
+    [Fact]
+    public void AKeyNotSuppliedFallsBackToAnEnvironmentVariable() {
+        var key = UniqueKey();
+        var environment = new ModuleEnvironment("Development") { { "Supplied", "value" } };
+
+        Assert.Null(environment.Value(key));
+
+        try {
+            Environment.SetEnvironmentVariable(key, "from-process");
+
+            // Read on each call rather than captured, matching ModuleEnvironment.Default.
+            Assert.Equal("from-process", environment.Value(key));
+        } finally {
+            Environment.SetEnvironmentVariable(key, null);
+        }
+    }
+
+    [Fact]
+    public void ASuppliedValueWinsOverAnEnvironmentVariable() {
+        var key = UniqueKey();
+
+        try {
+            Environment.SetEnvironmentVariable(key, "from-process");
+
+            var environment = new ModuleEnvironment("Development") { { key, "supplied" } };
+
+            Assert.Equal("supplied", environment.Value(key));
+        } finally {
+            Environment.SetEnvironmentVariable(key, null);
+        }
+    }
+
+    /// <summary>
+    /// Saying a key has no value is how an environment variable of the same name is hidden.
+    /// </summary>
+    [Fact]
+    public void ASuppliedNullHidesAnEnvironmentVariable() {
+        var key = UniqueKey();
+
+        try {
+            Environment.SetEnvironmentVariable(key, "from-process");
+
+            var environment = new ModuleEnvironment("Development") { { key, null } };
+
+            Assert.Null(environment.Value(key));
+            Assert.False(EnvironmentConditions.HasValue(environment, key));
+        } finally {
+            Environment.SetEnvironmentVariable(key, null);
+        }
+    }
+
+    [Fact]
+    public void FallBackCanBeTurnedOff() {
+        var key = UniqueKey();
+
+        try {
+            Environment.SetEnvironmentVariable(key, "from-process");
+
+            var environment = new ModuleEnvironment(false, "Development") { { "Supplied", "value" } };
+
+            Assert.Null(environment.Value(key));
+            Assert.Equal("value", environment.Value("Supplied"));
+        } finally {
+            Environment.SetEnvironmentVariable(key, null);
+        }
+    }
+
+    /// <summary>
+    /// The values still travel with it, so turning fall back off does not mean giving up the
+    /// constructor that takes a dictionary.
+    /// </summary>
+    [Fact]
+    public void FallBackCanBeTurnedOffWithValuesSuppliedUpFront() {
+        var environment = new ModuleEnvironment(
+            false,
+            "Development",
+            new Dictionary<string, string?> { ["A"] = "1" });
+
+        Assert.Equal("Development", environment.EnvironmentName);
+        Assert.Equal("1", environment.Value("A"));
+    }
+
+    /// <summary>
+    /// An empty name and no values, whatever the machine running this has set.
+    /// </summary>
+    [Fact]
+    public void NoneDoesNotFallBack() {
+        var key = UniqueKey();
+
+        try {
+            Environment.SetEnvironmentVariable(key, "from-process");
+
+            Assert.Null(ModuleEnvironment.None.Value(key));
+        } finally {
+            Environment.SetEnvironmentVariable(key, null);
+        }
+    }
+
+    [Fact]
     public void NoneHasNoNameAndNoValues() {
         Assert.Equal("", ModuleEnvironment.None.EnvironmentName);
         Assert.Null(ModuleEnvironment.None.Value("Anything"));
@@ -172,8 +349,12 @@ public class EnvironmentDiscoveryTests {
 
 public class EnvironmentConditionsTests {
 
+    /// <summary>
+    /// Pinned to the values written here. These assert what a condition does with a given set of
+    /// values, so a variable set on the machine running them must not reach a key they never name.
+    /// </summary>
     private static IModuleEnvironment Env(string name, params (string Key, string? Value)[] values) =>
-        new ModuleEnvironment(name, values.ToDictionary(v => v.Key, v => v.Value));
+        new ModuleEnvironment(false, name, values.ToDictionary(v => v.Key, v => v.Value));
 
     [Theory]
     [InlineData("Development", true)]

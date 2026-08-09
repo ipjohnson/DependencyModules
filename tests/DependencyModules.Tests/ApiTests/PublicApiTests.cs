@@ -31,9 +31,28 @@ public class PublicApiTests {
         Snapshot.Match(ApiOf(typeof(ModuleTestAttribute)));
     }
 
+    /// <summary>
+    /// The seam every mocking package implements, and the only assembly they share. It carries no
+    /// test framework dependency, which is the point of it — a change here reaches all of them.
+    /// </summary>
     [Fact]
-    public void XUnitNSubstituteApi() {
-        Snapshot.Match(ApiOf(typeof(xUnit.NSubstitute.NSubstituteSupportAttribute)));
+    public void TestingApi() {
+        Snapshot.Match(ApiOf(typeof(Testing.Attributes.Interfaces.IMockSupportAttribute)));
+    }
+
+    [Fact]
+    public void NSubstituteApi() {
+        Snapshot.Match(ApiOf(typeof(global::DependencyModules.NSubstitute.NSubstituteSupportAttribute)));
+    }
+
+    [Fact]
+    public void MoqApi() {
+        Snapshot.Match(ApiOf(typeof(global::DependencyModules.Moq.MoqSupportAttribute)));
+    }
+
+    [Fact]
+    public void FakeItEasyApi() {
+        Snapshot.Match(ApiOf(typeof(global::DependencyModules.FakeItEasy.FakeItEasySupportAttribute)));
     }
 
     /// <summary>

@@ -1,0 +1,9 @@
+namespace DependencyModules.Moq
+{
+    [System.AttributeUsage(System.AttributeTargets.Assembly | System.AttributeTargets.Class | System.AttributeTargets.Method)]
+    public class MoqSupportAttribute : System.Attribute, DependencyModules.Testing.Attributes.Interfaces.IMockSupportAttribute
+    {
+        public MoqSupportAttribute() { }
+        public object ProvideMock(System.Type type) { }
+    }
+}

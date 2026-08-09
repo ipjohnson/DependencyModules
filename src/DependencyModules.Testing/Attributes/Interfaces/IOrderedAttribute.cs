@@ -1,4 +1,4 @@
-namespace DependencyModules.xUnit.Attributes.Interfaces;
+namespace DependencyModules.Testing.Attributes.Interfaces;
 
 /// <summary>
 /// Represents an interface for defining a specific order of execution or processing

@@ -1,7 +1,12 @@
 # Registering services
 
-Four attributes cover most registration. Each maps onto the `IServiceCollection` call you would
-otherwise write.
+Each registration line you would have written by hand answers three questions: how long the instance
+lives, what type callers ask for, and how the registration is added to the collection. This page
+covers how to answer each one with an attribute.
+
+## Lifetime
+
+The attribute name is the lifetime, and it maps directly onto the call it replaces:
 
 | Attribute | Emits |
 |---|---|
@@ -15,45 +20,96 @@ otherwise write.
 public class SmtpEmailSender : IEmailSender { }
 ```
 
-A class with no interface registers as itself. A class with interfaces registers as the first one it
-declares, unless you say otherwise with `As`.
+```csharp
+// generated
+services.AddSingleton(typeof(IEmailSender), typeof(SmtpEmailSender));
+```
 
-## Choosing the service type
+## What callers ask for
+
+By default, a class with interfaces registers as **the first interface it declares**, and a class
+with no interface registers as itself.
+
+That default is wrong as soon as a class implements two interfaces for different reasons:
+
+```csharp
+[SingletonService]
+public class SmtpEmailSender : IEmailSender, IDiagnosticSource { }
+```
+
+Here `IEmailSender` happens to be first, but nothing about the code says that was deliberate — and
+reordering the base list would silently change the registration. Say which one you meant:
 
 ```csharp
 [SingletonService(As = typeof(IEmailSender))]
 public class SmtpEmailSender : IEmailSender, IDiagnosticSource { }
 ```
 
-## Cross wiring
+Two details of the default worth knowing, since neither is guessable:
 
-`[CrossWireService]` is the "one instance, several front doors" registration. Resolving the concrete
-type or any of its interfaces gives the same instance.
+**Capability interfaces are passed over.** `IDisposable`, `IEquatable<T>`, `IComparable`,
+`INotifyPropertyChanged`, `IEnumerable<T>` and their relatives describe something a class *can do*,
+not what callers ask for. They are skipped when picking the default, so this registers as `IPool`
+rather than `IDisposable`:
+
+```csharp
+[SingletonService]
+public class ConnectionPool : IDisposable, IPool { }
+```
+
+If a capability interface is the only one, the class registers as itself. This is inference only —
+`[SingletonService(As = typeof(IDisposable))]` is always honoured.
+
+Note that framework interfaces which *are* genuine service roles stay eligible, so
+`IEqualityComparer<T>`, `IJsonTypeInfoResolver` and `IHttpClientFactory` all work as you would
+expect.
+
+**A class declaring no interface of its own inherits the search.** The generator walks up the base
+classes looking for one, which is what makes `class OrderRepository : RepositoryBase` register as
+`IRepository`, and `class Worker : BackgroundService` register as `IHostedService`. If it finds
+nothing but capability interfaces, the class registers as itself.
+
+### One instance behind several interfaces
+
+Sometimes both interfaces are the point. A cache with a read side and a write side wants **one
+instance** reachable through either:
 
 ```csharp
 [CrossWireService]
 public class Cache : IReadCache, IWriteCache { }
 ```
 
-Registering the interfaces separately would give you one instance per service type instead.
+```csharp
+provider.GetRequiredService<IReadCache>();    // same instance
+provider.GetRequiredService<IWriteCache>();   // as this one
+```
 
-## Keys
+Registering the two interfaces separately would give you one instance per service type instead, which
+for a cache means two caches and a bug that takes a while to find.
+
+## Several implementations of one interface
+
+When more than one implementation is registered, a key says which one you want:
 
 ```csharp
 [SingletonService(Key = "primary")]
 public class PrimaryConnection : IConnection { }
+
+[SingletonService(Key = "reporting")]
+public class ReportingConnection : IConnection { }
 ```
 
 ```csharp
 provider.GetRequiredKeyedService<IConnection>("primary");
 ```
 
-The key is written into the registration as you wrote it, so a literal, a `const` or an enum member
-all work.
+The key is written into the registration exactly as you wrote it, so a string literal, a `const` or
+an enum member all work.
 
-## Registration strategy
+## How the registration is added
 
-`Using` chooses how the registration is added.
+By default every attribute adds unconditionally, so registering the same service type twice leaves
+two descriptors and the last one wins. `Using` changes that:
 
 | Value | Behaviour |
 |---|---|
@@ -62,15 +118,20 @@ all work.
 | `TryEnumerable` | adds unless this exact service/implementation pair is present |
 | `Replace` | replaces an existing registration of the service type |
 
+`Try` is the one a library wants for a default the application should be able to override:
+
 ```csharp
 [SingletonService(Using = RegistrationType.Try)]
 public class DefaultClock : IClock { }
 ```
 
-## Factories
+The application registers its own `IClock` and wins; if it does not, `DefaultClock` is there.
 
-When a type cannot be constructed by the container, register a static factory method instead. The
-attribute goes on the method.
+## When the container cannot construct the type
+
+Some classes need something the container has no way to supply — a timestamp, a value from
+configuration, an object built by a factory somewhere else. Put the attribute on a **static factory
+method** instead of on the class:
 
 ```csharp
 public class SomeClass : ISomeInterface {
@@ -82,22 +143,23 @@ public class SomeClass : ISomeInterface {
 }
 ```
 
-Every parameter of the factory is resolved from the container.
+Every parameter of the factory method is resolved from the container; everything else is yours to
+supply.
 
-## Constructor selection
+## Choosing a constructor
 
-The greediest accessible constructor is used, matching `ActivatorUtilities`. To pick a specific one,
-mark it:
+With several constructors, the greediest accessible one is used — the same rule `ActivatorUtilities`
+follows. To pin a specific one:
 
 ```csharp
 [ActivatorUtilitiesConstructor]
 public SomeClass(IDep one) { }
 ```
 
-## Generated factories
+## Removing the container's reflection
 
-By default the generator emits `typeof(Implementation)` and the container constructs it. Factory
-generation emits a `new` expression instead, removing the container's reflection from the hot path:
+By default the generator emits `typeof(Implementation)` and lets the container construct it, which it
+does by reflection. Turning on factory generation emits a `new` expression instead:
 
 ```xml
 <PropertyGroup>
@@ -105,4 +167,19 @@ generation emits a `new` expression instead, removing the container's reflection
 </PropertyGroup>
 ```
 
-See [MSBuild properties](/reference/msbuild) for the rest.
+```csharp
+// generated, with the property set
+services.AddSingleton(
+    typeof(ISummaryProvider),
+    provider => new SummaryProvider(provider.GetRequiredService<IAiSummaryProvider>())
+);
+```
+
+Every constructor dependency becomes an explicit `GetRequiredService` call, so the container never
+reflects over the constructor. Worth it when you are chasing startup time or targeting Native AOT
+aggressively. See [MSBuild properties](/reference/msbuild) for the rest.
+
+## Next
+
+- [Conventions](/guide/conventions) — when one attribute per class stops scaling
+- [Environments](/guide/environments) — registering a different implementation per environment

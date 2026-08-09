@@ -1,10 +1,18 @@
 # Diagnostics
 
-Each code can be tuned or silenced through `.editorconfig`:
+The generator reports what it can work out at build time as `DM####` codes, so a registration mistake
+shows up in the IDE rather than as a resolution failure at startup. This page says what each one
+means and what to do about it.
+
+They behave like any other analyzer diagnostic, so each can be tuned or silenced through
+`.editorconfig`:
 
 ```ini
 dotnet_diagnostic.DM0010.severity = none
 ```
+
+`DM0010` and `DM0011` are informational and exist to make registration visible at the class. Silence
+them if the IDE gets noisy; the rest are worth reading.
 
 | Code | Severity | Meaning |
 |---|---|---|

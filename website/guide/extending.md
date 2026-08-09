@@ -1,14 +1,26 @@
 # Writing your own generator
 
-DependencyModules is built out of parts you can reuse. Module discovery, configuration reading,
-diagnostics, logging and emission all live in a shared assembly, so a package can add its own
-registration mechanism without re-implementing any of it.
+## The problem
 
-`DependencyModules.Conventions` is exactly that — a separate analyzer package that plugs into the
-same pipeline. This page describes how, using it as the worked example.
+You want a registration mechanism this library does not have — your own attribute, a DSL that suits
+your domain, registrations derived from something only your codebase knows about.
 
-::: warning Not a supported public API yet
-These are the extension points the conventions package uses, and they are public. They are not
+Writing that as a standalone source generator means rebuilding a lot of unglamorous machinery first:
+finding the modules, parsing the MSBuild configuration, producing diagnostics, keeping the
+incremental cache honest, and emitting registration code that composes with everything else. None of
+that is the part you actually wanted to write.
+
+## How DependencyModules helps
+
+All of it lives in a shared assembly you can compile into your own analyzer. Your mechanism produces
+the same `ServiceModel`s the attribute path produces, so emission needs no special case and your
+registrations compose with `[SingletonService]` and conventions as if they had always been there.
+
+`DependencyModules.Conventions` is exactly this — a separate analyzer package plugged into the same
+pipeline — and it is the worked example throughout this page.
+
+::: warning Not a stable public API yet
+These are the extension points the conventions package uses, and they are public. They are **not**
 versioned as a stable API, so a minor release may move them. If you build on this, pin the generator
 package version.
 :::
@@ -23,9 +35,6 @@ package version.
 | `FileLogger` | the diagnostic log users attach to issues |
 | Diagnostics | the `DM####` descriptors and their release tracking |
 | Model equality helpers | what keeps the incremental cache working |
-
-Producing `ServiceModel`s that look like the attribute path's means emission needs no special case —
-your mechanism and `[SingletonService]` come out the same way.
 
 ## The shape
 
@@ -65,8 +74,8 @@ public class MyGenerator : IDependencyModuleSourceGenerator {
 }
 ```
 
-For an attribute-driven mechanism, `BaseAttributeSourceGenerator<TModel>` does more of the work —
-you supply the attribute types, a transform, a comparer and an ignored sentinel:
+For an attribute-driven mechanism, `BaseAttributeSourceGenerator<TModel>` does more of the work — you
+supply the attribute types, a transform, a comparer and an ignored sentinel:
 
 ```csharp
 public class MyGenerator : BaseAttributeSourceGenerator<MyModel> {
@@ -102,8 +111,8 @@ apply it per member. Pass `true` unless you are the first.
 
 ## Packaging
 
-The project is an analyzer, and the packaging is unforgiving in ways that only show up once someone
-installs it. Copy the conventions project's csproj rather than working it out again.
+The project is an analyzer, and analyzer packaging is unforgiving in ways that only surface once
+someone installs the package. Copy the conventions project's csproj rather than working it out again.
 
 ```xml
 <PropertyGroup>
@@ -143,7 +152,8 @@ That works because **`Impl` declares no `[Generator]` of its own**. Compiling it
 analyzer assembly adds no second registration of the service, decorator or interceptor generators, so
 a project referencing both packages does not generate everything twice.
 
-If you carry the `DM####` descriptors, you need their release tracking too or the build fails RS2008:
+If you carry the `DM####` descriptors, you need their release tracking too, or the build fails
+RS2008:
 
 ```xml
 <ItemGroup>
@@ -154,8 +164,8 @@ If you carry the `DM####` descriptors, you need their release tracking too or th
 
 ## Three rules that will cost you a day each
 
-**Never put a symbol in a model.** `ISymbol` is not equatable and holds its `SyntaxTree` alive.
-A model containing one never compares equal across runs, so the incremental cache misses on every
+**Never put a symbol in a model.** `ISymbol` is not equatable and holds its `SyntaxTree` alive. A
+model containing one never compares equal across runs, so the incremental cache misses on every
 keystroke and pins memory. Render what you need to strings or `ITypeDefinition` during the transform.
 
 **Give every model structural equality.** A positional record compares `IReadOnlyList` members by
@@ -163,7 +173,7 @@ reference, so two structurally identical models built on consecutive runs are un
 downstream recomputes. `ModelEquality.ListEquals` and `ListHashCode` exist for this.
 
 **Keep the predicate syntax-only and cheap.** It runs on a great many nodes. Reject on node type
-first, and do not touch the semantic model — resolve in the transform, which runs only for what the
+first, and never touch the semantic model — resolve in the transform, which runs only for what the
 predicate accepted.
 
 ## Refuse rather than guess
@@ -173,7 +183,7 @@ The failure mode should be "this library does not support X", never a `CS` error
 code, and never a silent absence.
 
 Silent failure is the recurring bug class here. When you add something, ask what happens when it does
-not work — and if the answer is "nothing is registered and the build is green", add a diagnostic.
+*not* work — and if the answer is "nothing is registered and the build is green", add a diagnostic.
 
 ## Testing it
 
@@ -181,8 +191,8 @@ Drive the generator in memory and then **execute what it produced**. Asserting o
 passes happily while the wrong service type is registered.
 
 The pattern used throughout this repository is: compile the source with the generator, emit a real
-assembly, load it, build a provider, and resolve. See [Testing](/guide/testing) for the consumer-facing
-equivalent.
+assembly, load it, build a provider, and resolve. See [Testing modules](/guide/testing) for the
+consumer-facing equivalent.
 
 One caveat if you drive two analyzers from one test project: both compile in the shared `Impl`
 sources, so referencing both as libraries puts two copies of every `Impl` type in scope and every use

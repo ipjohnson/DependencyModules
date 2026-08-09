@@ -1,7 +1,7 @@
 using System.Reflection;
-using DependencyModules.xUnit.Attributes.Interfaces;
+using DependencyModules.Testing.Attributes.Interfaces;
 
-namespace DependencyModules.xUnit.Attributes;
+namespace DependencyModules.Testing.Attributes;
 
 /// <summary>
 /// Specifies a custom attribute used for injecting specified values into

@@ -5,8 +5,9 @@ hero:
   name: DependencyModules
   text: Dependency injection, decided at compile time
   tagline: >-
-    Attributes and conventions become ordinary registration code during the build. Nothing reflects,
-    nothing scans an assembly at startup, and the trimmer can follow every registration you declared.
+    Declare registration next to the class it belongs to, and a source generator writes the
+    IServiceCollection calls during the build. Nothing reflects, nothing scans at startup, and the
+    trimmer can follow every registration you declared.
   image:
     src: /hero.svg
     alt: Declarations on the left becoming generated registration code on the right
@@ -32,16 +33,16 @@ features:
 
   - title: Conventions without reflection
     details: >-
-      Declare what to register and the generator resolves the matches during the build. Assignability,
-      namespaces, attributes and name globs — including types in a referenced package.
+      Declare what to register once and the generator resolves the matches during the build.
+      Assignability, namespaces, attributes and name globs — including types in a referenced package.
     link: /guide/conventions
     linkText: How conventions work
 
   - title: Trimming and Native AOT safe
     details: >-
       Each match is emitted as a literal typeof(), which the trimmer roots and which carries the
-      constructor along with it. The capability that breaks reflection-based scanners is the one
-      that works here.
+      constructor along with it. The capability that breaks reflection-based scanners is the one that
+      works here.
     link: /guide/aot
     linkText: Why it survives trimming
 
@@ -70,9 +71,24 @@ features:
 
 <div class="dm-sample">
 
-## What it looks like
+## The problem
 
-Mark a class, and the registration is written for you.
+Every .NET application keeps a list like this, and nothing checks that it is complete:
+
+```csharp
+services.AddScoped<IOrderRepository, OrderRepository>();
+services.AddSingleton<IEmailSender, SmtpEmailSender>();
+// … another two hundred lines
+```
+
+Forget a line and you find out at run time, in the environment you deployed to. Reach for a runtime
+scanner instead and you trade that for three new problems: you can no longer read what was
+registered, the scan runs on every start, and the trimmer cannot see through reflection — so a
+published, trimmed build registers nothing at all.
+
+## What it looks like instead
+
+Mark the class, and the registration is written for you during the build.
 
 ```csharp
 [SingletonService]
@@ -88,7 +104,8 @@ var services = new ServiceCollection();
 services.AddModule<ApplicationModule>();
 ```
 
-Or declare a rule once, and let it cover everything that fits.
+Or declare a rule once, and let it cover everything that fits — including the handler somebody adds
+next year.
 
 ```csharp
 [DependencyModule]
@@ -101,7 +118,12 @@ public partial class HandlerModule : IConventionModule {
 ```
 
 That body never runs. It is read during the build, and what comes out the other side is the same
-registration code you would have written by hand.
+registration code you would have written by hand:
+
+```csharp
+services.AddScoped(typeof(IRequestHandler<CreateOrder, OrderId>), typeof(CreateOrderHandler));
+services.AddScoped(typeof(IRequestHandler<RenameOrder, OrderId>), typeof(RenameOrderHandler));
+```
 
 </div>
 
