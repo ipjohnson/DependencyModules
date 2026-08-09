@@ -196,3 +196,8 @@ artifacts/
 # Session working notes. Scratch for picking work up in a fresh session, not
 # project documentation — what is worth keeping belongs in docs/design.
 docs/HANDOFF.md
+
+# VitePress
+website/node_modules/
+website/.vitepress/dist/
+website/.vitepress/cache/
