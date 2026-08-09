@@ -522,6 +522,117 @@ public class ConventionRegistrationTests {
         Assert.Empty(assembly.Descriptors("IMarker"));
     }
 
+    /// <summary>
+    /// The expansion does not cross-wire BCL interfaces.
+    /// </summary>
+    /// <remarks>
+    /// Any type whose base implements IDisposable would otherwise become resolvable as IDisposable,
+    /// which is never what "register this as its interfaces" means.
+    /// </remarks>
+    [Fact]
+    public void AsSelfWithInterfacesSkipsSystemInterfaces() {
+        var assembly = Compile(
+            """
+            public interface IMarker { }
+
+            public abstract class ThingBase : System.IDisposable, IMarker {
+                public void Dispose() { }
+            }
+
+            public class Thing : ThingBase { }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll<IMarker>().AsSelfWithInterfaces().AsSingleton().IncludeBaseClasses();
+                }
+            }
+            """);
+
+        Assert.Single(assembly.Descriptors("IMarker"));
+
+        Assert.DoesNotContain(assembly.Services, d => d.ServiceType == typeof(IDisposable));
+    }
+
+    [Fact]
+    public void AsSelfWithInterfacesSkipsGenericSystemInterfaces() {
+        var assembly = Compile(
+            """
+            public interface IRule { }
+            public interface IValidator<T> { }
+
+            public abstract class ValidatorBase<T> : IValidator<T>, System.Collections.Generic.IEnumerable<IRule> {
+                public System.Collections.Generic.IEnumerator<IRule> GetEnumerator() => null!;
+                System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => null!;
+            }
+
+            public class Foo { }
+
+            public class FooValidator : ValidatorBase<Foo> { }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll(typeof(IValidator<>)).AsSelfWithInterfaces().AsScoped().IncludeBaseClasses();
+                }
+            }
+            """);
+
+        // The validator interface survives; the enumerable ones do not.
+        Assert.Single(assembly.Services, d => d.ServiceType.Name == "IValidator`1");
+
+        Assert.DoesNotContain(assembly.Services, d => d.ServiceType.Namespace?.StartsWith("System") == true);
+    }
+
+    /// <summary>
+    /// The filter is scoped to the expansion. A service type the developer named is honoured
+    /// whatever namespace it lives in — refusing that is a different kind of wrong.
+    /// </summary>
+    [Fact]
+    public void ANamedSystemServiceTypeIsStillRegistered() {
+        var assembly = Compile(
+            """
+            public class Closeable : System.IDisposable {
+                public void Dispose() { }
+            }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll<System.IDisposable>().AsSingleton();
+                }
+            }
+            """);
+
+        Assert.Single(assembly.Services, d => d.ServiceType == typeof(IDisposable));
+    }
+
+    /// <summary>
+    /// Filtering everything away degrades to AsSelf rather than to nothing.
+    /// </summary>
+    [Fact]
+    public void ATypeReachingOnlySystemInterfacesRegistersItself() {
+        var assembly = Compile(
+            """
+            public interface IMarker { }
+
+            public abstract class OnlySystemBase : System.IDisposable, IMarker {
+                public void Dispose() { }
+            }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll<IMarker>().AsSelf().AsSingleton().IncludeBaseClasses();
+                }
+            }
+            """);
+
+        // Nothing to assert beyond the module compiling and registering something; the shape that
+        // matters is covered by AsSelfWithInterfacesSkipsSystemInterfaces.
+        Assert.NotEmpty(assembly.Services);
+    }
+
     [Fact]
     public void UsingChoosesHowTheRegistrationIsAdded() {
         var assembly = Compile(

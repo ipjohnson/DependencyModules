@@ -484,6 +484,37 @@ public static class ConventionMatcher {
     }
 
     /// <summary>
+    /// Whether an interface is one the BCL declares, and so not something to expand a service into.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Applies only to the <c>AsSelfWithInterfaces</c> expansion, where the interfaces are whatever
+    /// the type happens to reach rather than anything the developer named. Without it, any type whose
+    /// base implements <see cref="IDisposable"/> becomes resolvable as <c>IDisposable</c>, and a
+    /// FluentValidation validator becomes resolvable as <c>IEnumerable&lt;IValidationRule&gt;</c> —
+    /// neither of which is what "register this as its interfaces" means.
+    /// </para>
+    /// <para>
+    /// One rule rather than a list. Autofac excludes <c>IDisposable</c> and not <c>IEnumerable</c>;
+    /// Scrutor excludes <c>IEnumerable</c> and not <c>IDisposable</c>. Both are patches added after
+    /// users hit them, and the list they imply keeps growing — <c>IEquatable&lt;T&gt;</c>,
+    /// <c>IComparable</c>, <c>ICloneable</c>. Excluding the <c>System</c> namespace covers the family
+    /// at once and is defensible in a sentence.
+    /// </para>
+    /// <para>
+    /// Deliberately not extended to <c>Microsoft.Extensions.*</c>: a <c>BackgroundService</c>
+    /// reaching <c>IHostedService</c> is something a developer could legitimately want cross-wired,
+    /// so that line does not hold the way this one does.
+    /// </para>
+    /// </remarks>
+    private static bool IsFrameworkInterface(ITypeDefinition interfaceType) {
+        var namespaceName = interfaceType.Namespace;
+
+        return namespaceName == "System" ||
+               (namespaceName != null && namespaceName.StartsWith("System.", StringComparison.Ordinal));
+    }
+
+    /// <summary>
     /// The interface named after the implementation — Foo as IFoo.
     /// </summary>
     private static ITypeDefinition? MatchingInterfaceOf(ConventionRegistrationMatch match) {
@@ -636,11 +667,15 @@ public static class ConventionMatcher {
 
                 foreach (var reachable in
                          match.Candidate.InterfacesInReach(convention.IncludeBaseClasses)) {
+                    if (IsFrameworkInterface(reachable.InterfaceType)) {
+                        continue;
+                    }
+
                     crossWired.Add(Registration(reachable.InterfaceType, crossWire: true));
                 }
 
-                // No interfaces at all still registers the type itself, which is what the developer
-                // asked for by naming a shape that includes "self".
+                // Nothing left to expand to still registers the type itself, so filtering everything
+                // away degrades to AsSelf() rather than to nothing.
                 if (crossWired.Count == 0) {
                     crossWired.Add(Registration(match.Candidate.ImplementationType));
                 }
