@@ -1,6 +1,26 @@
 # Environments
 
-A registration can depend on the environment the application is running in.
+## The problem
+
+You do not want your development machine sending real email. So the registration becomes conditional:
+
+```csharp
+// Program.cs
+if (builder.Environment.IsDevelopment()) {
+    services.AddSingleton<IEmailSender, FakeEmailSender>();
+} else {
+    services.AddSingleton<IEmailSender, SmtpEmailSender>();
+}
+```
+
+This works, and it has a habit of multiplying. The decision lives in `Program.cs`, a long way from
+either class, so reading `FakeEmailSender` tells you nothing about when it is used. After a few of
+these the composition root is a pile of branches, and the only way to know what runs in staging is to
+trace all of them.
+
+## How DependencyModules helps
+
+Put the condition on the class, next to the registration it qualifies:
 
 ```csharp
 [SingletonService]
@@ -12,9 +32,10 @@ public class FakeEmailSender : IEmailSender { }
 public class SmtpEmailSender : IEmailSender { }
 ```
 
-Resolve `IEmailSender` and you get whichever one the environment selected.
+Resolve `IEmailSender` and you get whichever one the environment selected. `Program.cs` has no branch
+in it, and each class states its own applicability where you will actually read it.
 
-## The attributes
+## The conditions
 
 | Attribute | Registers when |
 |---|---|
@@ -24,8 +45,8 @@ Resolve `IEmailSender` and you get whichever one the environment selected.
 | `[IfEnvironmentValue(key, value)]` | the value equals exactly |
 | `[IfNotEnvironmentValue(…)]` | the inverse of either form |
 
-Conditions of **different kinds** combine with **and**. Alternatives go inside one attribute, as
-`params`.
+Conditions of **different kinds** combine with **and**; alternatives go inside one attribute as
+`params`. So this registers only outside production, and only when the feature is switched on:
 
 ```csharp
 [SingletonService]
@@ -41,31 +62,85 @@ Environment **names** compare case-insensitively, matching `IHostEnvironment.IsD
 
 There is always one, and it is never null.
 
+The simplest case needs no wiring at all. Supply nothing and you get `ModuleEnvironment.Default`,
+which reads the process — `ASPNETCORE_ENVIRONMENT`, then `DOTNET_ENVIRONMENT`, then falling back to
+`"Production"`. Values come from environment variables, read on each call rather than captured once.
+
+So `[IfEnvironment("Development")]` already works against the variable your tooling sets for you.
+
+To decide explicitly — and a test should — pass one to `AddModules`:
+
 ```csharp
 services.AddModules(new ModuleEnvironment("Development"), new ApplicationModule());
 ```
 
-Supply nothing and you get `ModuleEnvironment.Default`, which reads the process:
-`ASPNETCORE_ENVIRONMENT`, then `DOTNET_ENVIRONMENT`, then `"Production"`. Values come from
-environment variables, read on each call rather than captured.
+Values go inline, since a `ModuleEnvironment` is a collection of them:
 
-So `[IfEnvironment("Development")]` works with nothing wired up beyond the variable you already set.
+```csharp
+services.AddModules(
+    new ModuleEnvironment("Development") {
+        { "FEATURE_PROFILING", "on" },
+        { "REGION", "eu" }
+    },
+    new ApplicationModule());
+```
 
-`ModuleEnvironment.None` says this application has no environment — an empty name and no values.
+A dictionary still works, and the two combine — an entry written inline replaces one of the same key
+that came from the dictionary.
 
-Whatever is used is **registered**, so `GetRequiredService<IModuleEnvironment>()` returns the same
-environment that decided the registrations.
+### What happens to keys you did not write
+
+Anything **not** written there falls back to an environment variable of that name, so supplying a
+couple of values does not mean giving up the rest.
+
+A key you did write wins — including one written as `null`, which is how you hide a variable of the
+same name:
+
+```csharp
+new ModuleEnvironment("Development") {
+    { "REGION", "eu" },        // wins over any REGION variable
+    { "FEATURE_PROFILING", null }   // hides a FEATURE_PROFILING variable
+}
+```
+
+To pin an environment to exactly what is at the call site and read nothing else, lead with `false`:
+
+```csharp
+new ModuleEnvironment(false, "Development") { { "REGION", "eu" } }   // reads nothing else
+```
+
+A test asserting which services an environment registers wants this. Otherwise a variable set on the
+machine running it can reach a key the test never mentioned, and the test passes or fails depending
+on whose machine it runs on.
+
+The flag leads rather than trailing, so it is read before the values it governs. Both forms still
+take a dictionary, so turning fallback off does not mean giving up the constructor you were using:
+
+```csharp
+new ModuleEnvironment(false, "Development", new Dictionary<string, string?> { ["A"] = "1" })
+```
+
+A comparer you supplied on that dictionary is carried over rather than reset — useful for
+`OrdinalIgnoreCase`, matching how Windows treats variable names.
+
+### Stating that there is no environment
+
+`ModuleEnvironment.None` has an empty name and no values, so every condition evaluates false. Prefer
+it to leaving the environment unset, which silently picks up the process instead.
+
+Whatever is used is **registered**, so `GetRequiredService<IModuleEnvironment>()` afterwards returns
+the same environment that decided the registrations.
 
 ::: warning Register an instance, not a type
-The environment is read while the collection is still being populated, before any provider exists,
-so only a singleton **instance** can be used.
+The environment is read while the collection is still being populated — before any provider exists to
+resolve anything — so only a singleton **instance** can work.
 
 ```csharp
 services.AddSingleton<IModuleEnvironment>(new ModuleEnvironment("Staging"));   // works
 services.AddSingleton<IModuleEnvironment, MyEnvironment>();                    // throws
 ```
 
-Registering by type or factory throws, with a message naming the fix.
+Registering by type or by factory throws, with a message naming the fix.
 :::
 
 An environment passed to `AddModules` **replaces** one already in the collection. To layer one on
@@ -78,49 +153,52 @@ var existing = services.FirstOrDefault(d => d.ServiceType == typeof(IModuleEnvir
 services.AddModules(Combine(existing ?? ModuleEnvironment.Default, overlay), modules);
 ```
 
-## Ordering
+## Overriding a default
 
-A conditional registration is emitted **after** the unconditional ones in its module, so it can
-override a default:
+A conditional registration is emitted **after** the unconditional ones in its module, which is what
+makes the override pattern work — register the normal implementation unconditionally and the special
+one conditionally:
 
 ```csharp
-[SingletonService]                                  public class SmtpEmailSender : IEmailSender { }
+[SingletonService]                                   public class SmtpEmailSender : IEmailSender { }
 [SingletonService] [IfEnvironment("Development")]    public class FakeEmailSender : IEmailSender { }
 ```
 
-In Development the fake wins, since the container resolves a single service from the last matching
-descriptor.
+In Development the fake wins, because the container resolves a single service from the **last**
+matching descriptor.
 
 Across modules, **module order decides** — a referenced module's conditional registration does not
 override the module that references it.
 
 ::: info Try is first-wins
-A conditional `Using(RegistrationType.Try)` cannot override an unconditional registration. Use `Add`,
-the default, for the override pattern.
+A conditional `Using(RegistrationType.Try)` cannot override an unconditional registration, since
+`Try` declines when the service type is already present. Use `Add`, the default, for this pattern.
 :::
 
 ## Conditions and conventions
 
 A class matched by a [convention](/guide/conventions) honours its conditions too, so a condition
-works whether the class is registered by attribute or by convention.
+behaves the same whether the class was registered by attribute or by rule.
 
 ## What conditions cost
 
-The test runs at run time, so **both branches are compiled and every conditionally registered type
-stays referenced**. Conditions change what is registered, not what ships. To remove a service from a
-build, use `#if`.
+The test runs at **run time**, which means both branches are compiled and every conditionally
+registered type stays referenced in the output.
+
+Conditions change what is *registered*, not what *ships*. To keep a service out of a build entirely,
+you want `#if`.
 
 ## Seeing it at build time
 
-[DM0011](/reference/diagnostics#dm0011) reports what each conditional registration depends on, in the
-IDE at the class.
+[DM0011](/reference/diagnostics#dm0011) reports what each conditional registration depends on, inline
+in the IDE at the class — so the applicability is visible without running anything.
 
 A condition that names nothing to test — `[IfEnvironment()]`, `[IfEnvironmentValue("")]` — is
-[DM0012](/reference/diagnostics#dm0012).
+[DM0012](/reference/diagnostics#dm0012). Both compile, and both are almost certainly a mistake.
 
 ## Programmatic access
 
-For registration that needs the environment but is not a simple condition:
+For registration that depends on the environment but is not a simple condition:
 
 ```csharp
 [DependencyModule]

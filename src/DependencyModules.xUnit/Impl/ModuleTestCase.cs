@@ -2,6 +2,8 @@ using System.Reflection;
 using DependencyModules.Runtime.Helpers;
 using DependencyModules.Runtime.Interfaces;
 using DependencyModules.xUnit.Attributes;
+using DependencyModules.Testing.Attributes.Interfaces;
+using DependencyModules.Testing.Impl;
 using DependencyModules.xUnit.Attributes.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit.Internal;

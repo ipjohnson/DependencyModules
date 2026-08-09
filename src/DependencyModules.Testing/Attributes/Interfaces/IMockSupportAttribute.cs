@@ -1,4 +1,4 @@
-namespace DependencyModules.xUnit.Attributes.Interfaces;
+namespace DependencyModules.Testing.Attributes.Interfaces;
 
 /// <summary>
 /// Defines an interface that provides support for creating mock objects within test contexts.

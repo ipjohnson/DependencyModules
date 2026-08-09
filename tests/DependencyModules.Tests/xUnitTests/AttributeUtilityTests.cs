@@ -1,5 +1,5 @@
 using System.Reflection;
-using DependencyModules.xUnit.Impl;
+using DependencyModules.Testing.Impl;
 using Xunit;
 
 namespace DependencyModules.Tests.xUnitTests;

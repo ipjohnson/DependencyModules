@@ -1,7 +1,7 @@
 using System.Collections.Immutable;
 using System.Reflection;
 
-namespace DependencyModules.xUnit.Impl;
+namespace DependencyModules.Testing.Impl;
 
 /// <summary>
 /// Provides utility methods for retrieving attributes from methods, parameters, classes, or assemblies.

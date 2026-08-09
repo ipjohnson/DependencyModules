@@ -1,4 +1,6 @@
 using System.Reflection;
+using DependencyModules.Testing.Attributes.Interfaces;
+using DependencyModules.Testing.Impl;
 using DependencyModules.xUnit.Attributes.Interfaces;
 using DependencyModules.xUnit.Impl;
 using Microsoft.Extensions.DependencyInjection;

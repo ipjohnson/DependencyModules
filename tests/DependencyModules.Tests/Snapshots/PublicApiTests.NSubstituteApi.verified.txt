@@ -1,0 +1,9 @@
+namespace DependencyModules.NSubstitute
+{
+    [System.AttributeUsage(System.AttributeTargets.Assembly | System.AttributeTargets.Class | System.AttributeTargets.Method)]
+    public class NSubstituteSupportAttribute : System.Attribute, DependencyModules.Testing.Attributes.Interfaces.IMockSupportAttribute
+    {
+        public NSubstituteSupportAttribute() { }
+        public object ProvideMock(System.Type type) { }
+    }
+}

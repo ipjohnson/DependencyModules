@@ -1,0 +1,37 @@
+namespace DependencyModules.Testing.Attributes
+{
+    public class InjectValuesAttribute : System.Attribute, DependencyModules.Testing.Attributes.Interfaces.IInjectValueAttribute
+    {
+        public InjectValuesAttribute(params object[] value) { }
+        public object[] ProvideValue(System.IServiceProvider serviceProvider, System.Reflection.ParameterInfo parameter) { }
+    }
+}
+namespace DependencyModules.Testing.Attributes.Interfaces
+{
+    public interface IInjectValueAttribute
+    {
+        object[] ProvideValue(System.IServiceProvider serviceProvider, System.Reflection.ParameterInfo parameter);
+    }
+    public interface IMockSupportAttribute
+    {
+        object ProvideMock(System.Type type);
+    }
+    public interface IOrderedAttribute
+    {
+        int Order { get; }
+    }
+}
+namespace DependencyModules.Testing.Impl
+{
+    public static class AttributeUtility
+    {
+        public static T? GetTestAttribute<T>(this System.Reflection.MethodInfo methodInfo)
+            where T :  class { }
+        public static T? GetTestAttribute<T>(this System.Reflection.ParameterInfo parameterInfo)
+            where T :  class { }
+        public static System.Collections.Generic.IEnumerable<T> GetTestAttributes<T>(this System.Reflection.MethodInfo methodInfo)
+            where T :  class { }
+        public static System.Collections.Generic.IEnumerable<T> GetTestAttributes<T>(this System.Reflection.ParameterInfo parameterInfo)
+            where T :  class { }
+    }
+}

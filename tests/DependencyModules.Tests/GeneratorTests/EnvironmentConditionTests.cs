@@ -27,10 +27,15 @@ public class EnvironmentConditionTests {
     private static GeneratedAssembly Compile(string source, IModuleEnvironment? environment) =>
         GeneratedAssembly.Create(Preamble + source, environment: environment);
 
-    private static IModuleEnvironment Env(string name) => new ModuleEnvironment(name);
+    /// <summary>
+    /// Pinned to the values written here. These assert which registrations a given set of values
+    /// produces, so a variable set on the machine running them must not reach a key they never name.
+    /// </summary>
+    private static IModuleEnvironment Env(string name) => Env(name, []);
 
+    /// <inheritdoc cref="Env(string)" />
     private static IModuleEnvironment Env(string name, params (string Key, string? Value)[] values) =>
-        new ModuleEnvironment(name, values.ToDictionary(v => v.Key, v => v.Value));
+        new ModuleEnvironment(false, name, values.ToDictionary(v => v.Key, v => v.Value));
 
     private const string NameGated =
         """

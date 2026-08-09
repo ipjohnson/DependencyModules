@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsPackable>True</IsPackable>
+        <PackageId>DependencyModules.NSubstitute</PackageId>
+        <Description>NSubstitute mocking support for DependencyModules test integrations. Add [NSubstituteSupport] to resolve any unregistered dependency as an NSubstitute substitute, and use [Mock] on a test parameter to inject and configure it. Pair with a test framework integration such as DependencyModules.xUnit.</Description>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="NSubstitute" Version="5.3.0"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\DependencyModules.Testing\DependencyModules.Testing.csproj"/>
+    </ItemGroup>
+
+</Project>

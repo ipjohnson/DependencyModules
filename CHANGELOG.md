@@ -12,6 +12,16 @@ large, and the environment API changed shape late, so the surface is not committ
 
 ### Added
 
+- **Moq and FakeItEasy mocking support**, in new `DependencyModules.Moq` and
+  `DependencyModules.FakeItEasy` packages. Apply `[MoqSupport]` or `[FakeItEasySupport]` where you
+  would have applied `[NSubstituteSupport]`; `[Mock]` then works the same way. With NSubstitute and
+  FakeItEasy the injected instance is also what you configure, while Moq separates the two, so the
+  container receives `Mock<T>.Object` and the mock is reached with `Mock.Get(instance)`.
+- **`DependencyModules.Testing`**, a test-framework-neutral package holding the pieces the mocking
+  packages need — `IMockSupportAttribute`, `IOrderedAttribute`, `IInjectValueAttribute`,
+  `InjectValuesAttribute` and `AttributeUtility`. None of them referenced xUnit, but living in
+  `DependencyModules.xUnit` meant every mocking package had to depend on a test framework it does not
+  use.
 - **Convention registration**, in a new `DependencyModules.Conventions` package. A module
   implements `IConventionModule` and declares what to register; the generator resolves the matches
   at compile time and emits ordinary registrations. Selection by assignability, namespace,
@@ -31,9 +41,14 @@ large, and the environment API changed shape late, so the surface is not committ
 - **Environment-conditional registration.** `[IfEnvironment]`, `[IfNotEnvironment]`,
   `[IfEnvironmentValue]` and `[IfNotEnvironmentValue]` gate a registration on the environment.
   Conditions of different kinds combine with and. `ModuleEnvironment.Default` reads
-  `ASPNETCORE_ENVIRONMENT`, then `DOTNET_ENVIRONMENT`, then `"Production"`. Conditional
-  registrations are emitted after unconditional ones so they can override a default; across modules,
-  module order decides.
+  `ASPNETCORE_ENVIRONMENT`, then `DOTNET_ENVIRONMENT`, then `"Production"`. A `ModuleEnvironment` is
+  a collection of its values, so they can be written inline —
+  `new ModuleEnvironment("Development") { { "REGION", "eu" } }` — and enumerated back out. A key not
+  written there falls back to an environment variable of that name; a key written as `null` hides
+  one. Lead with `false` — `new ModuleEnvironment(false, "Development")` — to read only what is at
+  the call site, which is what a test asserting registrations wants. Conditional registrations are
+  emitted after unconditional ones so they can override a default; across modules, module order
+  decides.
 - **A documentation site** at <https://ipjohnson.github.io/DependencyModules/>, covering conventions,
   decorators, interception, environments, testing, trimming and AOT, and a DM diagnostics reference —
   all of which were previously undocumented.
@@ -43,6 +58,16 @@ large, and the environment API changed shape late, so the surface is not committ
 
 ### Changed
 
+- **`DependencyModules.xUnit.NSubstitute` is now `DependencyModules.NSubstitute`.** The mocking
+  packages do not touch xUnit, and naming one of them after it would have been misleading next to
+  `DependencyModules.Moq` and `DependencyModules.FakeItEasy`. Update the `PackageReference` and the
+  `using` — the attribute itself is unchanged. Types that moved to `DependencyModules.Testing`
+  changed namespace to match, so `DependencyModules.xUnit.Attributes.InjectValuesAttribute` is now
+  `DependencyModules.Testing.Attributes.InjectValuesAttribute`, and the extension methods on
+  `MethodInfo`/`ParameterInfo` moved from `DependencyModules.xUnit.Impl` to
+  `DependencyModules.Testing.Impl`. The xUnit-bound interfaces — `ITestStartupAttribute`,
+  `ITestParameterValueProvider` and `IServiceProviderBuilderAttribute`, all of which take an
+  `IXunitTestMethod` — stay where they were.
 - **`IEnvironmentServiceCollectionConfiguration.ConfigureServices` takes a non-nullable
   `IModuleEnvironment`.** There is now always an environment, so an implementation that branched on
   `null` takes the other branch. Existing implementations still compile.

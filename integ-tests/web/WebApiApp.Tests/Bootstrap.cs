@@ -1,4 +1,4 @@
-﻿using DependencyModules.xUnit.NSubstitute;
+﻿using DependencyModules.NSubstitute;
 using WebApiApp;
 
 [assembly: NSubstituteSupport]

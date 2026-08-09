@@ -271,8 +271,12 @@ It handles the population and construction of a service provider using specified
 
 ```shell
 dotnet add package DependencyModules.xUnit
-dotnet add package DependencyModules.xUnit.NSubstitute
+dotnet add package DependencyModules.NSubstitute
 ```
+
+Mocking is supplied by a separate package, so use whichever library you already have —
+`DependencyModules.NSubstitute`, `DependencyModules.Moq` or `DependencyModules.FakeItEasy` — and
+apply its `[NSubstituteSupport]`, `[MoqSupport]` or `[FakeItEasySupport]` attribute.
 
 ```csharp
 // applies module & nsubstitute support to all tests.

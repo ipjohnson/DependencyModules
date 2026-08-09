@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsPackable>True</IsPackable>
+        <PackageId>DependencyModules.Moq</PackageId>
+        <Description>Moq mocking support for DependencyModules test integrations. Add [MoqSupport] to resolve any unregistered dependency as a Moq mock, and use [Mock] on a test parameter to inject it. Reach the underlying Mock&lt;T&gt; with Mock.Get(instance). Pair with a test framework integration such as DependencyModules.xUnit.</Description>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Moq" Version="4.20.72"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\DependencyModules.Testing\DependencyModules.Testing.csproj"/>
+    </ItemGroup>
+
+</Project>

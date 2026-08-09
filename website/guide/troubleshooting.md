@@ -1,11 +1,13 @@
 # Troubleshooting
 
-If services are not registered the way you expect, three steps produce almost everything needed to
-diagnose it.
+Something is not registered the way you expected. Because every registration is generated code sitting
+in your own assembly, you can go and look at it rather than guessing — which makes this a short page.
+
+Three steps produce almost everything needed to diagnose a problem, in the order worth doing them.
 
 ## 1. Read the generated code
 
-The registrations the generator produced are the ground truth.
+This answers "was it registered, and as what" definitively, and it is usually the only step you need.
 
 ```xml
 <PropertyGroup>
@@ -13,19 +15,29 @@ The registrations the generator produced are the ground truth.
 </PropertyGroup>
 ```
 
-The files appear under `obj/`. `YourModule.Dependencies.g.cs` holds the registrations,
-`YourModule.Module.g.cs` the module plumbing, and there are separate files for decorators and
-interceptors.
+The files appear under `obj/`:
+
+| File | Holds |
+|---|---|
+| `YourModule.Dependencies.g.cs` | the registrations |
+| `YourModule.Module.g.cs` | the module plumbing |
+| *(separate files)* | decorators and interceptors |
+
+A service missing from `Dependencies.g.cs` was never discovered — jump to the common causes below. A
+service present but registered as the wrong service type is a question about `As` and matching, and
+[Registering services](/guide/services#what-callers-ask-for) covers it.
 
 ::: warning Stale files
 If you redirect `CompilerGeneratedFilesOutputPath` into your project, delete the folder between runs.
-Stale files compile alongside fresh ones and produce a wall of `CS0111`/`CS0579`.
+Stale files compile alongside fresh ones and produce a wall of `CS0111`/`CS0579` that has nothing to
+do with your actual problem.
 :::
 
 ## 2. Turn on the generator log
 
-It records the configuration in effect, every module and service discovered, and anything skipped
-along with the reason.
+When the generated file does not explain it, the log says what the generator saw and what it decided
+— the configuration in effect, every module and service discovered, and anything skipped **along with
+the reason**.
 
 ```xml
 <PropertyGroup>
@@ -35,34 +47,43 @@ along with the reason.
 
 ## 3. Check for DM diagnostics
 
-The generator reports what it can detect at build time. See the
-[diagnostics reference](/reference/diagnostics) for what each one means and what to do about it.
+The generator reports what it can detect at build time, and a good deal of what goes wrong here is
+already a warning you have not read yet. See the [diagnostics reference](/reference/diagnostics).
 
 ## Common causes
 
-**The module is not `partial`.** [DM0003](/reference/diagnostics#dm0003). The generator cannot
-complete a class it cannot extend.
+**The module is not `partial`.** [DM0003](/reference/diagnostics#dm0003). The generator completes
+your class; without `partial` there is nothing to complete.
 
 **The module is nested inside another type.** A nested module generates a separate, detached class
-rather than completing the partial, so its registrations never run. Declare it directly in a
+instead of completing your partial, so its registrations never run. Declare modules directly in a
 namespace.
 
 **A convention matched nothing.** [DM0005](/reference/diagnostics#dm0005) — usually a renamed
 interface or a typo in a filter.
 
-**A service was registered but resolves to the wrong implementation.** The container takes the last
-matching descriptor for a single resolve. Check the order in the generated file — conditional
-registrations are emitted after unconditional ones.
-
 **A convention picked up something unexpected.** Narrow it with a
-[filter](/guide/conventions#narrowing-what-matches). Watch name patterns in particular — `*Handler`
+[filter](/guide/conventions#narrowing-what-matches). Watch name patterns in particular: `*Handler`
 matches `LoggingHandler` too.
 
-**`AddModule` called more than once.** Modules compose through attributes; calling `AddModule` inside
-a module or several times at the root duplicates registrations.
+**The wrong implementation resolves.** The container takes the **last** matching descriptor for a
+single resolve. Check the order in the generated file, remembering that conditional registrations are
+emitted after unconditional ones — see [overriding a default](/guide/environments#overriding-a-default).
+
+**A test resolves the wrong environment branch.** Supply nothing and the *process* environment is
+used, defaulting to `"Production"`. See
+[testing conditional registrations](/guide/testing-registrations#testing-conditional-registrations).
+
+**An assertion on the concrete type fails.** An [intercepted](/guide/interception) or
+[decorated](/guide/decorators) service resolves as the wrapper, not your class.
+
+**`AddModule` called more than once.** Modules compose through
+[attributes](/guide/modules#composing-modules); calling `AddModule` inside a module, or several times
+at the root, duplicates registrations.
 
 ## Reporting a problem
 
-Please include the generator log and the generated file in any
+Please include **the generator log and the generated file** in any
 [issue](https://github.com/ipjohnson/DependencyModules/issues). Between them they show whether a
-service was discovered, which realm it landed in, and what configuration was in effect.
+service was discovered, which realm it landed in, and what configuration was in effect — which is
+most of the way to a diagnosis before anyone has to reproduce it.

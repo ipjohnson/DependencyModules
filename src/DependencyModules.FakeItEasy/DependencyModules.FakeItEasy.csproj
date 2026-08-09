@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsPackable>True</IsPackable>
+        <PackageId>DependencyModules.FakeItEasy</PackageId>
+        <Description>FakeItEasy mocking support for DependencyModules test integrations. Add [FakeItEasySupport] to resolve any unregistered dependency as a FakeItEasy fake, and use [Mock] on a test parameter to inject and configure it. Pair with a test framework integration such as DependencyModules.xUnit.</Description>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="FakeItEasy" Version="8.3.0"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\DependencyModules.Testing\DependencyModules.Testing.csproj"/>
+    </ItemGroup>
+
+</Project>

@@ -1,7 +1,8 @@
 # MSBuild properties
 
-Set these in a `PropertyGroup` in the consuming project. They reach the generator through the
-package's `build/*.targets`.
+Project-wide settings that change what the generator emits. Set them in a `PropertyGroup` in the
+consuming project; they reach the generator through the package's `build/*.targets`, so they work
+when the packages are installed from NuGet.
 
 | Property | Default | |
 |---|---|---|
