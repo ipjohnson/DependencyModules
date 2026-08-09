@@ -66,6 +66,14 @@ export default defineConfig({
           ],
         },
         {
+          text: 'Testing',
+          items: [
+            { text: 'Testing modules', link: '/guide/testing' },
+            { text: 'Mocks and values', link: '/guide/testing-mocks' },
+            { text: 'Testing registrations', link: '/guide/testing-registrations' },
+          ],
+        },
+        {
           text: 'Registering in bulk',
           items: [
             { text: 'Conventions', link: '/guide/conventions' },
@@ -83,9 +91,9 @@ export default defineConfig({
         {
           text: 'Everything else',
           items: [
-            { text: 'Testing', link: '/guide/testing' },
             { text: 'Trimming and AOT', link: '/guide/aot' },
             { text: 'Troubleshooting', link: '/guide/troubleshooting' },
+            { text: 'Writing your own generator', link: '/guide/extending' },
           ],
         },
       ],

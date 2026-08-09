@@ -26,9 +26,9 @@ The **first constructor parameter is the wrapped instance**; every other paramet
 the container. You never register the decorator yourself — `[Decorator]` is enough, and the
 decorator is not registered as a service in its own right.
 
-That last part matters with [conventions](/guide/conventions): a decorator implements the interface
-it decorates, so a convention scanning that interface would otherwise match the decorator too.
-`[Decorator]` takes it out of convention matching for exactly that reason.
+This matters with [conventions](/guide/conventions): a decorator implements the interface it
+decorates, and `[Decorator]` keeps it out of convention matching so it is not registered as a service
+in its own right.
 
 ## Ordering
 
@@ -45,8 +45,7 @@ that declared them. Lower orders sit closer to the implementation; higher ones w
 By convention framework packages use 0–999 and application code 1000 and above, so an application's
 decorators wrap those contributed by the libraries it consumes.
 
-Two decorators of one service sharing an order is [DM0007](/reference/diagnostics#dm0007) — the
-nesting would be unpredictable from reading the source.
+Two decorators of one service sharing an order is [DM0007](/reference/diagnostics#dm0007).
 
 ## Open generics
 
@@ -88,13 +87,10 @@ public partial class DataModule;
 ## Ordering relative to services
 
 Decoration runs as a distinct phase **after** every module's registrations, so a decorator sees
-everything registered by every module in the call. You do not have to sequence anything, which is
-the main difference from `Decorate()` in Scrutor.
+everything registered by every module in the call and you do not have to sequence anything.
 
-The contract is worth stating precisely: a decorator sees the services registered by the modules in
-its `AddModule(s)` call. Anything the application registers afterwards is outside that scope, which
-is inherent to `IServiceCollection` — decoration rewrites descriptors, so it can only see
-descriptors that exist.
+A decorator sees the services registered by the modules in its `AddModule(s)` call. Anything you
+register afterwards is outside that scope.
 
 ## One limitation
 
@@ -114,11 +110,10 @@ InvalidOperationException: 'IRepository`1' is registered as an open generic and 
 decorated by 'CachingRepository`1'. …
 ```
 
-Decoration replaces a registration with a factory, and the container does not allow a factory for an
-open generic service type. Register closed constructions instead.
+Register closed constructions instead.
 
-Note this is about the *registration*, not the decorator. An open generic decorator over closed
-registrations — the example further up — works and is the common case.
+This is about the *registration*, not the decorator. An open generic decorator over closed
+registrations — the example further up — works, and is the common case.
 
 ## Decorator or interceptor?
 

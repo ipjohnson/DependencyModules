@@ -22,8 +22,8 @@ public class TimingInterceptor(ILogger log) : IInterceptor {
 public class Repository : IRepository { }
 ```
 
-Because the interface is not generic and the method is, the return type comes from the generated
-call site. Nothing is boxed and nothing is inspected at run time.
+The return type comes from the generated call site, so nothing is boxed and nothing is inspected at
+run time.
 
 ::: info Only calls through the interface
 A call the implementation makes to itself does not pass through the wrapper.
@@ -31,9 +31,8 @@ A call the implementation makes to itself does not pass through the wrapper.
 
 ## Three interfaces, chosen per member
 
-A synchronous interceptor has nowhere to await, so it cannot serve a `Task`-returning member — the
-surrounding code would report completion when the task was handed back rather than when the work
-finished. Implement whichever you can serve:
+A synchronous interceptor cannot serve a `Task`-returning member, because it has nowhere to await.
+Implement whichever you need:
 
 | Interface | For members returning |
 |---|---|
@@ -56,10 +55,8 @@ public class TracingInterceptor : IInterceptor, IAsyncInterceptor {
 }
 ```
 
-An interceptor implementing only `IAsyncInterceptor` applied to a service with both synchronous and
-asynchronous members intercepts the asynchronous ones and passes the rest straight through. That is
-deliberate: an interface is intercepted as a whole, and an interceptor has nothing to say about the
-members it cannot serve.
+An interceptor implementing only `IAsyncInterceptor`, applied to a service with both synchronous and
+asynchronous members, intercepts the asynchronous ones and passes the rest straight through.
 
 ## Awaiting is yours
 
@@ -75,14 +72,12 @@ public async ValueTask<TResult> InterceptAsync<TResult>(AsyncInvocationContext<T
 }
 ```
 
-A `using` spanning the call is inexpressible with separate enter and exit hooks, which is why there
-are none.
+
 
 ## Streams
 
-An `IAsyncEnumerable<T>` member hands its stream back immediately, so wrapping it as an ordinary
-value would measure the construction of the iterator and nothing else. A stream interceptor
-enumerates it, and so observes each item as it is produced:
+An `IAsyncEnumerable<T>` member hands its stream back immediately. A stream interceptor enumerates
+it, so it observes each item as it is produced:
 
 ```csharp
 public async IAsyncEnumerable<TItem> InterceptStream<TItem>(StreamInvocationContext<TItem> context) {
@@ -105,7 +100,7 @@ public async IAsyncEnumerable<TItem> InterceptStream<TItem>(StreamInvocationCont
 | `Caller.ServiceType`, `Caller.MemberName` | what is being called |
 | `Arguments` | by index or by name, and **writable** — a write replaces what the implementation receives |
 
-Arguments cost nothing until read, because they are typed fields that box only on access.
+Arguments cost nothing until you read one.
 
 ## Several interceptors
 
@@ -119,10 +114,9 @@ own dependencies.
 
 ## What cannot be intercepted
 
-The generator refuses rather than guessing, reporting [DM0008](/reference/diagnostics#dm0008):
+These are reported as [DM0008](/reference/diagnostics#dm0008) and left unwrapped:
 
-- `ref`, `in` and `out` parameters, and `ref struct` parameters — they cannot live in a field, and
-  async cannot take them either
+- `ref`, `in` and `out` parameters, and `ref struct` parameters
 - by-reference returns
 - `init`-only setters
 - static members

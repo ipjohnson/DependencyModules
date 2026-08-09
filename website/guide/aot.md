@@ -1,7 +1,6 @@
 # Trimming and Native AOT
 
-This is the reason the library exists in the shape it does, so it is worth being precise about what
-survives and what does not.
+What survives trimming, and what does not.
 
 ## The problem with scanning at run time
 
@@ -18,18 +17,15 @@ assembly:
 services.AddScoped(typeof(IHandler<CreateOrder, OrderId>), typeof(CreateOrderHandler));
 ```
 
-Two things follow, and the second matters more than people expect.
+Two things follow.
 
 **The trimmer roots the type**, because a `typeof()` in your code is an ordinary static reference.
 
 **The constructor survives too.** `ServiceDescriptor`'s implementation-type parameter carries
-`[DynamicallyAccessedMembers(PublicConstructors)]`. That annotation can only flow to a type the
-compiler knows about — which is exactly what a literal `typeof()` gives it, and exactly what a type
-discovered at run time does not.
+`[DynamicallyAccessedMembers(PublicConstructors)]`, and that annotation can only flow to a type the
+compiler knows about.
 
-Neither works when the type is only discovered at run time. **The capability that breaks a
-reflection-based scanner is the capability that works here**, including for
-[types in a referenced package](/guide/scanning).
+Both hold for [types in a referenced package](/guide/scanning) as well.
 
 ## What this covers
 
@@ -46,9 +42,7 @@ build is a compile-time decision and belongs to `#if`.
 **Open generic registration is the least AOT-friendly part of the container itself**, independent of
 this library. If you are targeting Native AOT aggressively, prefer closed registrations.
 
-**Runtime assembly discovery is not offered.** Scrutor's `FromApplicationDependencies()`,
-`FromDependencyContext()` and `FromAssemblyDependencies()` load libraries by name at run time. There
-is no compile-time answer, so those are deliberately absent rather than approximated — see
+**Runtime assembly discovery is not supported**, since there is nothing to resolve at build time. See
 [Scanning a package](/guide/scanning).
 
 ## The generator never ships

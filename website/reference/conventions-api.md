@@ -60,8 +60,7 @@ applied afterwards and any one removes a match.
 
 ## What is not offered
 
-Anything taking a lambda. `Where(Func<Type,bool>)`, `AsImplementedInterfaces(predicate)`,
-`WithLifetime(Func<Type,ServiceLifetime>)` and `WithServiceKey(Func<Type,object?>)` have no
-compile-time equivalent, because a generator cannot run your code over the types it is describing.
+Anything taking a lambda — a predicate over types, or a lifetime chosen per type. The declaration is
+read at compile time rather than run.
 
 Use `IServiceCollectionConfiguration.ConfigureServices` for those.

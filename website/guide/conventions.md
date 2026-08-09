@@ -14,6 +14,9 @@ public partial class DataModule : IConventionModule {
 }
 ```
 
+Implement `Conventions` **explicitly**, as above. An implicit `public void Conventions(…)` does not
+compile.
+
 ::: tip Install
 Conventions ship in their own analyzer package, so a project that does not use them never loads the
 class-scanning providers.
@@ -25,36 +28,12 @@ dotnet add package DependencyModules.Conventions
 
 ## The body never runs
 
-This is the one thing worth understanding before anything else. `Conventions` is **read** at compile
-time, not executed. The generator parses the calls out of your source, resolves the matching types,
-and emits ordinary registrations. Nothing implements `IConventionDefinitions` at run time and the
-method is never called.
+`Conventions` is **read** at compile time, not executed. That means only the calls documented on this
+page may appear in it — a loop, a conditional, a local variable or a call to your own helper is
+reported as [DM0009](/reference/diagnostics#dm0009).
 
-That has two consequences.
-
-**Only the declared calls may appear in it.** A loop, a conditional, a local variable or a call to
-your own helper cannot be evaluated during a build, so they are reported as
-[DM0009](/reference/diagnostics#dm0009) rather than quietly ignored.
-
-**You get the same output as writing it by hand.** There is no convention engine at run time, no
-registration strategy to configure. `EmitCompilerGeneratedFiles` will show you `services.AddScoped(…)`
-calls, one per match.
-
-## Why the interface name appears twice
-
-```csharp
-public partial class DataModule : IConventionModule {
-    void IConventionModule.Conventions(IConventionDefinitions conventions) { }
-    // ^^^^^^^^^^^^^^^^^^ explicit implementation
-}
-```
-
-`IConventionDefinitions` is emitted `internal` into your compilation, so an implicit
-`public void Conventions(…)` is `CS0051: Inconsistent accessibility`. Explicit implementation is the
-only shape that compiles.
-
-Emitting the contract `internal` keeps it off your public API surface, and it means two assemblies
-that both use conventions do not collide on the same type names.
+What comes out is ordinary registration code, one `services.AddScoped(…)` per match. Turn on
+`EmitCompilerGeneratedFiles` to read it.
 
 ## What matches
 
@@ -79,10 +58,8 @@ public class ProductRepository : RepositoryBase { }      // no match by default
 conventions.RegisterAll<IRepository>().IncludeBaseClasses().AsScoped();   // now it matches
 ```
 
-Extending a class is a statement about implementation reuse rather than about the contract, and
-every subclass added years later would otherwise join the convention with nobody revisiting it. It
-is an opt-in because the common `CreateOrderValidator : AbstractValidator<CreateOrder>` shape needs
-it and because silently inheriting registration is worse than typing one call.
+Turn it on for the common `CreateOrderValidator : AbstractValidator<CreateOrder>` shape. Bear in mind
+that every future subclass of that base joins the convention too.
 
 ::: info Attributes always win
 A type carrying `[SingletonService]`, `[ScopedService]`, `[TransientService]` or `[CrossWireService]`
@@ -92,8 +69,8 @@ it decorates, and it is not a service.
 
 ## Open generics
 
-`typeof(IHandler<,>)` cannot be written as a type argument, which is why there is a `Type` overload.
-Each match registers against the **closed** construction it actually implements:
+An open generic cannot be written as a type argument, so use the `Type` overload. Each match
+registers against the **closed** construction it implements:
 
 ```csharp
 public class CreateOrderHandler : IRequestHandler<CreateOrder, OrderId> { }
@@ -165,9 +142,8 @@ bare type name. Matching is ordinal and case-sensitive, like C# identifiers.
 conventions.RegisterAll<IRepository>().WithName("*Repository", "*Store").AsScoped();
 ```
 
-Name globbing is the weakest selector here and is listed last deliberately. It is the one most likely
-to match something nobody intended when a class is added years later — prefer a service type, an
-attribute, or a namespace.
+Prefer a service type, an attribute or a namespace where you can. A name pattern will happily match
+a class somebody adds next year.
 
 ## Registering types that implement nothing
 
@@ -182,9 +158,8 @@ conventions.RegisterAll()
     .AsScoped();
 ```
 
-It requires a shape — there is nothing to register the matches *as* otherwise — and at least one
-filter. Without a filter it would match every class in the compilation, which is never what anybody
-means, so it is reported rather than obeyed.
+It requires a shape and at least one filter. Both are reported as
+[DM0009](/reference/diagnostics#dm0009) if missing.
 
 ## What each match is registered as
 
@@ -220,18 +195,16 @@ types gives the same instance. The difference is reach — `AlsoAsSelf()` regist
 the convention matched, `AsSelfWithInterfaces()` registers everything the type implements.
 
 ::: warning AsSelfWithInterfaces skips System interfaces
-Interfaces declared in `System` or a namespace beginning `System.` are not expanded into. Without
-that, any type whose base implements `IDisposable` would become resolvable *as* `IDisposable`, and a
-FluentValidation validator would become resolvable as `IEnumerable<IValidationRule>`.
+Interfaces in `System` or a namespace beginning `System.` are not expanded into, so a type whose base
+implements `IDisposable` does not become resolvable as `IDisposable`.
 
-It applies only to the expansion. A service type you named yourself is always honoured, so
+This applies only to the expansion. A service type you name yourself is always honoured, so
 `RegisterAll<IDisposable>()` still registers `IDisposable`.
 :::
 
 ## Lifetime, keys and registration strategy
 
-A lifetime is required. There is no default, because a lifetime nobody wrote down is the most
-expensive thing for a registration to get wrong — omitting one is
+A lifetime is required; there is no default. Omitting one is
 [DM0009](/reference/diagnostics#dm0009).
 
 ```csharp
@@ -243,9 +216,8 @@ conventions.RegisterAll<IRepository>()
 
 ## When two conventions collide
 
-Two conventions in one module that would register the same implementation under the **same service
-type** is [DM0004](/reference/diagnostics#dm0004), an error. One lifetime has to win and the source
-does not say which.
+Two conventions in one module registering the same implementation under the **same service type** is
+[DM0004](/reference/diagnostics#dm0004), an error — the lifetime would be ambiguous.
 
 ```csharp
 conventions.RegisterAll<IRepository>().AsScoped();
@@ -265,11 +237,10 @@ Conventions in *different* modules never collide — each registers into its own
 
 ## What conventions will not do
 
-Every Scrutor overload that takes a lambda — `Where(Func<Type,bool>)`,
-`AsImplementedInterfaces(predicate)`, `WithLifetime(Func<Type,ServiceLifetime>)` — has no
-compile-time equivalent. A generator cannot run your code over the types it is describing.
+Anything that would need a lambda over the matched types — a predicate, or a lifetime chosen per type
+— cannot be expressed, because the declaration is read at compile time rather than run.
 
-The escape hatch is a normal method, and it composes with everything above:
+Use `IServiceCollectionConfiguration` for those, alongside your conventions:
 
 ```csharp
 [DependencyModule]

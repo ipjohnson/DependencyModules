@@ -51,12 +51,12 @@ namespace.
 interface or a typo in a filter.
 
 **A service was registered but resolves to the wrong implementation.** The container takes the last
-matching descriptor for a single resolve. Check the order in the generated file; conditional
-registrations are emitted after unconditional ones deliberately.
+matching descriptor for a single resolve. Check the order in the generated file — conditional
+registrations are emitted after unconditional ones.
 
 **A convention picked up something unexpected.** Narrow it with a
-[filter](/guide/conventions#narrowing-what-matches), and remember that a name glob is the weakest
-selector — `*Handler` matches a decorator named `LoggingHandler` just as readily.
+[filter](/guide/conventions#narrowing-what-matches). Watch name patterns in particular — `*Handler`
+matches `LoggingHandler` too.
 
 **`AddModule` called more than once.** Modules compose through attributes; calling `AddModule` inside
 a module or several times at the root duplicates registrations.
@@ -64,6 +64,5 @@ a module or several times at the root duplicates registrations.
 ## Reporting a problem
 
 Please include the generator log and the generated file in any
-[issue](https://github.com/ipjohnson/DependencyModules/issues). Between them they answer whether a
-service was discovered at all, which realm it landed in, and what configuration was in effect —
-none of which is visible from the generated output alone.
+[issue](https://github.com/ipjohnson/DependencyModules/issues). Between them they show whether a
+service was discovered, which realm it landed in, and what configuration was in effect.
