@@ -1,8 +1,14 @@
 # Design: convention registration and decorators
 
-Status: part 2 phase A is implemented — typed decorators, module-level `[Decorate]`, open generic
-decorators, and global ordering. Convention registration (part 1), generated forwarding (phase B),
-and interceptors (part 3) remain design only.
+Status: convention registration (part 1) is implemented and unshipped, in its own analyzer package.
+Part 2 phase A is implemented — typed decorators, module-level `[Decorate]`, open generic decorators,
+and global ordering. Interceptors (part 3) are implemented, and the shipped model is the pipeline
+described in `docs/HANDOFF.md` rather than the two tiers sketched here. Generated forwarding
+(phase B) remains design only.
+
+Part 1 now also carries a **plan for scanning referenced assemblies**, which earlier revisions of
+this document ruled out. That reversal is recorded in *Scanning referenced assemblies* below,
+together with the probe that produced it.
 
 Two features that would close the functional gap with [Scrutor](https://github.com/khellang/Scrutor)
 without giving up what makes this library different: everything resolved at compile time, no
@@ -12,6 +18,9 @@ They are described together because they share machinery and because the orderin
 agreed once for both.
 
 - [Part 1: convention registration](#part-1-convention-registration)
+  - [What shipped](#what-shipped)
+  - [Scanning referenced assemblies — planned](#scanning-referenced-assemblies--planned)
+- [Scrutor parity](#scrutor-parity)
 - [Part 2: decorators](#part-2-decorators)
 - [Part 3: interceptors](#part-3-interceptors)
 - [Sequencing](#sequencing)
@@ -66,13 +75,16 @@ services.Scan(scan => scan
     .WithScopedLifetime());
 ```
 
-The attributes in this library already solve the same problem at compile time. The gap is narrower
-than it looks: developers who do not want to annotate every class individually.
+The attributes in this library already solve the same problem at compile time, for developers willing
+to annotate every class individually. Everything else Scrutor offers is measured against what shipped
+in *Scrutor parity* below — the gap is wider than "annotation avoidance", and almost none of it is
+about other assemblies.
 
-**Do not port Scrutor's API.** A fluent scanning DSL means runtime reflection over assemblies, which
-is exactly what this library exists to remove, and would give the package two registration
-mechanisms with different trimming characteristics. The compile-time equivalent is a pattern
-evaluated by the generator.
+**Do not port Scrutor's API.** A scanning DSL *evaluated at run time* means reflection over
+assemblies, which is exactly what this library exists to remove, and would give the package two
+registration mechanisms with different trimming characteristics. The compile-time equivalent is the
+same declaration **read** by the generator rather than executed — which is what shipped, and what
+makes scanning a referenced assembly a compile-time operation rather than a runtime one.
 
 Note also that `IServiceCollectionConfiguration.ConfigureServices` already provides unrestricted
 fluent access to `IServiceCollection` for anything a convention cannot express.
@@ -137,6 +149,61 @@ One incidental point for the shipped shape: explicit implementations cannot be s
 the only form CA1822 does not flag. Every alternative needs `static` on the method to stay clean
 under `AnalysisMode=All`.
 
+### What shipped
+
+Four verbs, and that is the entire API:
+
+```csharp
+conventions.RegisterAll<IRepository>().AsScoped();
+conventions.RegisterAll(typeof(IHandler<,>)).AsTransient().IncludeBaseClasses();
+```
+
+`RegisterAll<T>()` / `RegisterAll(typeof(...))`, the three `As*` lifetimes, and `IncludeBaseClasses()`.
+**One selector axis — assignability — and one registration shape, "as the interface that matched."**
+Everything in *Selector priority* below except assignability is unimplemented, and the *Glob
+semantics* section describes a selector that does not exist yet.
+
+Three structural decisions worth not re-deriving:
+
+- **`DependencyModules.Conventions` is its own analyzer package**, sharing `Impl` by compiling in its
+  sources rather than by declaring a second `[Generator]` there. A project that never references it
+  never loads the class-scanning provider — which matters, because that predicate is the one thing
+  here that visits every type node.
+- **Matching runs at output time, not in a transform.** That is why it can report diagnostics at all,
+  and why it does not have to be cacheable. The transform stays syntax-shaped and the expensive part
+  stays out of the incremental graph.
+- **It produces `ServiceModel`/`ServiceRegistrationModel` indistinguishable from the attribute path**,
+  so `DependencyFileWriter` needed no changes. That seam is what makes the parity work below cheap.
+
+`ConventionCandidateUtility` deliberately does not materialise the transitive interface closure: only
+interfaces written on the declaration plus what those extend, with base-class-reached interfaces held
+in a separate list behind `IncludeBaseClasses()`. The cached model stays proportional to what was
+written rather than to hierarchy depth. The opt-in is also stricter than Scrutor's `AssignableTo`,
+which always walks base classes and silently enrols every subclass added later.
+
+### Known defect: partial classes produce a false DM0004
+
+**Proven by running it.** A partial class that reaches the scanned interface from more than one part
+is reported as ambiguous and registers nothing:
+
+```
+error DM0004: 'Foo' is matched by more than one convention in 'TestModule'
+              — as 'IFoo' and as 'IFoo'. Narrow one of them, or move it to another module.
+```
+
+One convention, named twice. The candidate provider is per *declaration* — `CreateSyntaxProvider`
+over `ClassDeclarationSyntax` — while `RemoveAmbiguous` groups by `ImplementationType` and assumes one
+model per type. Two syntax declarations of one partial type yield two `ConventionCandidateModel`s with
+equal `ImplementationType`.
+
+The shape that will actually hit users is not the duplicated interface in the reproduction. It is
+`partial class Foo : IFoo` in one file and `partial class Foo : FooBase` in another under
+`IncludeBaseClasses()`, where both parts reach `IFoo`.
+
+Fix by merging candidates on `ImplementationType` before matching, or by deduping on the
+`(convention, candidate)` pair inside `RemoveAmbiguous`. Note this fails loudly rather than silently,
+which is the better failure mode, but the registration is still lost.
+
 ### Selector priority
 
 Name globbing is the weakest of the available selectors and is listed last deliberately. The one
@@ -161,19 +228,120 @@ must register the *closed* interface against the implementation. Emission for th
 a class closing an open generic registers and resolves correctly today, and only for its own type
 argument. What is new is the selector, not the code generation.
 
-### Explicitly out of scope: scanning referenced assemblies
+### Scanning referenced assemblies — planned
 
-Scrutor's `FromApplicationDependencies()` registers types from packages you do not own. That is
-**not** planned, for two reasons:
+**This reverses an earlier position in this document.** The previous revision ruled out all
+cross-assembly scanning on the grounds that it "contradicts the compile-time goal" and is "the one
+Scrutor capability that has no honest compile-time equivalent." That conflated three different
+things, and it is true of only one of them.
 
-- It contradicts the compile-time goal. It is the one Scrutor capability that has no honest
-  compile-time equivalent.
-- The module system already covers the case that actually matters. Cross-assembly scanning is largely
-  a workaround for having no way to compose registrations across projects; here each project declares
-  its own module and composes through module attributes.
+Scrutor's eight source methods collapse into three capabilities:
 
-If demand appears, a separate runtime-scanning package could provide it without compromising the
-core. It should not live in this library.
+| | Capability | Compile-time answer |
+|---|---|---|
+| 1 | Types in the compilation being built | what ships today |
+| 2 | Types in assemblies **referenced at compile time** — project references and NuGet packages | **yes — proven, see below** |
+| 3 | Assemblies discovered at run time from the deps file or from disk | none, ever |
+
+Only (3) is genuinely out of reach, and it is also the part of Scrutor that already fails under
+trimming and Native AOT. So the gap this library has against Scrutor is not "cannot see other
+assemblies"; it is "cannot see assemblies that were not there at build time."
+
+#### Verified, do not re-derive
+
+Probed end to end with a standalone Roslyn harness, not reasoned about. A library was compiled to a
+real DLL, then a **second compilation referencing it and containing no handlers in any syntax tree**
+was run through an `IIncrementalGenerator`, which emitted:
+
+```csharp
+private static void ModuleDependencies(IServiceCollection services) {
+    services.AddScoped(typeof(global::TheLibrary.IHandler<global::TheLibrary.CreateOrder, global::TheLibrary.OrderId>), typeof(global::TheLibrary.CreateOrderHandler));
+    services.AddScoped(typeof(global::TheLibrary.IHandler<global::TheLibrary.RenameOrder, global::TheLibrary.OrderId>), typeof(global::TheLibrary.RenameOrderHandler));
+}
+```
+
+That is the whole convention feature working across an assembly boundary: an open generic matched
+against metadata, each implementation registered against the **closed** construction it actually
+implements, constructors read from metadata, and two exclusions applied correctly — an `internal`
+handler, invisible across the boundary, and one whose only constructor is private.
+
+Reproduce it by compiling a library to an in-memory DLL, referencing it from a second
+`CSharpCompilation` whose only syntax tree declares a module, and running a generator that resolves
+`compilation.GetAssemblyOrModuleSymbol(reference)` and walks `IAssemblySymbol.GlobalNamespace`.
+Assignability is `type.AllInterfaces` compared on `OriginalDefinition`; constructors are
+`type.InstanceConstructors`. The probe was standalone and is not retained.
+
+**This is what makes it AOT-safe rather than AOT-hostile.** Scrutor enumerates an assembly's types by
+reflection, which the trimmer cannot follow: it has no way to know those types are needed, removes
+them, and the scan finds nothing at run time. Doing the same work at compile time emits a literal
+`typeof()` for every implementation into the consumer's assembly. That is a static reference the
+trimmer roots, and — the part that actually matters — it lets the
+`[DynamicallyAccessedMembers(PublicConstructors)]` annotation on `ServiceDescriptor`'s
+implementation-type parameter flow to a known type, so the constructor survives too. Neither works
+when the type is only discovered at run time. **The capability that breaks Scrutor under AOT is the
+capability that works here.**
+
+#### Cost, measured
+
+The naive shape — walk every referenced assembly — is not viable, and the numbers say so:
+
+| | types visited | time |
+|---|---|---|
+| Every referenced assembly | 5,350 | 13 ms |
+| One assembly named by the convention | 10 | 0.019 ms |
+
+Roughly 700× apart, on the same keystroke. And 13 ms is a *minimal* eleven-reference compilation;
+a real application carries an order of magnitude more references, so the naive path only gets worse.
+
+**Correction to an assumption that was wrong.** `context.MetadataReferencesProvider` does *not* buy
+per-reference caching. It must be combined with `CompilationProvider` to resolve
+`GetAssemblyOrModuleSymbol`, and the compilation changes on every keystroke, so every reference is
+re-visited on every edit — measured, all eleven. What bounds the cost is not the provider shape. It is
+the convention naming the assembly, so a reference is rejected on its name before any symbol work
+happens.
+
+#### The API this forces
+
+```csharp
+conventions.RegisterAll(typeof(IHandler<,>)).InAssemblyOf<SomeTypeInThatPackage>().AsScoped();
+```
+
+- **The assembly is named, always.** There is no `InAllDependencies()` and there should never be one.
+  This is deliberately narrower than Scrutor, and the measurement above is the reason.
+- **`InAssemblyOf<T>()` rather than a string name.** A type argument cannot be written unless the
+  assembly is already referenced, so "you named an assembly that is not referenced" becomes
+  impossible to express rather than a diagnostic to report. Prefer the shape that deletes the error.
+- **Absent the call, a convention scans the compilation being built** — existing behaviour, unchanged.
+
+#### Implementation constraints
+
+1. **Model equality is not optional here.** `ImmutableArray<T>` compares by reference of the
+   underlying array, so an unchanged walk still re-runs everything downstream — measured. The result
+   has to be wrapped the way `ModelEquality.ListEquals` already does it elsewhere in this codebase.
+2. **Visibility differs by reach.** Referenced assemblies expose only `public` types; the
+   in-compilation path also takes `internal`. One verb with two reaches has to be documented, because
+   nothing can detect the `internal` type it cannot see.
+3. **Constructor info needs a symbol-driven path.** `ServiceModelUtility.GetConstructorInfo` is
+   syntax-driven. Metadata types need an equivalent that reads `IMethodSymbol`. This is the one
+   genuinely new piece of code, and the probe confirms the information is all there.
+4. **DM0010 loses its location.** "Registered as `IFoo`, reported at the class" is the best affordance
+   conventions have, and there is no class to squiggle inside a referenced DLL. Matches from a
+   referenced assembly have to report at the `RegisterAll` line instead.
+5. **No new diagnostic IDs are required.** DM0004, DM0005, DM0006, DM0009 and DM0010 all generalise
+   unchanged.
+
+#### What stays out, and why the module system still comes first
+
+`FromApplicationDependencies()`, `FromDependencyContext()` and `FromAssemblyDependencies(Assembly)`
+load runtime libraries by name, including assemblies that were never compile-time references. There
+is no compile-time answer and no way to fake one. If demand ever appears, a separate runtime-scanning
+package could provide it; it should not live in this library.
+
+Note also that (2) is not the first tool to reach for. Any referenced project **you own** is better
+served by declaring its own module with its own conventions and composing through module attributes —
+explicit, ordered, and cross-assembly by construction. Referenced-assembly scanning earns its keep on
+assemblies you **do not** own, where you cannot add a module: third-party packages whose handlers,
+validators or policies you want registered.
 
 ### Glob semantics
 
@@ -251,11 +419,31 @@ full visit. Worth doing independently of this proposal.
 
 ### Diagnostics
 
+Shipped, and the reason this feature is worth having over a runtime scanner:
+
 | ID | Severity | Condition |
 |---|---|---|
 | DM0004 | Error | Two conventions in one module match the same type |
 | DM0005 | Warning | A convention matched no types |
 | DM0006 | Warning | A convention matched a type that cannot be constructed, e.g. no accessible constructor |
+| DM0009 | Error | A convention declaration could not be read |
+| DM0010 | Info | A service is registered by convention, reported at the class |
+
+**Canonical allocation across the whole library** — the tables in parts 2 and 3 below predate several
+of these and are wrong where they disagree. Next free ID is **DM0011**.
+
+| ID | Severity | Meaning |
+|---|---|---|
+| DM0001 | Error | The generator failed; registrations may be missing |
+| DM0002 | Warning | A service type cannot be constructed and was not registered |
+| DM0003 | Error | A module marked `[DependencyModule]` is not partial |
+| DM0004 | Error | Two conventions in one module match the same type |
+| DM0005 | Warning | A convention matched no types |
+| DM0006 | Warning | A convention matched a type with no accessible constructor |
+| DM0007 | Error | Two decorators of one service share an order |
+| DM0008 | Warning | A service marked for interception cannot be wrapped |
+| DM0009 | Error | A convention declaration could not be read |
+| DM0010 | Info | A service is registered by convention |
 
 Add to `DependencyModuleDiagnostics`, and record them in `AnalyzerReleases.Unshipped.md` or the
 build fails RS2008.
@@ -273,6 +461,96 @@ Behavioural, using `GeneratedAssembly` — compile, load, resolve. Do not assert
 - DM0004/DM0005/DM0006 fire; a valid convention reports nothing
 - incremental: editing an unrelated method body reuses cached output
   (`GeneratorTestHarness.RunIncremental`)
+
+---
+
+## Scrutor parity
+
+Scrutor's surface, read off its interfaces rather than its README, is three axes and a strategy:
+
+| Axis | Scrutor |
+|---|---|
+| Source | `FromEntryAssembly`, `FromAssemblyOf<T>`, `FromAssembliesOf`, `FromAssemblies`, `FromApplicationDependencies(+predicate)`, `FromAssemblyDependencies(Assembly)`, `FromDependencyContext(+predicate)`, `AddTypes` |
+| Filter | `AssignableTo`, `AssignableToAny`, `WithAttribute`×3, `WithoutAttribute`×3, `InNamespaceOf`, `InNamespaces`, `InExactNamespaces`, `NotInNamespaceOf`, `NotInNamespaces`, `Where(Func<Type,bool>)` |
+| Shape | `AsSelf`, `As<T>`, `As(Type[])`, `AsImplementedInterfaces(+predicate)`, `AsSelfWithInterfaces(+predicate)`, `AsMatchingInterface(+action)`, `As(Func<Type,IEnumerable<Type>>)`, `UsingAttributes` |
+| Lifetime / strategy | `WithSingleton/Scoped/TransientLifetime`, `WithLifetime(ServiceLifetime)`, `WithLifetime(Func<Type,ServiceLifetime>)`, `WithServiceKey(object \| Func)`, `RegistrationStrategy.Skip/Append/Throw/Replace(ReplacementBehavior)` |
+
+### The mapping
+
+**Have it, sometimes better.**
+
+| Scrutor | Here |
+|---|---|
+| `AssignableTo`, including open generics | `RegisterAll` — and cheaper, assignability being a symbol question at compile time |
+| base-class reach inside `AssignableTo` | `IncludeBaseClasses()`, opt-in rather than always-on |
+| `UsingAttributes` | the attribute path, which is this library's *primary* API rather than a scanning afterthought |
+| `WithSingleton/Scoped/TransientLifetime`, `WithLifetime(ServiceLifetime)` | `AsSingleton`/`AsScoped`/`AsTransient` |
+| `RegistrationStrategy.Throw` | becomes a **build error**, not a runtime exception |
+
+**Missing, fully buildable at compile time, no philosophical cost.** This is the bulk of the gap, and
+none of it involves other assemblies:
+
+| Scrutor | Notes |
+|---|---|
+| `AsSelf`, `AsSelfWithInterfaces`, `As<T>`, `As(Type[])` | **The largest single hole.** A concrete type with no interface cannot be registered by convention at all today — `ConventionCandidateUtility.IsCandidate` rejects anything with no base list |
+| `AsImplementedInterfaces` proper | `FirstMatchingInterface` returns one interface per candidate per convention. `ServiceModel.Registrations` is already a list, so multi-registration is emission-ready |
+| `InNamespaceOf`, `InNamespaces`, `InExactNamespaces`, `NotIn*` | Syntax-only. The cheapest thing on this list |
+| `WithAttribute<T>`, `WithoutAttribute<T>` | Syntax, and `ForAttributeWithMetadataName`-indexable |
+| `WithAttribute<T>(predicate)` | Partial — literal argument matching yes, arbitrary lambda no |
+| name globbing | Semantics already specified in *Glob semantics* above; never implemented |
+| `AsMatchingInterface` (`Foo` → `IFoo`) | A symbol lookup |
+| `AssignableToAny` | An overload, or repeated `RegisterAll` |
+| `WithServiceKey(object)` | **`ServiceRegistrationModel.Key` already exists**; the matcher passes null |
+| `RegistrationStrategy.Skip/Append/Replace` | **`ServiceRegistrationModel.RegistrationType` already exists**; the matcher passes null |
+| `FromAssemblyOf<T>` against a referenced assembly | *Scanning referenced assemblies*, above |
+
+**No compile-time equivalent — every lambda-taking overload.** `Where(Func<Type,bool>)`,
+`AsImplementedInterfaces(predicate)`, `As(Func<Type,IEnumerable<Type>>)`,
+`WithLifetime(Func<Type,ServiceLifetime>)`, `WithServiceKey(Func<Type,object?>)`. A generator cannot
+run user code over types it is describing. **The escape hatch already exists and should be named in
+the documentation rather than left to be discovered:** `IServiceCollectionConfiguration.ConfigureServices`
+gives unrestricted fluent access to `IServiceCollection` for anything a convention cannot express.
+
+**Runtime-only, will not be built.** `FromApplicationDependencies`, `FromDependencyContext`,
+`FromAssemblyDependencies`. See *What stays out* above.
+
+### Plan, in order
+
+Ordered by value per unit of work. Everything above the line is in-compilation and needs no new
+pipeline shape.
+
+| # | Work | Notes |
+|---|---|---|
+| 1 | Fix the partial-class DM0004 | Defect, loses registrations today |
+| 2 | `AsSelf()` / `AsSelfWithInterfaces()` | Needs `IsCandidate` to stop requiring a base list |
+| 3 | Namespace filters | Syntax-only, cheapest on the list |
+| 4 | Multi-interface registration | `Registrations` is already a list |
+| 5 | `RegistrationType` and `Key` pass-through | Both fields already exist and are being passed null |
+| 6 | Attribute filters (`WithAttribute` / `WithoutAttribute`) | FAWMN-indexable |
+| 7 | `AsMatchingInterface`, `As<T>`, name globbing | Rounds out the shape axis |
+| | — | |
+| 8 | Scanning referenced assemblies | New pipeline shape; see the constraints above |
+
+**Sequencing note.** Steps 2 and 4 change what a `ServiceModel` may contain, and step 8 changes where
+candidates come from. Doing 8 first would mean building the referenced-assembly path against a
+one-interface-per-candidate model and then reworking it. Keep 8 last.
+
+### What Scrutor structurally cannot do
+
+Worth holding on to, because it is the actual competitive position and none of it is about feature
+count:
+
+- **DM0005 answers Scrutor's most common failure.** A renamed interface or a typo'd filter registers
+  zero services, the build stays green, and the application throws at resolve time. Scrutor cannot
+  report it: its scan does not run until startup, by which point the build is long over.
+- **DM0006 catches an unconstructable match at build time**, where Scrutor surfaces it as an
+  `ActivatorUtilities` failure at resolve.
+- **DM0004 refuses ambiguity**, where Scrutor silently appends or last-wins.
+- **DM0010 reports provenance at the class**: "this type is in the container as `IFoo`, via
+  `IAuditedFoo`." This is the standing complaint about assembly scanning — *where did this
+  registration come from* — answered in the IDE, at the type, with no tooling.
+- **Zero startup cost, no reflection, trimming and Native AOT safe**, including for referenced
+  assemblies once the plan above lands.
 
 ---
 
@@ -398,12 +676,16 @@ on a cache hit, so this cannot be left implicit.
 
 #### Diagnostics
 
+**Stale — only DM0007 shipped as written.** DM0008, DM0009 and DM0010 were subsequently allocated to
+interception and to convention registration; see the canonical allocation in part 1. The three
+decorator conditions below are still worth reporting, but they need IDs from DM0011 upward.
+
 | ID | Severity | Condition |
 |---|---|---|
-| DM0007 | Error | Multiple decorators target one service and `Order` is ambiguous |
-| DM0008 | Error | Decorator does not implement the service type it decorates |
-| DM0009 | Warning | Decorator targets a service no module registers |
-| DM0010 | Error | Decorator has no constructor parameter of the decorated type |
+| DM0007 | Error | Multiple decorators target one service and `Order` is ambiguous — **shipped** |
+| ~~DM0008~~ | Error | Decorator does not implement the service type it decorates — *needs a new ID* |
+| ~~DM0009~~ | Warning | Decorator targets a service no module registers — *needs a new ID* |
+| ~~DM0010~~ | Error | Decorator has no constructor parameter of the decorated type — *needs a new ID* |
 
 ### Phase B: generated forwarding
 
@@ -469,6 +751,12 @@ every row above, and confirm DM0011 fires for the refused shapes.
 ---
 
 ## Part 3: interceptors
+
+> **Superseded where it disagrees with what shipped.** Interception is implemented, and the two-tier
+> hook model below (`OnEnter`/`OnExit`/`OnError`, plus an opt-in `IInvocation`) was **rejected** in
+> favour of a pipeline in which one `Intercept` method receives the call and decides whether to
+> `Proceed()`. `docs/HANDOFF.md` records the shipped model and the reasoning. The section below is
+> kept for *The constraint that forces the design* and *Async*, which still hold.
 
 ### The constraint that forces the design
 
@@ -580,21 +868,26 @@ It should ship as a **separate package** depending on the core, never fused into
 
 Each step is independently shippable and makes the next cheaper.
 
+**Done.**
+
+| Step | Notes |
+|---|---|
+| `AddDecorator` order parameter | Source-compatible; optional and trailing |
+| Global decorator ordering | `InternalGetDecorators` collects across modules; sorted together |
+| `DecoratorHelper` descriptor rewrite | All three descriptor shapes, open generics, keyed, lifetime preserved |
+| `[Decorator]` / `[Decorate]` attributes | Runtime surface and generator emission; DM0007 for ambiguous order |
+| Wire `ConfigureDecorators` | Was a public no-op; now invoked after all services are registered |
+| Convention registration | Own analyzer package. Assignability axis only — see *What shipped* |
+| Interceptors | Shipped as a pipeline, not the two tiers in part 3. See `docs/HANDOFF.md` |
+
+**Remaining**, most valuable first. Steps 1–7 are the Scrutor parity plan and are detailed above.
+
 | Step | Effort | Notes |
 |---|---|---|
-| `AddDecorator` order parameter | done | Implemented; source-compatible |
-| Global decorator ordering | done | `InternalGetDecorators` collects across modules; sorted together |
-| `DecoratorHelper` descriptor rewrite | done | All three descriptor shapes, open generics, keyed, lifetime preserved |
-| `[Decorator]` / `[Decorate]` attributes | done | Runtime surface only; the generator does not read them yet |
-| Generator emission for decorators | done | `[Decorator]` and `[Decorate]` are read and emitted; DM0007 for ambiguous order |
-| Phase B: generated forwarding | remaining | Opt-in via `partial`; additive |
-| Interceptors | remaining | Reuses the same descriptor rewrite |
-| Wire `ConfigureDecorators` | done | Was a public no-op; now invoked after all services are registered |
-| Convention registration | days | Independent of decorators; can proceed in parallel |
-| Phase A, typed decorators | ~1 day | Closes the Scrutor gap. Emit the body through a template |
-| Phase B, generated forwarding | 4–6× A | Only worth it if C is plausible; keep signature and body separate |
-| Tier 1 interceptors | moderate | Reuses B's signature rendering |
-| Tier 2 interceptors | moderate | Only if demand appears |
+| Partial-class DM0004 fix | small | Defect; loses registrations today |
+| Parity steps 2–7 | days | In-compilation, no new pipeline shape; several are pass-through of fields that already exist |
+| Scanning referenced assemblies | moderate | Proven feasible. New pipeline shape; keep it after the parity steps |
+| Phase B, generated forwarding | 4–6× phase A | Only worth it if the member matrix is worth it; keep signature and body separate |
 
-Nothing beyond the first row is 1.0 work. The one decision that is live now is the architectural
-constraint in phase B: keep signature rendering separate from body emission.
+The one architectural constraint still live: in phase B, keep signature rendering separate from body
+emission.
