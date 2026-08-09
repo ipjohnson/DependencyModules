@@ -269,10 +269,12 @@ serviceCollection.AddModule<ApplicationModule>();
 DependencyModules provides an xUnit extension to make testing much easier. 
 It handles the population and construction of a service provider using specified modules.
 
-```csharp
-> dotnet add package DependencyModules.xUnit
-> dotnet add package DependencyModules.xUnit.NSubstitute
+```shell
+dotnet add package DependencyModules.xUnit
+dotnet add package DependencyModules.xUnit.NSubstitute
+```
 
+```csharp
 // applies module & nsubstitute support to all tests.
 // test attributes can be applied at the assembly, class, and test method level
 [assembly: MyModule]
@@ -287,7 +289,7 @@ public class OtherServiceTests
      Assert.Equals("some mock value", test.SomeProp);
   }
 }
-
+```
 
 ## Reporting a problem
 
@@ -308,8 +310,6 @@ needed to diagnose it:
 
 Please include the log and the generated file in any [issue](https://github.com/ipjohnson/DependencyModules/issues).
 
-
-```
 ## Implementation
 
 Behind the scenes the library generates registration code that can be used with any `IServiceCollection` compatible DI container.

@@ -1,0 +1,62 @@
+name: docs
+
+# Publishes the VitePress site in website/ to GitHub Pages.
+#
+# Pages has to be switched on once, by hand: Settings → Pages → Source → GitHub Actions. Until then
+# this workflow builds successfully and the deploy step fails, which is the right way round — a
+# broken site never replaces a working one.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'website/**'
+      - '.github/workflows/docs.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time, and let a newer commit win rather than queueing behind an older one.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+
+      - run: npm ci
+
+      # Dead internal links fail the build rather than shipping. The pages cross-reference heavily
+      # and a rename would otherwise rot links silently.
+      - run: npm run build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: website/.vitepress/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
