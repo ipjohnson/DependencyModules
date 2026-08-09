@@ -177,8 +177,42 @@ A conditional `Using(RegistrationType.Try)` cannot override an unconditional reg
 
 ## Conditions and conventions
 
-A class matched by a [convention](/guide/conventions) honours its conditions too, so a condition
-behaves the same whether the class was registered by attribute or by rule.
+A class matched by a [convention](/guide/conventions) honours its own conditions, so an attribute
+behaves the same whether the class is registered by attribute or by rule.
+
+A convention can also carry a condition itself, gating every match rather than making you repeat the
+attribute on each class:
+
+```csharp
+conventions.RegisterAll<IDiagnostic>().IfEnvironment("Development").AsScoped();
+```
+
+The same four tests are available, named after the attributes:
+
+| Call | Registers when |
+|---|---|
+| `IfEnvironment(params string[])` | the environment name matches any of them |
+| `IfNotEnvironment(params string[])` | it matches none of them |
+| `IfEnvironmentValue(key)` · `IfEnvironmentValue(key, value)` | the key is present, or equals exactly |
+| `IfNotEnvironmentValue(…)` | the inverse of either form |
+
+When a convention carries a condition **and** a matched class carries its own, the two combine with
+**and** — neither can silently discard the other:
+
+```csharp
+conventions.RegisterAll<IFoo>().IfEnvironment("Development").AsSingleton();
+
+[IfEnvironmentValue("REGION", "eu")]
+public class EuFoo : IFoo { }
+
+// EuFoo registers only when the environment is Development AND REGION is eu
+```
+
+## Conditions and decorators
+
+A [decorator](/guide/decorators#decorating-only-in-some-environments) takes the same conditions. Where
+it does not apply, the service resolves undecorated, and the ordering of everything else is
+unchanged.
 
 ## What conditions cost
 

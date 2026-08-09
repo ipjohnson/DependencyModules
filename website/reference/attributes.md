@@ -71,8 +71,12 @@ Wraps a service so every call through its interface passes through the given int
 
 ## Environment conditions
 
-All four take effect on a class that is registered by attribute or by convention. Conditions of
-different kinds combine with **and**.
+All four take effect on a service registered by attribute or by convention, and on a
+[`[Decorator]`](/guide/decorators#decorating-only-in-some-environments) — where a condition that does
+not hold means the decorator is never applied. Conditions of different kinds combine with **and**.
+
+The same tests are available on a [convention](/reference/conventions-api#environment-conditions)
+itself, as `IfEnvironment(…)` and friends.
 
 ### `[IfEnvironment(params string[])]` · `[IfNotEnvironment(params string[])]`
 

@@ -65,7 +65,12 @@ public static class DecoratorModelUtility {
             serviceType = ToUnboundGeneric(serviceType);
         }
 
-        return new DecoratorModel(serviceType, decoratorType, order, realm);
+        // Read from the decorator class, exactly as they are for a service. A decorator is a
+        // registration like any other, and one gated on Development has no other way to say so.
+        var conditions = EnvironmentConditionUtility.GetConditions(
+            context, typeDeclarationSyntax, cancellationToken);
+
+        return new DecoratorModel(serviceType, decoratorType, order, realm, conditions);
     }
 
     /// <summary>

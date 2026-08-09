@@ -250,6 +250,36 @@ conventions.RegisterAll<IRepository>()
     .WithKey("primary");             // literal, const or enum member
 ```
 
+## Registering only in some environments
+
+A convention can carry an [environment condition](/guide/environments), so a whole rule applies only
+where you want it rather than needing the attribute repeated on every class it matches:
+
+```csharp
+conventions.RegisterAll<IDiagnostic>().IfEnvironment("Development").AsScoped();
+conventions.RegisterAll<IAuditSink>().IfEnvironmentValue("AUDIT", "on").AsSingleton();
+```
+
+| Call | Registers when |
+|---|---|
+| `IfEnvironment(params string[])` | the environment name matches any of them |
+| `IfNotEnvironment(params string[])` | it matches none of them |
+| `IfEnvironmentValue(key)` · `IfEnvironmentValue(key, value)` | the key is present, or equals exactly |
+| `IfNotEnvironmentValue(…)` | the inverse of either form |
+
+The test runs when the modules are applied, not while the build runs — so this changes what gets
+registered, not what the convention matched. Every match is still emitted, behind the same guard.
+
+A class carrying its own condition combines with the convention's using **and**, so neither
+declaration can quietly override the other:
+
+```csharp
+conventions.RegisterAll<IFoo>().IfEnvironment("Development").AsSingleton();
+
+[IfEnvironmentValue("REGION", "eu")]
+public class EuFoo : IFoo { }        // Development AND REGION=eu
+```
+
 ## When two conventions collide
 
 Two conventions in one module registering the same implementation under the **same service type** is

@@ -340,6 +340,66 @@ public static class ConventionContractSource {
                 IConventionRegistration WithoutName(params string[] patterns);
 
                 /// <summary>
+                /// Registers the matches only when the environment name is one of
+                /// <paramref name="environmentNames"/>.
+                /// </summary>
+                /// <remarks>
+                /// <para>
+                /// The test runs when the modules are applied, not while the build runs, so this
+                /// changes what is registered rather than what the convention matched. Every match
+                /// is still emitted, behind the same guard.
+                /// </para>
+                /// <para>
+                /// A condition here combines with <b>and</b> against any
+                /// <c>[IfEnvironment]</c> on a matched class, so neither can silently override the
+                /// other. Conditions of different kinds also combine with and; alternatives go
+                /// inside one call.
+                /// </para>
+                /// </remarks>
+                /// <param name="environmentNames">
+                /// Accepted names, compared case-insensitively to match
+                /// <c>IHostEnvironment.IsDevelopment()</c>.
+                /// </param>
+                IConventionRegistration IfEnvironment(params string[] environmentNames);
+
+                /// <summary>
+                /// Registers the matches only when the environment name is none of
+                /// <paramref name="environmentNames"/>.
+                /// </summary>
+                /// <param name="environmentNames">Names to exclude, compared case-insensitively.</param>
+                IConventionRegistration IfNotEnvironment(params string[] environmentNames);
+
+                /// <summary>
+                /// Registers the matches only when the environment carries a value for
+                /// <paramref name="key"/>.
+                /// </summary>
+                /// <param name="key">The key that must be present.</param>
+                IConventionRegistration IfEnvironmentValue(string key);
+
+                /// <summary>
+                /// Registers the matches only when the environment's value for
+                /// <paramref name="key"/> equals <paramref name="value"/>.
+                /// </summary>
+                /// <param name="key">The key to read.</param>
+                /// <param name="value">The value it must equal, compared ordinally.</param>
+                IConventionRegistration IfEnvironmentValue(string key, string value);
+
+                /// <summary>
+                /// Registers the matches only when the environment carries no value for
+                /// <paramref name="key"/>.
+                /// </summary>
+                /// <param name="key">The key that must be absent.</param>
+                IConventionRegistration IfNotEnvironmentValue(string key);
+
+                /// <summary>
+                /// Registers the matches only when the environment's value for
+                /// <paramref name="key"/> does not equal <paramref name="value"/>.
+                /// </summary>
+                /// <param name="key">The key to read.</param>
+                /// <param name="value">The value it must not equal, compared ordinally.</param>
+                IConventionRegistration IfNotEnvironmentValue(string key, string value);
+
+                /// <summary>
                 /// Registers every match as <typeparamref name="TService"/>, whatever it matched
                 /// through.
                 /// </summary>

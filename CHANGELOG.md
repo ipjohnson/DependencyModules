@@ -5,6 +5,40 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Environment conditions on decorators.** `[IfEnvironment]` and the rest of the family now take
+  effect on a `[Decorator]`, so a decorator can exist only where it is wanted — request logging in
+  development, a circuit breaker only in production. Where the condition does not hold the decorator
+  is never applied, so the service resolves undecorated rather than being wrapped by something that
+  re-tests the environment on every call. A condition changes whether a decorator applies, never
+  where it sits in the nesting.
+- **Environment conditions on conventions**, as `IfEnvironment(…)`, `IfNotEnvironment(…)`,
+  `IfEnvironmentValue(key)`, `IfEnvironmentValue(key, value)` and `IfNotEnvironmentValue(…)`. A whole
+  rule can be gated without repeating the attribute on every class it matches. Named after the
+  attributes so the two ways of saying the same thing read the same.
+
+  A condition on a convention combines with **and** against any condition on a matched class, so
+  neither declaration can silently discard the other. Two conventions matching one class under
+  different conditions keep their own guards rather than sharing the stricter one.
+
+### Fixed
+
+- **A condition on a `[Decorator]` was silently ignored.** The attribute compiled, read as
+  deliberate, and did nothing: decoration never looked at conditions, so a decorator marked
+  `[IfEnvironment("Development")]` wrapped the service in production too.
+
+### Changed
+
+- **`DecoratorRegistration.RegistryFunc` is now an `EnvironmentRegistryFunc`**, taking the
+  environment alongside the collection, so a decorator's condition can be evaluated where it is
+  applied. Constructing one is unaffected — the `RegistryFunc` overload remains and adapts — but code
+  reading the property and invoking it with a single argument needs the extra parameter. This is
+  module plumbing reached through `IDependencyModule.InternalGetDecorators`; hand-written modules
+  that decorate directly are unaffected.
+
 ## [1.0.0-rc9210] - 2026-08-09
 
 Everything since `1.0.0-rc9200`. Still a release candidate: convention registration is new and

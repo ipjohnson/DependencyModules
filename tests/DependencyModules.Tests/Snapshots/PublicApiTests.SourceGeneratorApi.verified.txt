@@ -1074,7 +1074,8 @@ namespace DependencyModules.SourceGenerator.Impl.Models
     public class DecoratorModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.DecoratorModel>
     {
         public static readonly DependencyModules.SourceGenerator.Impl.Models.DecoratorModel Ignore;
-        public DecoratorModel(CSharpAuthor.ITypeDefinition ServiceType, CSharpAuthor.ITypeDefinition DecoratorType, int Order, CSharpAuthor.ITypeDefinition? Realm) { }
+        public DecoratorModel(CSharpAuthor.ITypeDefinition ServiceType, CSharpAuthor.ITypeDefinition DecoratorType, int Order, CSharpAuthor.ITypeDefinition? Realm, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? Conditions = null) { }
+        public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? Conditions { get; init; }
         public CSharpAuthor.ITypeDefinition DecoratorType { get; init; }
         public bool IsIgnored { get; }
         public int Order { get; init; }
@@ -1407,6 +1408,10 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities
         public static string Describe(DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel condition) { }
         public static System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? GetConditions(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, Microsoft.CodeAnalysis.SyntaxNode node, System.Threading.CancellationToken cancellationToken) { }
         public static bool IsEmpty(DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel condition) { }
+    }
+    public static class EnvironmentConditionWriter
+    {
+        public static string BuildCondition(System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel> conditions, string environmentParameter) { }
     }
     public class FileLogger : System.IDisposable
     {

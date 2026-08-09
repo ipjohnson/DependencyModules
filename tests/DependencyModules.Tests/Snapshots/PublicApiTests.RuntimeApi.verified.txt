@@ -146,9 +146,10 @@ namespace DependencyModules.Runtime.Helpers
     }
     public readonly struct DecoratorRegistration
     {
+        public DecoratorRegistration(int order, DependencyModules.Runtime.Helpers.EnvironmentRegistryFunc registryFunc) { }
         public DecoratorRegistration(int order, DependencyModules.Runtime.Helpers.RegistryFunc registryFunc) { }
         public int Order { get; }
-        public DependencyModules.Runtime.Helpers.RegistryFunc RegistryFunc { get; }
+        public DependencyModules.Runtime.Helpers.EnvironmentRegistryFunc RegistryFunc { get; }
     }
     public class DependencyRegistry<T>
     {
@@ -159,9 +160,11 @@ namespace DependencyModules.Runtime.Helpers
             where TInstance :  class { }
         public static int Add<TInstance>(System.Type implementationType, Microsoft.Extensions.DependencyInjection.ServiceLifetime lifetime = 2, object? serviceKey = null)
             where TInstance :  class { }
+        public static int AddDecorator(DependencyModules.Runtime.Helpers.EnvironmentRegistryFunc registryFunc, int order = 0) { }
         public static int AddDecorator(DependencyModules.Runtime.Helpers.RegistryFunc registryFunc, int order = 0) { }
         public static int AddModule(params DependencyModules.Runtime.Interfaces.IDependencyModule[] modules) { }
         public static void ApplyDecorators(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection) { }
+        public static void ApplyDecorators(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection, DependencyModules.Runtime.Interfaces.IModuleEnvironment environment) { }
         public static void ApplyServices(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection) { }
         public static void ApplyServices(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection, DependencyModules.Runtime.Interfaces.IModuleEnvironment environment) { }
         public static System.Collections.Generic.IReadOnlyList<DependencyModules.Runtime.Helpers.DecoratorRegistration> GetDecorators() { }

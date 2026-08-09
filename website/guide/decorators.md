@@ -97,6 +97,47 @@ conventions.RegisterAll(typeof(IRequestHandler<,>)).AsScoped();
 
 Every handler registered, every handler wrapped, and a new handler joins both by existing.
 
+## Decorating only in some environments
+
+A decorator carries [environment conditions](/guide/environments) the same way a service does, which
+is how you get behaviour that exists only where you want it — request logging in development, a
+circuit breaker only in production:
+
+```csharp
+[Decorator]
+[IfEnvironment("Development")]
+public class LoggingRepository(IRepository inner, ILogger log) : IRepository {
+    public Item Get(int id) {
+        log.LogInformation("getting {Id}", id);
+        return inner.Get(id);
+    }
+}
+```
+
+Outside Development the decorator is **never applied**, so `IRepository` resolves as the undecorated
+implementation. Nothing wraps it and nothing tests the environment per call — the decision is made
+once, while the modules are being applied.
+
+All four condition attributes work, and they combine with **and** exactly as they do on a service:
+
+```csharp
+[Decorator]
+[IfNotEnvironment("Production")]
+[IfEnvironmentValue("TRACE_SQL", "on")]
+public class TracingRepository(IRepository inner) : IRepository { … }
+```
+
+A condition changes **whether** a decorator applies, never **where it sits**. Ordering is unaffected,
+so a conditional decorator dropping out leaves the rest of the chain nesting exactly as before:
+
+```csharp
+[Decorator(Order = 10)] [IfEnvironment("Development")] public class Inner(IRepository r) : IRepository { }
+[Decorator(Order = 20)]                                public class Outer(IRepository r) : IRepository { }
+
+// Development: Outer(Inner(SqlRepository))
+// Production:  Outer(SqlRepository)
+```
+
 ## Decorating a type you do not own
 
 When the service, the decorator, or both come from an assembly you do not control, there is nowhere

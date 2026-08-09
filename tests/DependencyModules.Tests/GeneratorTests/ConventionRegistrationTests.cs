@@ -71,6 +71,168 @@ public class ConventionRegistrationTests {
     }
 
     /// <summary>
+    /// A condition declared on the convention itself, gating every match rather than being repeated
+    /// on each class.
+    /// </summary>
+    [Theory]
+    [InlineData("Development", 2)]
+    [InlineData("Production", 0)]
+    public void ConventionsCarryTheirOwnEnvironmentCondition(string environmentName, int expected) {
+        const string source =
+            """
+            public interface IFoo { }
+
+            public class OneFoo : IFoo { }
+            public class TwoFoo : IFoo { }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll<IFoo>().IfEnvironment("Development").AsSingleton();
+                }
+            }
+            """;
+
+        var assembly = GeneratedAssembly.Create(
+            Preamble + source,
+            withConventions: true,
+            environment: new ModuleEnvironment(environmentName));
+
+        Assert.Equal(expected, assembly.Descriptors("IFoo").Count);
+    }
+
+    /// <summary>
+    /// A condition on the convention and one on a matched class combine with <b>and</b>.
+    /// </summary>
+    /// <remarks>
+    /// Letting either side win would mean one declaration silently discarding a condition written in
+    /// the other. The environment pins its values, so a variable on the machine running this cannot
+    /// reach REGION.
+    /// </remarks>
+    [Theory]
+    [InlineData("Development", "eu", 2)]
+    [InlineData("Development", "us", 1)]
+    [InlineData("Production", "eu", 0)]
+    public void ConventionAndClassConditionsCombineWithAnd(
+        string environmentName, string region, int expected) {
+
+        const string source =
+            """
+            public interface IFoo { }
+
+            public class PlainFoo : IFoo { }
+
+            [IfEnvironmentValue("REGION", "eu")]
+            public class EuFoo : IFoo { }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll<IFoo>().IfEnvironment("Development").AsSingleton();
+                }
+            }
+            """;
+
+        var assembly = GeneratedAssembly.Create(
+            Preamble + source,
+            withConventions: true,
+            environment: new ModuleEnvironment(false, environmentName) { { "REGION", region } });
+
+        Assert.Equal(expected, assembly.Descriptors("IFoo").Count);
+    }
+
+    [Theory]
+    [InlineData("on", 1)]
+    [InlineData("off", 0)]
+    public void ConventionsCarryValueConditions(string flag, int expected) {
+        const string source =
+            """
+            public interface IFoo { }
+
+            public class OneFoo : IFoo { }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll<IFoo>().IfEnvironmentValue("FLAG", "on").AsSingleton();
+                }
+            }
+            """;
+
+        var assembly = GeneratedAssembly.Create(
+            Preamble + source,
+            withConventions: true,
+            environment: new ModuleEnvironment(false, "Development") { { "FLAG", flag } });
+
+        Assert.Equal(expected, assembly.Descriptors("IFoo").Count);
+    }
+
+    [Theory]
+    [InlineData("Development", 0)]
+    [InlineData("Production", 1)]
+    public void ConventionsCarryNegatedConditions(string environmentName, int expected) {
+        const string source =
+            """
+            public interface IFoo { }
+
+            public class OneFoo : IFoo { }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll<IFoo>().IfNotEnvironment("Development").AsSingleton();
+                }
+            }
+            """;
+
+        var assembly = GeneratedAssembly.Create(
+            Preamble + source,
+            withConventions: true,
+            environment: new ModuleEnvironment(environmentName));
+
+        Assert.Equal(expected, assembly.Descriptors("IFoo").Count);
+    }
+
+    /// <summary>
+    /// Two conventions matching one class under different conditions stay in separate models.
+    /// </summary>
+    /// <remarks>
+    /// One guard is emitted per ServiceModel. Merged into a single model, whichever condition set
+    /// won would gate the other convention's registrations too — so IBar would vanish outside
+    /// Development despite its convention saying nothing about the environment.
+    /// </remarks>
+    [Theory]
+    [InlineData("Development", 1, 1)]
+    [InlineData("Production", 0, 1)]
+    public void ConventionsWithDifferentConditionsDoNotShareAGuard(
+        string environmentName, int expectedFoo, int expectedBar) {
+
+        const string source =
+            """
+            public interface IFoo { }
+            public interface IBar { }
+
+            public class Both : IFoo, IBar { }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll<IFoo>().IfEnvironment("Development").AsSingleton();
+                    conventions.RegisterAll<IBar>().AsSingleton();
+                }
+            }
+            """;
+
+        var assembly = GeneratedAssembly.Create(
+            Preamble + source,
+            withConventions: true,
+            environment: new ModuleEnvironment(environmentName));
+
+        Assert.Equal(expectedFoo, assembly.Descriptors("IFoo").Count);
+        Assert.Equal(expectedBar, assembly.Descriptors("IBar").Count);
+    }
+
+    /// <summary>
     /// A partial class whose parts each reach the scanned interface is one candidate, not two.
     /// </summary>
     /// <remarks>

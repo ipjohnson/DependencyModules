@@ -60,15 +60,35 @@ public class DecoratorFileWriter {
         var services = method.AddParameter(
             KnownTypes.Microsoft.DependencyInjection.IServiceCollection, "services");
 
-        method.AddIndentedStatement(
-            new StaticInvokeStatement(
-                KnownTypes.DependencyModules.Helpers.DecoratorHelper,
-                "Decorate",
-                new List<IOutputComponent> {
-                    CodeOutputComponent.Get(services.Name),
-                    TypeOf(decorator.ServiceType),
-                    TypeOf(decorator.DecoratorType)
-                }));
+        // The parameter only appears when something tests it, so an unconditional decorator keeps
+        // the RegistryFunc shape and the AddDecorator overload it always used.
+        var hasConditions = decorator.Conditions is { Count: > 0 };
+
+        var environment = hasConditions
+            ? method.AddParameter(KnownTypes.DependencyModules.Interfaces.IModuleEnvironment, "environment")
+            : null;
+
+        var decorate = new StaticInvokeStatement(
+            KnownTypes.DependencyModules.Helpers.DecoratorHelper,
+            "Decorate",
+            new List<IOutputComponent> {
+                CodeOutputComponent.Get(services.Name),
+                TypeOf(decorator.ServiceType),
+                TypeOf(decorator.DecoratorType)
+            });
+
+        if (environment != null) {
+            // Guarding the call rather than the registration: a decorator that does not apply is
+            // simply not run, so the service resolves undecorated instead of being wrapped by
+            // something that re-tests the environment on every call.
+            var block = method.If(
+                CodeOutputComponent.Get(
+                    EnvironmentConditionWriter.BuildCondition(decorator.Conditions!, environment.Name)));
+
+            block.AddIndentedStatement(decorate);
+        } else {
+            method.AddIndentedStatement(decorate);
+        }
 
         // A field initializer registers the method, matching how service registrations are hooked up.
         // DynamicDependency keeps the trimmer from removing a method only referenced this way.
