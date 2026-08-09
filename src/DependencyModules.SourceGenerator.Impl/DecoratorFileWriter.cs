@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using CSharpAuthor;
 using DependencyModules.SourceGenerator.Impl.Models;
 using DependencyModules.SourceGenerator.Impl.Utilities;
@@ -37,7 +38,28 @@ public class DecoratorFileWriter {
 
         csharpFile.WriteOutput(outputContext);
 
-        return outputContext.Output();
+        return RecordAware(outputContext.Output(), entryPointModel);
+    }
+
+    /// <summary>
+    /// Rewrites the partial declaration when the module is a record.
+    /// </summary>
+    /// <remarks>
+    /// CSharpAuthor has no record class, so every writer that contributes to a module's partial has
+    /// to do this, and DependencyFileWriter and DependencyModuleWriter already did. This one did
+    /// not, so a compilation holding both a record module and any decorator failed to build with
+    /// CS0261 — the decorator file declared the module a class. It went unnoticed because a
+    /// decorator file is only emitted once something in the compilation carries [Decorator].
+    /// </remarks>
+    private static string RecordAware(string output, ModuleEntryPointModel entryPointModel) {
+        if (!entryPointModel.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.IsRecord)) {
+            return output;
+        }
+
+        return Regex.Replace(
+            output,
+            @"partial class " + Regex.Escape(entryPointModel.EntryPointType.Name) + @"(?!\w)",
+            $"partial record class {entryPointModel.EntryPointType.Name}");
     }
 
     private static void WriteDecorator(
