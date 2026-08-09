@@ -10,8 +10,16 @@
                         CSharpAuthor is a third-party code-writing library whose sources are
                         compiled into the generator assembly. It is not this project's code and
                         would otherwise dominate the numbers.
+
+                        The Impl sources are compiled into both analyzer assemblies. They are
+                        measured under DependencyModules.SourceGenerator, which exercises all of
+                        them; the second copy inside DependencyModules.Conventions is the same code
+                        counted twice, and the convention generator only ever reaches a slice of it
+                        (module discovery and DependencyFileWriter, not the decorator or interceptor
+                        writers). Counting that copy measures nothing and buries the convention
+                        code's own numbers.
                     -->
-                    <Exclude>[*]CSharpAuthor.*</Exclude>
+                    <Exclude>[*]CSharpAuthor.*,[DependencyModules.Conventions]DependencyModules.SourceGenerator.Impl.*</Exclude>
 
                     <ExcludeByAttribute>GeneratedCodeAttribute,CompilerGeneratedAttribute,ExcludeFromCodeCoverageAttribute,ObsoleteAttribute</ExcludeByAttribute>
 

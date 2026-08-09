@@ -258,8 +258,10 @@ public class DependencyRegistry<T> {
         for (var i = serviceCollection.Count - 1; i >= 0; i--) {
             var descriptor = serviceCollection[i];
             if (descriptor.ServiceType == typeof(IModuleEnvironment) &&
-                descriptor.Lifetime == ServiceLifetime.Singleton &&
-                descriptor.ImplementationInstance is IModuleEnvironment environment) {
+                descriptor is {
+                    Lifetime: ServiceLifetime.Singleton, 
+                    ImplementationInstance: IModuleEnvironment environment
+                }) {
                 return environment;
             }
         }

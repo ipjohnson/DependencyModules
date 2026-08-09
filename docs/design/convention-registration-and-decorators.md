@@ -77,7 +77,10 @@ evaluated by the generator.
 Note also that `IServiceCollectionConfiguration.ConfigureServices` already provides unrestricted
 fluent access to `IServiceCollection` for anything a convention cannot express.
 
-### Proposed API
+### Proposed API — superseded
+
+Kept for the property table below, which still describes options worth having. The declaration
+shape it proposes was **not** what shipped; see *Declaration site* immediately after.
 
 ```csharp
 [DependencyModule]
@@ -93,6 +96,46 @@ public partial class DataModule;
 | `As` | `ImplementedInterfaces`, `Self`, or `SelfAndInterfaces` | `ImplementedInterfaces` |
 | `Using` | `RegistrationType` (`Add`, `Try`, `TryEnumerable`, `Replace`) | `Add` |
 | `Realm` | scope the convention to a realm | none |
+
+### Declaration site — settled, do not re-open
+
+Conventions are declared as a **fluent chain in a method body read at compile time**, not as
+attributes:
+
+```csharp
+[DependencyModule]
+public partial class DataModule : IConventionModule {
+    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+        conventions.RegisterAll<IRepository>().AsScoped();
+    }
+}
+```
+
+**Ian's call, made after the alternatives below were investigated and compiled.** The fluent form
+carries more options than an attribute argument list comfortably can, extends without breaking
+existing declarations, and is a pit of success: IntelliSense on `conventions.` enumerates what is
+available, and the chain refuses to compile when it does not typecheck. That outweighs the two costs
+— the interface name appearing twice, and a method body that is never executed.
+
+**Why the interface name is in the method definition, and why it stays.** `IConventionDefinitions`
+is emitted `internal`, so an implicit `public void Conventions(...)` is `CS0051: Inconsistent
+accessibility`. Explicit implementation is the only shape that satisfies the interface. Making the
+contracts `public` to escape it is worse on both counts that matter: they join the consumer's public
+API surface, and two assemblies that each emit them and reference each other produce **CS0436**
+conflicts — measured, three warnings in the referencing project.
+
+Rejected, each compiled on net8.0 at 0 warnings before being turned down:
+
+| shape | why not |
+|---|---|
+| `[Conventions]` marker on a freely named `private static` method, no interface | Works, and would be `ForAttributeWithMetadataName`-indexed. Loses nothing but the interface name — and gains a silent failure: forget the attribute and the method is merely unused. |
+| `RegisterAll<T>` generic attributes on the module, no method | The superseded proposal above. Retires the never-executed body, but an attribute argument list is the thing the fluent chain was chosen over. |
+| `partial void Conventions(...)`, generator emits the defining declaration | Emission is currently skipped when nothing matches; a missing declaration is `CS0759` pointing at generated code, which is the failure mode this codebase avoids. Verified. |
+| interface with a default implementation + ordinary private method | Half a fix — the interface is still in the base list — and a missing method silently compiles where it is `CS0535` today. |
+
+One incidental point for the shipped shape: explicit implementations cannot be static, so they are
+the only form CA1822 does not flag. Every alternative needs `static` on the method to stay clean
+under `AnalysisMode=All`.
 
 ### Selector priority
 

@@ -40,17 +40,20 @@ public class GeneratedAssembly {
     /// <param name="source">Source to compile. Types are expected in the TestNamespace namespace.</param>
     /// <param name="moduleName">Name of the module type to apply, without its namespace.</param>
     /// <param name="buildProperties">MSBuild properties visible to the generator.</param>
+    /// <param name="withConventions">Also runs the convention generator, which ships separately.</param>
     public static GeneratedAssembly Create(
         string source,
         string moduleName = "TestModule",
-        IReadOnlyDictionary<string, string>? buildProperties = null) {
+        IReadOnlyDictionary<string, string>? buildProperties = null,
+        bool withConventions = false) {
 
         var assemblyName = "GeneratedAssemblyTest" + Interlocked.Increment(ref _assemblyCounter);
 
         var result = GeneratorTestHarness.Run(
             new Dictionary<string, string> { ["Test.cs"] = source },
             buildProperties,
-            assemblyName: assemblyName);
+            assemblyName: assemblyName,
+            withConventions: withConventions);
 
         result.AssertNoErrors();
 

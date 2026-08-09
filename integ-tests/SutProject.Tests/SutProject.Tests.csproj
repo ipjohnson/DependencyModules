@@ -14,6 +14,7 @@
         <ProjectReference Include="..\SecondarySutProject\SecondarySutProject.csproj"/>
         <ProjectReference Include="..\SutProject\SutProject.csproj"/>
         <ProjectReference Include="..\..\src\DependencyModules.SourceGenerator\DependencyModules.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false"/>
+        <ProjectReference Include="..\..\src\DependencyModules.Conventions\DependencyModules.Conventions.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false"/>
     </ItemGroup>
 
     <ItemGroup>

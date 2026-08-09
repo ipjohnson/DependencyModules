@@ -1,3 +1,5 @@
+extern alias ConventionsGen;
+
 using System.Collections.Immutable;
 using System.Reflection;
 using DependencyModules.Runtime.Attributes;
@@ -23,11 +25,17 @@ public static class GeneratorTestHarness {
     /// treats <c>Program.cs</c> specially when auto-generating an application module.</param>
     /// <param name="buildProperties">MSBuild properties visible to the generator, without the
     /// <c>build_property.</c> prefix.</param>
+    /// <param name="withConventions">
+    /// Also runs the convention generator, which ships as its own analyzer. Opt-in rather than
+    /// always on, because it adds its contract types to every compilation through post-initialization
+    /// output and would otherwise change the output of every existing snapshot test.
+    /// </param>
     public static GeneratorResult Run(
         IReadOnlyDictionary<string, string> sources,
         IReadOnlyDictionary<string, string>? buildProperties = null,
         OutputKind outputKind = OutputKind.DynamicallyLinkedLibrary,
-        string assemblyName = "GeneratorTestAssembly") {
+        string assemblyName = "GeneratorTestAssembly",
+        bool withConventions = false) {
 
         // MSBuild hands the compiler absolute paths, and the generator compares a file's location
         // against ProjectDir to decide whether it owns the auto-generated ApplicationModule.
@@ -48,7 +56,7 @@ public static class GeneratorTestHarness {
             new CSharpCompilationOptions(outputKind, nullableContextOptions: NullableContextOptions.Enable));
 
         var driver = CSharpGeneratorDriver.Create(
-            new ISourceGenerator[] { new SourceGenerator.SourceGenerator().AsSourceGenerator() },
+            Generators(withConventions),
             optionsProvider: new TestAnalyzerConfigOptionsProvider(buildProperties),
             parseOptions: new CSharpParseOptions(LanguageVersion.Latest));
 
@@ -81,8 +89,22 @@ public static class GeneratorTestHarness {
     /// <summary>
     /// Convenience overload for the common single-file case.
     /// </summary>
-    public static GeneratorResult Run(string source, IReadOnlyDictionary<string, string>? buildProperties = null) =>
-        Run(new Dictionary<string, string> { ["Test.cs"] = source }, buildProperties);
+    public static GeneratorResult Run(
+        string source,
+        IReadOnlyDictionary<string, string>? buildProperties = null,
+        bool withConventions = false) =>
+        Run(new Dictionary<string, string> { ["Test.cs"] = source }, buildProperties,
+            withConventions: withConventions);
+
+    private static ISourceGenerator[] Generators(bool withConventions) =>
+        withConventions
+            ? new ISourceGenerator[] {
+                new SourceGenerator.SourceGenerator().AsSourceGenerator(),
+                new ConventionsGen::DependencyModules.Conventions.ConventionSourceGenerator().AsSourceGenerator(),
+            }
+            : new ISourceGenerator[] {
+                new SourceGenerator.SourceGenerator().AsSourceGenerator(),
+            };
 
     /// <summary>
     /// Runs the generator over <paramref name="first"/>, then re-runs the same driver over
@@ -95,7 +117,8 @@ public static class GeneratorTestHarness {
     public static IncrementalRunResult RunIncremental(
         IReadOnlyDictionary<string, string> first,
         IReadOnlyDictionary<string, string> second,
-        IReadOnlyDictionary<string, string>? buildProperties = null) {
+        IReadOnlyDictionary<string, string>? buildProperties = null,
+        bool withConventions = false) {
 
         var projectDir = ResolveProjectDir(buildProperties);
 
@@ -110,7 +133,7 @@ public static class GeneratorTestHarness {
                 new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
 
         GeneratorDriver driver = CSharpGeneratorDriver.Create(
-            new ISourceGenerator[] { new SourceGenerator.SourceGenerator().AsSourceGenerator() },
+            Generators(withConventions),
             optionsProvider: new TestAnalyzerConfigOptionsProvider(buildProperties),
             parseOptions: new CSharpParseOptions(LanguageVersion.Latest),
             driverOptions: new GeneratorDriverOptions(default, trackIncrementalGeneratorSteps: true));

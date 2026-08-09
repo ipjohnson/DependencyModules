@@ -81,6 +81,7 @@ jobs:
             src/DependencyModules.Runtime/DependencyModules.Runtime.csproj \
             src/DependencyModules.SourceGenerator/DependencyModules.SourceGenerator.csproj \
             src/DependencyModules.SourceGenerator.Impl/DependencyModules.SourceGenerator.Impl.csproj \
+            src/DependencyModules.Conventions/DependencyModules.Conventions.csproj \
             src/DependencyModules.xUnit/DependencyModules.xUnit.csproj \
             src/DependencyModules.xUnit.NSubstitute/DependencyModules.xUnit.NSubstitute.csproj; do
             dotnet pack "$project" --configuration Release --output ./artifacts \

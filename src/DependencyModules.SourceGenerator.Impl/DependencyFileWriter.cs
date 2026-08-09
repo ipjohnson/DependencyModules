@@ -10,9 +10,20 @@ namespace DependencyModules.SourceGenerator.Impl;
 
 public class DependencyFileWriter {
     private readonly FileLogger _logger;
+    private readonly bool _coverageAttributeOnMethod;
 
-    public DependencyFileWriter(FileLogger logger) {
+    /// <param name="logger">Receives the discovery log.</param>
+    /// <param name="coverageAttributeOnMethod">
+    /// Puts ExcludeFromCodeCoverage on the generated method instead of on the partial class.
+    ///
+    /// ExcludeFromCodeCoverage is not AllowMultiple, and attributes on partial parts combine, so two
+    /// generated parts of one module each carrying it at class level is CS0579. Only one writer can
+    /// own the class-level attribute; every other file contributing to the same partial has to apply
+    /// it per member, which is what DecoratorFileWriter already does.
+    /// </param>
+    public DependencyFileWriter(FileLogger logger, bool coverageAttributeOnMethod = false) {
         _logger = logger;
+        _coverageAttributeOnMethod = coverageAttributeOnMethod;
     }
 
     public string Write(
@@ -63,7 +74,7 @@ public class DependencyFileWriter {
 
         classDefinition.Modifiers |= ComponentModifier.Partial;
 
-        if (configurationModel.ExcludeGeneratedCodeFromCoverage) {
+        if (configurationModel.ExcludeGeneratedCodeFromCoverage && !_coverageAttributeOnMethod) {
             classDefinition.AddAttribute(
                 TypeDefinition.Get("System.Diagnostics.CodeAnalysis", "ExcludeFromCodeCoverage"));
         }
@@ -107,6 +118,14 @@ public class DependencyFileWriter {
         var method = classDefinition.AddMethod(uniqueId + "Dependencies");
 
         method.Modifiers |= ComponentModifier.Private | ComponentModifier.Static;
+
+        // The glue factories GenerateGlueFactory may add are not covered here. They exist only for
+        // [Factory] registrations, which the attribute path produces and the convention path — the
+        // only caller that sets this — cannot.
+        if (configurationModel.ExcludeGeneratedCodeFromCoverage && _coverageAttributeOnMethod) {
+            method.AddAttribute(
+                TypeDefinition.Get("System.Diagnostics.CodeAnalysis", "ExcludeFromCodeCoverage"));
+        }
         var services = method.AddParameter(KnownTypes.Microsoft.DependencyInjection.IServiceCollection, "services");
 
         var stringBuilder = new StringBuilder();
@@ -237,8 +256,7 @@ public class DependencyFileWriter {
             if (serviceModel.FactoryOutput != null) {
                 parameters.Add(serviceModel.FactoryOutput);
             }
-            else if (serviceModel.Constructor != null &&
-                     serviceModel.ImplementationType is not GenericTypeDefinition &&
+            else if (serviceModel is { Constructor: not null, ImplementationType: not GenericTypeDefinition } &&
                      entryPointModel.GenerateFactories.GetValueOrDefault(
                          configurationModel.GenerateFactories)) {
                 parameters.Add(GenerateNewFactory(serviceModel, registrationModel));
@@ -317,8 +335,7 @@ public class DependencyFileWriter {
 
                 parameters.Add(factoryOutput ?? TypeOf(serviceModel.ImplementationType));
             }
-            else if (serviceModel.Constructor != null &&
-                     serviceModel.ImplementationType is not GenericTypeDefinition &&
+            else if (serviceModel is { Constructor: not null, ImplementationType: not GenericTypeDefinition } &&
                      entryPointModel.GenerateFactories.GetValueOrDefault(
                          configurationModel.GenerateFactories)) {
                 parameters.Add(GenerateNewFactory(serviceModel, registrationModel));
@@ -406,8 +423,7 @@ public class DependencyFileWriter {
 
                 parameters.Add(factoryOutput ?? TypeOf(serviceModel.ImplementationType));
             }
-            else if (serviceModel.Constructor != null &&
-                     serviceModel.ImplementationType is not GenericTypeDefinition &&
+            else if (serviceModel is { Constructor: not null, ImplementationType: not GenericTypeDefinition } &&
                      entryPointModel.GenerateFactories.GetValueOrDefault(
                          configurationModel.GenerateFactories)) {
                 parameters.Add(GenerateNewFactory(serviceModel, registrationModel));
