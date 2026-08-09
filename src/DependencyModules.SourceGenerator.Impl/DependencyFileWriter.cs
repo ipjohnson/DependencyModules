@@ -54,12 +54,7 @@ public class DependencyFileWriter {
 
         var result = output.Output();
 
-        if (entryPointModel.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.IsRecord)) {
-            result = Regex.Replace(
-                result,
-                @"partial class " + Regex.Escape(entryPointModel.EntryPointType.Name) + @"(?!\w)",
-                $"partial record class {entryPointModel.EntryPointType.Name}");
-        }
+        result = EntryModelUtil.ApplyRecordDeclaration(result, entryPointModel);
 
         return result;
     }

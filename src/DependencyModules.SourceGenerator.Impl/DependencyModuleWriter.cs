@@ -69,12 +69,7 @@ public class DependencyModuleWriter {
 
         var source = outputContext.Output();
 
-        if (entryPointModel.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.IsRecord)) {
-            source = Regex.Replace(
-                source,
-                @"partial class " + Regex.Escape(entryPointModel.EntryPointType.Name) + @"(?!\w)",
-                $"partial record class {entryPointModel.EntryPointType.Name}");
-        }
+        source = EntryModelUtil.ApplyRecordDeclaration(source, entryPointModel);
 
         context.AddSource(
             entryPointModel.EntryPointType.GetFileNameHint(

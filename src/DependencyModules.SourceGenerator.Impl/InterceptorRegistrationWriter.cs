@@ -1,3 +1,4 @@
+using DependencyModules.SourceGenerator.Impl.Utilities;
 using CSharpAuthor;
 using DependencyModules.SourceGenerator.Impl.Models;
 using static CSharpAuthor.SyntaxHelpers;
@@ -30,7 +31,7 @@ public class InterceptorRegistrationWriter {
 
         csharpFile.WriteOutput(outputContext);
 
-        return outputContext.Output();
+        return EntryModelUtil.ApplyRecordDeclaration(outputContext.Output(), entryPointModel);
     }
 
     private static void WriteInterceptor(

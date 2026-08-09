@@ -37,8 +37,9 @@ public class DecoratorFileWriter {
 
         csharpFile.WriteOutput(outputContext);
 
-        return outputContext.Output();
+        return EntryModelUtil.ApplyRecordDeclaration(outputContext.Output(), entryPointModel);
     }
+
 
     private static void WriteDecorator(
         ModuleEntryPointModel entryPointModel,

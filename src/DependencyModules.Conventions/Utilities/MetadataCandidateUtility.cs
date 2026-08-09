@@ -94,13 +94,43 @@ public static class MetadataCandidateUtility {
     }
 
     /// <summary>
-    /// The metadata counterpart of the syntactic predicate: a constructible public class.
+    /// The metadata counterpart of the syntactic predicate: a constructible public class that has
+    /// not already declared how it is registered.
     /// </summary>
+    /// <remarks>
+    /// The attribute exclusion matters more here than it looks. An assembly whose types carry these
+    /// attributes has its own module and registers them itself, so scanning it as well would
+    /// register everything twice, possibly under a different lifetime — and composing that module is
+    /// what the developer should be doing instead. A decorator is excluded for the same reason it is
+    /// in the compilation being built: it implements the interface it decorates, so a convention
+    /// scanning that interface would match the decorator and register it as a service.
+    /// </remarks>
     private static bool IsCandidate(INamedTypeSymbol type) =>
         type.TypeKind == TypeKind.Class &&
         !type.IsAbstract &&
         !type.IsStatic &&
-        type.DeclaredAccessibility == Accessibility.Public;
+        type.DeclaredAccessibility == Accessibility.Public &&
+        !DeclaresRegistration(type);
+
+    private static bool DeclaresRegistration(INamedTypeSymbol type) {
+        foreach (var attribute in type.GetAttributes()) {
+            var name = attribute.AttributeClass?.Name;
+
+            if (name != null && Array.IndexOf(ExcludedAttributeNames, name) >= 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static readonly string[] ExcludedAttributeNames = {
+        "SingletonServiceAttribute",
+        "ScopedServiceAttribute",
+        "TransientServiceAttribute",
+        "CrossWireServiceAttribute",
+        "DecoratorAttribute",
+    };
 
     private static ConventionCandidateModel BuildCandidate(INamedTypeSymbol type, string assemblyName) {
         var declared = new List<ImplementedInterfaceModel>();
