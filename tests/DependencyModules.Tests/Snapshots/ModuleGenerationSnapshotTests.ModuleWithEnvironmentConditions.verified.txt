@@ -1,4 +1,5 @@
 // ---- TestModule.Dependencies.g.cs ----
+using DependencyModules.Runtime.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Diagnostics.CodeAnalysis;
@@ -11,17 +12,30 @@ namespace TestNamespace
         [DynamicDependency(nameof(ModuleDependencies))]
         private static int moduleField = global::DependencyModules.Runtime.Helpers.DependencyRegistry<global::TestNamespace.TestModule>.Add(ModuleDependencies);
 
-        private static void ModuleDependencies(global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)
+        private static void ModuleDependencies(global::Microsoft.Extensions.DependencyInjection.IServiceCollection services, global::DependencyModules.Runtime.Interfaces.IModuleEnvironment environment)
         {
             services.AddSingleton(
-                typeof(global::TestNamespace.IOther),
-                typeof(global::TestNamespace.AsThing)
+                typeof(global::TestNamespace.IAlways),
+                typeof(global::TestNamespace.Always)
             );
-            services.AddKeyedSingleton(
-                typeof(global::TestNamespace.IThing),
-                "the-key",
-                typeof(global::TestNamespace.KeyedThing)
+            services.AddSingleton(
+                typeof(global::TestNamespace.IEmailSender),
+                typeof(global::TestNamespace.SmtpEmailSender)
             );
+            if (!global::DependencyModules.Runtime.Helpers.EnvironmentConditions.NameIs(environment, "Production") && global::DependencyModules.Runtime.Helpers.EnvironmentConditions.ValueIs(environment, "FEATURE_BILLING", "on"))
+            {
+                services.AddSingleton(
+                    typeof(global::TestNamespace.IBilling),
+                    typeof(global::TestNamespace.Billing)
+                );
+            }
+            if (global::DependencyModules.Runtime.Helpers.EnvironmentConditions.NameIs(environment, "Development", "Staging"))
+            {
+                services.AddSingleton(
+                    typeof(global::TestNamespace.IEmailSender),
+                    typeof(global::TestNamespace.FakeEmailSender)
+                );
+            }
         }
     }
 }

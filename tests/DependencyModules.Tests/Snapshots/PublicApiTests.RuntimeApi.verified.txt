@@ -52,6 +52,34 @@ namespace DependencyModules.Runtime.Attributes
         Microsoft.Extensions.DependencyInjection.ServiceLifetime Lifetime { get; set; }
         DependencyModules.Runtime.Attributes.RegistrationType Using { get; set; }
     }
+    [System.AttributeUsage(System.AttributeTargets.Class, AllowMultiple=false, Inherited=false)]
+    public class IfEnvironmentAttribute : System.Attribute
+    {
+        public IfEnvironmentAttribute(params string[] environmentNames) { }
+        public string[] EnvironmentNames { get; }
+    }
+    [System.AttributeUsage(System.AttributeTargets.Class, AllowMultiple=true, Inherited=false)]
+    public class IfEnvironmentValueAttribute : System.Attribute
+    {
+        public IfEnvironmentValueAttribute(string key) { }
+        public IfEnvironmentValueAttribute(string key, string value) { }
+        public string Key { get; }
+        public string? Value { get; }
+    }
+    [System.AttributeUsage(System.AttributeTargets.Class, AllowMultiple=false, Inherited=false)]
+    public class IfNotEnvironmentAttribute : System.Attribute
+    {
+        public IfNotEnvironmentAttribute(params string[] environmentNames) { }
+        public string[] EnvironmentNames { get; }
+    }
+    [System.AttributeUsage(System.AttributeTargets.Class, AllowMultiple=true, Inherited=false)]
+    public class IfNotEnvironmentValueAttribute : System.Attribute
+    {
+        public IfNotEnvironmentValueAttribute(string key) { }
+        public IfNotEnvironmentValueAttribute(string key, string value) { }
+        public string Key { get; }
+        public string? Value { get; }
+    }
     [System.AttributeUsage(System.AttributeTargets.Class, AllowMultiple=true, Inherited=false)]
     public class InterceptAttribute : System.Attribute
     {
@@ -125,6 +153,7 @@ namespace DependencyModules.Runtime.Helpers
     public class DependencyRegistry<T>
     {
         public DependencyRegistry() { }
+        public static int Add(DependencyModules.Runtime.Helpers.EnvironmentRegistryFunc registryFunc) { }
         public static int Add(DependencyModules.Runtime.Helpers.RegistryFunc registryFunc) { }
         public static int Add<TInstance>(System.Func<System.IServiceProvider, TInstance> provider, Microsoft.Extensions.DependencyInjection.ServiceLifetime lifetime = 2)
             where TInstance :  class { }
@@ -134,10 +163,18 @@ namespace DependencyModules.Runtime.Helpers
         public static int AddModule(params DependencyModules.Runtime.Interfaces.IDependencyModule[] modules) { }
         public static void ApplyDecorators(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection) { }
         public static void ApplyServices(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection) { }
+        public static void ApplyServices(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection, DependencyModules.Runtime.Interfaces.IModuleEnvironment environment) { }
         public static System.Collections.Generic.IReadOnlyList<DependencyModules.Runtime.Helpers.DecoratorRegistration> GetDecorators() { }
         public static System.Collections.Generic.IEnumerable<object> GetModules(params object[] modules) { }
         public static void LoadModules(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection, params DependencyModules.Runtime.Interfaces.IDependencyModule[] dependencyModules) { }
     }
+    public static class EnvironmentConditions
+    {
+        public static bool HasValue(DependencyModules.Runtime.Interfaces.IModuleEnvironment environment, string key) { }
+        public static bool NameIs(DependencyModules.Runtime.Interfaces.IModuleEnvironment environment, params string[] names) { }
+        public static bool ValueIs(DependencyModules.Runtime.Interfaces.IModuleEnvironment environment, string key, string value) { }
+    }
+    public delegate void EnvironmentRegistryFunc(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection, DependencyModules.Runtime.Interfaces.IModuleEnvironment environment);
     public delegate void RegistryFunc(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection);
 }
 namespace DependencyModules.Runtime.Interception
@@ -227,6 +264,8 @@ namespace DependencyModules.Runtime.Interfaces
         [System.ComponentModel.Browsable(false)]
         void InternalApplyServices(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection);
         [System.ComponentModel.Browsable(false)]
+        void InternalApplyServices(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection, DependencyModules.Runtime.Interfaces.IModuleEnvironment environment);
+        [System.ComponentModel.Browsable(false)]
         System.Collections.Generic.IEnumerable<DependencyModules.Runtime.Helpers.DecoratorRegistration> InternalGetDecorators();
         [System.ComponentModel.Browsable(false)]
         System.Collections.Generic.IEnumerable<object> InternalGetModules();
@@ -238,7 +277,7 @@ namespace DependencyModules.Runtime.Interfaces
     }
     public interface IEnvironmentServiceCollectionConfiguration
     {
-        void ConfigureServices(Microsoft.Extensions.DependencyInjection.IServiceCollection services, DependencyModules.Runtime.Interfaces.IModuleEnvironment? environment);
+        void ConfigureServices(Microsoft.Extensions.DependencyInjection.IServiceCollection services, DependencyModules.Runtime.Interfaces.IModuleEnvironment environment);
     }
     public interface IModuleEnvironment
     {
@@ -253,6 +292,14 @@ namespace DependencyModules.Runtime.Interfaces
 }
 namespace DependencyModules.Runtime
 {
+    public class ModuleEnvironment : DependencyModules.Runtime.Interfaces.IModuleEnvironment
+    {
+        public ModuleEnvironment(string environmentName, System.Collections.Generic.IReadOnlyDictionary<string, string?>? values = null) { }
+        public string EnvironmentName { get; }
+        public static DependencyModules.Runtime.Interfaces.IModuleEnvironment Default { get; }
+        public static DependencyModules.Runtime.Interfaces.IModuleEnvironment None { get; }
+        public string? Value(string name) { }
+    }
     public static class ServiceCollectionExtensions
     {
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddModule(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, DependencyModules.Runtime.Interfaces.IDependencyModule module) { }

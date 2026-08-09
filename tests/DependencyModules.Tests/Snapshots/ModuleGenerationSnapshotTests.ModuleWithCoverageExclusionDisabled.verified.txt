@@ -52,6 +52,15 @@ namespace TestNamespace
         }
 
         [Browsable(false)]
+        void global::DependencyModules.Runtime.Interfaces.IDependencyModule.InternalApplyServices(global::Microsoft.Extensions.DependencyInjection.IServiceCollection services, global::DependencyModules.Runtime.Interfaces.IModuleEnvironment environment)
+        {
+            global::DependencyModules.Runtime.Helpers.DependencyRegistry<global::TestNamespace.TestModule>.ApplyServices(
+                services,
+                environment
+            );
+        }
+
+        [Browsable(false)]
         global::System.Collections.Generic.IEnumerable<object> global::DependencyModules.Runtime.Interfaces.IDependencyModule.InternalGetModules()
         {
             return global::DependencyModules.Runtime.Helpers.DependencyRegistry<global::TestNamespace.TestModule>.GetModules();

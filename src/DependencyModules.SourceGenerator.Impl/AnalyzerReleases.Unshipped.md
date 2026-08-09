@@ -15,3 +15,5 @@ DM0007 | DependencyModules | Error | Two decorators of one service share an orde
 DM0008 | DependencyModules | Warning | A service marked for interception cannot be wrapped.
 DM0009 | DependencyModules | Error | A convention declaration could not be read.
 DM0010 | DependencyModules | Info | A service is registered by convention.
+DM0011 | DependencyModules | Info | A service is registered only when an environment condition holds.
+DM0012 | DependencyModules | Warning | An environment condition names nothing to test.

@@ -26,7 +26,14 @@ public interface IEnvironmentServiceCollectionConfiguration {
     /// <summary>
     /// Configure services with access to the module environment.
     /// </summary>
+    /// <remarks>
+    /// The environment is never null. An application that supplies none gets
+    /// <c>ModuleEnvironment.Default</c>, read from the process, and one that has no environment says
+    /// so with <c>ModuleEnvironment.None</c>. That is the same environment the
+    /// <c>[IfEnvironment]</c> attributes are evaluated against, so a module cannot see one answer
+    /// here and a different one in its own conditional registrations.
+    /// </remarks>
     /// <param name="services"></param>
-    /// <param name="environment"></param>
-    void ConfigureServices(IServiceCollection services, IModuleEnvironment? environment);
+    /// <param name="environment">The environment for this AddModules call. Never null.</param>
+    void ConfigureServices(IServiceCollection services, IModuleEnvironment environment);
 }

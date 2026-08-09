@@ -1,6 +1,7 @@
 using DependencyModules.Runtime.Helpers;
 using DependencyModules.Runtime.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace DependencyModules.Runtime;
 
@@ -51,8 +52,17 @@ public static class ServiceCollectionExtensions {
     /// <param name="environment"></param>
     /// <param name="modules"></param>
     /// <returns></returns>
+    /// <remarks>
+    /// An environment passed here replaces any already in the collection rather than joining it.
+    /// The environment decides what gets registered, and that is a single question with a single
+    /// answer — several of them would need a rule for which one the <c>[IfEnvironment]</c>
+    /// attributes read, and the rule would come out of module ordering rather than out of anything
+    /// written down. To layer one on another, read the existing one and combine before calling this;
+    /// the collection is right there.
+    /// </remarks>
     public static IServiceCollection AddModules(this IServiceCollection services, IModuleEnvironment? environment, params IDependencyModule[] modules) {
         if (environment != null) {
+            services.RemoveAll<IModuleEnvironment>();
             services.AddSingleton(environment);
         }
 

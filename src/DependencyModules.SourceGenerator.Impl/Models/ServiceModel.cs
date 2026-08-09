@@ -72,7 +72,14 @@ public record ServiceModel(
     ServiceFactoryModel? Factory,
     FactoryOutputDelegate? FactoryOutput,
     IReadOnlyList<ServiceRegistrationModel> Registrations,
-    RegistrationFeature Features) {
+    RegistrationFeature Features,
+    /// <summary>
+    /// Environment conditions declared on the implementation, or null when it registers
+    /// unconditionally. They sit on the service rather than on each registration because the
+    /// attributes are declared on the class, so every registration it produces shares them and the
+    /// writer emits one guard around the lot.
+    /// </summary>
+    IReadOnlyList<EnvironmentConditionModel>? Conditions = null) {
     public static ServiceModel Ignore = new ServiceModel(
         TypeDefinition.Get("", "Ignore"),
         null,
@@ -94,9 +101,10 @@ public class ServiceModelComparer : IEqualityComparer<ServiceModel> {
             x.Features == y.Features &&
             x.ImplementationType.Equals(y.ImplementationType) &&
             CompareConstructor(x.Constructor, y.Constructor) &&
-            CompareRegistrations(x.Registrations, y.Registrations) && 
-            CompareFactory(x.Factory, y.Factory) && 
-            CompareFactoryOutput(x.FactoryOutput, y.FactoryOutput);
+            CompareRegistrations(x.Registrations, y.Registrations) &&
+            CompareFactory(x.Factory, y.Factory) &&
+            CompareFactoryOutput(x.FactoryOutput, y.FactoryOutput) &&
+            CompareConditions(x.Conditions, y.Conditions);
     }
 
     private bool CompareConstructor(ConstructorInfoModel? xConstructor, ConstructorInfoModel? yConstructor) {
@@ -109,6 +117,20 @@ public class ServiceModelComparer : IEqualityComparer<ServiceModel> {
         if (xFactoryOutput is null && yFactoryOutput is null) return true;
         if (xFactoryOutput is null || yFactoryOutput is null) return false;
         return true;
+    }
+
+    /// <summary>
+    /// Null and empty are the same thing here — both mean "registers unconditionally" — so they
+    /// have to compare equal or a model rebuilt from an edit elsewhere would miss the cache.
+    /// </summary>
+    private bool CompareConditions(
+        IReadOnlyList<EnvironmentConditionModel>? xConditions,
+        IReadOnlyList<EnvironmentConditionModel>? yConditions) {
+        if ((xConditions?.Count ?? 0) == 0 && (yConditions?.Count ?? 0) == 0) {
+            return true;
+        }
+
+        return ModelEquality.ListEquals(xConditions, yConditions);
     }
 
     private bool CompareFactory(ServiceFactoryModel? xFactory, ServiceFactoryModel? yFactory) {

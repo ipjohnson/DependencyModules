@@ -122,7 +122,8 @@ public static class ConventionCandidateUtility {
             viaBaseClass,
             ServiceModelUtility.GetConstructorInfo(context, typeDeclaration, cancellationToken),
             HasAccessibleConstructor(symbol),
-            LocationModel.From(typeDeclaration));
+            LocationModel.From(typeDeclaration),
+            EnvironmentConditionUtility.GetConditions(context, typeDeclaration, cancellationToken));
     }
 
     /// <summary>

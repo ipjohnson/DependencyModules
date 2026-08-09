@@ -82,6 +82,10 @@ public static class KnownTypes {
             // ReSharper disable once InconsistentNaming
             public static readonly ITypeDefinition IDependencyModuleProvider =
                 TypeDefinition.Get(TypeDefinitionEnum.InterfaceDefinition, Namespace, "IDependencyModuleProvider");
+
+            // ReSharper disable once InconsistentNaming
+            public static readonly ITypeDefinition IModuleEnvironment =
+                TypeDefinition.Get(TypeDefinitionEnum.InterfaceDefinition, Namespace, "IModuleEnvironment");
         }
 
         public static class Features {
@@ -111,6 +115,13 @@ public static class KnownTypes {
 
             public static readonly ITypeDefinition DecoratorRegistration =
                 TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "DecoratorRegistration");
+
+            /// <summary>
+            /// The tests a generated environment condition calls. Invoked statically, so the
+            /// generated file needs no using.
+            /// </summary>
+            public static readonly ITypeDefinition EnvironmentConditions =
+                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "EnvironmentConditions");
         }
 
         /// <summary>

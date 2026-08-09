@@ -31,8 +31,8 @@ public class EnvironmentDependency(string environmentName) : IEnvironmentDepende
 
 [DependencyModule]
 public partial class EnvironmentAwareModule : IEnvironmentServiceCollectionConfiguration {
-    public void ConfigureServices(IServiceCollection services, IModuleEnvironment? environment) {
-        var envName = environment?.EnvironmentName ?? "Unknown";
+    public void ConfigureServices(IServiceCollection services, IModuleEnvironment environment) {
+        var envName = environment.EnvironmentName;
         services.AddSingleton<IEnvironmentDependency>(new EnvironmentDependency(envName));
     }
 }
@@ -43,8 +43,8 @@ public partial class DualConfigModule : IServiceCollectionConfiguration, IEnviro
         services.AddSingleton(new StringMarker("from-configure"));
     }
 
-    public void ConfigureServices(IServiceCollection services, IModuleEnvironment? environment) {
-        var envName = environment?.EnvironmentName ?? "Unknown";
+    public void ConfigureServices(IServiceCollection services, IModuleEnvironment environment) {
+        var envName = environment.EnvironmentName;
         services.AddSingleton<IEnvironmentDependency>(new EnvironmentDependency(envName));
     }
 }
@@ -67,8 +67,11 @@ public class EnvironmentConfigurationTests {
         Assert.Equal("Production", dependency.EnvironmentName);
     }
 
+    /// <summary>
+    /// No environment supplied means the process default rather than null.
+    /// </summary>
     [Fact]
-    public void NullEnvironment_WhenNotRegistered() {
+    public void ProcessEnvironment_WhenNotRegistered() {
         var serviceCollection = new ServiceCollection();
 
         serviceCollection.AddModules(new EnvironmentAwareModule());
@@ -76,7 +79,23 @@ public class EnvironmentConfigurationTests {
         var serviceProvider = serviceCollection.BuildServiceProvider();
         var dependency = serviceProvider.GetRequiredService<IEnvironmentDependency>();
 
-        Assert.Equal("Unknown", dependency.EnvironmentName);
+        Assert.Equal(ModuleEnvironment.Default.EnvironmentName, dependency.EnvironmentName);
+    }
+
+    /// <summary>
+    /// An application with genuinely no environment says so, and gets a real object rather than a
+    /// null to branch on.
+    /// </summary>
+    [Fact]
+    public void ModuleEnvironmentNone_HasNoNameAndNoValues() {
+        var serviceCollection = new ServiceCollection();
+
+        serviceCollection.AddModules(ModuleEnvironment.None, new EnvironmentAwareModule());
+
+        var serviceProvider = serviceCollection.BuildServiceProvider();
+        var dependency = serviceProvider.GetRequiredService<IEnvironmentDependency>();
+
+        Assert.Equal("", dependency.EnvironmentName);
     }
 
     [Fact]
@@ -126,15 +145,34 @@ public class EnvironmentConfigurationTests {
         Assert.Equal("from-configure", marker.Value);
     }
 
+    /// <summary>
+    /// Nothing supplied registers the process default, so the environment that decided the
+    /// registrations is the same one that resolves.
+    /// </summary>
     [Fact]
-    public void NullEnvironmentParameter_DoesNotRegisterSingleton() {
+    public void NullEnvironmentParameter_RegistersTheProcessDefault() {
         var serviceCollection = new ServiceCollection();
 
         serviceCollection.AddModules((IModuleEnvironment?)null, new EnvironmentAwareModule());
 
         var serviceProvider = serviceCollection.BuildServiceProvider();
-        var resolved = serviceProvider.GetService<IModuleEnvironment>();
 
-        Assert.Null(resolved);
+        Assert.Same(ModuleEnvironment.Default, serviceProvider.GetRequiredService<IModuleEnvironment>());
+    }
+
+    /// <summary>
+    /// An environment the application supplied is never displaced by the default.
+    /// </summary>
+    [Fact]
+    public void SuppliedEnvironmentIsNotReplacedByTheDefault() {
+        var serviceCollection = new ServiceCollection();
+        var environment = new TestEnvironment("Staging");
+
+        serviceCollection.AddModules(environment, new EnvironmentAwareModule());
+
+        var serviceProvider = serviceCollection.BuildServiceProvider();
+
+        Assert.Same(environment, serviceProvider.GetRequiredService<IModuleEnvironment>());
+        Assert.Single(serviceCollection, d => d.ServiceType == typeof(IModuleEnvironment));
     }
 }

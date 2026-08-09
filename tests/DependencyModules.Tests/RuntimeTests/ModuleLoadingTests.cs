@@ -166,16 +166,34 @@ public class ModuleLoadingTests {
         Assert.Same(environment, module.ObservedEnvironment);
     }
 
+    /// <summary>
+    /// No environment supplied means the process default, not null.
+    /// </summary>
+    /// <remarks>
+    /// The same environment the [IfEnvironment] attributes are evaluated against. A module that got
+    /// null here while its own conditional registrations evaluated against Production would be
+    /// looking at two different answers to the same question.
+    /// </remarks>
     [Fact]
-    public void AddModules_WithoutEnvironment_PassesNullToConfiguration() {
+    public void AddModules_WithoutEnvironment_PassesTheProcessDefaultToConfiguration() {
         var module = new EnvironmentModule();
 
         var collection = new ServiceCollection();
         // Cast is required: without it the call is ambiguous with AddModules(params IDependencyModule[]).
         collection.AddModules((IModuleEnvironment?)null, module);
 
-        Assert.Null(module.ObservedEnvironment);
+        Assert.Same(ModuleEnvironment.Default, module.ObservedEnvironment);
         Assert.True(module.ConfigureCalled);
+    }
+
+    [Fact]
+    public void AddModules_WithModuleEnvironmentNone_PassesNoneRatherThanTheDefault() {
+        var module = new EnvironmentModule();
+
+        var collection = new ServiceCollection();
+        collection.AddModules(ModuleEnvironment.None, module);
+
+        Assert.Same(ModuleEnvironment.None, module.ObservedEnvironment);
     }
 
     [Fact]
@@ -300,7 +318,7 @@ public class ModuleLoadingTests {
 
         public void PopulateServiceCollection(IServiceCollection serviceCollection) { }
 
-        public void ConfigureServices(IServiceCollection services, IModuleEnvironment? environment) {
+        public void ConfigureServices(IServiceCollection services, IModuleEnvironment environment) {
             ConfigureCalled = true;
             ObservedEnvironment = environment;
         }

@@ -42,7 +42,17 @@ public record ConventionCandidateModel(
     IReadOnlyList<ImplementedInterfaceModel> BaseClassInterfaces,
     ConstructorInfoModel? Constructor,
     bool HasAccessibleConstructor,
-    LocationModel Location) {
+    LocationModel Location,
+    /// <summary>
+    /// Environment conditions declared on the candidate, carried through so that a convention
+    /// registers it on the same terms the attribute path would.
+    /// </summary>
+    /// <remarks>
+    /// A class with a service attribute is never a convention candidate, so these can only appear
+    /// on a class whose conditions have no other way to be honoured. Dropping them would register a
+    /// development-only service in production with nothing anywhere saying why.
+    /// </remarks>
+    IReadOnlyList<EnvironmentConditionModel>? Conditions = null) {
 
     public static readonly ConventionCandidateModel Ignore = new(
         TypeDefinition.Get("", "Ignore"),
@@ -67,7 +77,11 @@ public record ConventionCandidateModel(
         Location == other.Location &&
         ModelEquality.ListEquals(DeclaredInterfaces, other.DeclaredInterfaces) &&
         ModelEquality.ListEquals(BaseClassInterfaces, other.BaseClassInterfaces) &&
-        CompareConstructor(Constructor, other.Constructor);
+        CompareConstructor(Constructor, other.Constructor) &&
+        // Null and empty both mean unconditional and have to compare equal, or an edit elsewhere
+        // in the file would miss the incremental cache.
+        ((Conditions?.Count ?? 0) == 0 && (other.Conditions?.Count ?? 0) == 0 ||
+         ModelEquality.ListEquals(Conditions, other.Conditions));
 
     private static bool CompareConstructor(ConstructorInfoModel? x, ConstructorInfoModel? y) {
         if (x is null && y is null) return true;

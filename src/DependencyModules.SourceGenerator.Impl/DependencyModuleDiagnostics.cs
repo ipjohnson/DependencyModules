@@ -164,4 +164,41 @@ public static class DependencyModuleDiagnostics {
         category: Category,
         defaultSeverity: DiagnosticSeverity.Info,
         isEnabledByDefault: true);
+
+    /// <summary>
+    /// Reports, on the class itself, that its registration is conditional and on what.
+    /// </summary>
+    /// <remarks>
+    /// An environment condition is evaluated at run time, so the compiler cannot say whether it will
+    /// hold and no build-time error is available. The failure that follows is a service that does not
+    /// resolve, several layers from the attribute that excluded it. This puts the condition where the
+    /// developer is already looking.
+    ///
+    /// Informational, so it stays out of the build the same way DM0010 does. Silence it with
+    /// dotnet_diagnostic.DM0011.severity = none.
+    /// </remarks>
+    public static readonly DiagnosticDescriptor RegisteredConditionally = new(
+        id: "DM0011",
+        title: "Service is registered conditionally",
+        messageFormat: "Registered only when {0}",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Info,
+        isEnabledByDefault: true);
+
+    /// <summary>
+    /// Raised for a condition that names nothing to test.
+    /// </summary>
+    /// <remarks>
+    /// <c>[IfEnvironment()]</c> and <c>[IfEnvironmentValue("")]</c> compile. Written plain they mean
+    /// the service never registers anywhere; written as the <c>IfNot</c> form they mean the attribute
+    /// does nothing at all. Neither is what anybody intended, and both are invisible until something
+    /// fails to resolve in an environment nobody tested.
+    /// </remarks>
+    public static readonly DiagnosticDescriptor EmptyEnvironmentCondition = new(
+        id: "DM0012",
+        title: "Environment condition tests nothing",
+        messageFormat: "{0} names no {1} to test, so it does not depend on the environment",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
 }

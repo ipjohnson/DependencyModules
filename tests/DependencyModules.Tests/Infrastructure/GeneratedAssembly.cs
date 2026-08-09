@@ -41,11 +41,16 @@ public class GeneratedAssembly {
     /// <param name="moduleName">Name of the module type to apply, without its namespace.</param>
     /// <param name="buildProperties">MSBuild properties visible to the generator.</param>
     /// <param name="withConventions">Also runs the convention generator, which ships separately.</param>
+    /// <param name="environment">
+    /// The environment conditional registrations are evaluated against. Null takes the path an
+    /// application takes when it calls AddModules without one, which is the process environment.
+    /// </param>
     public static GeneratedAssembly Create(
         string source,
         string moduleName = "TestModule",
         IReadOnlyDictionary<string, string>? buildProperties = null,
-        bool withConventions = false) {
+        bool withConventions = false,
+        IModuleEnvironment? environment = null) {
 
         var assemblyName = "GeneratedAssemblyTest" + Interlocked.Increment(ref _assemblyCounter);
 
@@ -71,7 +76,10 @@ public class GeneratedAssembly {
         }
 
         var services = new ServiceCollection();
-        services.AddModule(module);
+
+        // AddModules rather than AddModule so an environment can be supplied; both reach
+        // DependencyRegistry.LoadModules, and AddModules is the call an application makes.
+        services.AddModules(environment, module);
 
         return new GeneratedAssembly(assembly, services);
     }
