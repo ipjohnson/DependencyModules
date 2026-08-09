@@ -51,7 +51,6 @@ real modules:
 
 ```shell
 dotnet add package DependencyModules.xUnit
-dotnet add package DependencyModules.NSubstitute
 ```
 
 ```csharp
@@ -89,8 +88,12 @@ every test needs in one file at the assembly level:
 using DependencyModules.NSubstitute;
 
 [assembly: ApplicationModule]
-[assembly: NSubstituteSupport]
+[assembly: NSubstituteSupport]      // or [MoqSupport] / [FakeItEasySupport]
 ```
+
+`NSubstituteSupport` is what enables [`[Mock]`](/guide/testing-mocks), and it comes from a separate
+package — one per mocking library, so use whichever you already have. See
+[choosing a mocking library](/guide/testing-mocks#choosing-a-mocking-library).
 
 Every test in the project now gets `ApplicationModule` without saying so:
 
