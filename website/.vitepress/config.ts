@@ -51,6 +51,15 @@ export default defineConfig({
             link: 'https://www.nuget.org/packages/DependencyModules.Conventions/',
           },
           { text: 'xUnit', link: 'https://www.nuget.org/packages/DependencyModules.xUnit/' },
+          {
+            text: 'NSubstitute',
+            link: 'https://www.nuget.org/packages/DependencyModules.NSubstitute/',
+          },
+          { text: 'Moq', link: 'https://www.nuget.org/packages/DependencyModules.Moq/' },
+          {
+            text: 'FakeItEasy',
+            link: 'https://www.nuget.org/packages/DependencyModules.FakeItEasy/',
+          },
         ],
       },
     ],

@@ -44,8 +44,10 @@ holding. You wire nothing together yourself.
 Note what stayed real: `SummaryProvider` was not mocked, so the call still travels
 `Weather` → `SummaryProvider` → `IAiSummaryProvider`. Only the leaf was swapped.
 
-::: tip Register the mocking library once
-`[Mock]` needs a mocking framework, supplied by a separate package. Pick the one you already use:
+## Choosing a mocking library
+
+`[Mock]` does not depend on a particular mocking library. It defines a seam, and a small package
+fills it — so use whichever library you already have:
 
 | Package | Attribute |
 |---|---|
@@ -53,24 +55,49 @@ Note what stayed real: `SummaryProvider` was not mocked, so the call still trave
 | `DependencyModules.Moq` | `[MoqSupport]` |
 | `DependencyModules.FakeItEasy` | `[FakeItEasySupport]` |
 
+Install one and apply its attribute. Like the module attributes it works at assembly, class or
+method level, and assembly is usually right:
+
 ```shell
-dotnet add package DependencyModules.NSubstitute
+dotnet add package DependencyModules.Moq
 ```
 
 ```csharp
-[assembly: NSubstituteSupport]
+[assembly: MoqSupport]
 ```
 
-Without one, `[Mock]` fails with a message telling you so. Like the module attributes it works at
-assembly, class or method level; assembly is almost always right.
+Without one, `[Mock]` fails with a message telling you so.
 
-With NSubstitute and FakeItEasy the injected instance is also what you configure. Moq separates the
-two, so the container gets `Mock<T>.Object` and you reach the mock with `Mock.Get(instance)`:
+### The same test in each
 
-```csharp
-Mock.Get(summaryProvider).Setup(x => x.Summarize(It.IsAny<string>())).Returns("mild");
+Only the configuration lines differ — `[Mock]`, the injection and the assertions are identical. The
+example above is NSubstitute; here are the other two:
+
+::: code-group
+
+```csharp [NSubstitute]
+temperatureProvider.GetTemperature().Returns(38);
+aiSummaryProvider.GetSummary().Returns("Sunny");
 ```
+
+```csharp [Moq]
+Mock.Get(temperatureProvider).Setup(x => x.GetTemperature()).Returns(38);
+Mock.Get(aiSummaryProvider).Setup(x => x.GetSummary()).Returns("Sunny");
+```
+
+```csharp [FakeItEasy]
+A.CallTo(() => temperatureProvider.GetTemperature()).Returns(38);
+A.CallTo(() => aiSummaryProvider.GetSummary()).Returns("Sunny");
+```
+
 :::
+
+The `Mock.Get` in the Moq version is the one difference worth knowing about. NSubstitute and
+FakeItEasy hand you an object that *is* the mock, so the parameter the container injected is the
+thing you configure. Moq keeps the two apart — the container receives `Mock<T>.Object`, and
+`Mock.Get(instance)` gets you back to the `Mock<T>` to set expectations on.
+
+Unconfigured members return `default` rather than throwing, in all three.
 
 ## When you want a real object, not a mock
 
