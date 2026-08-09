@@ -238,6 +238,101 @@ public class ServiceRegistrationTests {
         Assert.Contains("AddSingleton", result.SourceContaining("Dependencies"));
     }
 
+    /// <summary>
+    /// The first interface in the declaration used to win outright, so a class that cleaned up after
+    /// itself registered as IDisposable and was unreachable through the interface it existed for.
+    /// </summary>
+    [Fact]
+    public void CapabilityInterface_DoesNotWinOverTheServiceInterface() {
+        var result = GeneratorTestHarness.Run(Module(
+            """
+            [SingletonService]
+            public class Thing : System.IDisposable, IThing {
+                public void Dispose() { }
+            }
+            """));
+
+        result.AssertNoErrors();
+        var generated = result.SourceContaining("Dependencies");
+
+        Assert.Contains("global::TestNamespace.IThing", generated);
+        Assert.DoesNotContain("System.IDisposable", generated);
+    }
+
+    [Fact]
+    public void CapabilityInterfaceAlone_RegistersAsSelf() {
+        var result = GeneratorTestHarness.Run(Module(
+            """
+            [SingletonService]
+            public class Thing : System.IDisposable {
+                public void Dispose() { }
+            }
+            """));
+
+        result.AssertNoErrors();
+        var generated = result.SourceContaining("Dependencies");
+
+        Assert.Contains("global::TestNamespace.Thing", generated);
+        Assert.DoesNotContain("System.IDisposable", generated);
+    }
+
+    [Fact]
+    public void CapabilityInterfaceThroughABaseClass_RegistersAsSelf() {
+        var result = GeneratorTestHarness.Run(Module(
+            """
+            public abstract class DisposableBase : System.IDisposable {
+                public void Dispose() { }
+            }
+
+            [SingletonService]
+            public class Thing : DisposableBase;
+            """));
+
+        result.AssertNoErrors();
+        var generated = result.SourceContaining("Dependencies");
+
+        Assert.Contains("global::TestNamespace.Thing", generated);
+        Assert.DoesNotContain("System.IDisposable", generated);
+    }
+
+    /// <summary>
+    /// Guards the boundary of the capability list: <c>System</c> is full of interfaces that are
+    /// genuine service roles, so this must not become a namespace rule. IJsonTypeInfoResolver and
+    /// IHttpClientFactory are the same shape.
+    /// </summary>
+    [Fact]
+    public void FrameworkRoleInterface_IsStillTheServiceType() {
+        var result = GeneratorTestHarness.Run(Module(
+            """
+            [SingletonService]
+            public class Thing : System.Collections.Generic.IEqualityComparer<IThing> {
+                public bool Equals(IThing? a, IThing? b) => false;
+                public int GetHashCode(IThing o) => 0;
+            }
+            """));
+
+        result.AssertNoErrors();
+        var generated = result.SourceContaining("Dependencies");
+
+        Assert.Contains("IEqualityComparer", generated);
+    }
+
+    [Fact]
+    public void CapabilityInterface_IsHonouredWhenNamedExplicitly() {
+        var result = GeneratorTestHarness.Run(Module(
+            """
+            [SingletonService(As = typeof(System.IDisposable))]
+            public class Thing : System.IDisposable, IThing {
+                public void Dispose() { }
+            }
+            """));
+
+        result.AssertNoErrors();
+        var generated = result.SourceContaining("Dependencies");
+
+        Assert.Contains("System.IDisposable", generated);
+    }
+
     private static string Module(string body) =>
         $$"""
           using DependencyModules.Runtime.Attributes;

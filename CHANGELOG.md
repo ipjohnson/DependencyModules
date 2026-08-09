@@ -62,6 +62,16 @@ large, and the environment API changed shape late, so the surface is not committ
 
 ### Fixed
 
+- **A capability interface could win the default service type.** The service type is inferred from
+  the first interface a class declares, so `class ConnectionPool : IDisposable, IPool` registered as
+  `IDisposable` and was unresolvable as `IPool` — and a class whose only interface was `IDisposable`
+  registered as `IDisposable` rather than as itself. Interfaces describing what a class *can do*
+  rather than what it *is* are now passed over: `IDisposable`, `IAsyncDisposable`, `IEquatable<T>`,
+  `IComparable`, `ICloneable`, `IConvertible`, `IFormattable`, `IParsable<T>`, `ISerializable`,
+  `IEnumerable`/`IEnumerable<T>` and the `INotify*` family. Interfaces that are genuine service roles
+  are untouched, including framework ones such as `IEqualityComparer<T>`, `IJsonTypeInfoResolver` and
+  `IHttpClientFactory`, as is any type named with `As`. Previously only `INotifyPropertyChanged` was
+  skipped.
 - **A handler implementing several closings of one interface registered only the first**, silently.
   The MediatR notification shape — one class handling two events — lost every event but one.
 - **A `[Decorator]` was matched by conventions as though it were a service.** A decorator implements
