@@ -70,7 +70,7 @@ reportgenerator \
     "-targetdir:${OUT}" \
     "-reporttypes:Html;Cobertura;TextSummary;MarkdownSummaryGithub;Badges" \
     "-title:DependencyModules" \
-    "-assemblyfilters:+DependencyModules.Runtime;+DependencyModules.SourceGenerator;+DependencyModules.xUnit;+DependencyModules.xUnit.NSubstitute" \
+    "-assemblyfilters:+DependencyModules.Runtime;+DependencyModules.SourceGenerator;+DependencyModules.Conventions;+DependencyModules.xUnit;+DependencyModules.xUnit.NSubstitute" \
     "-classfilters:-CSharpAuthor.*" \
     >/dev/null
 

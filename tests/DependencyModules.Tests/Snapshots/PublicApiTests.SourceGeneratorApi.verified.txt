@@ -890,13 +890,18 @@ namespace DependencyModules.SourceGenerator.Impl
     }
     public class DependencyFileWriter
     {
-        public DependencyFileWriter(DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
+        public DependencyFileWriter(DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger, bool coverageAttributeOnMethod = false) { }
         public string Write(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel configurationModel, System.Collections.Generic.IEnumerable<DependencyModules.SourceGenerator.Impl.Models.ServiceModel> serviceModels, string uniqueId) { }
     }
     public static class DependencyModuleDiagnostics
     {
+        public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor AmbiguousConventionMatch;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor AmbiguousDecoratorOrder;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor CannotIntercept;
+        public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ConventionCannotBeRead;
+        public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ConventionMatchNotConstructable;
+        public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ConventionMatchedNothing;
+        public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ExposedByConvention;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor GeneratorFailure;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ModuleMustBePartial;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ServiceCannotBeConstructed;

@@ -418,34 +418,32 @@ public class ServiceModelUtility {
     }
 
     private static ITypeDefinition? GetBaseTypeRegistration(SyntaxTransformContext context) {
-        if (context.Node is TypeDeclarationSyntax typeDeclarationSyntax) {
-            if (typeDeclarationSyntax.BaseList != null) {
-                INamedTypeSymbol? baseTypeSymbol = null;
+        if (context.Node is TypeDeclarationSyntax { BaseList: not null } typeDeclarationSyntax) {
+            INamedTypeSymbol? baseTypeSymbol = null;
 
-                foreach (var baseTypeSyntax in typeDeclarationSyntax.BaseList.Types) {
-                    var symbolInfo = ModelExtensions.GetSymbolInfo(context.SemanticModel, baseTypeSyntax.Type);
+            foreach (var baseTypeSyntax in typeDeclarationSyntax.BaseList.Types) {
+                var symbolInfo = ModelExtensions.GetSymbolInfo(context.SemanticModel, baseTypeSyntax.Type);
 
-                    if (symbolInfo.Symbol is INamedTypeSymbol namedTypeSymbol) {
-                        var baseTypeDefinition =
-                            namedTypeSymbol.GetTypeDefinitionFromNamedSymbol();
+                if (symbolInfo.Symbol is INamedTypeSymbol namedTypeSymbol) {
+                    var baseTypeDefinition =
+                        namedTypeSymbol.GetTypeDefinitionFromNamedSymbol();
 
-                        // only auto register interfaces
-                        if (baseTypeDefinition is { TypeDefinitionEnum: TypeDefinitionEnum.InterfaceDefinition } &&
-                            !SkipInterface(baseTypeDefinition)) {
-                            if (baseTypeDefinition is GenericTypeDefinition) {
-                                baseTypeDefinition = ReplaceGenericParametersForRegistration(baseTypeDefinition);
-                            }
-
-                            return baseTypeDefinition;
+                    // only auto register interfaces
+                    if (baseTypeDefinition is { TypeDefinitionEnum: TypeDefinitionEnum.InterfaceDefinition } &&
+                        !SkipInterface(baseTypeDefinition)) {
+                        if (baseTypeDefinition is GenericTypeDefinition) {
+                            baseTypeDefinition = ReplaceGenericParametersForRegistration(baseTypeDefinition);
                         }
 
-                        baseTypeSymbol = namedTypeSymbol;
+                        return baseTypeDefinition;
                     }
-                }
 
-                if (baseTypeSymbol != null) {
-                    return GetBaseInterface(context, baseTypeSymbol);
+                    baseTypeSymbol = namedTypeSymbol;
                 }
+            }
+
+            if (baseTypeSymbol != null) {
+                return GetBaseInterface(context, baseTypeSymbol);
             }
         }
 

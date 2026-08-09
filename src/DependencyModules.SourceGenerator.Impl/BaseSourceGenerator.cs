@@ -152,9 +152,7 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
             foreach (var baseType in typeDeclarationSyntax.BaseList.Types) {
                 var typeDefinition = baseType.Type.GetTypeDefinition(context);
 
-                if (typeDefinition is GenericTypeDefinition genericTypeDefinition &&
-                    genericTypeDefinition.TypeDefinitionEnum == TypeDefinitionEnum.InterfaceDefinition &&
-                    genericTypeDefinition.Name == "IDependencyModuleFeature") {
+                if (typeDefinition is GenericTypeDefinition { TypeDefinitionEnum: TypeDefinitionEnum.InterfaceDefinition, Name: "IDependencyModuleFeature" } genericTypeDefinition) {
                     featureTypes.Add(genericTypeDefinition.TypeArguments.First());
                 }
             }
@@ -204,22 +202,18 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
         var additionalModules = new List<ITypeDefinition>();
         
         foreach (var syntax in compilationUnitSyntax.Members) {
-            if (syntax is GlobalStatementSyntax globalStatementSyntax) {
-                if (globalStatementSyntax.Statement is ExpressionStatementSyntax expressionStatementSyntax) {
-                    if (expressionStatementSyntax.Expression is InvocationExpressionSyntax invocationExpressionSyntax) {
+            if (syntax is GlobalStatementSyntax { Statement: ExpressionStatementSyntax { Expression: InvocationExpressionSyntax invocationExpressionSyntax } expressionStatementSyntax }) {
 
-                        if (context.SemanticModel.GetSymbolInfo(expressionStatementSyntax.Expression).Symbol
-                            is IMethodSymbol { IsStatic: true } methodSymbol) {
+                if (context.SemanticModel.GetSymbolInfo(expressionStatementSyntax.Expression).Symbol
+                    is IMethodSymbol { IsStatic: true } methodSymbol) {
                             
-                            var typeSymbol = methodSymbol.ContainingSymbol as ITypeSymbol;
-                            var declaringType = methodSymbol.ContainingType;
-                            var moduleInterface = typeSymbol?.AllInterfaces.Any(x => x.GetTypeDefinition().Equals(KnownTypes.DependencyModules.Interfaces.IDependencyModule));
+                    var typeSymbol = methodSymbol.ContainingSymbol as ITypeSymbol;
+                    var declaringType = methodSymbol.ContainingType;
+                    var moduleInterface = typeSymbol?.AllInterfaces.Any(x => x.GetTypeDefinition().Equals(KnownTypes.DependencyModules.Interfaces.IDependencyModule));
 
-                            if (moduleInterface.GetValueOrDefault(false) &&
-                                declaringType.Constructors.Any(c => c.Parameters.Length == 0)) {
-                                additionalModules.Add(declaringType.GetTypeDefinition());
-                            }
-                        }
+                    if (moduleInterface.GetValueOrDefault(false) &&
+                        declaringType.Constructors.Any(c => c.Parameters.Length == 0)) {
+                        additionalModules.Add(declaringType.GetTypeDefinition());
                     }
                 }
             }

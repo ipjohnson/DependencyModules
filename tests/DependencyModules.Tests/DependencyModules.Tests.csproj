@@ -12,6 +12,18 @@
         <!-- Referenced as a library, not an analyzer: these tests drive the generator directly. -->
         <ProjectReference Include="..\..\src\DependencyModules.SourceGenerator\DependencyModules.SourceGenerator.csproj"
                           OutputItemType="Analyzer" ReferenceOutputAssembly="true"/>
+        <!--
+            Aliased. The convention analyzer compiles in the same shared Impl sources the main
+            generator does, so referencing both as libraries puts two copies of every Impl type in
+            scope and every use of one is CS0433. Only the generator entry point is needed from here,
+            so it is reached through the alias and everything else resolves to the main generator.
+
+            This is a consequence of driving the analyzers directly from tests. A real consumer
+            references them as analyzers, where the assemblies never enter its compilation.
+        -->
+        <ProjectReference Include="..\..\src\DependencyModules.Conventions\DependencyModules.Conventions.csproj"
+                          OutputItemType="Analyzer" ReferenceOutputAssembly="true"
+                          Aliases="ConventionsGen"/>
         <ProjectReference Include="..\..\src\DependencyModules.xUnit\DependencyModules.xUnit.csproj"/>
         <ProjectReference Include="..\..\src\DependencyModules.xUnit.NSubstitute\DependencyModules.xUnit.NSubstitute.csproj"/>
     </ItemGroup>
