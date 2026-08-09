@@ -35,6 +35,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DependencyModules.Tests", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DependencyModules.Conventions", "src\DependencyModules.Conventions\DependencyModules.Conventions.csproj", "{B39ACDFB-85D2-4764-B06E-74744E683268}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "benchmarks", "benchmarks", "{2E4BAA8C-195F-490B-B9F9-57194B08CD12}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DependencyModules.Benchmarks", "benchmarks\DependencyModules.Benchmarks\DependencyModules.Benchmarks.csproj", "{F72AFF5C-C9FB-406E-B65A-192933E697D2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -93,6 +97,10 @@ Global
 		{B39ACDFB-85D2-4764-B06E-74744E683268}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B39ACDFB-85D2-4764-B06E-74744E683268}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B39ACDFB-85D2-4764-B06E-74744E683268}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F72AFF5C-C9FB-406E-B65A-192933E697D2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F72AFF5C-C9FB-406E-B65A-192933E697D2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F72AFF5C-C9FB-406E-B65A-192933E697D2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F72AFF5C-C9FB-406E-B65A-192933E697D2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{1E7E9023-435E-499B-9A6F-6C3E20A9A4F1} = {FB161494-E422-4D4E-BA04-3473C2EB13B0}
@@ -109,5 +117,6 @@ Global
 		{DA2D8D38-FA99-4483-B375-449E0EF86549} = {D6D764B2-B906-4386-BC37-7EE29D7821DF}
 		{1AFFBCCF-FD6E-4232-9DC7-40FE2784ECD1} = {F4DC9AA2-7F61-4DEE-A7D1-2BCDBEEFD1C5}
 		{B39ACDFB-85D2-4764-B06E-74744E683268} = {FB161494-E422-4D4E-BA04-3473C2EB13B0}
+		{F72AFF5C-C9FB-406E-B65A-192933E697D2} = {2E4BAA8C-195F-490B-B9F9-57194B08CD12}
 	EndGlobalSection
 EndGlobal

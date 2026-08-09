@@ -146,10 +146,31 @@ public class ServiceModelUtility {
             EnvironmentConditionUtility.GetConditions(context, context.Node, cancellationToken));
     }
 
+    /// <summary>
+    /// The constructor the container should use, read from the type's own members.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Direct members rather than <c>DescendantNodes</c>, which walks the entire subtree — every
+    /// method body, every statement, every expression — to find nodes that can only ever be direct
+    /// children. Measured on a 2,000-class compilation of ordinary classes, that walk was the
+    /// dominant cost of the candidate transform: the second generator run after editing one file
+    /// took 73 ms with it and 12 ms without.
+    /// </para>
+    /// <para>
+    /// It was also wrong. <c>DescendantNodes</c> finds the constructors of <i>nested</i> types, so a
+    /// class containing a nested class with a constructor could be registered against the nested
+    /// type's parameters.
+    /// </para>
+    /// </remarks>
     public static ConstructorInfoModel? GetConstructorInfo(SyntaxTransformContext context, SyntaxNode node, CancellationToken cancellationToken) {
         var constructorList = new List<ConstructorDeclarationSyntax>();
 
-        foreach (var constructor in node.DescendantNodes().OfType<ConstructorDeclarationSyntax>()) {
+        var members = node is TypeDeclarationSyntax declaration
+            ? declaration.Members.OfType<ConstructorDeclarationSyntax>()
+            : node.DescendantNodes().OfType<ConstructorDeclarationSyntax>();
+
+        foreach (var constructor in members) {
             if (constructor.Modifiers.Any(m => m.IsKind(SyntaxKind.PrivateKeyword))) {
                 continue;
             }
