@@ -1,11 +1,3 @@
-[assembly: Xunit.Runner.Common.RegisterRunnerReporter(typeof(Xunit.Runner.Common.AppVeyorReporter))]
-[assembly: Xunit.Runner.Common.RegisterRunnerReporter(typeof(Xunit.Runner.Common.DefaultRunnerReporter))]
-[assembly: Xunit.Runner.Common.RegisterRunnerReporter(typeof(Xunit.Runner.Common.JsonReporter))]
-[assembly: Xunit.Runner.Common.RegisterRunnerReporter(typeof(Xunit.Runner.Common.QuietReporter))]
-[assembly: Xunit.Runner.Common.RegisterRunnerReporter(typeof(Xunit.Runner.Common.SilentReporter))]
-[assembly: Xunit.Runner.Common.RegisterRunnerReporter(typeof(Xunit.Runner.Common.TeamCityReporter))]
-[assembly: Xunit.Runner.Common.RegisterRunnerReporter(typeof(Xunit.Runner.Common.VerboseReporter))]
-[assembly: Xunit.Runner.Common.RegisterRunnerReporter(typeof(Xunit.Runner.Common.VstsReporter))]
 namespace DependencyModules.xUnit.Attributes.Interfaces
 {
     public interface IServiceProviderBuilderAttribute

@@ -5,6 +5,15 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <IsPackable>True</IsPackable>
+        <!--
+          xunit.v3 brings in Microsoft.Testing.Platform.MSBuild, which assumes any project
+          referencing it is a test project: it sets IsTestProject and flips OutputType to Exe. This
+          is a library shipping the [ModuleTest] attribute for other people's test projects, not one
+          itself. Left alone it packs a stray runtimeconfig.json into lib/, and solution-level
+          dotnet test tries to run it and fails resolving the VSTest testhost's own dependencies.
+        -->
+        <OutputType>Library</OutputType>
+        <IsTestProject>false</IsTestProject>
         <PackageId>DependencyModules.xUnit</PackageId>
         <Description>xUnit v3 integration for DependencyModules. Provides the [ModuleTest] attribute, which builds a service provider from your modules and injects the services a test method asks for, plus attributes for per-test service overrides and value injection.</Description>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -12,7 +21,14 @@
 
     <ItemGroup>
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1"/>
-        <PackageReference Include="xunit.v3" Version="1.0.0"/>
+        <!--
+          ExcludeAssets="build": xunit.v3.core.targets sets OutputType to Exe unconditionally, with
+          no property to opt out, and targets import after this file so it cannot be overridden
+          here. Only the build assets are dropped — the reference and the package dependency are
+          unaffected, and a consumer's own test project still gets the targets from its own
+          xunit.v3 reference.
+        -->
+        <PackageReference Include="xunit.v3" Version="1.0.0" ExcludeAssets="build;buildTransitive"/>
         <PackageReference Include="xunit.v3.common" Version="1.0.0"/>
     </ItemGroup>
 
