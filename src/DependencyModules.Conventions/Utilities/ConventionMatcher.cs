@@ -3,6 +3,7 @@ using DependencyModules.Conventions.Models;
 using DependencyModules.SourceGenerator.Impl;
 using DependencyModules.SourceGenerator.Impl.Models;
 using DependencyModules.SourceGenerator.Impl.Utilities;
+using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
 
 namespace DependencyModules.Conventions.Utilities;
@@ -87,12 +88,18 @@ public static class ConventionMatcher {
 
         var found = 0;
 
+        // Compiled once per convention rather than once per candidate, which is the whole reason
+        // the model keeps patterns as strings.
+        var nameFilters = CompileNameFilters(convention);
+
         foreach (var candidate in candidates) {
             if (candidate.IsIgnored) {
                 continue;
             }
 
-            if (!convention.NamespaceMatches(candidate.ImplementationType.Namespace)) {
+            if (!convention.NamespaceMatches(candidate.ImplementationType.Namespace) ||
+                !convention.AttributesMatch(candidate.AttributeTypeKeys) ||
+                !NameMatches(nameFilters, candidate.ImplementationType)) {
                 continue;
             }
 
@@ -150,6 +157,69 @@ public static class ConventionMatcher {
                 serviceName,
                 moduleName));
         }
+    }
+
+    /// <summary>
+    /// Translates each name glob to an anchored regular expression, once per convention.
+    /// </summary>
+    /// <remarks>
+    /// Two wildcards and nothing else: <c>*</c> for zero or more characters, <c>?</c> for exactly
+    /// one. Everything else is escaped, so a pattern cannot smuggle in a regex.
+    /// </remarks>
+    private static List<(Regex Pattern, bool Qualified, bool Exclude)>? CompileNameFilters(
+        ConventionModel convention) {
+
+        if (convention.NameFilters == null) {
+            return null;
+        }
+
+        var compiled = new List<(Regex, bool, bool)>(convention.NameFilters.Count);
+
+        foreach (var filter in convention.NameFilters) {
+            var expression = "^" +
+                             Regex.Escape(filter.Pattern).Replace("\\*", ".*").Replace("\\?", ".") +
+                             "$";
+
+            // Ordinal and case-sensitive, consistent with C# identifiers.
+            compiled.Add((new Regex(expression, RegexOptions.CultureInvariant), filter.IsQualified,
+                filter.Exclude));
+        }
+
+        return compiled;
+    }
+
+    private static bool NameMatches(
+        List<(Regex Pattern, bool Qualified, bool Exclude)>? filters, ITypeDefinition implementation) {
+
+        if (filters == null) {
+            return true;
+        }
+
+        var bareName = implementation.Name;
+
+        var qualifiedName = string.IsNullOrEmpty(implementation.Namespace)
+            ? bareName
+            : implementation.Namespace + "." + bareName;
+
+        var included = false;
+        var anyInclusion = false;
+
+        foreach (var (pattern, qualified, exclude) in filters) {
+            var subject = qualified ? qualifiedName : bareName;
+
+            if (exclude) {
+                if (pattern.IsMatch(subject)) {
+                    return false;
+                }
+
+                continue;
+            }
+
+            anyInclusion = true;
+            included |= pattern.IsMatch(subject);
+        }
+
+        return !anyInclusion || included;
     }
 
     /// <summary>
@@ -269,7 +339,21 @@ public static class ConventionMatcher {
             }
         }
 
+        var attributeKeys = new List<string>();
+
+        // Attributes on partial parts combine, so the keys do too.
+        foreach (var part in parts) {
+            if (part.AttributeTypeKeys != null) {
+                foreach (var key in part.AttributeTypeKeys) {
+                    if (!attributeKeys.Contains(key)) {
+                        attributeKeys.Add(key);
+                    }
+                }
+            }
+        }
+
         return parts[0] with {
+            AttributeTypeKeys = attributeKeys.Count > 0 ? attributeKeys : null,
             DeclaredInterfaces = declared,
             BaseClassInterfaces = viaBaseClass,
             // The greediest constructor, matching what GetConstructorInfo does within one
@@ -389,15 +473,34 @@ public static class ConventionMatcher {
 
         var implementation = match.Candidate.ImplementationType;
 
-        return match.Convention.RegisterAs == ConventionRegisterAs.Interfaces && match.Interface != null
-            ? (implementation, match.Interface.InterfaceType)
-            : (implementation, implementation);
+        return match.Convention.RegisterAs switch {
+            ConventionRegisterAs.Explicit => (implementation, match.Convention.ExplicitServiceType!),
+            ConventionRegisterAs.MatchingInterface =>
+                (implementation, MatchingInterfaceOf(match) ?? implementation),
+            ConventionRegisterAs.Interfaces when match.Interface != null =>
+                (implementation, match.Interface.InterfaceType),
+            _ => (implementation, implementation),
+        };
+    }
+
+    /// <summary>
+    /// The interface named after the implementation — Foo as IFoo.
+    /// </summary>
+    private static ITypeDefinition? MatchingInterfaceOf(ConventionRegistrationMatch match) {
+        var wanted = "I" + match.Candidate.ImplementationType.Name;
+
+        foreach (var candidateInterface in
+                 match.Candidate.InterfacesInReach(match.Convention.IncludeBaseClasses)) {
+            if (string.Equals(candidateInterface.InterfaceType.Name, wanted, StringComparison.Ordinal)) {
+                return candidateInterface.InterfaceType;
+            }
+        }
+
+        return null;
     }
 
     private static string ServiceTypeNameOf(ConventionRegistrationMatch match) =>
-        match.Convention.RegisterAs == ConventionRegisterAs.Interfaces && match.Interface != null
-            ? match.Interface.InterfaceType.Name
-            : match.Candidate.ImplementationType.Name;
+        RegistrationKey(match).Service.Name;
 
     /// <summary>
     /// Reports DM0010 on each registered class, naming the interface it was reached through when the
@@ -515,6 +618,18 @@ public static class ConventionMatcher {
         switch (convention.RegisterAs) {
             case ConventionRegisterAs.Self:
                 return new[] { Registration(match.Candidate.ImplementationType) };
+
+            case ConventionRegisterAs.Explicit:
+                return new[] { Registration(convention.ExplicitServiceType!) };
+
+            case ConventionRegisterAs.MatchingInterface:
+                var matching = MatchingInterfaceOf(match);
+
+                // Skipped rather than registered some other way: the convention asked for one shape
+                // and this type does not have it.
+                return matching == null
+                    ? Array.Empty<ServiceRegistrationModel>()
+                    : new[] { Registration(matching) };
 
             case ConventionRegisterAs.SelfAndInterfaces:
                 var crossWired = new List<ServiceRegistrationModel>();

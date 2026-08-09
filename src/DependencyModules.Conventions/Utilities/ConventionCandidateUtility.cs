@@ -121,7 +121,8 @@ public static class ConventionCandidateUtility {
                 ServiceModelUtility.GetConstructorInfo(context, typeDeclaration, cancellationToken),
                 DeclaresAccessibleConstructor(typeDeclaration),
                 LocationModel.From(typeDeclaration),
-                EnvironmentConditionUtility.GetConditions(context, typeDeclaration, cancellationToken));
+                EnvironmentConditionUtility.GetConditions(context, typeDeclaration, cancellationToken),
+                CollectAttributeKeys(context, typeDeclaration, cancellationToken));
         }
 
         if (context.SemanticModel.GetDeclaredSymbol(typeDeclaration) is not INamedTypeSymbol symbol) {
@@ -140,7 +141,39 @@ public static class ConventionCandidateUtility {
             ServiceModelUtility.GetConstructorInfo(context, typeDeclaration, cancellationToken),
             HasAccessibleConstructor(symbol),
             LocationModel.From(typeDeclaration),
-            EnvironmentConditionUtility.GetConditions(context, typeDeclaration, cancellationToken));
+            EnvironmentConditionUtility.GetConditions(context, typeDeclaration, cancellationToken),
+            CollectAttributeKeys(context, typeDeclaration, cancellationToken));
+    }
+
+    /// <summary>
+    /// The attribute types a declaration carries, resolved.
+    /// </summary>
+    /// <remarks>
+    /// Resolved rather than taken as written, because matching attributes on their written name is
+    /// how a namespace-qualified usage came to be silently ignored once already in this generator.
+    /// Costs nothing for a type with no attributes, which is most of them, so it stays off the price
+    /// of admitting every class as a candidate.
+    /// </remarks>
+    private static IReadOnlyList<string>? CollectAttributeKeys(
+        SyntaxTransformContext context, TypeDeclarationSyntax typeDeclaration,
+        CancellationToken cancellationToken) {
+
+        List<string>? keys = null;
+
+        foreach (var attributeList in typeDeclaration.AttributeLists) {
+            foreach (var attribute in attributeList.Attributes) {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (ModelExtensions.GetTypeInfo(context.SemanticModel, attribute).Type is not { } type) {
+                    continue;
+                }
+
+                keys ??= new List<string>();
+                keys.Add(ConventionTypeKey.For(type.GetTypeDefinition()));
+            }
+        }
+
+        return keys;
     }
 
     /// <summary>

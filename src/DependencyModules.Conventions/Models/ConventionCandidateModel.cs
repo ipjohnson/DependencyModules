@@ -52,7 +52,16 @@ public record ConventionCandidateModel(
     /// on a class whose conditions have no other way to be honoured. Dropping them would register a
     /// development-only service in production with nothing anywhere saying why.
     /// </remarks>
-    IReadOnlyList<EnvironmentConditionModel>? Conditions = null) {
+    IReadOnlyList<EnvironmentConditionModel>? Conditions = null,
+    /// <summary>
+    /// The attribute types the candidate carries, as ConventionTypeKey renders them.
+    /// </summary>
+    /// <remarks>
+    /// Resolved rather than taken as written, so WithAttribute matches a namespace-qualified usage
+    /// and an alias. Only collected for declarations that carry attributes at all, which is what
+    /// keeps it off the cost of the wider candidate population.
+    /// </remarks>
+    IReadOnlyList<string>? AttributeTypeKeys = null) {
 
     public static readonly ConventionCandidateModel Ignore = new(
         TypeDefinition.Get("", "Ignore"),
@@ -81,7 +90,9 @@ public record ConventionCandidateModel(
         // Null and empty both mean unconditional and have to compare equal, or an edit elsewhere
         // in the file would miss the incremental cache.
         ((Conditions?.Count ?? 0) == 0 && (other.Conditions?.Count ?? 0) == 0 ||
-         ModelEquality.ListEquals(Conditions, other.Conditions));
+         ModelEquality.ListEquals(Conditions, other.Conditions)) &&
+        ((AttributeTypeKeys?.Count ?? 0) == 0 && (other.AttributeTypeKeys?.Count ?? 0) == 0 ||
+         ModelEquality.ListEquals(AttributeTypeKeys, other.AttributeTypeKeys));
 
     private static bool CompareConstructor(ConstructorInfoModel? x, ConstructorInfoModel? y) {
         if (x is null && y is null) return true;

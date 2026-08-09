@@ -266,6 +266,67 @@ public static class ConventionContractSource {
                 /// </remarks>
                 /// <param name="key">The service key.</param>
                 IConventionRegistration WithKey(object key);
+
+                /// <summary>
+                /// Limits matches to types carrying <typeparamref name="TAttribute"/>.
+                /// </summary>
+                /// <remarks>
+                /// The attribute is resolved, not matched on how it was written, so a
+                /// namespace-qualified usage and an alias both count. Several attribute filters
+                /// combine with <b>and</b>.
+                /// </remarks>
+                /// <typeparam name="TAttribute">The attribute to require.</typeparam>
+                IConventionRegistration WithAttribute<TAttribute>()
+                    where TAttribute : global::System.Attribute;
+
+                /// <summary>
+                /// Excludes types carrying <typeparamref name="TAttribute"/>.
+                /// </summary>
+                /// <typeparam name="TAttribute">The attribute to exclude on.</typeparam>
+                IConventionRegistration WithoutAttribute<TAttribute>()
+                    where TAttribute : global::System.Attribute;
+
+                /// <summary>
+                /// Limits matches to types whose name fits one of the given patterns.
+                /// </summary>
+                /// <remarks>
+                /// <para>
+                /// Two wildcards and no regex: <c>*</c> matches zero or more characters, <c>?</c>
+                /// matches exactly one. A pattern containing a dot is matched against the full
+                /// <c>Namespace.TypeName</c>; otherwise against the bare type name. Matching is
+                /// ordinal and case-sensitive, like C# identifiers.
+                /// </para>
+                /// <para>
+                /// The weakest selector here, and deliberately last. It is the one most likely to
+                /// match something nobody intended when a class is added years later — prefer
+                /// <c>RegisterAll&lt;T&gt;</c>, an attribute, or a namespace.
+                /// </para>
+                /// </remarks>
+                /// <param name="patterns">Name patterns to include; several combine with or.</param>
+                IConventionRegistration WithName(params string[] patterns);
+
+                /// <summary>
+                /// Excludes types whose name fits one of the given patterns.
+                /// </summary>
+                /// <param name="patterns">Name patterns to exclude.</param>
+                IConventionRegistration WithoutName(params string[] patterns);
+
+                /// <summary>
+                /// Registers every match as <typeparamref name="TService"/>, whatever it matched
+                /// through.
+                /// </summary>
+                /// <typeparam name="TService">The service type to register as.</typeparam>
+                IConventionRegistration As<TService>();
+
+                /// <summary>
+                /// Registers each match as the interface named after it — <c>Foo</c> as
+                /// <c>IFoo</c>.
+                /// </summary>
+                /// <remarks>
+                /// A match that implements no such interface is skipped rather than registered some
+                /// other way, since the convention asked for one specific shape.
+                /// </remarks>
+                IConventionRegistration AsMatchingInterface();
             }
         }
         """;

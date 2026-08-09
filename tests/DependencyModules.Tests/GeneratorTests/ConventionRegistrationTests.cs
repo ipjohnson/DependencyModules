@@ -329,6 +329,199 @@ public class ConventionRegistrationTests {
         Assert.Equal(2, registered.Length);
     }
 
+    private const string Marker =
+        """
+        public class HandlerAttribute : System.Attribute { }
+        public class LegacyAttribute : System.Attribute { }
+
+        public interface IFoo { }
+
+        [Handler]
+        public class Marked : IFoo { }
+
+        public class Unmarked : IFoo { }
+
+        [Handler]
+        [Legacy]
+        public class MarkedLegacy : IFoo { }
+        """;
+
+    [Fact]
+    public void WithAttributeLimitsMatchesToTypesCarryingIt() {
+        var assembly = Compile(
+            Marker +
+            """
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll<IFoo>().WithAttribute<HandlerAttribute>().AsSingleton();
+                }
+            }
+            """);
+
+        var implementations = assembly.Descriptors("IFoo").Select(d => d.ImplementationType).ToArray();
+
+        Assert.Equal(2, implementations.Length);
+        Assert.Contains(assembly.Type("Marked"), implementations);
+        Assert.Contains(assembly.Type("MarkedLegacy"), implementations);
+        Assert.DoesNotContain(assembly.Type("Unmarked"), implementations);
+    }
+
+    [Fact]
+    public void WithoutAttributeExcludesTypesCarryingIt() {
+        var assembly = Compile(
+            Marker +
+            """
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll<IFoo>().WithoutAttribute<LegacyAttribute>().AsSingleton();
+                }
+            }
+            """);
+
+        var implementations = assembly.Descriptors("IFoo").Select(d => d.ImplementationType).ToArray();
+
+        Assert.Equal(2, implementations.Length);
+        Assert.DoesNotContain(assembly.Type("MarkedLegacy"), implementations);
+    }
+
+    [Fact]
+    public void AttributeFiltersCombineWithAnd() {
+        var assembly = Compile(
+            Marker +
+            """
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll<IFoo>()
+                        .WithAttribute<HandlerAttribute>()
+                        .WithoutAttribute<LegacyAttribute>()
+                        .AsSingleton();
+                }
+            }
+            """);
+
+        Assert.Equal(assembly.Type("Marked"), assembly.Descriptor("IFoo").ImplementationType);
+    }
+
+    /// <summary>
+    /// Resolved rather than matched on how it was written, so the qualified form counts.
+    /// </summary>
+    [Fact]
+    public void ANamespaceQualifiedAttributeStillMatches() {
+        var assembly = Compile(
+            Marker +
+            """
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll<IFoo>()
+                        .WithAttribute<TestNamespace.HandlerAttribute>()
+                        .AsSingleton();
+                }
+            }
+            """);
+
+        Assert.Equal(2, assembly.Descriptors("IFoo").Count);
+    }
+
+    [Theory]
+    [InlineData("*Repository", 2)]
+    [InlineData("Order*", 2)]
+    [InlineData("Order?epository", 1)]
+    [InlineData("TestNamespace.*Repository", 2)]
+    [InlineData("*repository", 0)]
+    public void WithNameMatchesTheGlob(string pattern, int expected) {
+        var result = Run(
+            $$"""
+              public class OrderRepository { }
+              public class UserRepository { }
+              public class OrderService { }
+
+              [DependencyModule]
+              public partial class TestModule : IConventionModule {
+                  void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                      conventions.RegisterAll().WithName("{{pattern}}").AsSelf().AsScoped();
+                  }
+              }
+              """);
+
+        // A pattern matching nothing is DM0005 rather than silence.
+        if (expected == 0) {
+            Assert.Contains(result.GeneratorDiagnostics, d => d.Id == "DM0005");
+
+            return;
+        }
+
+        var assembly = GeneratedAssembly.Create(
+            Preamble +
+            $$"""
+              public class OrderRepository { }
+              public class UserRepository { }
+              public class OrderService { }
+
+              [DependencyModule]
+              public partial class TestModule : IConventionModule {
+                  void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                      conventions.RegisterAll().WithName("{{pattern}}").AsSelf().AsScoped();
+                  }
+              }
+              """,
+            withConventions: true);
+
+        Assert.Equal(expected, assembly.Services.Count(d => d.ImplementationType?.Namespace == "TestNamespace"));
+    }
+
+    [Fact]
+    public void AsRegistersEveryMatchAsOneNamedService() {
+        var assembly = Compile(
+            """
+            public interface IFoo { }
+            public interface IMarker { }
+
+            public class Foo : IFoo, IMarker { }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll<IFoo>().As<IMarker>().AsSingleton();
+                }
+            }
+            """);
+
+        Assert.Empty(assembly.Descriptors("IFoo"));
+        Assert.Equal(assembly.Type("Foo"), assembly.Descriptor("IMarker").ImplementationType);
+    }
+
+    [Fact]
+    public void AsMatchingInterfaceRegistersFooAsIFoo() {
+        var assembly = Compile(
+            """
+            public interface IMarker { }
+            public interface IFoo : IMarker { }
+            public interface IBar : IMarker { }
+
+            public class Foo : IFoo { }
+            public class Bar : IBar { }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll<IMarker>().AsMatchingInterface().AsSingleton();
+                }
+            }
+            """);
+
+        Assert.Equal(assembly.Type("Foo"), assembly.Descriptor("IFoo").ImplementationType);
+        Assert.Equal(assembly.Type("Bar"), assembly.Descriptor("IBar").ImplementationType);
+        Assert.Empty(assembly.Descriptors("IMarker"));
+    }
+
     [Fact]
     public void UsingChoosesHowTheRegistrationIsAdded() {
         var assembly = Compile(

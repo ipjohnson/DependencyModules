@@ -24,24 +24,6 @@ public static class ConventionTypeKey {
 }
 
 /// <summary>
-/// One <c>RegisterAll</c> declaration read out of a module's <c>Conventions</c> method.
-/// </summary>
-/// <param name="ServiceType">The service type as written.</param>
-/// <param name="DefinitionKey">Namespace, name and arity, for matching. See <see cref="ConventionTypeKey"/>.</param>
-/// <param name="IsOpenGeneric">
-/// True for <c>RegisterAll(typeof(IHandler&lt;,&gt;))</c>. An open convention matches any closing
-/// and registers each candidate against the construction it actually implements; a closed one has
-/// to match that exact construction, or <c>RegisterAll&lt;IHandler&lt;A, B&gt;&gt;()</c> would pick
-/// up every other closing too.
-/// </param>
-/// <param name="Lifestyle">
-/// Null when no <c>AsSingleton</c>/<c>AsScoped</c>/<c>AsTransient</c> was called. Deliberately not
-/// defaulted — a lifetime nobody wrote down is the most expensive thing to get wrong, so this is
-/// reported as DM0009 rather than guessed.
-/// </param>
-/// <param name="IncludeBaseClasses">Set by <c>IncludeBaseClasses()</c>.</param>
-/// <param name="Location">Where the chain was written, for diagnostics.</param>
-/// <summary>
 /// What a convention registers each match as.
 /// </summary>
 public enum ConventionRegisterAs {
@@ -61,6 +43,33 @@ public enum ConventionRegisterAs {
     /// <see cref="ServiceRegistrationModel.CrossWire"/>.
     /// </summary>
     SelfAndInterfaces,
+
+    /// <summary>
+    /// As one service type named by <c>As&lt;T&gt;()</c>, whatever the match matched through.
+    /// </summary>
+    Explicit,
+
+    /// <summary>
+    /// As the interface named after the type: <c>Foo</c> as <c>IFoo</c>.
+    /// </summary>
+    MatchingInterface,
+}
+
+/// <summary>
+/// One <c>WithName</c> or <c>WithoutName</c> filter.
+/// </summary>
+/// <param name="Pattern">
+/// The glob as written. Kept as a string rather than a compiled <c>Regex</c>, which is not equatable
+/// and would break the incremental cache; the matcher compiles one per convention, which is still
+/// once per pattern rather than once per candidate.
+/// </param>
+/// <param name="Exclude">True for the <c>Without</c> form.</param>
+public record NameFilterModel(string Pattern, bool Exclude) {
+
+    /// <summary>
+    /// True when the pattern is matched against the full name rather than the bare type name.
+    /// </summary>
+    public bool IsQualified => Pattern.IndexOf('.') >= 0;
 }
 
 /// <summary>
@@ -94,15 +103,51 @@ public record NamespaceFilterModel(string Namespace, bool Exact, bool Exclude) {
     }
 }
 
+/// <summary>
+/// One <c>WithAttribute</c> or <c>WithoutAttribute</c> filter.
+/// </summary>
+/// <param name="TypeKey">
+/// The attribute type's namespace, name and arity, as <see cref="ConventionTypeKey"/> renders it.
+/// Compared against the same rendering of what the candidate carries, so both sides are resolved
+/// and a namespace-qualified usage matches a plain one.
+/// </param>
+/// <param name="Exclude">True for the <c>Without</c> form.</param>
+public record AttributeFilterModel(string TypeKey, bool Exclude);
+
+/// <summary>
+/// One <c>RegisterAll</c> declaration read out of a module's <c>Conventions</c> method.
+/// </summary>
 /// <param name="ServiceType">
 /// The service type as written, or null for <c>RegisterAll()</c> — a convention selected by filters
 /// rather than by assignability, which registers its matches as themselves.
 /// </param>
-/// <param name="DefinitionKey">Namespace, name and arity, for matching. Null with no service type.</param>
+/// <param name="DefinitionKey">
+/// Namespace, name and arity, for matching. See <see cref="ConventionTypeKey"/>. Null with no
+/// service type.
+/// </param>
+/// <param name="IsOpenGeneric">
+/// True for <c>RegisterAll(typeof(IHandler&lt;,&gt;))</c>. An open convention matches any closing
+/// and registers each candidate against the construction it actually implements; a closed one has
+/// to match that exact construction, or <c>RegisterAll&lt;IHandler&lt;A, B&gt;&gt;()</c> would pick
+/// up every other closing too.
+/// </param>
+/// <param name="Lifestyle">
+/// Null when no <c>AsSingleton</c>/<c>AsScoped</c>/<c>AsTransient</c> was called. Deliberately not
+/// defaulted — a lifetime nobody wrote down is the most expensive thing to get wrong, so this is
+/// reported as DM0009 rather than guessed.
+/// </param>
+/// <param name="IncludeBaseClasses">Set by <c>IncludeBaseClasses()</c>.</param>
+/// <param name="Location">Where the chain was written, for diagnostics.</param>
 /// <param name="RegisterAs">Set by <c>AsSelf()</c> or <c>AsSelfWithInterfaces()</c>.</param>
 /// <param name="NamespaceFilters">
 /// Inclusions combine with <b>or</b>; exclusions are applied afterwards and any one of them removes
 /// a match. Null when the convention did not filter by namespace.
+/// </param>
+/// <param name="RegistrationType">Set by <c>Using(...)</c>; null means <c>Add</c>.</param>
+/// <param name="Key">Set by <c>WithKey(...)</c>, kept as it was written.</param>
+/// <param name="KeyNamespaces">Namespaces the key expression needs, for an enum member.</param>
+/// <param name="AttributeFilters">
+/// Set by <c>WithAttribute</c> and <c>WithoutAttribute</c>. All of them have to hold.
 /// </param>
 public record ConventionModel(
     ITypeDefinition? ServiceType,
@@ -115,7 +160,33 @@ public record ConventionModel(
     IReadOnlyList<NamespaceFilterModel>? NamespaceFilters = null,
     RegistrationType? RegistrationType = null,
     object? Key = null,
-    IReadOnlyList<string>? KeyNamespaces = null) {
+    IReadOnlyList<string>? KeyNamespaces = null,
+    IReadOnlyList<AttributeFilterModel>? AttributeFilters = null,
+    IReadOnlyList<NameFilterModel>? NameFilters = null,
+    ITypeDefinition? ExplicitServiceType = null) {
+
+    /// <summary>
+    /// Whether the attributes a candidate carries pass the filters.
+    /// </summary>
+    /// <remarks>
+    /// Requirements combine with <b>and</b>: a type has to carry every attribute asked for and none
+    /// of the excluded ones. Alternatives would need an or, which no Scrutor overload offers either.
+    /// </remarks>
+    public bool AttributesMatch(IReadOnlyList<string>? candidateAttributes) {
+        if (AttributeFilters == null) {
+            return true;
+        }
+
+        foreach (var filter in AttributeFilters) {
+            var carried = candidateAttributes != null && candidateAttributes.Contains(filter.TypeKey);
+
+            if (carried == filter.Exclude) {
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     /// <summary>
     /// The name to use in a diagnostic, whether or not a service type was named.
@@ -163,7 +234,10 @@ public record ConventionModel(
         RegistrationType == other.RegistrationType &&
         Equals(Key, other.Key) &&
         ModelEquality.ListEquals(NamespaceFilters, other.NamespaceFilters) &&
-        ModelEquality.ListEquals(KeyNamespaces, other.KeyNamespaces);
+        ModelEquality.ListEquals(KeyNamespaces, other.KeyNamespaces) &&
+        ModelEquality.ListEquals(AttributeFilters, other.AttributeFilters) &&
+        ModelEquality.ListEquals(NameFilters, other.NameFilters) &&
+        Equals(ExplicitServiceType, other.ExplicitServiceType);
 
     public override int GetHashCode() {
         unchecked {
@@ -177,6 +251,9 @@ public record ConventionModel(
             hash = hash * 31 + (Key?.GetHashCode() ?? 0);
             hash = hash * 31 + ModelEquality.ListHashCode(NamespaceFilters);
             hash = hash * 31 + ModelEquality.ListHashCode(KeyNamespaces);
+            hash = hash * 31 + ModelEquality.ListHashCode(AttributeFilters);
+            hash = hash * 31 + ModelEquality.ListHashCode(NameFilters);
+            hash = hash * 31 + (ExplicitServiceType?.GetHashCode() ?? 0);
             return hash;
         }
     }

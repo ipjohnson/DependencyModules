@@ -31,6 +31,12 @@ public static class ConventionModelUtility {
     private const string RegisterAll = "RegisterAll";
     private const string IncludeBaseClasses = "IncludeBaseClasses";
     private const string UsingCall = "Using";
+    private const string WithAttributeCall = "WithAttribute";
+    private const string WithoutAttributeCall = "WithoutAttribute";
+    private const string WithNameCall = "WithName";
+    private const string WithoutNameCall = "WithoutName";
+    private const string AsCall = "As";
+    private const string AsMatchingInterfaceCall = "AsMatchingInterface";
     private const string WithKeyCall = "WithKey";
 
     private static readonly Dictionary<string, ServiceLifestyle> LifetimeCalls = new() {
@@ -243,6 +249,9 @@ public static class ConventionModelUtility {
         RegistrationType? registrationType = null;
         object? key = null;
         IReadOnlyList<string>? keyNamespaces = null;
+        List<AttributeFilterModel>? attributeFilters = null;
+        List<NameFilterModel>? nameFilters = null;
+        ITypeDefinition? explicitServiceType = null;
 
         for (var i = 1; i < chain.Count; i++) {
             var call = chain[i];
@@ -314,6 +323,60 @@ public static class ConventionModelUtility {
                 continue;
             }
 
+            if (name == AsMatchingInterfaceCall) {
+                registerAs = ConventionRegisterAs.MatchingInterface;
+
+                continue;
+            }
+
+            if (name == AsCall) {
+                explicitServiceType = SingleTypeArgumentOf(context, call);
+
+                if (explicitServiceType == null) {
+                    reason = $"'{name}' needs a service type argument";
+
+                    return null;
+                }
+
+                registerAs = ConventionRegisterAs.Explicit;
+
+                continue;
+            }
+
+            if (name is WithNameCall or WithoutNameCall) {
+                var patterns = ReadPatterns(context, call);
+
+                if (patterns.Count == 0) {
+                    reason = $"'{name}' needs at least one pattern it can read at compile time";
+
+                    return null;
+                }
+
+                nameFilters ??= new List<NameFilterModel>();
+
+                foreach (var pattern in patterns) {
+                    nameFilters.Add(new NameFilterModel(pattern, name == WithoutNameCall));
+                }
+
+                continue;
+            }
+
+            if (name is WithAttributeCall or WithoutAttributeCall) {
+                var attributeType = SingleTypeArgumentOf(context, call);
+
+                if (attributeType == null) {
+                    reason = $"'{name}' needs an attribute type argument";
+
+                    return null;
+                }
+
+                attributeFilters ??= new List<AttributeFilterModel>();
+                attributeFilters.Add(new AttributeFilterModel(
+                    ConventionTypeKey.For(attributeType), name == WithoutAttributeCall));
+
+                continue;
+            }
+
             if (NamespaceCalls.TryGetValue(name, out var namespaceCall)) {
                 var read = ReadNamespaceFilters(context, call, namespaceCall);
 
@@ -343,7 +406,12 @@ public static class ConventionModelUtility {
                 return null;
             }
 
-            if (namespaceFilters == null || namespaceFilters.All(filter => filter.Exclude)) {
+            var hasInclusion =
+                namespaceFilters?.Any(filter => !filter.Exclude) == true ||
+                nameFilters?.Any(filter => !filter.Exclude) == true ||
+                attributeFilters?.Any(filter => !filter.Exclude) == true;
+
+            if (!hasInclusion) {
                 reason =
                     $"{RegisterAll}() with no filter matches every class in the compilation; " +
                     "narrow it with InNamespaceOf<T>() or InNamespaces(...)";
@@ -365,8 +433,42 @@ public static class ConventionModelUtility {
             namespaceFilters,
             registrationType,
             key,
-            keyNamespaces);
+            keyNamespaces,
+            attributeFilters,
+            nameFilters,
+            explicitServiceType);
     }
+
+    /// <summary>
+    /// The constant string arguments of a filter call.
+    /// </summary>
+    /// <remarks>
+    /// <c>GetConstantValue</c> rather than the literal text, so a <c>const</c> declared elsewhere
+    /// reads as the string it evaluates to.
+    /// </remarks>
+    private static IReadOnlyList<string> ReadPatterns(
+        SyntaxTransformContext context, InvocationExpressionSyntax call) {
+
+        var values = new List<string>();
+
+        foreach (var argument in call.ArgumentList.Arguments) {
+            if (context.SemanticModel.GetConstantValue(argument.Expression).Value is string value) {
+                values.Add(value);
+            }
+        }
+
+        return values;
+    }
+
+    /// <summary>
+    /// The single type argument of a generic filter call, resolved.
+    /// </summary>
+    private static ITypeDefinition? SingleTypeArgumentOf(
+        SyntaxTransformContext context, InvocationExpressionSyntax call) =>
+        call.Expression is MemberAccessExpressionSyntax { Name: GenericNameSyntax generic } &&
+        generic.TypeArgumentList.Arguments.Count == 1
+            ? generic.TypeArgumentList.Arguments[0].GetTypeDefinition(context)
+            : null;
 
     /// <summary>
     /// Reads the namespaces one filter call names, from a marker type argument or from string
