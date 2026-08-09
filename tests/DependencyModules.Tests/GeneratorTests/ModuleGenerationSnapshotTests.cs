@@ -35,6 +35,50 @@ public class ModuleGenerationSnapshotTests {
         Snapshot.Match(result.ToSnapshot());
     }
 
+    /// <summary>
+    /// The shape of an environment-conditional registration: the guard, the environment parameter
+    /// that appears only because something in the module needs it, and the unconditional service
+    /// staying outside the guard.
+    ///
+    /// Also the ordering rule. FakeEmailSender sorts before SmtpEmailSender by name, but has to be
+    /// emitted after it, because the container resolves a single service from the last matching
+    /// descriptor and the conditional registration is the override.
+    /// </summary>
+    [Fact]
+    public void ModuleWithEnvironmentConditions() {
+        var result = GeneratorTestHarness.Run(
+            """
+            using DependencyModules.Runtime.Attributes;
+
+            namespace TestNamespace;
+
+            public interface IAlways;
+            public interface IEmailSender;
+            public interface IBilling;
+
+            [SingletonService]
+            public class Always : IAlways;
+
+            [SingletonService]
+            public class SmtpEmailSender : IEmailSender;
+
+            [SingletonService]
+            [IfEnvironment("Development", "Staging")]
+            public class FakeEmailSender : IEmailSender;
+
+            [SingletonService]
+            [IfNotEnvironment("Production")]
+            [IfEnvironmentValue("FEATURE_BILLING", "on")]
+            public class Billing : IBilling;
+
+            [DependencyModule]
+            public partial class TestModule;
+            """);
+
+        result.AssertNoErrors();
+        Snapshot.Match(result.ToSnapshot());
+    }
+
     [Fact]
     public void ModuleWithAllServiceLifetimes() {
         var result = GeneratorTestHarness.Run(

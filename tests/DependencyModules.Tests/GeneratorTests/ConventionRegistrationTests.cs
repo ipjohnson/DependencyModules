@@ -1,3 +1,4 @@
+using DependencyModules.Runtime;
 using DependencyModules.Tests.Infrastructure;
 using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,6 +31,44 @@ public class ConventionRegistrationTests {
 
     private static GeneratorResult Run(string source) =>
         GeneratorTestHarness.Run(Preamble + source, withConventions: true);
+
+    /// <summary>
+    /// A convention candidate carrying an environment condition registers on the same terms the
+    /// attribute path would.
+    /// </summary>
+    /// <remarks>
+    /// A class with a service attribute is never a convention candidate, so a condition on a
+    /// convention-matched class has no other route. Ignoring it would put a development-only
+    /// service into production with nothing at the declaration saying why.
+    /// </remarks>
+    [Theory]
+    [InlineData("Development", 2)]
+    [InlineData("Production", 1)]
+    public void ConventionsHonourEnvironmentConditions(string environmentName, int expected) {
+        const string source =
+            """
+            public interface IFoo { }
+
+            public class AlwaysFoo : IFoo { }
+
+            [IfEnvironment("Development")]
+            public class DevOnlyFoo : IFoo { }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll<IFoo>().AsSingleton();
+                }
+            }
+            """;
+
+        var assembly = GeneratedAssembly.Create(
+            Preamble + source,
+            withConventions: true,
+            environment: new ModuleEnvironment(environmentName));
+
+        Assert.Equal(expected, assembly.Descriptors("IFoo").Count);
+    }
 
     [Fact]
     public void RegistersEveryTypeDeclaringTheServiceInterface() {

@@ -134,6 +134,13 @@ public class DependencyFileWriter {
         var autoRegisterGenerators =
             entryPointModel.RegisterJsonSerializers ?? configurationModel.RegisterSourceGenerator;
 
+        // The parameter is added only when something in this module is conditional, so a module
+        // without conditions generates exactly the method it always has and its Add call still
+        // binds to the RegistryFunc overload.
+        var environment = sortedServiceModels.Any(model => model.Conditions is { Count: > 0 })
+            ? method.AddParameter(KnownTypes.DependencyModules.Interfaces.IModuleEnvironment, "environment")
+            : null;
+
         foreach (var serviceModel in sortedServiceModels) {
             if (serviceModel.Equals(ServiceModel.Ignore)) {
                 continue;
@@ -143,6 +150,12 @@ public class DependencyFileWriter {
                 RegistrationFeature.AutoRegisterSourceGenerator && !autoRegisterGenerators) {
                 continue;
             }
+
+            // One guard around everything the service registers. The attributes are declared on the
+            // class, so every registration it produces shares them.
+            var block = environment != null && serviceModel.Conditions is { Count: > 0 } conditions
+                ? method.If(CodeOutputComponent.Get(BuildCondition(conditions, environment.Name)))
+                : (BaseBlockDefinition)method;
 
             var crossWire = false;
 
@@ -180,7 +193,7 @@ public class DependencyFileWriter {
                             registrationType,
                             registrationModel,
                             serviceModel,
-                            method,
+                            block,
                             services,
                             uniqueId);
                         break;
@@ -194,7 +207,7 @@ public class DependencyFileWriter {
                             registrationType,
                             registrationModel,
                             serviceModel,
-                            method,
+                            block,
                             services,
                             uniqueId);
 
@@ -207,7 +220,7 @@ public class DependencyFileWriter {
                     configurationModel,
                     entryPointModel,
                     classDefinition,
-                    method,
+                    block,
                     services,
                     serviceModel,
                     uniqueId);
@@ -217,11 +230,52 @@ public class DependencyFileWriter {
         return method.Name;
     }
 
+    /// <summary>
+    /// The guard for one service's conditions, as it is written into the generated method.
+    /// </summary>
+    /// <remarks>
+    /// Composed as text rather than through CSharpAuthor because the library has no combinators for
+    /// <c>&amp;&amp;</c> or <c>!</c>, and nesting an if per condition to avoid them would emit a
+    /// staircase for something that reads as one line. The calls themselves are static, so the
+    /// generated file needs no using.
+    /// </remarks>
+    private static string BuildCondition(
+        IReadOnlyList<EnvironmentConditionModel> conditions, string environmentParameter) {
+
+        var parts = new List<string>(conditions.Count);
+
+        foreach (var condition in conditions) {
+            // An empty condition tests nothing; it is reported as DM0012 and left out rather than
+            // emitted as a call that is constant either way.
+            if (EnvironmentConditionUtility.IsEmpty(condition)) {
+                continue;
+            }
+
+            var call = condition.Kind == EnvironmentConditionKind.Name
+                ? $"{ConditionsType}.NameIs({environmentParameter}, {QuoteAll(condition.Values)})"
+                : condition.Values.Count > 0
+                    ? $"{ConditionsType}.ValueIs({environmentParameter}, {QuoteString(condition.Key!)}, {QuoteString(condition.Values[0])})"
+                    : $"{ConditionsType}.HasValue({environmentParameter}, {QuoteString(condition.Key!)})";
+
+            parts.Add(condition.Negate ? "!" + call : call);
+        }
+
+        // Every condition was empty, so there is nothing left to test and the registration is
+        // unconditional. The diagnostic has already said so.
+        return parts.Count == 0 ? "true" : string.Join(" && ", parts);
+    }
+
+    private static string QuoteAll(IReadOnlyList<string> values) =>
+        string.Join(", ", values.Select(QuoteString));
+
+    private const string ConditionsType =
+        "global::" + KnownTypes.DependencyModules.Helpers.Namespace + ".EnvironmentConditions";
+
     private void CrossWireRegisterImplementation(
         DependencyModuleConfigurationModel configurationModel,
         ModuleEntryPointModel entryPointModel,
         ClassDefinition classDefinition,
-        MethodDefinition method,
+        BaseBlockDefinition block,
         ParameterDefinition services,
         ServiceModel serviceModel,
         string uniqueId) {
@@ -288,7 +342,7 @@ public class DependencyFileWriter {
                 KnownTypes.Microsoft.DependencyInjection.ServiceDescriptor,
                 parameters.ToArray());
 
-        method.AddIndentedStatement(
+        block.AddIndentedStatement(
             services.Invoke(
                 invokeMethod,
                 serviceDescriptor
@@ -313,7 +367,7 @@ public class DependencyFileWriter {
         RegistrationType registrationType,
         ServiceRegistrationModel registrationModel,
         ServiceModel serviceModel,
-        MethodDefinition method,
+        BaseBlockDefinition block,
         ParameterDefinition services, string uniqueId) {
         var invokeMethod =
             registrationType == RegistrationType.Replace ? "Replace" : "TryAddEnumerable";
@@ -367,7 +421,7 @@ public class DependencyFileWriter {
                 KnownTypes.Microsoft.DependencyInjection.ServiceDescriptor,
                 parameters.ToArray());
 
-        method.AddIndentedStatement(
+        block.AddIndentedStatement(
             services.Invoke(
                 invokeMethod,
                 serviceDescriptor
@@ -378,7 +432,7 @@ public class DependencyFileWriter {
         RegistrationType registrationType,
         ServiceRegistrationModel registrationModel,
         ServiceModel serviceModel,
-        MethodDefinition method,
+        BaseBlockDefinition block,
         ParameterDefinition services,
         string uniqueId) {
         stringBuilder.Length = 0;
@@ -436,7 +490,7 @@ public class DependencyFileWriter {
             AddFactoryParameter(serviceModel, classDefinition, parameters, uniqueId);
         }
 
-        method.AddIndentedStatement(
+        block.AddIndentedStatement(
             services.Invoke(
                 stringBuilder.ToString(),
                 parameters.ToArray()
@@ -577,12 +631,44 @@ public class DependencyFileWriter {
         return configurationModel.RegistrationType;
     }
 
+    /// <summary>
+    /// Emission order: unconditional registrations first, then conditional ones, each group by name.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The container resolves a single service from the <b>last</b> matching descriptor, so a
+    /// conditional registration can only override an unconditional default for the same service type
+    /// if it is emitted after it. Ordering by name alone made that depend on the class names: a
+    /// <c>[IfEnvironment("Development")] FakeEmailSender</c> sorts before an unconditional
+    /// <c>SmtpEmailSender</c>, so the default landed last and won in every environment.
+    /// </para>
+    /// <para>
+    /// This orders within one module. A default and its override living in different modules are
+    /// ordered by the sequence the modules are applied in, which is the caller's.
+    /// </para>
+    /// <para>
+    /// Note the interaction with <c>RegistrationType.Try</c>, which is first-wins rather than
+    /// last-wins: a conditional <c>Try</c> registration cannot override an unconditional one,
+    /// because by the time it runs the service type is already registered. That is what <c>Try</c>
+    /// means, and the override pattern wants the default <c>Add</c>.
+    /// </para>
+    /// </remarks>
     private List<ServiceModel> GetSortedServiceModels(IEnumerable<ServiceModel> serviceModels) {
         var list = new List<ServiceModel>(serviceModels);
 
-        list.Sort((x, y) =>
-            string.Compare(x.ImplementationType.Name, y.ImplementationType.Name, StringComparison.Ordinal));
+        list.Sort((x, y) => {
+            var byCondition = IsConditional(x).CompareTo(IsConditional(y));
+
+            // Name is the tie-break rather than the only key, so the order stays total and the
+            // output stays deterministic under List.Sort, which is not stable.
+            return byCondition != 0
+                ? byCondition
+                : string.Compare(x.ImplementationType.Name, y.ImplementationType.Name, StringComparison.Ordinal);
+        });
 
         return list;
     }
+
+    private static bool IsConditional(ServiceModel serviceModel) =>
+        serviceModel.Conditions is { Count: > 0 };
 }

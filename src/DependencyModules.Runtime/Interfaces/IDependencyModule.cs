@@ -44,7 +44,22 @@ public interface IDependencyModule {
     [Browsable(false)]
     void InternalApplyServices(IServiceCollection serviceCollection) { }
 
-    
+    /// <summary>
+    /// Internal method not intended to be called by general developers
+    /// </summary>
+    /// <remarks>
+    /// The overload generated modules implement once any of their registrations carries an
+    /// environment condition. It forwards to the collection-only overload by default, so a module
+    /// compiled against an earlier generator keeps registering exactly what it did before.
+    /// </remarks>
+    /// <param name="serviceCollection"></param>
+    /// <param name="environment">Never null; see <c>ModuleEnvironment.Default</c>.</param>
+    [Browsable(false)]
+    void InternalApplyServices(IServiceCollection serviceCollection, IModuleEnvironment environment) {
+        InternalApplyServices(serviceCollection);
+    }
+
+
     /// <summary>
     /// Internal method not intended to be called by general developers
     /// </summary>

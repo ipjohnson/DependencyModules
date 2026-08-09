@@ -12,6 +12,21 @@ namespace DependencyModules.Runtime.Helpers;
 public delegate void RegistryFunc(IServiceCollection serviceCollection);
 
 /// <summary>
+/// Delegate representing a function responsible for registering dependencies into an
+/// IServiceCollection, with the environment those registrations may be conditional on.
+/// </summary>
+/// <remarks>
+/// Generated code uses this form only when a module declares an environment condition. Everything
+/// registered through <see cref="RegistryFunc"/> is adapted to it, so both kinds keep their
+/// declaration order relative to each other — which matters, because the container resolves a
+/// single service from the last matching descriptor.
+/// </remarks>
+/// <param name="serviceCollection">The IServiceCollection to which dependencies will be added.</param>
+/// <param name="environment">The environment conditions are evaluated against. Never null.</param>
+public delegate void EnvironmentRegistryFunc(
+    IServiceCollection serviceCollection, IModuleEnvironment environment);
+
+/// <summary>
 ///     Static class used to store dependency registration functions
 ///     per type
 /// </summary>
@@ -20,7 +35,7 @@ public delegate void RegistryFunc(IServiceCollection serviceCollection);
 public class DependencyRegistry<T> {
     // ReSharper disable StaticMemberInGenericType
     private static readonly object SyncLock = new();
-    private static readonly List<RegistryFunc> RegistryFuncs = [];
+    private static readonly List<EnvironmentRegistryFunc> RegistryFuncs = [];
     private static readonly List<DecoratorRegistration> Decorators = [];
     private static readonly List<IDependencyModule> Modules = [];
 
@@ -30,6 +45,19 @@ public class DependencyRegistry<T> {
     /// <param name="registryFunc"></param>
     /// <returns></returns>
     public static int Add(RegistryFunc registryFunc) {
+        lock (SyncLock) {
+            RegistryFuncs.Add((serviceCollection, _) => registryFunc(serviceCollection));
+        }
+
+        return 1;
+    }
+
+    /// <summary>
+    ///     Add registration func whose registrations may depend on the environment
+    /// </summary>
+    /// <param name="registryFunc"></param>
+    /// <returns></returns>
+    public static int Add(EnvironmentRegistryFunc registryFunc) {
         lock (SyncLock) {
             RegistryFuncs.Add(registryFunc);
         }
@@ -49,7 +77,7 @@ public class DependencyRegistry<T> {
         ServiceLifetime lifetime = ServiceLifetime.Transient) where TInstance : class {
         lock (SyncLock) {
             RegistryFuncs.Add(
-                registry => registry.Add(
+                (registry, _) => registry.Add(
                     new ServiceDescriptor(
                         typeof(TInstance),
                         provider,
@@ -70,7 +98,7 @@ public class DependencyRegistry<T> {
     public static int Add<TInstance>(Type implementationType, ServiceLifetime lifetime = ServiceLifetime.Transient, object? serviceKey = null) where TInstance : class {
         lock (SyncLock) {
             RegistryFuncs.Add(
-                registry => registry.Add(
+                (registry, _) => registry.Add(
                     new ServiceDescriptor(
                         typeof(TInstance),
                         serviceKey,
@@ -135,13 +163,23 @@ public class DependencyRegistry<T> {
     /// </summary>
     /// <param name="serviceCollection"></param>
     public static void ApplyServices(IServiceCollection serviceCollection) {
-        RegistryFunc[] snapshot;
+        ApplyServices(serviceCollection, ModuleEnvironment.Default);
+    }
+
+    /// <summary>
+    ///     Apply all registration for a given type to the service collection, evaluating any
+    ///     environment conditions against the supplied environment
+    /// </summary>
+    /// <param name="serviceCollection"></param>
+    /// <param name="environment"></param>
+    public static void ApplyServices(IServiceCollection serviceCollection, IModuleEnvironment environment) {
+        EnvironmentRegistryFunc[] snapshot;
         lock (SyncLock) {
             snapshot = RegistryFuncs.ToArray();
         }
 
         foreach (var registryFunc in snapshot) {
-            registryFunc(serviceCollection);
+            registryFunc(serviceCollection, environment);
         }
     }
 
@@ -226,23 +264,38 @@ public class DependencyRegistry<T> {
     }
 
     private static void ApplyServices(IServiceCollection serviceCollection, IReadOnlyList<IDependencyModule> modules) {
-        IModuleEnvironment? environment = null;
-        var hasEnvironmentModules = false;
-
-        for (var i = 0; i < modules.Count; i++) {
-            if (modules[i] is IEnvironmentServiceCollectionConfiguration) {
-                hasEnvironmentModules = true;
-                break;
-            }
+        // Always looked for now. Attribute conditions live on generated modules, which do not
+        // implement IEnvironmentServiceCollectionConfiguration, so the old "only if some module
+        // asked for it" gate would have missed them. It costs one scan of the collection per
+        // AddModules call.
+        // One environment for the whole call, and never null. Handing attribute conditions the
+        // process default while handing IEnvironmentServiceCollectionConfiguration a null would let
+        // one module see two different answers to "what environment is this" — the conditions
+        // evaluating against Production while its own ConfigureServices was told there is no
+        // environment at all. An application with no environment says so with ModuleEnvironment.None.
+        // Nothing to apply means nothing to decide, so the collection is left exactly as it was
+        // rather than picking up an environment nobody asked for.
+        if (modules.Count == 0) {
+            return;
         }
 
-        if (hasEnvironmentModules) {
-            environment = FindModuleEnvironment(serviceCollection);
+        var environment = FindModuleEnvironment(serviceCollection);
+
+        if (environment == null) {
+            RefuseUnusableEnvironment(serviceCollection);
+
+            environment = ModuleEnvironment.Default;
+
+            // Registered, not just used. Otherwise conditions would be decided by an environment
+            // that GetRequiredService<IModuleEnvironment>() then throws for, which is the same
+            // inconsistency one layer out. Only when nothing supplied one, so an application's own
+            // environment is never displaced.
+            serviceCollection.AddSingleton(environment);
         }
 
         for (var i = 0; i < modules.Count; i++) {
             var module = modules[i];
-            module.InternalApplyServices(serviceCollection);
+            module.InternalApplyServices(serviceCollection, environment);
 
             if (module is IServiceCollectionConfiguration serviceCollectionConfigure) {
                 serviceCollectionConfigure.ConfigureServices(serviceCollection);
@@ -251,6 +304,33 @@ public class DependencyRegistry<T> {
             if (module is IEnvironmentServiceCollectionConfiguration environmentConfigure) {
                 environmentConfigure.ConfigureServices(serviceCollection, environment);
             }
+        }
+    }
+
+    /// <summary>
+    /// Refuses an <see cref="IModuleEnvironment"/> registered in a form that cannot decide
+    /// registrations.
+    /// </summary>
+    /// <remarks>
+    /// The environment is read while the collection is still being populated, so there is no
+    /// provider to construct it from and only an instance can be used. Registered by type or by
+    /// factory it was previously ignored without a word, the process default was used instead, and
+    /// the registration that was ignored got shadowed by the one added in its place — a service
+    /// gated on "Development" quietly took its production branch.
+    /// </remarks>
+    private static void RefuseUnusableEnvironment(IServiceCollection serviceCollection) {
+        for (var i = serviceCollection.Count - 1; i >= 0; i--) {
+            if (serviceCollection[i].ServiceType != typeof(IModuleEnvironment)) {
+                continue;
+            }
+
+            throw new InvalidOperationException(
+                "An IModuleEnvironment is registered, but not as a singleton instance, so it cannot " +
+                "be used. The environment decides which services are registered, which happens " +
+                "while the service collection is being populated and before any provider exists to " +
+                "construct it from. Register the instance directly with " +
+                "AddSingleton<IModuleEnvironment>(new MyEnvironment()), or pass it to " +
+                "AddModules(environment, modules).");
         }
     }
 

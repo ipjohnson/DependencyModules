@@ -142,7 +142,8 @@ public class ServiceModelUtility {
             null,
             factoryOutput,
             registrations,
-            GetConstructionFeatures(context.Node));
+            GetConstructionFeatures(context.Node),
+            EnvironmentConditionUtility.GetConditions(context, context.Node, cancellationToken));
     }
 
     public static ConstructorInfoModel? GetConstructorInfo(SyntaxTransformContext context, SyntaxNode node, CancellationToken cancellationToken) {

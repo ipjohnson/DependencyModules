@@ -250,7 +250,8 @@ public static class ConventionMatcher {
                         // registration with no realm when the module declares one.
                         Realm: entryPointModel.EntryPointType)
                 },
-                RegistrationFeature.None));
+                RegistrationFeature.None,
+                match.Candidate.Conditions));
         }
 
         return models;

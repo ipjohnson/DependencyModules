@@ -901,9 +901,11 @@ namespace DependencyModules.SourceGenerator.Impl
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ConventionCannotBeRead;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ConventionMatchNotConstructable;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ConventionMatchedNothing;
+        public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor EmptyEnvironmentCondition;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ExposedByConvention;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor GeneratorFailure;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ModuleMustBePartial;
+        public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor RegisteredConditionally;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ServiceCannotBeConstructed;
     }
     public class DependencyModuleWriter
@@ -957,6 +959,7 @@ namespace DependencyModules.SourceGenerator.Impl
                 public const string Namespace = "DependencyModules.Runtime.Helpers";
                 public static readonly CSharpAuthor.ITypeDefinition DecoratorHelper;
                 public static readonly CSharpAuthor.ITypeDefinition DecoratorRegistration;
+                public static readonly CSharpAuthor.ITypeDefinition EnvironmentConditions;
             }
             public static class Interception
             {
@@ -975,6 +978,7 @@ namespace DependencyModules.SourceGenerator.Impl
                 public const string Namespace = "DependencyModules.Runtime.Interfaces";
                 public static readonly CSharpAuthor.ITypeDefinition IDependencyModule;
                 public static readonly CSharpAuthor.ITypeDefinition IDependencyModuleProvider;
+                public static readonly CSharpAuthor.ITypeDefinition IModuleEnvironment;
             }
         }
         public static class Microsoft
@@ -1101,6 +1105,21 @@ namespace DependencyModules.SourceGenerator.Impl.Models
         public DependencyModuleConfigurationModelComparer() { }
         public bool Equals(DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel? x, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel? y) { }
         public int GetHashCode(DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel obj) { }
+    }
+    public enum EnvironmentConditionKind
+    {
+        Name = 0,
+        Value = 1,
+    }
+    public class EnvironmentConditionModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>
+    {
+        public EnvironmentConditionModel(DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionKind Kind, bool Negate, string? Key, System.Collections.Generic.IReadOnlyList<string> Values) { }
+        public string? Key { get; init; }
+        public DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionKind Kind { get; init; }
+        public bool Negate { get; init; }
+        public System.Collections.Generic.IReadOnlyList<string> Values { get; init; }
+        public virtual bool Equals(DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel? other) { }
+        public override int GetHashCode() { }
     }
     public delegate CSharpAuthor.IOutputComponent? FactoryOutputDelegate(DependencyModules.SourceGenerator.Impl.Models.ServiceModel serviceModel, DependencyModules.SourceGenerator.Impl.Models.ServiceRegistrationModel registrationModel);
     public interface IClassModel
@@ -1307,7 +1326,8 @@ namespace DependencyModules.SourceGenerator.Impl.Models
     public class ServiceModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.ServiceModel>
     {
         public static DependencyModules.SourceGenerator.Impl.Models.ServiceModel Ignore;
-        public ServiceModel(CSharpAuthor.ITypeDefinition ImplementationType, DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? Constructor, DependencyModules.SourceGenerator.Impl.Models.ServiceFactoryModel? Factory, DependencyModules.SourceGenerator.Impl.Models.FactoryOutputDelegate? FactoryOutput, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ServiceRegistrationModel> Registrations, DependencyModules.SourceGenerator.Impl.Models.RegistrationFeature Features) { }
+        public ServiceModel(CSharpAuthor.ITypeDefinition ImplementationType, DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? Constructor, DependencyModules.SourceGenerator.Impl.Models.ServiceFactoryModel? Factory, DependencyModules.SourceGenerator.Impl.Models.FactoryOutputDelegate? FactoryOutput, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ServiceRegistrationModel> Registrations, DependencyModules.SourceGenerator.Impl.Models.RegistrationFeature Features, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? Conditions = null) { }
+        public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? Conditions { get; init; }
         public DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? Constructor { get; init; }
         public DependencyModules.SourceGenerator.Impl.Models.ServiceFactoryModel? Factory { get; init; }
         public DependencyModules.SourceGenerator.Impl.Models.FactoryOutputDelegate? FactoryOutput { get; init; }
@@ -1380,6 +1400,12 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities
                 "Right"})] System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>> entryPointList) { }
         public static DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel EnsureNamespace(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel configurationModel) { }
         public static string GenerateFileName(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel, string uniquePortion) { }
+    }
+    public static class EnvironmentConditionUtility
+    {
+        public static string Describe(DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel condition) { }
+        public static System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? GetConditions(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, Microsoft.CodeAnalysis.SyntaxNode node, System.Threading.CancellationToken cancellationToken) { }
+        public static bool IsEmpty(DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel condition) { }
     }
     public class FileLogger : System.IDisposable
     {

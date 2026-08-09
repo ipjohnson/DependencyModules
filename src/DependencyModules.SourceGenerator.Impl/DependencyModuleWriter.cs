@@ -314,34 +314,60 @@ public class DependencyModuleWriter {
         return attributeModels;
     }
 
+    /// <summary>
+    /// Emits both overloads of <c>InternalApplyServices</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The runtime calls the environment-taking overload, and that is the one that has to exist:
+    /// this module's registrations may include conditional ones, and routing them through the
+    /// collection-only overload would evaluate them against the process environment rather than the
+    /// one the caller passed to <c>AddModules</c>.
+    /// </para>
+    /// <para>
+    /// The collection-only overload is emitted as well rather than left to the interface default,
+    /// which does nothing. The generator package declares no dependency on the runtime package, so
+    /// a consumer can pair a new generator with an older runtime that only knows to call the
+    /// one-argument form — and would then register nothing at all.
+    /// </para>
+    /// </remarks>
     private void InternalApplyServicesMethod(
         ClassDefinition classDefinition,
         ModuleEntryPointModel model) {
-
-        var loadDependenciesMethod = classDefinition.AddMethod("InternalApplyServices");
-
-        loadDependenciesMethod.AddLeadingTrait(CodeOutputComponent.Get("[Browsable(false)]", true));
-        loadDependenciesMethod.AddUsingNamespace("System.ComponentModel");
-        
-        loadDependenciesMethod.InterfaceImplementation =
-            KnownTypes.DependencyModules.Interfaces.IDependencyModule;
-
-        var parameter =
-            loadDependenciesMethod.AddParameter(
-                KnownTypes.Microsoft.DependencyInjection.IServiceCollection, "services");
 
         var closedType = new GenericTypeDefinition(
             TypeDefinitionEnum.ClassDefinition, KnownTypes.DependencyModules.Helpers.Namespace, "DependencyRegistry", new[] {
                 model.EntryPointType
             });
 
+        ApplyServicesOverload(classDefinition, closedType, withEnvironment: false);
+        ApplyServicesOverload(classDefinition, closedType, withEnvironment: true);
+    }
+
+    private static void ApplyServicesOverload(
+        ClassDefinition classDefinition, ITypeDefinition closedType, bool withEnvironment) {
+
+        var loadDependenciesMethod = classDefinition.AddMethod("InternalApplyServices");
+
+        loadDependenciesMethod.AddLeadingTrait(CodeOutputComponent.Get("[Browsable(false)]", true));
+        loadDependenciesMethod.AddUsingNamespace("System.ComponentModel");
+
+        loadDependenciesMethod.InterfaceImplementation =
+            KnownTypes.DependencyModules.Interfaces.IDependencyModule;
+
+        var arguments = new List<IOutputComponent> {
+            loadDependenciesMethod.AddParameter(
+                KnownTypes.Microsoft.DependencyInjection.IServiceCollection, "services")
+        };
+
+        if (withEnvironment) {
+            arguments.Add(
+                loadDependenciesMethod.AddParameter(
+                    KnownTypes.DependencyModules.Interfaces.IModuleEnvironment, "environment"));
+        }
+
         loadDependenciesMethod.AddIndentedStatement(
-            new StaticInvokeStatement(
-                closedType,
-                "ApplyServices",
-                new IOutputComponent[] {
-                    parameter
-                }) {
+            new StaticInvokeStatement(closedType, "ApplyServices", arguments) {
                 Indented = false
             });
     }

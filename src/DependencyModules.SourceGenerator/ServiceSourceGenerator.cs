@@ -44,6 +44,8 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
             return;
         }
 
+        ReportEnvironmentConditions(context, serviceModels, logger);
+
         var (entryPointList, configurationModel) =
             EntryModelUtil.ConsolidateEntryPointModels(inputData.Left);
 
@@ -156,6 +158,64 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
         }
 
         return builder.ToImmutable();
+    }
+
+    /// <summary>
+    /// Reports what each conditional registration depends on, and refuses conditions that name
+    /// nothing to test.
+    /// </summary>
+    /// <remarks>
+    /// Whether a condition holds is a run-time question, so there is no build error to raise for the
+    /// ordinary case and DM0011 is informational. DM0012 is the case that is decidable here: a
+    /// condition with no name or no key does not depend on the environment at all, whatever it was
+    /// meant to say.
+    /// </remarks>
+    private static void ReportEnvironmentConditions(
+        SourceProductionContext context, ImmutableArray<ServiceModel> serviceModels, FileLogger logger) {
+
+        foreach (var serviceModel in serviceModels) {
+            if (serviceModel.Conditions is not { Count: > 0 } conditions) {
+                continue;
+            }
+
+            var typeName = serviceModel.ImplementationType.Name;
+
+            foreach (var condition in conditions) {
+                if (!EnvironmentConditionUtility.IsEmpty(condition)) {
+                    continue;
+                }
+
+                var kind = condition.Kind == EnvironmentConditionKind.Name ? "environment name" : "key";
+
+                logger.Error($"'{typeName}' has an environment condition that names no {kind}.");
+
+                context.ReportDiagnostic(
+                    Diagnostic.Create(
+                        DependencyModuleDiagnostics.EmptyEnvironmentCondition,
+                        Location.None,
+                        typeName,
+                        kind));
+            }
+
+            var described = conditions
+                .Where(condition => !EnvironmentConditionUtility.IsEmpty(condition))
+                .Select(EnvironmentConditionUtility.Describe)
+                .ToArray();
+
+            if (described.Length == 0) {
+                continue;
+            }
+
+            var summary = string.Join(" and ", described);
+
+            logger.Info($"'{typeName}' registers only when {summary}.");
+
+            context.ReportDiagnostic(
+                Diagnostic.Create(
+                    DependencyModuleDiagnostics.RegisteredConditionally,
+                    Location.None,
+                    summary));
+        }
     }
 
     private static bool IsUnconstructable(ServiceModel serviceModel) =>
