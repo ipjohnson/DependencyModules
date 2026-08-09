@@ -35,7 +35,8 @@ public static class GeneratorTestHarness {
         IReadOnlyDictionary<string, string>? buildProperties = null,
         OutputKind outputKind = OutputKind.DynamicallyLinkedLibrary,
         string assemblyName = "GeneratorTestAssembly",
-        bool withConventions = false) {
+        bool withConventions = false,
+        IReadOnlyList<MetadataReference>? additionalReferences = null) {
 
         // MSBuild hands the compiler absolute paths, and the generator compares a file's location
         // against ProjectDir to decide whether it owns the auto-generated ApplicationModule.
@@ -52,7 +53,9 @@ public static class GeneratorTestHarness {
         var compilation = CSharpCompilation.Create(
             assemblyName,
             syntaxTrees,
-            References.Value,
+            additionalReferences == null
+                ? References.Value
+                : References.Value.Concat(additionalReferences),
             new CSharpCompilationOptions(outputKind, nullableContextOptions: NullableContextOptions.Enable));
 
         var driver = CSharpGeneratorDriver.Create(
@@ -166,6 +169,61 @@ public static class GeneratorTestHarness {
         buildProperties != null && buildProperties.TryGetValue("ProjectDir", out var configured)
             ? configured
             : DefaultProjectDir;
+
+    /// <summary>
+    /// Compiles a standalone library and returns a reference to it, plus the loaded assembly.
+    /// </summary>
+    /// <remarks>
+    /// The only honest way to test scanning a referenced assembly: the types have to live in real
+    /// metadata with no syntax tree in the consuming compilation, which is exactly the situation
+    /// InAssemblyOf exists for. Loading it as well lets a behavioural test resolve the services the
+    /// generated code registers.
+    /// </remarks>
+    public static (MetadataReference Reference, System.Reflection.Assembly Assembly) CompileLibrary(
+        string source, string assemblyName) {
+
+        var compilation = CSharpCompilation.Create(
+            assemblyName,
+            new[] { CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(LanguageVersion.Latest)) },
+            References.Value,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        using var stream = new MemoryStream();
+
+        var result = compilation.Emit(stream);
+
+        Xunit.Assert.True(result.Success,
+            "The test library did not compile: " + string.Join(
+                Environment.NewLine,
+                result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error)));
+
+        var bytes = stream.ToArray();
+        var assembly = System.Reflection.Assembly.Load(bytes);
+
+        // Assembly.Load(byte[]) puts it in the default context but does not make it discoverable by
+        // name, so generated code referencing it fails to bind at run time. The resolver closes that.
+        lock (LoadedLibraries) {
+            LoadedLibraries[assemblyName] = assembly;
+
+            if (!_resolverHooked) {
+                System.Runtime.Loader.AssemblyLoadContext.Default.Resolving += (_, name) => {
+                    lock (LoadedLibraries) {
+                        return name.Name != null && LoadedLibraries.TryGetValue(name.Name, out var found)
+                            ? found
+                            : null;
+                    }
+                };
+
+                _resolverHooked = true;
+            }
+        }
+
+        return (MetadataReference.CreateFromImage(bytes), assembly);
+    }
+
+    private static readonly Dictionary<string, System.Reflection.Assembly> LoadedLibraries = new();
+
+    private static bool _resolverHooked;
 
     private static ImmutableArray<MetadataReference> BuildReferences() {
         var builder = ImmutableArray.CreateBuilder<MetadataReference>();

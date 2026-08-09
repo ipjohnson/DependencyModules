@@ -309,6 +309,45 @@ public class TypeShapeTests {
     }
 
     /// <summary>
+    /// A nested type's constructor is not the outer type's.
+    /// </summary>
+    /// <remarks>
+    /// GetConstructorInfo used to walk DescendantNodes, which reaches into nested declarations, so a
+    /// service containing a nested class with a parameterised constructor was registered against
+    /// that constructor's parameters. It now reads the type's own members.
+    /// </remarks>
+    [Fact]
+    public void ANestedTypesConstructorIsNotTheOuterTypes() {
+        // With factory generation on, the constructor reaches the emitted code as a literal
+        // new Outer(...) call. Without it the container picks the constructor at run time and the
+        // mistake is invisible, which is why this test sets the property.
+        var assembly = GeneratedAssembly.Create(
+            """
+            using DependencyModules.Runtime.Attributes;
+
+            namespace TestNamespace;
+
+            public interface IOuter { }
+
+            [SingletonService]
+            public class Outer : IOuter {
+                public class Nested {
+                    public Nested(string required) { Required = required; }
+                    public string Required { get; }
+                }
+            }
+
+            [DependencyModule]
+            public partial class TestModule;
+            """,
+            buildProperties: new Dictionary<string, string> {
+                ["DependencyModules_GenerateFactories"] = "true"
+            });
+
+        Assert.IsType(assembly.Type("Outer"), assembly.ResolveRequired("IOuter"));
+    }
+
+    /// <summary>
     /// Compiles the supplied declarations alongside a module and returns the registration file.
     /// </summary>
     private static string Generate(string body) {
