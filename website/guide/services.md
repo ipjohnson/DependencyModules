@@ -35,8 +35,7 @@ type or any of its interfaces gives the same instance.
 public class Cache : IReadCache, IWriteCache { }
 ```
 
-Two independent registrations would give you one instance per service type, which is almost never
-what people mean.
+Registering the interfaces separately would give you one instance per service type instead.
 
 ## Keys
 
@@ -97,9 +96,8 @@ public SomeClass(IDep one) { }
 
 ## Generated factories
 
-By default the generator emits `typeof(Implementation)` and lets the container construct it. Turning
-on factory generation emits a `new` expression instead, which removes the container's reflection
-from the hot path:
+By default the generator emits `typeof(Implementation)` and the container constructs it. Factory
+generation emits a `new` expression instead, removing the container's reflection from the hot path:
 
 ```xml
 <PropertyGroup>

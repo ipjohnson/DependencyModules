@@ -1,7 +1,6 @@
 # Diagnostics
 
-The generator reports what it can decide at build time rather than letting it fail at startup. Each
-code can be tuned or silenced through `.editorconfig`:
+Each code can be tuned or silenced through `.editorconfig`:
 
 ```ini
 dotnet_diagnostic.DM0010.severity = none
@@ -26,16 +25,14 @@ dotnet_diagnostic.DM0010.severity = none
 
 **The generator failed; registrations may be missing.**
 
-Surfaced as a build error rather than discarded, because a generator that fails quietly produces a
-green build with no registrations. Please [open an issue](https://github.com/ipjohnson/DependencyModules/issues)
-with the generator log — see [Troubleshooting](/guide/troubleshooting).
+Please [open an issue](https://github.com/ipjohnson/DependencyModules/issues) with the generator log
+— see [Troubleshooting](/guide/troubleshooting).
 
 ## DM0002 {#dm0002}
 
 **A service type cannot be constructed and was not registered.**
 
-The implementation is abstract or a static class. Registering it would throw when the provider is
-built, a long way from the declaration responsible.
+The implementation is abstract or a static class, so the container could not construct it.
 
 ## DM0003 {#dm0003}
 
@@ -48,39 +45,35 @@ complete.
 
 **Two conventions in one module register a type as the same service type.**
 
-One lifetime has to win and the source does not say which.
+The lifetime would be ambiguous.
 
 ```csharp
 conventions.RegisterAll<IRepository>().AsScoped();
 conventions.RegisterAll<IRepository>().AsSingleton();   // DM0004
 ```
 
-Equal lifetimes are an error too — the outcome is predictable, but the declaration is redundant, and
-silently collapsing a duplicate is the failure mode this generator avoids.
+Equal lifetimes are an error too — the declaration is redundant.
 
-A type filling two *different* roles is not ambiguous and registers as both. Conventions in
-different modules never collide, because each registers into its own realm.
+A type filling two *different* roles is not ambiguous and registers as both. Conventions in different
+modules never collide; each registers into its own realm.
 
 ## DM0005 {#dm0005}
 
 **A convention matched no types.**
 
-Almost always a renamed interface or a typo in a filter. Without this it fails silently: the build is
-green and the application throws at resolve time, which is the failure Scrutor cannot report because
-its scan does not run until startup.
+Almost always a renamed interface or a typo in a filter.
 
 ## DM0006 {#dm0006}
 
 **A convention matched a type with no accessible constructor.**
 
-Reported rather than registered, because the container would throw when the provider is built.
+The container could not construct it.
 
 ## DM0007 {#dm0007}
 
 **Two decorators of one service share an order.**
 
-Their nesting would not be predictable from reading the source. See
-[Decorators](/guide/decorators#ordering).
+Their nesting would be ambiguous. See [Decorators](/guide/decorators#ordering).
 
 ## DM0008 {#dm0008}
 
@@ -94,20 +87,18 @@ The member uses `ref`, `in`, `out` or a `ref struct` parameter, returns by refer
 
 **A convention declaration could not be read.**
 
-The `Conventions` body is read at compile time rather than executed, so only a closed set of calls
-can appear in it. A loop, a conditional, a local or a call to your own helper has no compile-time
-meaning.
+The `Conventions` body is read at compile time, so only the documented calls can appear in it — a
+loop, a conditional, a local or a call to your own helper cannot.
 
-It also covers a convention that declared no lifetime, a `RegisterAll()` with no shape or no filter,
-and a chain the generator could not resolve.
+It also covers a convention with no lifetime, a `RegisterAll()` with no shape or no filter, and a
+chain that could not be resolved.
 
 ## DM0010 {#dm0010}
 
 **A service is registered by convention.**
 
-Informational, reported at the class. A class registered by convention carries no attribute saying
-so, so nothing at the declaration explains why it is in the container — this is that explanation, and
-it names the interface the match came through when it was not direct.
+Informational, reported at the class, naming the service type it was registered as and the interface
+the match came through when it was not direct.
 
 A match from a [referenced assembly](/guide/scanning) has no class to point at, so it reports at the
 `RegisterAll` line instead.
@@ -116,8 +107,7 @@ A match from a [referenced assembly](/guide/scanning) has no class to point at, 
 
 **A service is registered only when an environment condition holds.**
 
-Informational. Whether a condition holds is a run-time question, so no build error is available — this
-puts the condition where you are already looking. See [Environments](/guide/environments).
+Informational, reported at the class. See [Environments](/guide/environments).
 
 ## DM0012 {#dm0012}
 

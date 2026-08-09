@@ -24,8 +24,8 @@ Resolve `IEmailSender` and you get whichever one the environment selected.
 | `[IfEnvironmentValue(key, value)]` | the value equals exactly |
 | `[IfNotEnvironmentValue(…)]` | the inverse of either form |
 
-Conditions of **different kinds** combine with **and**. Alternatives go inside one attribute, which
-is why `IfEnvironment` takes `params` and is not `AllowMultiple` — two of them could never both hold.
+Conditions of **different kinds** combine with **and**. Alternatives go inside one attribute, as
+`params`.
 
 ```csharp
 [SingletonService]
@@ -35,7 +35,7 @@ public class RequestProfiler : IProfiler { }
 ```
 
 Environment **names** compare case-insensitively, matching `IHostEnvironment.IsDevelopment()`.
-**Values** compare ordinally, because a value is data rather than a well-known label.
+**Values** compare ordinally.
 
 ## Where the environment comes from
 
@@ -49,12 +49,9 @@ Supply nothing and you get `ModuleEnvironment.Default`, which reads the process:
 `ASPNETCORE_ENVIRONMENT`, then `DOTNET_ENVIRONMENT`, then `"Production"`. Values come from
 environment variables, read on each call rather than captured.
 
-That means `[IfEnvironment("Development")]` works with nothing wired up beyond the variable you
-already set, and the `"Production"` default means a service gated on a non-production environment
-stays unregistered unless something says otherwise.
+So `[IfEnvironment("Development")]` works with nothing wired up beyond the variable you already set.
 
-`ModuleEnvironment.None` says this application has no environment — a real object with an empty name
-and no values, rather than a null to branch on.
+`ModuleEnvironment.None` says this application has no environment — an empty name and no values.
 
 Whatever is used is **registered**, so `GetRequiredService<IModuleEnvironment>()` returns the same
 environment that decided the registrations.
@@ -68,13 +65,11 @@ services.AddSingleton<IModuleEnvironment>(new ModuleEnvironment("Staging"));   /
 services.AddSingleton<IModuleEnvironment, MyEnvironment>();                    // throws
 ```
 
-Registering by type or factory is refused with a message naming the fix, rather than silently
-falling back to the process default.
+Registering by type or factory throws, with a message naming the fix.
 :::
 
-An environment passed to `AddModules` **replaces** one already in the collection rather than joining
-it. The environment answers a single question and several would need a rule for which one wins. To
-layer one on another, read the existing one and combine before you call:
+An environment passed to `AddModules` **replaces** one already in the collection. To layer one on
+another, read the existing one and combine before you call:
 
 ```csharp
 var existing = services.FirstOrDefault(d => d.ServiceType == typeof(IModuleEnvironment))
@@ -93,35 +88,32 @@ override a default:
 [SingletonService] [IfEnvironment("Development")]    public class FakeEmailSender : IEmailSender { }
 ```
 
-In Development the fake wins, because the container resolves a single service from the last matching
+In Development the fake wins, since the container resolves a single service from the last matching
 descriptor.
 
 Across modules, **module order decides** — a referenced module's conditional registration does not
-override the module that references it. A condition says "instead of my other registration", not
-"instead of yours".
+override the module that references it.
 
 ::: info Try is first-wins
-`Using(RegistrationType.Try)` is first-wins rather than last-wins, so a conditional `Try` cannot
-override an unconditional one. The override pattern wants `Add`, which is the default.
+A conditional `Using(RegistrationType.Try)` cannot override an unconditional registration. Use `Add`,
+the default, for the override pattern.
 :::
 
 ## Conditions and conventions
 
-A class matched by a convention honours its conditions too. A class carrying a service attribute is
-never a convention candidate, so a condition on a convention-matched class has no other route — and
-dropping it would put a development-only service into production.
+A class matched by a [convention](/guide/conventions) honours its conditions too, so a condition
+works whether the class is registered by attribute or by convention.
 
 ## What conditions cost
 
 The test runs at run time, so **both branches are compiled and every conditionally registered type
-stays referenced**. Conditions change what is registered, not what ships. Trimming a service out of a
-build is a compile-time decision and belongs to `#if`.
+stays referenced**. Conditions change what is registered, not what ships. To remove a service from a
+build, use `#if`.
 
 ## Seeing it at build time
 
-Whether a condition holds is a run-time question, so there is no build error for the ordinary case.
-[DM0011](/reference/diagnostics#dm0011) reports what each conditional registration depends on, so
-the condition is visible where you are already looking.
+[DM0011](/reference/diagnostics#dm0011) reports what each conditional registration depends on, in the
+IDE at the class.
 
 A condition that names nothing to test — `[IfEnvironment()]`, `[IfEnvironmentValue("")]` — is
 [DM0012](/reference/diagnostics#dm0012).
