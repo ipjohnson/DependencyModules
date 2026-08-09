@@ -29,11 +29,25 @@ namespace DependencyModules.Conventions.Utilities;
 /// </remarks>
 public static class ConventionCandidateUtility {
 
+    /// <summary>
+    /// Attributes that take a type out of convention matching.
+    /// </summary>
+    /// <remarks>
+    /// The service attributes, because an explicit registration always wins — and
+    /// <c>[Decorator]</c>, because a decorator is not a service. A decorator implements the
+    /// interface it decorates, so a convention scanning that interface matched the decorator too and
+    /// registered it as an ordinary implementation. For a generic decorator that is worse than a
+    /// stray registration: it closes nothing, so it registered as the <i>open</i> generic, and
+    /// decoration then refused the whole thing because an open generic registration cannot be
+    /// decorated. One open generic decorator over convention-registered handlers — the ordinary
+    /// MediatR and FluentValidation shape — failed at the composition root because of it.
+    /// </remarks>
     private static readonly string[] ServiceAttributeNames = {
         "SingletonService", "SingletonServiceAttribute",
         "ScopedService", "ScopedServiceAttribute",
         "TransientService", "TransientServiceAttribute",
         "CrossWireService", "CrossWireServiceAttribute",
+        "Decorator", "DecoratorAttribute",
     };
 
     /// <summary>
