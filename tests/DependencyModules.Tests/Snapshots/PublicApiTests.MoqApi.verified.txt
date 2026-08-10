@@ -1,9 +1,10 @@
 namespace DependencyModules.Moq
 {
     [System.AttributeUsage(System.AttributeTargets.Assembly | System.AttributeTargets.Class | System.AttributeTargets.Method)]
-    public class MoqSupportAttribute : System.Attribute, DependencyModules.Testing.Attributes.Interfaces.IMockSupportAttribute
+    public class MoqSupportAttribute : System.Attribute, DependencyModules.Testing.Attributes.Interfaces.IMockSupportAttribute, DependencyModules.Testing.Attributes.Interfaces.ITestServiceSetupAttribute
     {
         public MoqSupportAttribute() { }
         public object ProvideMock(System.Type type) { }
+        public void SetupServiceCollection(DependencyModules.Testing.Attributes.Interfaces.ITestMethodContext testMethod, Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection) { }
     }
 }

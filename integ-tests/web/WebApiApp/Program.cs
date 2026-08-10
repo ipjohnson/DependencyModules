@@ -3,25 +3,16 @@ using WebApiApp;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+// The point of this project: the generated module registers the services, and the endpoint below
+// resolves one out of the container the same way any ASP.NET Core app would.
 builder.Services.AddModule<ApplicationModule>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment()) {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
 app.UseHttpsRedirection();
 
 app.MapGet("/weatherforecast", (Weather weather) => weather.GetWeatherForecast())
-    .WithName("GetWeatherForecast")
-    .WithOpenApi();
+    .WithName("GetWeatherForecast");
 
 app.Run();
 

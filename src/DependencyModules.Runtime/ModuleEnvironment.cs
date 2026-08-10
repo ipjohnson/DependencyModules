@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Concurrent;
 using DependencyModules.Runtime.Interfaces;
 
 namespace DependencyModules.Runtime;
@@ -25,6 +26,10 @@ namespace DependencyModules.Runtime;
 public class ModuleEnvironment : IModuleEnvironment, IEnumerable<KeyValuePair<string, string?>> {
     private readonly Dictionary<string, string?> _values;
     private readonly bool _fallBackToEnvironmentVariables;
+
+    // Null values are cached too — an unset optional variable is the case a default exists for, and
+    // not caching it would leave the common path paying a process read every call.
+    private readonly ConcurrentDictionary<string, string?> _processValues = new();
 
     /// <summary>
     /// Creates an environment with a fixed name and an optional set of values, falling back to
@@ -80,15 +85,27 @@ public class ModuleEnvironment : IModuleEnvironment, IEnumerable<KeyValuePair<st
     /// hide an environment variable of the same name. Only a key that was never mentioned falls
     /// through to the process.
     ///
-    /// The variable is read on each call rather than captured, matching
-    /// <see cref="Default"/>. Registration reads these once at startup, so nothing repeats the cost.
+    /// A variable read from the process is cached for the life of this instance, misses included.
+    /// This is injectable, so a service reading a value on every request would otherwise pay a
+    /// process lookup and a fresh string allocation each time — and a miss is the common case, since
+    /// an optional value that is not set is exactly what a default exists for. The cost of that is
+    /// no longer seeing a variable changed mid-process, which nothing should be relying on; ask
+    /// <see cref="CreateDefault"/> for a fresh view if you need one.
     /// </remarks>
-    public string? Value(string name) =>
-        _values.TryGetValue(name, out var value)
-            ? value
-            : _fallBackToEnvironmentVariables
-                ? Environment.GetEnvironmentVariable(name)
-                : null;
+    public string? Value(string name) {
+        if (_values.TryGetValue(name, out var value)) {
+            return value;
+        }
+
+        if (!_fallBackToEnvironmentVariables) {
+            return null;
+        }
+
+        // Separate from _values rather than written back into it. That dictionary is what the caller
+        // supplied, and GetEnumerator says so — folding process reads into it would have this
+        // environment report values nobody gave it.
+        return _processValues.GetOrAdd(name, static key => Environment.GetEnvironmentVariable(key));
+    }
 
     /// <summary>
     /// Adds a value, replacing any already present for <paramref name="key"/>.
@@ -131,17 +148,23 @@ public class ModuleEnvironment : IModuleEnvironment, IEnumerable<KeyValuePair<st
     /// <c>IHostEnvironment</c>, and means a service gated on a non-production environment stays
     /// unregistered unless something says otherwise.
     ///
-    /// Values are read on each call rather than captured, so a variable set after startup is still
-    /// seen. Registration happens once, so the cost does not repeat.
+    /// A new instance each call, rather than one shared by the process. The instance caches what it
+    /// reads, and a cache shared by every application in the process would let the first read of a
+    /// variable fix it for all of them, with no way to opt out — the same reasoning that keeps
+    /// <see cref="None"/> a type of its own.
+    ///
+    /// Because each call builds a fresh one, asking again is how you get a current view of the
+    /// process. The instance <c>AddModules</c> registers is held for the application's lifetime, so
+    /// a service injecting <see cref="IModuleEnvironment"/> reads through a warm cache.
     /// </remarks>
-    public static IModuleEnvironment Default { get; } = new ProcessModuleEnvironment();
+    public static IModuleEnvironment CreateDefault() => new ProcessModuleEnvironment();
 
     /// <summary>
     /// An environment with no name and no values, so every condition evaluates false.
     /// </summary>
     /// <remarks>
     /// Pass this to <c>AddModules</c> to state that this application has no environment, rather
-    /// than leaving it unset and picking up <see cref="Default"/>.
+    /// than leaving it unset and picking up <see cref="CreateDefault"/>.
     ///
     /// Its own type rather than an empty <see cref="ModuleEnvironment"/>: this instance is shared by
     /// every application in the process, and <see cref="Add"/> would let a cast reach in and give
@@ -150,12 +173,17 @@ public class ModuleEnvironment : IModuleEnvironment, IEnumerable<KeyValuePair<st
     public static IModuleEnvironment None { get; } = new EmptyModuleEnvironment();
 
     private sealed class ProcessModuleEnvironment : IModuleEnvironment {
+        private readonly ConcurrentDictionary<string, string?> _values = new();
+
+        // Not cached. It is read once per AddModules call rather than per service, and a fresh
+        // instance is what CreateDefault hands out anyway.
         public string EnvironmentName =>
             Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ??
             Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ??
             "Production";
 
-        public string? Value(string name) => Environment.GetEnvironmentVariable(name);
+        public string? Value(string name) =>
+            _values.GetOrAdd(name, static key => Environment.GetEnvironmentVariable(key));
     }
 
     private sealed class EmptyModuleEnvironment : IModuleEnvironment {

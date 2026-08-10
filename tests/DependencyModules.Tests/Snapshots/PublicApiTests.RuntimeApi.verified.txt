@@ -300,11 +300,11 @@ namespace DependencyModules.Runtime
         public ModuleEnvironment(string environmentName, System.Collections.Generic.IReadOnlyDictionary<string, string?>? values = null) { }
         public ModuleEnvironment(bool fallBackToEnvironmentVariables, string environmentName, System.Collections.Generic.IReadOnlyDictionary<string, string?>? values = null) { }
         public string EnvironmentName { get; }
-        public static DependencyModules.Runtime.Interfaces.IModuleEnvironment Default { get; }
         public static DependencyModules.Runtime.Interfaces.IModuleEnvironment None { get; }
         public void Add(string key, string? value) { }
         public System.Collections.Generic.IEnumerator<System.Collections.Generic.KeyValuePair<string, string?>> GetEnumerator() { }
         public string? Value(string name) { }
+        public static DependencyModules.Runtime.Interfaces.IModuleEnvironment CreateDefault() { }
     }
     public static class ServiceCollectionExtensions
     {

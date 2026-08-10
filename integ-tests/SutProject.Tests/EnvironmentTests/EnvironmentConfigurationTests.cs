@@ -79,7 +79,7 @@ public class EnvironmentConfigurationTests {
         var serviceProvider = serviceCollection.BuildServiceProvider();
         var dependency = serviceProvider.GetRequiredService<IEnvironmentDependency>();
 
-        Assert.Equal(ModuleEnvironment.Default.EnvironmentName, dependency.EnvironmentName);
+        Assert.Equal(ModuleEnvironment.CreateDefault().EnvironmentName, dependency.EnvironmentName);
     }
 
     /// <summary>
@@ -155,9 +155,19 @@ public class EnvironmentConfigurationTests {
 
         serviceCollection.AddModules((IModuleEnvironment?)null, new EnvironmentAwareModule());
 
+        // The registered instance is the one that decided the registrations. CreateDefault builds a
+        // fresh environment per call, so the invariant is that these are the same object — not that
+        // either matches something asked for later.
+        var registered = Assert.Single(
+            serviceCollection, descriptor => descriptor.ServiceType == typeof(IModuleEnvironment));
+
         var serviceProvider = serviceCollection.BuildServiceProvider();
 
-        Assert.Same(ModuleEnvironment.Default, serviceProvider.GetRequiredService<IModuleEnvironment>());
+        Assert.Same(
+            registered.ImplementationInstance, serviceProvider.GetRequiredService<IModuleEnvironment>());
+        Assert.Equal(
+            ModuleEnvironment.CreateDefault().EnvironmentName,
+            serviceProvider.GetRequiredService<IModuleEnvironment>().EnvironmentName);
     }
 
     /// <summary>

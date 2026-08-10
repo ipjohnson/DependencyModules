@@ -1,10 +1,7 @@
 using System.Reflection;
 using DependencyModules.Testing.Attributes.Interfaces;
 using DependencyModules.Testing.Impl;
-using DependencyModules.xUnit.Attributes.Interfaces;
-using DependencyModules.xUnit.Impl;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit.v3;
 
 namespace DependencyModules.xUnit.Attributes;
 
@@ -24,8 +21,8 @@ public class MockAttribute : Attribute, ITestParameterValueProvider {
     /// <summary>
     /// Configures a service collection with necessary dependencies for the test case context.
     /// </summary>
-    /// <param name="testCaseContext">
-    /// The xUnit test method context providing access to test-related information and behavior.
+    /// <param name="testMethod">
+    /// The test method context providing access to test-related information and behavior.
     /// </param>
     /// <param name="serviceCollection">
     /// The service collection to configure with services and dependencies required for the test.
@@ -36,8 +33,9 @@ public class MockAttribute : Attribute, ITestParameterValueProvider {
     /// <exception cref="Exception">
     /// Thrown when a required mock library is not found, indicating that the type or assembly is not correctly attributed.
     /// </exception>
-    public void SetupServiceCollection(IXunitTestMethod testCaseContext, IServiceCollection serviceCollection, ParameterInfo parameter) {
-        var mockAttribute = testCaseContext.Method.GetTestAttribute<IMockSupportAttribute>();
+    public void SetupServiceCollection(
+        ITestMethodContext testMethod, IServiceCollection serviceCollection, ParameterInfo parameter) {
+        var mockAttribute = testMethod.Method.GetTestAttribute<IMockSupportAttribute>();
 
         if (mockAttribute == null) {
             throw new Exception("Mock library not found, please ensure the Type or Assembly is attributed correctly.");
@@ -51,7 +49,7 @@ public class MockAttribute : Attribute, ITestParameterValueProvider {
     /// <summary>
     /// Retrieves the parameter value asynchronously using the provided context, service provider, and parameter information.
     /// </summary>
-    /// <param name="context">
+    /// <param name="testMethod">
     /// The test method execution context containing metadata and runtime details of the test case.
     /// </param>
     /// <param name="serviceProvider">
@@ -64,7 +62,8 @@ public class MockAttribute : Attribute, ITestParameterValueProvider {
     /// A task that represents the asynchronous operation. The task result contains the resolved value of the parameter,
     /// or null if the parameter could not be resolved.
     /// </returns>
-    public Task<object?> GetParameterValueAsync(IXunitTestMethod context, IServiceProvider serviceProvider, ParameterInfo parameter) {
+    public Task<object?> GetParameterValueAsync(
+        ITestMethodContext testMethod, IServiceProvider serviceProvider, ParameterInfo parameter) {
         return Task.FromResult(serviceProvider.GetService(parameter.ParameterType));
     }
 }

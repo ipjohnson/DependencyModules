@@ -1,5 +1,4 @@
 using DependencyModules.xUnit.Attributes;
-using Xunit.Internal;
 using Xunit.Sdk;
 using Xunit.v3;
 
@@ -40,20 +39,36 @@ public class ModuleTestDiscoverer : IXunitTestCaseDiscoverer {
         // name is not unique across test classes, and xUnit silently drops a test case whose ID
         // collides with one already discovered. This also picks up display name formatting, the
         // skip and explicit attributes, and the timeout, consistently with [Fact] and [Theory].
-        var details = TestIntrospectionHelper.GetTestCaseDetails(discoveryOptions, testMethod, factAttribute);
+        //
+        // label is named to pick an overload, not because a value is wanted. xunit.v3 3.x added a
+        // second GetTestCaseDetails taking a trailing label, and since every added parameter on
+        // both is optional, a three-argument call matches the two equally well and is ambiguous.
+        // Naming a parameter only the newer one declares resolves it. A module test has no label,
+        // which is what null says.
+        var details = TestIntrospectionHelper.GetTestCaseDetails(
+            discoveryOptions, testMethod, factAttribute, label: null);
 
         return new ValueTask<IReadOnlyCollection<IXunitTestCase>>(
             new[] {
                 new ModuleTestCase(
-                    details.ResolvedTestMethod,
-                    details.TestCaseDisplayName,
-                    details.UniqueID,
-                    details.Explicit,
-                    details.SkipReason,
-                    details.SkipType,
-                    details.SkipUnless,
-                    details.SkipWhen,
-                    testMethod.Traits.ToReadWrite(StringComparer.OrdinalIgnoreCase),
+                    testMethod: details.ResolvedTestMethod,
+                    testCaseDisplayName: details.TestCaseDisplayName,
+                    uniqueID: details.UniqueID,
+                    @explicit: details.Explicit,
+                    // New in 3.x, and forwarded rather than defaulted: introspection already reads
+                    // [Fact(SkipExceptions = …)] off the attribute, so dropping it here would leave
+                    // [ModuleTest] silently ignoring a skip condition that [Fact] honours.
+                    skipExceptions: details.SkipExceptions,
+                    skipReason: details.SkipReason,
+                    skipType: details.SkipType,
+                    skipUnless: details.SkipUnless,
+                    skipWhen: details.SkipWhen,
+                    traits: testMethod.Traits.ToWritableTraits(StringComparer.OrdinalIgnoreCase),
+                    // Introspection reads these off the attribute, which captures them from the
+                    // usage site. Not forwarding them left every module test without a source
+                    // location, so a test explorer had nowhere to navigate to.
+                    sourceFilePath: details.SourceFilePath,
+                    sourceLineNumber: details.SourceLineNumber,
                     timeout: details.Timeout
                 )
             }

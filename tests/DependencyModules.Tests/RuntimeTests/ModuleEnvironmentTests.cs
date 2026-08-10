@@ -109,15 +109,18 @@ public class ModuleEnvironmentTests {
     [Fact]
     public void AKeyNotSuppliedFallsBackToAnEnvironmentVariable() {
         var key = UniqueKey();
-        var environment = new ModuleEnvironment("Development") { { "Supplied", "value" } };
-
-        Assert.Null(environment.Value(key));
 
         try {
+            // Set before the environment is built. An instance caches what it reads, so reading the
+            // key first and setting the variable afterwards would be testing the cache instead of
+            // the fallback — see FallBackToTheProcessIsCachedPerInstance for that.
             Environment.SetEnvironmentVariable(key, "from-process");
 
-            // Read on each call rather than captured, matching ModuleEnvironment.Default.
+            var environment = new ModuleEnvironment("Development") { { "Supplied", "value" } };
+
             Assert.Equal("from-process", environment.Value(key));
+            Assert.Equal("value", environment.Value("Supplied"));
+            Assert.Null(environment.Value(UniqueKey()));
         } finally {
             Environment.SetEnvironmentVariable(key, null);
         }
@@ -210,18 +213,95 @@ public class ModuleEnvironmentTests {
         Assert.Null(ModuleEnvironment.None.Value("Anything"));
     }
 
+    /// <summary>
+    /// A fresh default reads the process as it is now, which is what asking again is for.
+    /// </summary>
     [Fact]
     public void DefaultReadsValuesFromTheProcess() {
         // Uniquely named so nothing else in the suite can be looking at it.
         var key = "DM_TEST_" + Guid.NewGuid().ToString("N");
 
-        Assert.Null(ModuleEnvironment.Default.Value(key));
+        Assert.Null(ModuleEnvironment.CreateDefault().Value(key));
 
         try {
             Environment.SetEnvironmentVariable(key, "set-after-startup");
 
-            // Read on each call rather than captured, so a variable set later is still seen.
-            Assert.Equal("set-after-startup", ModuleEnvironment.Default.Value(key));
+            Assert.Equal("set-after-startup", ModuleEnvironment.CreateDefault().Value(key));
+        } finally {
+            Environment.SetEnvironmentVariable(key, null);
+        }
+    }
+
+    /// <summary>
+    /// One instance caches what it read, misses included.
+    /// </summary>
+    /// <remarks>
+    /// The instance AddModules registers is held for the application's lifetime, so a service
+    /// injecting it would otherwise pay a process lookup and a string allocation on every read. A
+    /// miss is the case worth caching: an optional variable that is not set is exactly what a
+    /// default exists for, and re-reading it each call would leave the common path uncached.
+    /// </remarks>
+    [Fact]
+    public void AHeldDefaultCachesWhatItRead() {
+        var key = "DM_TEST_" + Guid.NewGuid().ToString("N");
+
+        var held = ModuleEnvironment.CreateDefault();
+
+        Assert.Null(held.Value(key));
+
+        try {
+            Environment.SetEnvironmentVariable(key, "set-after-the-read");
+
+            // The miss was cached, so this instance keeps answering with what it saw.
+            Assert.Null(held.Value(key));
+
+            // Asking for a new one is how a current view is obtained.
+            Assert.Equal("set-after-the-read", ModuleEnvironment.CreateDefault().Value(key));
+        } finally {
+            Environment.SetEnvironmentVariable(key, null);
+        }
+    }
+
+    /// <summary>
+    /// The fallback on a named environment caches the same way.
+    /// </summary>
+    [Fact]
+    public void FallBackToTheProcessIsCachedPerInstance() {
+        var key = "DM_TEST_" + Guid.NewGuid().ToString("N");
+
+        try {
+            Environment.SetEnvironmentVariable(key, "first");
+
+            var environment = new ModuleEnvironment("Development");
+
+            Assert.Equal("first", environment.Value(key));
+
+            Environment.SetEnvironmentVariable(key, "second");
+
+            Assert.Equal("first", environment.Value(key));
+            Assert.Equal("second", new ModuleEnvironment("Development").Value(key));
+        } finally {
+            Environment.SetEnvironmentVariable(key, null);
+        }
+    }
+
+    /// <summary>
+    /// Caching the process must not make the environment report values nobody supplied.
+    /// </summary>
+    [Fact]
+    public void CachedProcessValuesDoNotAppearInEnumeration() {
+        var key = "DM_TEST_" + Guid.NewGuid().ToString("N");
+
+        try {
+            Environment.SetEnvironmentVariable(key, "from-process");
+
+            var environment = new ModuleEnvironment("Development") { { "Supplied", "yes" } };
+
+            Assert.Equal("from-process", environment.Value(key));
+
+            Assert.Equal(
+                new Dictionary<string, string?> { ["Supplied"] = "yes" },
+                environment.ToDictionary(pair => pair.Key, pair => pair.Value));
         } finally {
             Environment.SetEnvironmentVariable(key, null);
         }
@@ -256,7 +336,7 @@ public class ModuleEnvironmentDefaultNameTests {
             Environment.SetEnvironmentVariable(AspNetCore, aspNetCore);
             Environment.SetEnvironmentVariable(DotNet, dotNet);
 
-            Assert.Equal(expected, ModuleEnvironment.Default.EnvironmentName);
+            Assert.Equal(expected, ModuleEnvironment.CreateDefault().EnvironmentName);
         } finally {
             Environment.SetEnvironmentVariable(AspNetCore, originalAspNetCore);
             Environment.SetEnvironmentVariable(DotNet, originalDotNet);

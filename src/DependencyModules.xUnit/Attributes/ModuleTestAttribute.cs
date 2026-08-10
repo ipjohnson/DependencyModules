@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using DependencyModules.xUnit.Impl;
 using Xunit;
 using Xunit.v3;
@@ -19,7 +20,51 @@ namespace DependencyModules.xUnit.Attributes;
 /// </example>
 [XunitTestCaseDiscoverer(typeof(ModuleTestDiscoverer))]
 [AttributeUsage(AttributeTargets.Method)]
-public class ModuleTestAttribute(params Type[] modules) : FactAttribute {
+public class ModuleTestAttribute : FactAttribute {
+
+    /// <summary>
+    /// Marks a test method, taking no modules.
+    /// </summary>
+    /// <remarks>
+    /// The source parameters are never passed by hand — the compiler fills them in with the
+    /// location of the attribute usage, which is how a test reports where it is declared. They are
+    /// what <c>FactAttribute</c> exists to capture for a derived attribute, and leaving them off
+    /// makes every module test claim to live at this file instead of at the test.
+    /// </remarks>
+    public ModuleTestAttribute(
+        [CallerFilePath] string? sourceFilePath = null,
+        [CallerLineNumber] int sourceLineNumber = -1)
+        : base(sourceFilePath, sourceLineNumber) =>
+        ModuleTypes = [];
+
+    /// <summary>
+    /// Marks a test method and names one module to configure the test's container with.
+    /// </summary>
+    /// <remarks>
+    /// Separate from the params overload rather than folded into it, because a params array has to
+    /// be the last parameter and the caller-info parameters have to come after it — the two cannot
+    /// coexist in one signature. Overload resolution prefers this normal form over expanding the
+    /// params one, so the single-module case, which is the common one, keeps its source location.
+    /// </remarks>
+    public ModuleTestAttribute(
+        Type module,
+        [CallerFilePath] string? sourceFilePath = null,
+        [CallerLineNumber] int sourceLineNumber = -1)
+        : base(sourceFilePath, sourceLineNumber) =>
+        ModuleTypes = [module];
+
+    /// <summary>
+    /// Marks a test method and names several modules to configure the test's container with.
+    /// </summary>
+    /// <remarks>
+    /// Two or more modules land here, and this overload cannot capture a source location for the
+    /// reason above: C# will not accept caller-info parameters after a params array. Such a test
+    /// still runs and still reports correctly; only navigation from a test explorer back to the
+    /// source is unavailable. Naming one module, or none, takes an overload that does capture it.
+    /// </remarks>
+    public ModuleTestAttribute(params Type[] modules) =>
+        ModuleTypes = modules;
+
     /// <summary>
     /// Gets an array of module types associated with the test method decorated with
     /// the <see cref="ModuleTestAttribute"/>.
@@ -31,5 +76,5 @@ public class ModuleTestAttribute(params Type[] modules) : FactAttribute {
     /// </remarks>
     public Type[] ModuleTypes {
         get;
-    } = modules;
+    }
 }

@@ -182,7 +182,7 @@ public class DependencyRegistry<T> {
     /// </summary>
     /// <param name="serviceCollection"></param>
     public static void ApplyServices(IServiceCollection serviceCollection) {
-        ApplyServices(serviceCollection, ModuleEnvironment.Default);
+        ApplyServices(serviceCollection, FindOrCreateEnvironment(serviceCollection));
     }
 
     /// <summary>
@@ -207,7 +207,48 @@ public class DependencyRegistry<T> {
     /// </summary>
     /// <param name="serviceCollection"></param>
     public static void ApplyDecorators(IServiceCollection serviceCollection) {
-        ApplyDecorators(serviceCollection, ModuleEnvironment.Default);
+        ApplyDecorators(serviceCollection, FindOrCreateEnvironment(serviceCollection));
+    }
+
+    /// <summary>
+    /// The environment already in the collection, or a fresh default.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately does not register what it creates. These overloads apply registrations to a
+    /// collection the caller owns, and adding a descriptor nobody asked for would change what they
+    /// hand back. An environment the caller <i>did</i> supply is found and shared, which is the case
+    /// where two calls disagreeing would actually matter — two process defaults read the same
+    /// variables and give the same answers.
+    /// </remarks>
+    private static IModuleEnvironment FindOrCreateEnvironment(IServiceCollection serviceCollection) {
+        RefuseUnusableEnvironment(serviceCollection);
+
+        return FindModuleEnvironment(serviceCollection) ?? ModuleEnvironment.CreateDefault();
+    }
+
+    /// <summary>
+    /// The environment already in the collection, or a new default registered into it.
+    /// </summary>
+    /// <remarks>
+    /// Registered, not just used. Otherwise conditions would be decided by an environment that
+    /// <c>GetRequiredService&lt;IModuleEnvironment&gt;()</c> then throws for. Only when nothing
+    /// supplied one, so an application's own environment is never displaced — and registering it is
+    /// what lets decoration find the same instance the registrations were decided against, which
+    /// matters now that <c>CreateDefault</c> builds a fresh one per call.
+    /// </remarks>
+    private static IModuleEnvironment ResolveEnvironment(IServiceCollection serviceCollection) {
+        var environment = FindModuleEnvironment(serviceCollection);
+
+        if (environment != null) {
+            return environment;
+        }
+
+        RefuseUnusableEnvironment(serviceCollection);
+
+        environment = ModuleEnvironment.CreateDefault();
+        serviceCollection.AddSingleton(environment);
+
+        return environment;
     }
 
     /// <summary>
@@ -272,10 +313,12 @@ public class DependencyRegistry<T> {
 
         if (decorators.Count > 0) {
             // The same environment the registrations were decided against. ApplyServices runs first
-            // and registers one when nothing supplied it, so this finds the instance rather than
-            // resolving a second answer to "what environment is this" — a decorator gated on
+            // and registers one when nothing supplied it, so this finds that instance rather than
+            // building a second answer to "what environment is this" — a decorator gated on
             // Development must not apply next to a service that decided it was in Production.
-            var environment = FindModuleEnvironment(serviceCollection) ?? ModuleEnvironment.Default;
+            // CreateDefault returns a fresh instance per call, so falling back to it here rather
+            // than to the registered one would be exactly that divergence.
+            var environment = ResolveEnvironment(serviceCollection);
 
             foreach (var decorator in decorators.OrderBy(decorator => decorator.Order)) {
                 decorator.RegistryFunc(serviceCollection, environment);
@@ -313,19 +356,11 @@ public class DependencyRegistry<T> {
             return;
         }
 
-        var environment = FindModuleEnvironment(serviceCollection);
-
-        if (environment == null) {
-            RefuseUnusableEnvironment(serviceCollection);
-
-            environment = ModuleEnvironment.Default;
-
-            // Registered, not just used. Otherwise conditions would be decided by an environment
-            // that GetRequiredService<IModuleEnvironment>() then throws for, which is the same
-            // inconsistency one layer out. Only when nothing supplied one, so an application's own
-            // environment is never displaced.
-            serviceCollection.AddSingleton(environment);
-        }
+        // Registered, not just used. Otherwise conditions would be decided by an environment that
+        // GetRequiredService<IModuleEnvironment>() then throws for, which is the same inconsistency
+        // one layer out. Only when nothing supplied one, so an application's own environment is
+        // never displaced — and registering it is what lets ApplyDecorators find the same instance.
+        var environment = ResolveEnvironment(serviceCollection);
 
         for (var i = 0; i < modules.Count; i++) {
             var module = modules[i];

@@ -7,8 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **xUnit v3 updated from 1.0.0 to 3.2.2.** `[ModuleTest]` builds on xUnit's extensibility surface —
+  a custom test case and discoverer — and that surface moved across the two major versions. Module
+  tests now pick up the conditional-skip family the way `[Fact]` and `[Theory]` do: `SkipExceptions`
+  on the test case, and per-row `SkipType`/`SkipUnless`/`SkipWhen`/`Label` on a data row, each of
+  which previously had nowhere to go.
+
+  `DependencyModules.xUnit` also now references `xunit.v3.extensibility.core` rather than
+  `xunit.v3`. It ships `[ModuleTest]` for other people's test projects and is not a test project
+  itself, which is exactly what that package is for. It replaces three defensive settings that
+  existed only to stop xunit.v3's build targets forcing this library to be an executable.
+
+  **Breaking for anyone constructing `ModuleTestCase` directly:** the constructor gained a
+  `skipExceptions` parameter in fifth position, so positional callers past the fourth argument
+  need updating. Using `[ModuleTest]` is unaffected.
+
+### Fixed
+
+- **A module test now reports where it is declared.** `[ModuleTest]` captured no source location and
+  the discoverer forwarded none, so a test explorer had nowhere to navigate to and results carried
+  no file or line. Both halves are fixed, and a test asserts the location survives the whole way
+  onto the discovered test case.
+
+  One limitation, deliberate and pinned by its own test: naming *two or more* modules —
+  `[ModuleTest(typeof(A), typeof(B))]` — still reports no location. C# does not allow the
+  caller-info parameters that capture it to follow a `params` array, so the multi-module overload
+  cannot take them. Naming one module or none captures the location as expected.
+
 ### Added
 
+- **.NET 10 support.** Every shipping package now multi-targets `net8.0` and `net10.0`. A .NET 10
+  project already worked — a `net8.0` assembly loads fine on it — but the package brought its
+  `Microsoft.Extensions.*` 8.x dependency along, and on .NET 10 those live in the shared framework,
+  so an older assembly landed in the output in place of the one the framework already supplies. Each
+  target framework now carries its own baseline version, so consumers roll forward from it rather
+  than being dragged back to it.
+
+  Nothing is dropped: `net8.0` remains a target until it leaves support in November 2026, and the
+  generators stay on `netstandard2.0`, which is what Roslyn analyzers must target. The test suites
+  and the package verification script run against both frameworks.
+
+- **A test can ask for a `Mock<T>` directly.** With `[MoqSupport]`, a parameter typed
+  `Mock<ITemperatureProvider>` hands over the mock itself, so `Mock.Get` is no longer the only way to
+  reach it. It works exactly as `[Mock]` does: the service is replaced in the container before
+  anything resolves, so the service under test is built against the same mock. No attribute is needed
+  — the type says what it is — but `[Mock]` on such a parameter is accepted and simply redundant.
+
+  The two spellings agree. `[Mock] IFoo` and `Mock<IFoo>` on one test give one mock seen two ways,
+  and two parameters naming the same `Mock<T>` are one mock. A `[TestExport]` naming a real
+  implementation still overrides both, as it already did for `[Mock]`.
 - **Environment conditions on decorators.** `[IfEnvironment]` and the rest of the family now take
   effect on a `[Decorator]`, so a decorator can exist only where it is wanted — request logging in
   development, a circuit breaker only in production. Where the condition does not hold the decorator
@@ -32,6 +81,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The test extensibility hooks moved to `DependencyModules.Testing`** and no longer mention xUnit.
+  `ITestParameterValueProvider` and `IServiceProviderBuilderAttribute` moved across as they were but
+  now take an `ITestMethodContext` — a `MethodInfo` and the attributes already in scope — in place of
+  `IXunitTestMethod`. `ITestStartupAttribute` split along the seam it always had: registering services
+  is `ITestServiceSetupAttribute`, running against the built container stays `ITestStartupAttribute`,
+  and an attribute that only registers no longer carries a no-op `StartupAsync`.
+
+  This finishes what creating `DependencyModules.Testing` started. Only the pieces that already had
+  no xUnit reference moved then, which left a mocking package unable to register anything without
+  taking a dependency on a test framework it does not use — which is how `Mock<T>` support is
+  implemented without `DependencyModules.Moq` referencing xUnit at all.
+
+  Implementations need a namespace change and the new parameter type; the bodies rarely change, since
+  nothing in this repository read more than `.Method` off the xUnit model. An attribute that does need
+  the full model can downcast the context to `IXunitTestMethodContext`.
+- **An environment caches what it reads from the process**, misses included, for the life of the
+  instance. `IModuleEnvironment` is injectable and the instance `AddModules` registers is held for
+  the application's lifetime, so a service reading a value per request was paying a process lookup
+  and a fresh string allocation every call — and a miss is the common case, since an optional
+  variable that is not set is exactly what a default exists for. Values supplied at the call site are
+  unaffected, and the cache is kept separate from them so enumerating an environment still yields
+  only what was supplied. The cost is that an instance no longer sees a variable changed
+  mid-process.
+- **`ModuleEnvironment.Default` is now `ModuleEnvironment.CreateDefault()`**, returning a new
+  instance per call rather than one shared by the process. A shared instance that caches would let
+  the first read of a variable fix it for every application in the process with no way to opt out —
+  the same reasoning that keeps `None` a type of its own. Because each call builds a fresh one,
+  asking again is how a current view of the process is obtained.
 - **`DecoratorRegistration.RegistryFunc` is now an `EnvironmentRegistryFunc`**, taking the
   environment alongside the collection, so a decorator's condition can be evaluated where it is
   applied. Constructing one is unaffected — the `RegistryFunc` overload remains and adapts — but code
