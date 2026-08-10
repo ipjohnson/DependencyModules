@@ -96,6 +96,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Implementations need a namespace change and the new parameter type; the bodies rarely change, since
   nothing in this repository read more than `.Method` off the xUnit model. An attribute that does need
   the full model can downcast the context to `IXunitTestMethodContext`.
+- **Test parameter resolution moved to `DependencyModules.Testing`**, as `TestParameterResolver`.
+  Turning a parameter list into arguments is the same problem for any test framework — an attribute on
+  the parameter, a keyed service, an ordinary resolution, or constructing an unregistered concrete
+  type — and it was buried in xUnit's test case. Behaviour is unchanged, including the order those are
+  tried in and the rule that a data row's own arguments cover the leading parameters.
+
+  It is used in two phases either side of the container being built, and resolving without the setup
+  phase now throws rather than silently skipping every parameter attribute. Having it addressable on
+  its own also means the precedence rules have direct tests instead of being reachable only by running
+  a `[ModuleTest]` end to end.
+- **`[Mock]` moved from `DependencyModules.xUnit` to `DependencyModules.Testing`**, joining
+  `[InjectValues]` in `DependencyModules.Testing.Attributes`. Once the hooks it implements stopped
+  naming xUnit, nothing about the attribute was specific to a test framework — so a future
+  integration gets the same `[Mock]` rather than a copy of it. Test files need
+  `using DependencyModules.Testing.Attributes;` next to the one for `[ModuleTest]`, which is already
+  what a file using `[InjectValues]` does.
 - **An environment caches what it reads from the process**, misses included, for the life of the
   instance. `IModuleEnvironment` is injectable and the instance `AddModules` registers is held for
   the application's lifetime, so a service reading a value per request was paying a process lookup

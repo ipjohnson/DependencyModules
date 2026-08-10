@@ -41,6 +41,11 @@ public void GetStaticForecast(
 `Weather` is still constructed by the container, and it receives the same substitutes the test is
 holding. You wire nothing together yourself.
 
+`[Mock]` comes from `DependencyModules.Testing`, which your test framework integration already brings
+in — so it needs a `using DependencyModules.Testing.Attributes;` alongside the one for
+`[ModuleTest]`. It carries no test framework dependency of its own, which is why it lives there and
+not in `DependencyModules.xUnit`.
+
 Note what stayed real: `SummaryProvider` was not mocked, so the call still travels
 `Weather` → `SummaryProvider` → `IAiSummaryProvider`. Only the leaf was swapped.
 

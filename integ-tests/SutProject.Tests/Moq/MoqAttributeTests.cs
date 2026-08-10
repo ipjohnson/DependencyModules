@@ -1,4 +1,5 @@
 using DependencyModules.Moq;
+using DependencyModules.Testing.Attributes;
 using DependencyModules.xUnit.Attributes;
 using Moq;
 using Xunit;

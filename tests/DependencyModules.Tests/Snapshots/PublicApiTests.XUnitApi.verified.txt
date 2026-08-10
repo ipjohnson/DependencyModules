@@ -1,12 +1,5 @@
 namespace DependencyModules.xUnit.Attributes
 {
-    [System.AttributeUsage(System.AttributeTargets.Parameter, AllowMultiple=true)]
-    public class MockAttribute : System.Attribute, DependencyModules.Testing.Attributes.Interfaces.ITestParameterValueProvider
-    {
-        public MockAttribute() { }
-        public System.Threading.Tasks.Task<object?> GetParameterValueAsync(DependencyModules.Testing.Attributes.Interfaces.ITestMethodContext testMethod, System.IServiceProvider serviceProvider, System.Reflection.ParameterInfo parameter) { }
-        public void SetupServiceCollection(DependencyModules.Testing.Attributes.Interfaces.ITestMethodContext testMethod, Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection, System.Reflection.ParameterInfo parameter) { }
-    }
     [System.AttributeUsage(System.AttributeTargets.Method)]
     [Xunit.v3.XunitTestCaseDiscoverer(typeof(DependencyModules.xUnit.Impl.ModuleTestDiscoverer))]
     public class ModuleTestAttribute : Xunit.FactAttribute

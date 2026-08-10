@@ -3,15 +3,28 @@ using DependencyModules.Testing.Attributes.Interfaces;
 using DependencyModules.Testing.Impl;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace DependencyModules.xUnit.Attributes;
+namespace DependencyModules.Testing.Attributes;
 
 /// <summary>
-/// Provides mocking capabilities for dependency injection within test methods.
+/// Replaces a test parameter's service with a test double.
 /// </summary>
 /// <remarks>
-/// This attribute is applied to test method parameters to specify that a mock implementation of the parameter type should
-/// be created and registered within the IoC container for the test's execution context. The creation of mock instances
-/// is delegated to the mock library supporting the test framework, which must implement <see cref="IMockSupportAttribute"/>.
+/// Applied to a test method parameter. The double is registered in the test's container before
+/// anything is resolved, so everything constructed afterwards — the service under test included —
+/// is built against it rather than against the real registration.
+///
+/// Creating the double is delegated to whichever mocking package is in scope, which must implement
+/// <see cref="IMockSupportAttribute"/>: <c>[NSubstituteSupport]</c>, <c>[MoqSupport]</c> or
+/// <c>[FakeItEasySupport]</c>. Without one this throws rather than silently handing back a real
+/// service.
+///
+/// A library that separates the double from the object it produces may let the parameter name either.
+/// With Moq, <c>[Mock] IFoo</c> gives the object and <c>Mock&lt;IFoo&gt;</c> gives the mock — and on a
+/// <c>Mock&lt;IFoo&gt;</c> parameter this attribute is redundant, since the type already says what it
+/// is.
+///
+/// This carries no test framework dependency, so it is the same attribute whichever integration
+/// resolves the test's parameters.
 /// </remarks>
 [AttributeUsage(
     AttributeTargets.Parameter,
@@ -19,7 +32,7 @@ namespace DependencyModules.xUnit.Attributes;
 public class MockAttribute : Attribute, ITestParameterValueProvider {
 
     /// <summary>
-    /// Configures a service collection with necessary dependencies for the test case context.
+    /// Registers the double in place of the parameter's service.
     /// </summary>
     /// <param name="testMethod">
     /// The test method context providing access to test-related information and behavior.
