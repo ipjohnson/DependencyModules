@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0-rc9220] - 2026-08-10
 
 ### Changed
 
@@ -352,4 +352,5 @@ The entries below were written for a 1.0.0 that was not cut. They describe the s
   Enable it with `<DependencyModules_LogOutputDirectory>`.
 - A tag-driven release workflow publishing to nuget.org and GitHub Packages.
 
+[1.0.0-rc9220]: https://github.com/ipjohnson/DependencyModules/releases/tag/v1.0.0-rc9220
 [1.0.0-rc9210]: https://github.com/ipjohnson/DependencyModules/releases/tag/v1.0.0-rc9210

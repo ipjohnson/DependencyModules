@@ -3,16 +3,52 @@
 [![NuGet](https://img.shields.io/nuget/v/DependencyModules.Runtime.svg)](https://www.nuget.org/packages/DependencyModules.Runtime/)
 [![build](https://github.com/ipjohnson/DependencyModules/actions/workflows/build-package.yaml/badge.svg)](https://github.com/ipjohnson/DependencyModules/actions/workflows/build-package.yaml)
 [![coverage](https://raw.githubusercontent.com/ipjohnson/DependencyModules/badges/coverage.svg)](https://github.com/ipjohnson/DependencyModules/actions/workflows/build-package.yaml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE.txt)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/ipjohnson/DependencyModules/blob/main/LICENSE.txt)
 
-DependencyModules is a C# source generator package that uses attributes to create
-dependency injection registration modules. These modules can then be used to populate 
-an IServiceCollection instance.
+**Dependency injection, decided at compile time.**
 
-Registration code is generated at compile time, so there is no reflection or assembly
-scanning at run time.
+Declare registration next to the class it belongs to. A source generator writes the
+`IServiceCollection` calls during the build — so nothing reflects, nothing scans at startup, and the
+trimmer can follow every registration you declared.
 
-## Installation
+📖 **[Full documentation](https://ipjohnson.github.io/DependencyModules/)**
+
+## The problem
+
+Every .NET application keeps a list like this, and nothing checks that it is complete:
+
+```csharp
+services.AddScoped<IOrderRepository, OrderRepository>();
+services.AddSingleton<IEmailSender, SmtpEmailSender>();
+// … another two hundred lines
+```
+
+Forget a line and you find out at run time, in the environment you deployed to. Reach for a runtime
+scanner instead and you trade that for three new problems: you can no longer read what was
+registered, the scan runs on every start, and the trimmer cannot see through reflection — so a
+published, trimmed build registers nothing at all.
+
+## What it looks like instead
+
+Mark the class, and the registration is written for you during the build.
+
+```csharp
+[SingletonService]
+public class SmtpEmailSender : IEmailSender { }
+
+[DependencyModule]
+public partial class ApplicationModule;
+```
+
+```csharp
+var services = new ServiceCollection();
+
+services.AddModule<ApplicationModule>();
+```
+
+That is the whole idea. Everything below builds on it.
+
+## Install
 
 ```shell
 dotnet add package DependencyModules.Runtime
@@ -20,395 +56,158 @@ dotnet add package DependencyModules.SourceGenerator
 ```
 
 Requires .NET 8.0 or later. The packages ship both `net8.0` and `net10.0` assemblies, so a project on
-either LTS release gets one built against its own framework. See [CHANGELOG.md](CHANGELOG.md) for
-release notes.
+either LTS release gets one built against its own framework.
 
-## Service Attributes 
+→ [Getting started](https://ipjohnson.github.io/DependencyModules/guide/getting-started.html)
 
-* `[DependencyModule]` - used to attribute class that will become dependency module (must be partial)
-* `[SingletonService]` - registers service as `AddSingleton`
-* `[ScopedService]` - registers service as `AddScoped`
-* `[TransientService]` - registers service as `AddTransient`
-* `[CrossWireService]` - registers implementation and interfaces with the same lifetime
+## What you can do with it
+
+### Register by rule, resolved during the build
+
+Declare a rule once and let it cover everything that fits — including the handler somebody adds next
+year. The body never runs; it is read at compile time and turned into ordinary registration calls.
 
 ```csharp
-// Registration example
 [DependencyModule]
-public partial class ApplicationModule;
+public partial class HandlerModule : IConventionModule {
+    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+        conventions.RegisterAll(typeof(IRequestHandler<,>)).AsScoped();
+        conventions.RegisterAll<IValidator>().InNamespaceOf<OrderMarker>().AsScoped();
+    }
+}
+```
 
-// registers SomeClass implementation for ISomeService
+Assignability, namespaces, attributes and name globs all match — including types in a referenced
+package.
+
+→ [Conventions](https://ipjohnson.github.io/DependencyModules/guide/conventions.html) ·
+[Scanning a package](https://ipjohnson.github.io/DependencyModules/guide/scanning.html)
+
+### Decorate and intercept
+
+Wrap a service with a decorator you write, or with a generated wrapper that routes every member
+through an interceptor. Both compose with conventions, and both are ordered globally.
+
+```csharp
+[Decorator(Order = 10)] public class Retrying(IRepository inner) : IRepository { }
+[Decorator(Order = 20)] public class Logging(IRepository inner)  : IRepository { }
+
+// resolves as Logging(Retrying(SqlRepository))
+```
+
+→ [Decorators](https://ipjohnson.github.io/DependencyModules/guide/decorators.html) ·
+[Interception](https://ipjohnson.github.io/DependencyModules/guide/interception.html)
+
+### Gate registrations on the environment
+
+A service, decorator or whole convention can exist only where it is wanted. Where the condition does
+not hold the registration is never made — so the service resolves undecorated rather than being
+wrapped by something that re-checks the environment on every call.
+
+```csharp
 [SingletonService]
-public class SomeClass : ISomeService 
-{
-  public string SomeProp => "SomeString";
-}
+[IfEnvironment("Development")]
+public class ConsoleEmailSender : IEmailSender { }
 
-// registers OtherService implementation
-[TransientService]
-public class OtherService
-{
-  public OtherService(ISomeService service)
-  { 
-    SomeProp = service.SomeProp;
-  }
-  public string SomeProp { get; }
-}
+[Decorator]
+[IfEnvironment("Production")]
+public class CircuitBreaker(IPaymentGateway inner) : IPaymentGateway { }
 ```
 
-Note: `[DependencyModule]` is not required for [Top-level](https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/program-structure/top-level-statements) statement applications.
-
-Note: a `[DependencyModule]` class must be declared directly in a namespace, not nested inside
-another type. A nested module generates a separate, detached class rather than completing the
-partial declaration, so its registrations never run. Services registered with
-`[SingletonService]` and friends may be nested freely.
-## Container Instantiation
-
-* `AddModule` - method adds root module to service collection
-* `AddModules` - add a list of modules to the service collection
-
 ```csharp
-// AddModule and AddModules are extension methods in the DependencyModules.Runtime namespace
-using DependencyModules.Runtime;
-
-var serviceCollection = new ServiceCollection();
-
-serviceCollection.AddModule<ApplicationModule>();
-// or
-serviceCollection.AddModules(new ApplicationModule(), ...);
-
-var provider = serviceCollection.BuildServiceProvider();
-
-var service = provider.GetService<OtherService>();
+conventions.RegisterAll<IAuditSink>().IfEnvironmentValue("AUDIT", "on").AsSingleton();
 ```
 
-Note: to avoid duplicate modules it's recommended to only call AddModule(s) once in an application and never inside a Module.
-## Factories
+→ [Environments](https://ipjohnson.github.io/DependencyModules/guide/environments.html)
 
-Sometimes it's not possible to construct all types through normal registration.
-Factories can be registered with a module using the registration attributes.
+### Test against real modules, with mocks where you want them
 
-```csharp
-public class SomeClass : ISomeInterface {
-  public SomeClass(IDep one, IDepTwo two, DateTime dateTime) { ... }
-  
-  [SingletonService]
-  public static ISomeInterface Factory(IDep one, IDepTwo two) {
-    return new SomeClass(one, two, DateTime.Now());   
-  }
-}
-```
-## Module Re-use
-
-DependencyModules creates an `Attribute` class that can be used to apply sub dependencies.
+The xUnit package builds a provider from the modules a test names and injects the services the test
+asks for. Mocking comes from whichever library you already use — NSubstitute, Moq or FakeItEasy.
 
 ```csharp
-// Modules can be re-used with the generated attributes
-[DependencyModule]
-[ApplicationModule]
-public partial class AnotherModule;
-```
+[assembly: ApplicationModule]
+[assembly: MoqSupport]
 
-## Parameters
+public class OrderServiceTests {
+    [ModuleTest]
+    public void SendsTheReceipt(OrderService orders, Mock<IEmailSender> email) {
+        orders.Place(new Order());
 
-Sometimes you want to provide extra registration for your module. 
-This can be achieved by adding a constructor to your module or optional properties. 
-Note these parameters and properties will be correspondingly implemented in the module attribute.
-
-```csharp
-[DependencyModule]
-public partial class SomeModule(bool someFlag) : IServiceCollectionConfiguration 
-{
-  public string OptionalString { get; set; } = "";
-  
-  public void ConfigureServices(IServiceCollection services) 
-  {
-    if (someFlag) 
-    {
-      // custom registration
-    } 
-  }
-}
-
-[DependencyModule]
-[SomeModule(true, OptionalString = "otherString")]
-public partial class SomeOtherModule;
-```
-
-## Module Features
-Because module configuration happens before the dependency injection container is instantiated it's impossible to use the container for configuration.
-To support configuration discovery before registration, the feature interface can be 
-implemented in modules and be passed to a handler at registration time. Features are applied before services and decorators.
-
-```csharp
-// feature interface
-public interface IFeature { }
-
-[DependencyModule]
-public partial class ModuleImplementation : ISomeFeature
-{
-}
-
-[DependencyModule]
-[ModuleImplementation]
-public partial class FeatureHandlerModule : IDependencyModuleFeature<ISomeFeature> 
-{
-  public void HandleFeature(IServiceCollection collection, IEnumerable<ISomeFeature> features) 
-  {
-      // invoked with service collection and one instance of the ModuleImplementation class
-  }
-}
-```
-
-## Managing duplicate registration
-
-By default a module will only be loaded once, assuming attributes are used or the modules are specified in the same `AddModules` call. Separate calls to `AddModule` will result in modules being loaded multiple times. If a module uses parameters it can be useful to load a module more than once. That can be accomplished by overriding the `Equals` and `GetHashcode` methods to allow for multiple loads.
-
-```csharp
-// CustomModule will be loaded as long as someString is unique.
-// Duplicate modules with the same someString value will be ignored
-[DependencyModule]
-public partial class CustomModule(string someString) : IServiceCollectionConfiguration 
-{
-  public void ConfigureServices(IServiceCollection services) 
-  {
-    // custom logic
-  }
-
-  public override bool Equals(object obj)
-  {
-    if (obj is CustomModule module)
-    {
-      return someString.Equals(module.someString);
+        email.Verify(x => x.Send(It.IsAny<Receipt>()));
     }
-
-    return false;
-  }
-
-  public override int GetHashCode()
-  {
-    return someString.GetHashCode();
-  }
 }
 ```
 
-Services will be registered using an `Add` method by default. This can be overridden with the `Using` property on individual service or at the `DependencyModule` level. Note: the following are valid registration types Add, Try, TryEnumerable, Replace.
+The service under test is built against the same mock the test configures — no wiring in between.
+
+→ [Testing modules](https://ipjohnson.github.io/DependencyModules/guide/testing.html) ·
+[Mocks and values](https://ipjohnson.github.io/DependencyModules/guide/testing-mocks.html)
+
+### Survive trimming and Native AOT
+
+Each match is emitted as a literal `typeof()`, which the trimmer roots and which carries the
+constructor along with it. The capability that breaks reflection-based scanners is the one that
+works here.
+
+→ [Trimming and AOT](https://ipjohnson.github.io/DependencyModules/guide/aot.html)
+
+### Find out at build time, not at startup
+
+A convention that matches nothing, a service that cannot be constructed, two conventions claiming one
+service type — each is a `DM####` diagnostic in the IDE rather than an exception in production.
+
+→ [Diagnostics reference](https://ipjohnson.github.io/DependencyModules/reference/diagnostics.html)
+
+## Registrations you can read
+
+There is no container graph to reason about. Set `EmitCompilerGeneratedFiles` and the file under
+`obj/` is the ground truth:
 
 ```csharp
-[SingletonService(Using = RegistrationType.Try)]
-public class SomeService;
-
-[DependencyModule(Using = RegistrationType.Try)]
-public partial class SomeModule;
+services.AddScoped(typeof(IRequestHandler<CreateOrder, OrderId>), typeof(CreateOrderHandler));
+services.AddSingleton(typeof(IEmailSender), typeof(SmtpEmailSender));
 ```
 
-## Realm
+Any `IServiceCollection`-compatible container works, because that is all the generator produces.
 
-By default, all dependencies are registered in all modules within the same assembly. 
-The realm allows the developer to scope down the registration within a given module.
+## Documentation
 
-```csharp
-// register only dependencies specifically marked for this realm
-[DependencyModule(OnlyRealm = true)]
-public partial class AnotherModule;
+| | |
+|---|---|
+| [Getting started](https://ipjohnson.github.io/DependencyModules/guide/getting-started.html) | Install and register your first service |
+| [Modules](https://ipjohnson.github.io/DependencyModules/guide/modules.html) | Composition, parameters, features, realms |
+| [Registering services](https://ipjohnson.github.io/DependencyModules/guide/services.html) | Lifetimes, keys, factories, `As`, `Try`/`Replace` |
+| [Conventions](https://ipjohnson.github.io/DependencyModules/guide/conventions.html) | Bulk registration by rule |
+| [Decorators](https://ipjohnson.github.io/DependencyModules/guide/decorators.html) · [Interception](https://ipjohnson.github.io/DependencyModules/guide/interception.html) | Wrapping services |
+| [Environments](https://ipjohnson.github.io/DependencyModules/guide/environments.html) | Conditional registration |
+| [Testing](https://ipjohnson.github.io/DependencyModules/guide/testing.html) | Module tests, mocks, asserting registrations |
+| [Trimming and AOT](https://ipjohnson.github.io/DependencyModules/guide/aot.html) | Publishing trimmed and Native AOT |
+| [Extending](https://ipjohnson.github.io/DependencyModules/guide/extending.html) | Building your own generator on top |
+| [Reference](https://ipjohnson.github.io/DependencyModules/reference/attributes.html) | Attributes, diagnostics, MSBuild properties |
 
-[SingletonService(Realm = typeof(AnotherModule))]
-public class SomeDep : ISomeInterface { }
-```
+## Packages
 
-## Keyed Registration
+| Package | Purpose |
+|---|---|
+| `DependencyModules.Runtime` | Attributes, module interfaces, `AddModule` |
+| `DependencyModules.SourceGenerator` | Generates the registration code |
+| `DependencyModules.Conventions` | Convention-based registration |
+| `DependencyModules.xUnit` | `[ModuleTest]` for xUnit v3 |
+| `DependencyModules.NSubstitute` · `.Moq` · `.FakeItEasy` | Mocking support, pick one |
+| `DependencyModules.Testing` | Shared test seam, referenced for you |
+| `DependencyModules.SourceGenerator.Impl` | Source-only, for building your own generator |
 
-Registration attributes have a `Key` property that allows for specifying the key at registration time.
+## Something not registering?
 
-```csharp
-[SingletonService(Key = "SomeKey")]
-public class KeyService : IKeyService { }
+The [troubleshooting guide](https://ipjohnson.github.io/DependencyModules/guide/troubleshooting.html)
+covers reading the generated output and turning on the generator log, which together explain almost
+every surprise. Please include both in any
+[issue](https://github.com/ipjohnson/DependencyModules/issues) you open.
 
-// yields this registration line
-services.AddKeyedSingleton(typeof(IKeyService), "SomeKey", typeof(KeyService));
-```
+## Contributing
 
-## As Registration
+Issues and pull requests are welcome. See the
+[changelog](https://github.com/ipjohnson/DependencyModules/blob/main/CHANGELOG.md) for release notes.
 
-Sometimes it's useful to register a type with a specific type vs. letting auto-registration pick a type.
-The `As` property allows you to control the service type for the registration.
-
-```csharp
-[SingletonService(As = typeof(ISomeOtherInterface))]
-public class KeyService : IKeyService, ISomeOtherInterface { }
-
-// yields this registration line
-services.AddSingleton<ISomeOtherInterface>(typeof(KeyService));
-```
-
-## Try, Replace, TryEnumerable
-
-By default registrations are done using a standard `Add___` method.
-It can be useful to change the registration to `Try`, `Replace`, and `TryEnumerable` with the `Using` property.
-
-```csharp
-[SingletonService(Using = RegistrationType.Try)]
-public class KeyService : IKeyService { }
-
-// yields this registration line
-services.TryAddSingleton(typeof(IKeyService), typeof(KeyService));
-```
-
-## Autogenerated Modules
-
-To simplify registration for [Top-Level](https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/program-structure/top-level-statements) statement applications, an `ApplicationModule` will be autogenerated for file named Program.cs.
-
-```csharp
-[assembly: SomeOtherModule]
-
-var serviceCollection = new ServiceCollection();
-
-// load SomeOtherModule as well as all registrations in the current project
-serviceCollection.AddModule<ApplicationModule>();
-```
-
-## Unit testing & Mocking
-
-DependencyModules provides an xUnit extension to make testing much easier. 
-It handles the population and construction of a service provider using specified modules.
-
-```shell
-dotnet add package DependencyModules.xUnit
-dotnet add package DependencyModules.NSubstitute
-```
-
-Mocking is supplied by a separate package, so use whichever library you already have —
-`DependencyModules.NSubstitute`, `DependencyModules.Moq` or `DependencyModules.FakeItEasy` — and
-apply its `[NSubstituteSupport]`, `[MoqSupport]` or `[FakeItEasySupport]` attribute.
-
-```csharp
-// applies module & nsubstitute support to all tests.
-// test attributes can be applied at the assembly, class, and test method level
-[assembly: MyModule]
-[assembly: NSubstituteSupport]
-
-public class OtherServiceTests 
-{
-  [ModuleTest]
-  public void SomeTest(OtherService test, [Mock]ISomeService service)
-  {
-     service.SomeProp.Returns("some mock value");
-     Assert.Equals("some mock value", test.SomeProp);
-  }
-}
-```
-
-## Reporting a problem
-
-If services are not being registered as you expect, these three steps produce almost everything
-needed to diagnose it:
-
-1. **Look at the generated code.** Set `<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>`
-   and read the files under `obj/`. The registrations the generator produced are the ground truth.
-2. **Turn on the generator log**, which records the configuration in effect, every module and
-   service discovered, and anything skipped along with the reason:
-   ```xml
-   <PropertyGroup>
-     <DependencyModules_LogOutputDirectory>$(MSBuildProjectDirectory)/dmlogs</DependencyModules_LogOutputDirectory>
-   </PropertyGroup>
-   ```
-3. **Check for `DM####` warnings** in the build output. The generator reports these for mistakes it
-   can detect, such as a service type that cannot be constructed or a module missing `partial`.
-
-Please include the log and the generated file in any [issue](https://github.com/ipjohnson/DependencyModules/issues).
-
-## Implementation
-
-Behind the scenes the library generates registration code that can be used with any `IServiceCollection` compatible DI container.
-
-Example generated code for [SutModule.cs](integ-tests/SutProject/SutModule.cs)
-```csharp
-    // SutModule.Dependencies.g.cs
-    public partial class SutModule
-    {
-        [DynamicDependency(nameof(ModuleDependencies))]
-        private static int moduleField = global::DependencyModules.Runtime.Helpers.DependencyRegistry<global::SutProject.SutModule>.Add(ModuleDependencies);
-
-        private static void ModuleDependencies(global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)
-        {
-            services.AddTransient(
-                typeof(global::SutProject.IDependencyOne), 
-                typeof(global::SutProject.DependencyOne)
-            );
-            services.AddSingleton(
-                typeof(global::SutProject.IGenericInterface<>), 
-                typeof(global::SutProject.GenericClass<>)
-            );
-            services.AddKeyedTransient(
-                typeof(global::SutProject.KeyedService), 
-                Constants.StringValue, 
-                typeof(global::SutProject.KeyedService)
-            );
-            services.AddScoped(
-                typeof(global::SutProject.IScopedService), 
-                typeof(global::SutProject.ScopedService)
-            );
-            services.AddSingleton(
-                typeof(global::SutProject.ISingletonService), 
-                typeof(global::SutProject.SingletonService)
-            );
-            services.AddSingleton(
-                typeof(global::SutProject.IGenericInterface<string>), 
-                typeof(global::SutProject.StringGeneric)
-            );
-        }
-    }
-
-    // SutModule.Modules.g.cs
-namespace SutProject
-{
-        #nullable enable
-    public partial class SutModule : global::DependencyModules.Runtime.Interfaces.IDependencyModule
-    {
-
-        static SutModule()
-        {
-        }
-
-        public void PopulateServiceCollection(global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)
-        {
-            global::DependencyModules.Runtime.Helpers.DependencyRegistry<global::SutProject.SutModule>.LoadModules(services, this);
-        }
-
-        [Browsable(false)]
-        void global::DependencyModules.Runtime.Interfaces.IDependencyModule.InternalApplyServices(global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)
-        {
-            global::DependencyModules.Runtime.Helpers.DependencyRegistry<global::SutProject.SutModule>.ApplyServices(services);
-        }
-
-        [Browsable(false)]
-        global::System.Collections.Generic.IEnumerable<object> global::DependencyModules.Runtime.Interfaces.IDependencyModule.InternalGetModules()
-        {
-            return global::DependencyModules.Runtime.Helpers.DependencyRegistry<global::SutProject.SutModule>.GetModules();
-        }
-
-        public override bool Equals(object? obj)
-        {
-            return obj is SutModule;
-        }
-
-        public override int GetHashCode()
-        {
-            return HashCode.Combine(base.GetHashCode());
-        }
-    }
-    #nullable disable
-
-    [global::System.AttributeUsage(global::System.AttributeTargets.Class | global::System.AttributeTargets.Assembly | global::System.AttributeTargets.Method | global::System.AttributeTargets.Parameter, AllowMultiple = true)]
-    #nullable enable
-    public partial class SutModuleAttribute : global::System.Attribute, global::DependencyModules.Runtime.Interfaces.IDependencyModuleProvider
-    {
-
-        public global::DependencyModules.Runtime.Interfaces.IDependencyModule GetModule()
-        {
-            var newModule = new global::SutProject.SutModule();
-            return newModule;
-        }
-    }
-    #nullable disable
-}
-```
+Licensed under the [MIT License](https://github.com/ipjohnson/DependencyModules/blob/main/LICENSE.txt).

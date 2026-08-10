@@ -83,7 +83,7 @@ export default defineConfig({
           ],
         },
         {
-          text: 'Registering in bulk',
+          text: 'Bulk Registration',
           items: [
             { text: 'Conventions', link: '/guide/conventions' },
             { text: 'Scanning a package', link: '/guide/scanning' },
