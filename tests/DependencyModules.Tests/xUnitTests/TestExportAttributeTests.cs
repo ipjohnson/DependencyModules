@@ -1,3 +1,4 @@
+using DependencyModules.Testing.Attributes.Interfaces;
 using DependencyModules.xUnit.Attributes;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -70,11 +71,15 @@ public class TestExportAttributeTests {
         Assert.IsType<OtherThing>(provider.GetService<IThing>());
     }
 
+    /// <summary>
+    /// [TestExport] only ever registers, so it implements the setup hook and not the lifecycle one.
+    /// It used to carry a no-op StartupAsync purely because the two lived on one interface; pinning
+    /// the split here means re-adding a lifecycle hook has to be a decision rather than an accident.
+    /// </summary>
     [Fact]
-    public void StartupAsync_CompletesWithoutWork() {
-        var task = new TestExportAttribute(typeof(IThing)).StartupAsync(null!, new ServiceCollection().BuildServiceProvider());
-
-        Assert.True(task.IsCompletedSuccessfully);
+    public void RegistersServicesWithoutTakingPartInTestStartup() {
+        Assert.IsAssignableFrom<ITestServiceSetupAttribute>(new TestExportAttribute(typeof(IThing)));
+        Assert.False(new TestExportAttribute(typeof(IThing)) is ITestStartupAttribute);
     }
 
     [Fact]

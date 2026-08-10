@@ -31,9 +31,15 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Both SDKs are needed. global.json selects the 10.0 SDK to build with, and it can compile
+      # every target here — but running the net8.0 test projects needs the 8.0 runtime, which the
+      # 10.0 SDK does not carry. Roll-forward stops at the major version boundary by default, so a
+      # net8.0 test host will not start on 10.0 alone.
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: |
+            8.0.x
+            10.0.x
 
       - run: dotnet restore DependencyModules.sln
 
@@ -94,7 +100,9 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: |
+            8.0.x
+            10.0.x
           source-url: https://nuget.pkg.github.com/ipjohnson/index.json
         env:
           NUGET_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

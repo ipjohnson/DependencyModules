@@ -45,8 +45,9 @@ dotnet add package DependencyModules.Runtime
 dotnet add package DependencyModules.SourceGenerator
 ```
 
-Requires .NET 8.0 or later. Two more packages are optional, and this guide will tell you when you
-want them:
+Requires .NET 8.0 or later, and ships both `net8.0` and `net10.0` assemblies so a project on either
+LTS release gets one built against its own framework. Two more packages are optional, and this guide
+will tell you when you want them:
 
 | Package | For |
 |---|---|

@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net8.0</TargetFramework>
+        <TargetFrameworks>$(LibraryTargetFrameworks)</TargetFrameworks>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <IsPackable>True</IsPackable>
@@ -10,8 +10,19 @@
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
     </PropertyGroup>
 
-    <ItemGroup>
+    <!--
+        Framework-matched rather than one 8.0.0 reference serving both. On net10.0 these
+        abstractions are part of the ASP.NET Core shared framework, and pinning the 8.0.0 package
+        there puts an older assembly in the consumer's output in place of the one the framework
+        already supplies. Each TFM takes its own framework's baseline version, so a consumer rolls
+        forward from it rather than being dragged back to it.
+    -->
+    <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0"/>
+    </ItemGroup>
+
+    <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0"/>
     </ItemGroup>
 
 </Project>

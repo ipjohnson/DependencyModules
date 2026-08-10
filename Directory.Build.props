@@ -11,6 +11,16 @@
         <FileVersion>1.0.0.0</FileVersion>
     </PropertyGroup>
 
+    <!--
+        The shipping libraries' target frameworks, in one place. net8.0 leaves support in November
+        2026, and dropping it should then be a one-line edit here rather than a sweep through every
+        csproj. The generator projects are deliberately not covered: a Roslyn analyzer has to target
+        netstandard2.0 and pins its own TFM.
+    -->
+    <PropertyGroup>
+        <LibraryTargetFrameworks>net8.0;net10.0</LibraryTargetFrameworks>
+    </PropertyGroup>
+
     <PropertyGroup>
         <Authors>Ian Johnson</Authors>
         <Company>Ian Johnson</Company>

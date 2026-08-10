@@ -174,7 +174,8 @@ public record ConventionModel(
     IReadOnlyList<AttributeFilterModel>? AttributeFilters = null,
     IReadOnlyList<NameFilterModel>? NameFilters = null,
     ITypeDefinition? ExplicitServiceType = null,
-    string? AssemblyName = null) {
+    string? AssemblyName = null,
+    IReadOnlyList<EnvironmentConditionModel>? Conditions = null) {
 
     /// <summary>
     /// Whether the attributes a candidate carries pass the filters.
@@ -249,7 +250,8 @@ public record ConventionModel(
         ModelEquality.ListEquals(AttributeFilters, other.AttributeFilters) &&
         ModelEquality.ListEquals(NameFilters, other.NameFilters) &&
         Equals(ExplicitServiceType, other.ExplicitServiceType) &&
-        AssemblyName == other.AssemblyName;
+        AssemblyName == other.AssemblyName &&
+        ModelEquality.ListEquals(Conditions, other.Conditions);
 
     public override int GetHashCode() {
         unchecked {
@@ -267,6 +269,7 @@ public record ConventionModel(
             hash = hash * 31 + ModelEquality.ListHashCode(NameFilters);
             hash = hash * 31 + (ExplicitServiceType?.GetHashCode() ?? 0);
             hash = hash * 31 + (AssemblyName?.GetHashCode() ?? 0);
+            hash = hash * 31 + ModelEquality.ListHashCode(Conditions);
             return hash;
         }
     }

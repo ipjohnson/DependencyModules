@@ -1,19 +1,22 @@
+using System.Diagnostics.CodeAnalysis;
 using DependencyModules.Testing.Attributes.Interfaces;
+using Microsoft.Extensions.DependencyInjection;
 using MoqLib = Moq;
 
 namespace DependencyModules.Moq;
 
 /// <summary>
-/// Resolves any dependency that is not registered as a Moq mock.
+/// Supplies a test's mocks with Moq.
 /// </summary>
 /// <remarks>
 /// Applies to a method, a class, or a whole assembly, so a test project can switch mocks on once in
 /// an <c>AssemblyInfo</c> rather than per test.
 ///
-/// Moq separates the mock from the object it produces, and the container needs the object, so that
-/// is what is injected. Reach the <c>Mock&lt;T&gt;</c> to configure or verify it with
-/// <c>Mock.Get(instance)</c>. This is the one place Moq reads differently from NSubstitute and
-/// FakeItEasy, where the injected instance is itself the thing you configure.
+/// A test asks for a mock in either of two ways, and both work. A parameter typed
+/// <c>Mock&lt;T&gt;</c> hands over the mock itself — the thing you configure and verify on — while
+/// the container is separately given its <c>Object</c>, so the service under test is built against
+/// that same mock. A parameter marked <c>[Mock]</c> and typed as the service hands over the object
+/// instead, and <c>Mock.Get(instance)</c> reaches the mock behind it.
 ///
 /// Mocks are loose, matching Moq's own default: an unconfigured member returns default rather than
 /// throwing.
@@ -22,28 +25,89 @@ namespace DependencyModules.Moq;
 /// <code>
 /// [ModuleTest]
 /// [MoqSupport]
-/// public void SendsTheMail(IEmailSender sender, [Mock] IAuditLog log) {
-///     Mock.Get(log).Verify(x => x.Write(It.IsAny&lt;string&gt;()));
+/// public void SendsTheMail(IEmailSender sender, Mock&lt;IAuditLog&gt; log) {
+///     log.Verify(x => x.Write(It.IsAny&lt;string&gt;()));
 /// }
 /// </code>
 /// </example>
 [AttributeUsage(AttributeTargets.Method | AttributeTargets.Class | AttributeTargets.Assembly)]
-public class MoqSupportAttribute : Attribute, IMockSupportAttribute {
+public class MoqSupportAttribute : Attribute, IMockSupportAttribute, ITestServiceSetupAttribute {
 
     /// <summary>
-    /// Provides a mocked instance of the specified type.
+    /// Registers a mock for every <c>Mock&lt;T&gt;</c> the test asked for, alongside the object that
+    /// mock produces.
+    /// </summary>
+    /// <remarks>
+    /// Registering both is what lines the two halves up. The test resolves the <c>Mock&lt;T&gt;</c>
+    /// and configures it; everything the container builds — the service under test included —
+    /// resolves the <c>T</c> and gets that same mock's object. Neither has to know about the other,
+    /// and the test wires nothing together itself.
+    ///
+    /// Runs after the value providers behind <c>[Mock]</c> and before any other setup attribute, and
+    /// registrations are last-one-wins. So this settles any disagreement with <c>[Mock]</c> — which
+    /// is what lets <c>[Mock] IFoo</c> and <c>Mock&lt;IFoo&gt;</c> sit on one test and resolve to a
+    /// matched pair rather than to two unrelated mocks — while a <c>[TestExport]</c> naming a real
+    /// implementation of the same service still overrides both.
+    /// </remarks>
+    /// <param name="testMethod">The test the container is being built for.</param>
+    /// <param name="serviceCollection">The collection backing the test's container.</param>
+    public void SetupServiceCollection(ITestMethodContext testMethod, IServiceCollection serviceCollection) {
+        var mocked = new HashSet<Type>();
+
+        foreach (var parameter in testMethod.Method.GetParameters()) {
+            // Add returns false for a type already handled: two parameters naming the same
+            // Mock<T> are one mock, so configuring either is configuring what the test was given.
+            if (!TryGetMockedType(parameter.ParameterType, out var mockedType) ||
+                !mocked.Add(mockedType)) {
+                continue;
+            }
+
+            var mock = CreateMock(mockedType);
+
+            serviceCollection.AddSingleton(parameter.ParameterType, _ => mock);
+            serviceCollection.AddSingleton(mockedType, _ => mock.Object);
+        }
+    }
+
+    /// <summary>
+    /// Provides a mocked instance of the specified type, for a parameter marked <c>[Mock]</c>.
     /// </summary>
     /// <remarks>
     /// Constructed through the closed generic because <c>Mock&lt;T&gt;</c> is the only form Moq
     /// offers, and the type is not known until the test asks for it.
+    ///
+    /// A <c>[Mock] Mock&lt;IFoo&gt;</c> parameter arrives here as the <c>Mock&lt;IFoo&gt;</c>, which
+    /// is unwrapped rather than mocked — asking Moq to mock a <c>Mock</c> is never what was meant.
+    /// <see cref="SetupServiceCollection"/> owns that parameter and runs afterwards, replacing what
+    /// is returned here, so the two spellings converge on the one mock.
     /// </remarks>
-    /// <param name="type">The type to mock.</param>
+    /// <param name="type">The type to mock, or a <c>Mock&lt;T&gt;</c> naming it.</param>
     /// <returns>
-    /// The mocked instance — <c>Mock&lt;T&gt;.Object</c>, not the <c>Mock&lt;T&gt;</c> itself.
+    /// The mocked instance — <c>Mock&lt;T&gt;.Object</c> — or a <c>Mock&lt;T&gt;</c> when that is
+    /// what was asked for.
     /// </returns>
     public object ProvideMock(Type type) {
-        var mock = (MoqLib.Mock)Activator.CreateInstance(typeof(MoqLib.Mock<>).MakeGenericType(type))!;
+        if (TryGetMockedType(type, out var mockedType)) {
+            return CreateMock(mockedType);
+        }
 
-        return mock.Object;
+        return CreateMock(type).Object;
+    }
+
+    private static MoqLib.Mock CreateMock(Type type) =>
+        (MoqLib.Mock)Activator.CreateInstance(typeof(MoqLib.Mock<>).MakeGenericType(type))!;
+
+    /// <summary>
+    /// Reads <c>IFoo</c> out of a <c>Mock&lt;IFoo&gt;</c>, and reports anything else as not ours.
+    /// </summary>
+    private static bool TryGetMockedType(Type parameterType, [NotNullWhen(true)] out Type? mockedType) {
+        if (parameterType.IsGenericType &&
+            parameterType.GetGenericTypeDefinition() == typeof(MoqLib.Mock<>)) {
+            mockedType = parameterType.GetGenericArguments()[0];
+            return true;
+        }
+
+        mockedType = null;
+        return false;
     }
 }

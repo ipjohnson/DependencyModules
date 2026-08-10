@@ -40,6 +40,20 @@ public static class ConventionModelUtility {
     private const string InAssemblyOfCall = "InAssemblyOf";
     private const string WithKeyCall = "WithKey";
 
+    /// <summary>
+    /// The environment condition calls, and what each produces.
+    /// </summary>
+    /// <remarks>
+    /// Named after the attributes rather than something fluent-sounding like <c>OnlyIn</c>, so the
+    /// two ways of saying the same thing read the same and one is discoverable from the other.
+    /// </remarks>
+    private static readonly Dictionary<string, (EnvironmentConditionKind Kind, bool Negate)> ConditionCalls = new() {
+        ["IfEnvironment"] = (EnvironmentConditionKind.Name, false),
+        ["IfNotEnvironment"] = (EnvironmentConditionKind.Name, true),
+        ["IfEnvironmentValue"] = (EnvironmentConditionKind.Value, false),
+        ["IfNotEnvironmentValue"] = (EnvironmentConditionKind.Value, true),
+    };
+
     private static readonly Dictionary<string, ServiceLifestyle> LifetimeCalls = new() {
         ["AsSingleton"] = ServiceLifestyle.Singleton,
         ["AsScoped"] = ServiceLifestyle.Scoped,
@@ -253,6 +267,7 @@ public static class ConventionModelUtility {
         IReadOnlyList<string>? keyNamespaces = null;
         List<AttributeFilterModel>? attributeFilters = null;
         List<NameFilterModel>? nameFilters = null;
+        List<EnvironmentConditionModel>? conditions = null;
         ITypeDefinition? explicitServiceType = null;
         string? assemblyName = null;
 
@@ -376,6 +391,44 @@ public static class ConventionModelUtility {
                 continue;
             }
 
+            if (ConditionCalls.TryGetValue(name, out var conditionCall)) {
+                // Read as literals for the same reason every other filter is: the declaration is
+                // parsed, never executed, so anything the build cannot see is refused rather than
+                // quietly dropped.
+                var arguments = ReadPatterns(context, call);
+
+                if (arguments.Count == 0) {
+                    reason = conditionCall.Kind == EnvironmentConditionKind.Name
+                        ? $"'{name}' needs at least one environment name it can read at compile time"
+                        : $"'{name}' needs an environment key it can read at compile time";
+
+                    return null;
+                }
+
+                conditions ??= new List<EnvironmentConditionModel>();
+
+                if (conditionCall.Kind == EnvironmentConditionKind.Name) {
+                    conditions.Add(new EnvironmentConditionModel(
+                        EnvironmentConditionKind.Name, conditionCall.Negate, null, arguments));
+                } else {
+                    // (key) tests presence, (key, value) tests equality. More than two would be a
+                    // call that does not exist on the interface.
+                    if (arguments.Count > 2) {
+                        reason = $"'{name}' takes a key and an optional value";
+
+                        return null;
+                    }
+
+                    conditions.Add(new EnvironmentConditionModel(
+                        EnvironmentConditionKind.Value,
+                        conditionCall.Negate,
+                        arguments[0],
+                        arguments.Count > 1 ? new[] { arguments[1] } : Array.Empty<string>()));
+                }
+
+                continue;
+            }
+
             if (name is WithAttributeCall or WithoutAttributeCall) {
                 var attributeType = SingleTypeArgumentOf(context, call);
 
@@ -452,7 +505,8 @@ public static class ConventionModelUtility {
             attributeFilters,
             nameFilters,
             explicitServiceType,
-            assemblyName);
+            assemblyName,
+            conditions);
     }
 
     /// <summary>

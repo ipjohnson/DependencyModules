@@ -20,6 +20,28 @@ namespace DependencyModules.Testing.Attributes.Interfaces
     {
         int Order { get; }
     }
+    public interface IServiceProviderBuilderAttribute
+    {
+        System.IServiceProvider BuildServiceProvider(DependencyModules.Testing.Attributes.Interfaces.ITestMethodContext testMethod, Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection);
+    }
+    public interface ITestMethodContext
+    {
+        System.Collections.Generic.IReadOnlyList<System.Attribute> Attributes { get; }
+        System.Reflection.MethodInfo Method { get; }
+    }
+    public interface ITestParameterValueProvider
+    {
+        System.Threading.Tasks.Task<object?> GetParameterValueAsync(DependencyModules.Testing.Attributes.Interfaces.ITestMethodContext testMethod, System.IServiceProvider serviceProvider, System.Reflection.ParameterInfo parameter);
+        void SetupServiceCollection(DependencyModules.Testing.Attributes.Interfaces.ITestMethodContext testMethod, Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection, System.Reflection.ParameterInfo parameter);
+    }
+    public interface ITestServiceSetupAttribute
+    {
+        void SetupServiceCollection(DependencyModules.Testing.Attributes.Interfaces.ITestMethodContext testMethod, Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection);
+    }
+    public interface ITestStartupAttribute
+    {
+        System.Threading.Tasks.Task StartupAsync(DependencyModules.Testing.Attributes.Interfaces.ITestMethodContext testMethod, System.IServiceProvider serviceProvider);
+    }
 }
 namespace DependencyModules.Testing.Impl
 {

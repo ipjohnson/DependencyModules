@@ -251,7 +251,7 @@ public class EnvironmentConditionTests {
     /// </remarks>
     [Fact]
     public void NoEnvironmentSuppliedUsesTheProcessEnvironment() {
-        var supplied = Compile(NameGated + Module, ModuleEnvironment.Default);
+        var supplied = Compile(NameGated + Module, ModuleEnvironment.CreateDefault());
         var omitted = Compile(NameGated + Module, environment: null);
 
         Assert.Equal(

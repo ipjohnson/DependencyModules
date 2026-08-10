@@ -1,3 +1,4 @@
+using DependencyModules.Runtime;
 using DependencyModules.Tests.Infrastructure;
 using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
@@ -262,6 +263,100 @@ public class DecoratorGenerationTests {
 
         result.AssertNoErrors();
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0007");
+    }
+
+    /// <summary>
+    /// A decorator gated on the environment, which used to apply everywhere.
+    /// </summary>
+    /// <remarks>
+    /// The attribute compiled and read as intentional while doing nothing at all — decoration never
+    /// looked at conditions, so a Development-only decorator wrapped the service in production too.
+    /// </remarks>
+    [Theory]
+    [InlineData("Development", "HELLO")]
+    [InlineData("Production", "hello")]
+    public void Decorator_AppliesOnlyWhenItsEnvironmentConditionHolds(
+        string environmentName, string expected) {
+
+        var generated = GeneratedAssembly.Create(
+            Module(
+                """
+                [Decorator]
+                [IfEnvironment("Development")]
+                public class LoudGreeter(IGreeter inner) : IGreeter {
+                    public string Greet() => inner.Greet().ToUpperInvariant();
+                }
+                """),
+            environment: new ModuleEnvironment(environmentName));
+
+        Assert.Equal(expected, Greet(generated));
+    }
+
+    [Theory]
+    [InlineData("on", "HELLO")]
+    [InlineData("off", "hello")]
+    public void Decorator_HonoursValueConditions(string flag, string expected) {
+        var generated = GeneratedAssembly.Create(
+            Module(
+                """
+                [Decorator]
+                [IfEnvironmentValue("LOUD", "on")]
+                public class LoudGreeter(IGreeter inner) : IGreeter {
+                    public string Greet() => inner.Greet().ToUpperInvariant();
+                }
+                """),
+            environment: new ModuleEnvironment(false, "Development") { { "LOUD", flag } });
+
+        Assert.Equal(expected, Greet(generated));
+    }
+
+    /// <summary>
+    /// A condition changes whether a decorator applies, never where it sits in the nesting.
+    /// </summary>
+    [Fact]
+    public void Decorator_ConditionDoesNotDisturbOrdering() {
+        var generated = GeneratedAssembly.Create(
+            Module(
+                """
+                [Decorator(Order = 10)]
+                [IfEnvironment("Development")]
+                public class Inner(IGreeter inner) : IGreeter {
+                    public string Greet() => "inner(" + inner.Greet() + ")";
+                }
+
+                [Decorator(Order = 20)]
+                public class Outer(IGreeter inner) : IGreeter {
+                    public string Greet() => "outer(" + inner.Greet() + ")";
+                }
+                """),
+            environment: new ModuleEnvironment("Development"));
+
+        Assert.Equal("outer(inner(hello))", Greet(generated));
+    }
+
+    /// <summary>
+    /// The unconditional decorator still applies when the conditional one drops out, rather than
+    /// the whole chain going with it.
+    /// </summary>
+    [Fact]
+    public void Decorator_UnconditionalOneSurvivesWhenAConditionalOneDoesNot() {
+        var generated = GeneratedAssembly.Create(
+            Module(
+                """
+                [Decorator(Order = 10)]
+                [IfEnvironment("Development")]
+                public class Inner(IGreeter inner) : IGreeter {
+                    public string Greet() => "inner(" + inner.Greet() + ")";
+                }
+
+                [Decorator(Order = 20)]
+                public class Outer(IGreeter inner) : IGreeter {
+                    public string Greet() => "outer(" + inner.Greet() + ")";
+                }
+                """),
+            environment: new ModuleEnvironment("Production"));
+
+        Assert.Equal("outer(hello)", Greet(generated));
     }
 
     private static string Greet(GeneratedAssembly generated) =>

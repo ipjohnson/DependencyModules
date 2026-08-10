@@ -13,11 +13,17 @@ namespace DependencyModules.SourceGenerator.Impl.Models;
 /// module, not only within the declaring one.
 /// </param>
 /// <param name="Realm">Restricts the decorator to one module, matching the service Realm property.</param>
+/// <param name="Conditions">
+/// Environment conditions read from the decorator class, combining with <b>and</b> exactly as they do
+/// on a service. A decorator that does not apply is never invoked, so the service resolves
+/// undecorated rather than being wrapped by something that re-tests the environment per call.
+/// </param>
 public record DecoratorModel(
     ITypeDefinition ServiceType,
     ITypeDefinition DecoratorType,
     int Order,
-    ITypeDefinition? Realm) {
+    ITypeDefinition? Realm,
+    IReadOnlyList<EnvironmentConditionModel>? Conditions = null) {
 
     /// <summary>
     /// Sentinel for a syntax node that carried the attribute but produced no usable model, matching
@@ -50,8 +56,16 @@ public class DecoratorModelComparer : IEqualityComparer<DecoratorModel> {
         return x.Order == y.Order &&
                x.ServiceType.Equals(y.ServiceType) &&
                x.DecoratorType.Equals(y.DecoratorType) &&
-               Equals(x.Realm, y.Realm);
+               Equals(x.Realm, y.Realm) &&
+               ConditionsEqual(x.Conditions, y.Conditions);
     }
+
+    // Structural rather than by reference: two runs build separate lists, so comparing references
+    // would miss the cache on every keystroke and re-emit every decorator.
+    private static bool ConditionsEqual(
+        IReadOnlyList<EnvironmentConditionModel>? x,
+        IReadOnlyList<EnvironmentConditionModel>? y) =>
+        (x?.Count ?? 0) == 0 && (y?.Count ?? 0) == 0 || ModelEquality.ListEquals(x, y);
 
     public int GetHashCode(DecoratorModel obj) {
         unchecked {
@@ -59,6 +73,7 @@ public class DecoratorModelComparer : IEqualityComparer<DecoratorModel> {
             hash = hash * 31 + obj.DecoratorType.GetHashCode();
             hash = hash * 31 + obj.Order;
             hash = hash * 31 + (obj.Realm?.GetHashCode() ?? 0);
+            hash = hash * 31 + ModelEquality.ListHashCode(obj.Conditions);
 
             return hash;
         }

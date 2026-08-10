@@ -4,9 +4,7 @@ using DependencyModules.Runtime.Interfaces;
 using DependencyModules.xUnit.Attributes;
 using DependencyModules.Testing.Attributes.Interfaces;
 using DependencyModules.Testing.Impl;
-using DependencyModules.xUnit.Attributes.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit.Internal;
 using Xunit.Sdk;
 using Xunit.v3;
 
@@ -35,6 +33,7 @@ public class ModuleTestCase : XunitTestCase {
         string testCaseDisplayName,
         string uniqueID,
         bool @explicit,
+        Type[]? skipExceptions = null,
         string? skipReason = null,
         Type? skipType = null,
         string? skipUnless = null,
@@ -44,19 +43,25 @@ public class ModuleTestCase : XunitTestCase {
         string? sourceFilePath = null,
         int? sourceLineNumber = null,
         int? timeout = null) : base(
-        testMethod,
-        testCaseDisplayName,
-        uniqueID,
-        @explicit,
-        skipReason,
-        skipType,
-        skipUnless,
-        skipWhen,
-        traits,
-        testMethodArguments,
-        sourceFilePath,
-        sourceLineNumber,
-        timeout) { }
+        // Named rather than positional throughout. XunitTestCase's constructor takes thirteen
+        // parameters, eleven of them optional, and a version that inserts one mid-list rebinds
+        // every argument after it — silently where the types happen to line up, and as a wall of
+        // unrelated-looking conversion errors where they do not. Named arguments make an insertion
+        // either invisible or a single precise error.
+        testMethod: testMethod,
+        testCaseDisplayName: testCaseDisplayName,
+        uniqueID: uniqueID,
+        @explicit: @explicit,
+        skipExceptions: skipExceptions,
+        skipReason: skipReason,
+        skipType: skipType,
+        skipUnless: skipUnless,
+        skipWhen: skipWhen,
+        traits: traits,
+        testMethodArguments: testMethodArguments,
+        sourceFilePath: sourceFilePath,
+        sourceLineNumber: sourceLineNumber,
+        timeout: timeout) { }
 
     /// <summary>
     /// Executes logic before the invocation of the test method associated with the current test case.
@@ -65,32 +70,35 @@ public class ModuleTestCase : XunitTestCase {
     public override void PreInvoke() { }
 
     private record StartupValues(
-        IServiceProvider ServiceProvider, 
+        ITestMethodContext Context,
+        IServiceProvider ServiceProvider,
         Dictionary<ParameterInfo, List<ITestParameterValueProvider>> KnownValues);
-    
+
     private async Task<StartupValues> SetupServiceCollection() {
         var serviceCollection = new ServiceCollection();
         var knownValues = new Dictionary<ParameterInfo, List<ITestParameterValueProvider>>();
-        
+
         var knownAttributes = TestMethod.Method.GetTestAttributes<Attribute>().ToArray();
-        
+
+        var context = new XunitTestMethodContext(TestMethod, knownAttributes);
+
         SetupTestCaseInfo(serviceCollection, knownAttributes);
-        
+
         SetupModules(serviceCollection, knownAttributes);
 
-        SetValueProviders(serviceCollection, knownValues);
+        SetValueProviders(context, serviceCollection, knownValues);
 
-        var startupAttributes = SetupStartupAttributes(serviceCollection, knownAttributes);
+        SetupServiceSetupAttributes(context, serviceCollection, knownAttributes);
 
-        var provider = BuildServiceProvider(serviceCollection, knownAttributes);
-        
+        var provider = BuildServiceProvider(context, serviceCollection, knownAttributes);
+
         DisposalTracker.Add(provider);
 
-        foreach (var startupAttribute in startupAttributes) {
-            await startupAttribute.StartupAsync(this.TestMethod, provider);
+        foreach (var startupAttribute in knownAttributes.OfType<ITestStartupAttribute>()) {
+            await startupAttribute.StartupAsync(context, provider);
         }
-        
-        return new StartupValues(provider, knownValues);
+
+        return new StartupValues(context, provider, knownValues);
     }
 
     private void SetupTestCaseInfo(ServiceCollection serviceCollection, Attribute[] knownAttributes) {
@@ -103,34 +111,49 @@ public class ModuleTestCase : XunitTestCase {
             ));
     }
 
-    private IServiceProvider BuildServiceProvider(ServiceCollection serviceCollection, Attribute[] knownAttributes) {
+    private IServiceProvider BuildServiceProvider(
+        ITestMethodContext context, ServiceCollection serviceCollection, Attribute[] knownAttributes) {
         var serviceProviderBuilderAttribute =
             knownAttributes.OfType<IServiceProviderBuilderAttribute>().FirstOrDefault();
 
         if (serviceProviderBuilderAttribute != null) {
-            return serviceProviderBuilderAttribute.BuildServiceProvider(TestMethod, serviceCollection);
+            return serviceProviderBuilderAttribute.BuildServiceProvider(context, serviceCollection);
         }
-        
+
         return serviceCollection.BuildServiceProvider();
     }
 
-    private IReadOnlyList<ITestStartupAttribute> SetupStartupAttributes(ServiceCollection serviceCollection, Attribute[] knownAttributes) {
-        var startupAttributes = new List<ITestStartupAttribute>();
-        foreach (var testStartupAttribute in knownAttributes.OfType<ITestStartupAttribute>()) {
-            testStartupAttribute.SetupServiceCollection(TestMethod, serviceCollection);
-            startupAttributes.Add(testStartupAttribute);
+    /// <remarks>
+    /// The whole pass runs after the parameter value providers, so a <c>[TestExport]</c> overrides a
+    /// <c>[Mock]</c> of the same service rather than the other way round.
+    ///
+    /// Mock support goes first within the pass, everything else keeping its declared order behind it.
+    /// A mock is the stand-in a test falls back to, so naming a real implementation has to beat it —
+    /// and has to beat it whether <c>[MoqSupport]</c> sits on the assembly, the class or the method,
+    /// which relying on attribute order alone would not guarantee.
+    /// </remarks>
+    private void SetupServiceSetupAttributes(
+        ITestMethodContext context, ServiceCollection serviceCollection, Attribute[] knownAttributes) {
+        var setupAttributes = knownAttributes
+            .OfType<ITestServiceSetupAttribute>()
+            .OrderBy(attribute => attribute is IMockSupportAttribute ? 0 : 1);
+
+        foreach (var setupAttribute in setupAttributes) {
+            setupAttribute.SetupServiceCollection(context, serviceCollection);
         }
-        return startupAttributes;
     }
 
-    private void SetValueProviders(ServiceCollection serviceCollection, Dictionary<ParameterInfo, List<ITestParameterValueProvider>> knownValues) {
+    private void SetValueProviders(
+        ITestMethodContext context,
+        ServiceCollection serviceCollection,
+        Dictionary<ParameterInfo, List<ITestParameterValueProvider>> knownValues) {
         foreach (var parameterInfo in TestMethod.Method.GetParameters()) {
             var list = new List<ITestParameterValueProvider>();
 
             knownValues.Add(parameterInfo, list);
 
             foreach (var valueProvider in parameterInfo.GetCustomAttributes().OfType<ITestParameterValueProvider>()) {
-                valueProvider.SetupServiceCollection(TestMethod, serviceCollection, parameterInfo);
+                valueProvider.SetupServiceCollection(context, serviceCollection, parameterInfo);
                 list.Add(valueProvider);
             }
         }
@@ -191,16 +214,26 @@ public class ModuleTestCase : XunitTestCase {
                 var startupValues = await SetupServiceCollection();
 
                 unitTests.Add(
+                    // testIndex is named for more than readability: XunitTest has a second
+                    // nine-parameter constructor differing only at this position, taking a uniqueID
+                    // string. Positionally the two are told apart by the argument's type alone.
                     new XunitTest(
-                        this,
-                        TestMethod,
-                        Explicit,
-                        theoryDataRow.Skip ?? SkipReason,
-                        GetRowDisplayName(theoryDataRow, data),
-                        unitTests.Count,
-                        theoryDataRow.Traits?.ToReadOnly() ?? Traits.ToReadOnly(),
-                        theoryDataRow.Timeout ?? Timeout,
-                        await ResolveArguments(data, startupValues)
+                        testCase: this,
+                        testMethod: TestMethod,
+                        @explicit: Explicit,
+                        skipReason: theoryDataRow.Skip ?? SkipReason,
+                        // The row's own conditional-skip metadata takes precedence over the case's,
+                        // matching how skipReason above already defers to it. These became required
+                        // in xunit.v3 3.x; passing the case's values alone would have compiled and
+                        // silently ignored [Theory]-style per-row skip conditions.
+                        skipType: theoryDataRow.SkipType ?? SkipType,
+                        skipUnless: theoryDataRow.SkipUnless ?? SkipUnless,
+                        skipWhen: theoryDataRow.SkipWhen ?? SkipWhen,
+                        testDisplayName: GetRowDisplayName(theoryDataRow, data),
+                        testIndex: unitTests.Count,
+                        traits: theoryDataRow.Traits?.ToReadOnlyTraits() ?? Traits.ToReadOnlyTraits(),
+                        timeout: theoryDataRow.Timeout ?? Timeout,
+                        testMethodArguments: await ResolveArguments(data, startupValues)
                     )
                 );
             }
@@ -222,7 +255,13 @@ public class ModuleTestCase : XunitTestCase {
     private string GetRowDisplayName(Xunit.ITheoryDataRow theoryDataRow, object?[] data) {
         var baseDisplayName = theoryDataRow.TestDisplayName ?? TestCaseDisplayName;
 
-        return TestMethod.GetDisplayName(baseDisplayName, data, null);
+        return TestMethod.GetDisplayName(
+            baseDisplayName: baseDisplayName,
+            // New in 3.x. The row may carry its own label, and xUnit folds it into the display name
+            // for [Theory]; passing null would compile and quietly drop it for module tests.
+            label: theoryDataRow.Label,
+            testMethodArguments: data,
+            methodGenericTypes: null);
     }
 
     private async Task<IReadOnlyCollection<IXunitTest>> UnitTestWithNoDataAttributes() {
@@ -230,15 +269,18 @@ public class ModuleTestCase : XunitTestCase {
 
         return [
             new XunitTest(
-                this,
-                TestMethod,
-                Explicit,
-                SkipReason,
-                TestCaseDisplayName,
-                0,
-                Traits.ToReadOnly(),
-                Timeout,
-                await ResolveArguments([], startupValues)
+                testCase: this,
+                testMethod: TestMethod,
+                @explicit: Explicit,
+                skipReason: SkipReason,
+                skipType: SkipType,
+                skipUnless: SkipUnless,
+                skipWhen: SkipWhen,
+                testDisplayName: TestCaseDisplayName,
+                testIndex: 0,
+                traits: Traits.ToReadOnlyTraits(),
+                timeout: Timeout,
+                testMethodArguments: await ResolveArguments([], startupValues)
             )
         ];
     }
@@ -272,7 +314,8 @@ public class ModuleTestCase : XunitTestCase {
         }
         else {
             foreach (var valueProvider in startupValues.KnownValues[parameterInfo]) {
-                value = await valueProvider.GetParameterValueAsync(TestMethod, startupValues.ServiceProvider, parameterInfo);
+                value = await valueProvider.GetParameterValueAsync(
+                    startupValues.Context, startupValues.ServiceProvider, parameterInfo);
 
                 if (value != null) {
                     break;

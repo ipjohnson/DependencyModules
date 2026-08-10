@@ -18,7 +18,11 @@ VERSION="${1:-1.0.0-verify}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WORK_DIR="$(mktemp -d)"
 FEED="${WORK_DIR}/feed"
-APP="${WORK_DIR}/ConsumerApp"
+
+# Every target framework the shipping libraries claim. Each one gets its own consumer project
+# below, because "it packs" and "a consumer on that TFM can actually resolve and run it" are
+# different claims, and only the second one is what ships.
+TFMS=(net8.0 net10.0)
 
 cleanup() { rm -rf "${WORK_DIR}"; }
 trap cleanup EXIT
@@ -68,6 +72,44 @@ for id in DependencyModules.SourceGenerator DependencyModules.Conventions; do
     pass "${id} analyzer assembly is at analyzers/dotnet/cs/ with no lib/"
 done
 
+# The shipping libraries multi-target. A missing lib/ folder means one TFM quietly stopped being
+# produced, and consumers on it would resolve no assembly at all.
+LIB_PACKAGES=(
+    DependencyModules.Runtime
+    DependencyModules.Testing
+    DependencyModules.xUnit
+    DependencyModules.NSubstitute
+    DependencyModules.Moq
+    DependencyModules.FakeItEasy
+)
+for id in "${LIB_PACKAGES[@]}"; do
+    entries="$(unzip -Z1 "${FEED}/${id}.${VERSION}.nupkg")"
+    for tfm in "${TFMS[@]}"; do
+        grep -qx "lib/${tfm}/${id}.dll" <<<"${entries}" \
+            || fail "${id}: no lib/${tfm}/${id}.dll in package, got:\n${entries}"
+    done
+    pass "${id} ships lib/ for every target framework"
+done
+
+# Framework-matched dependency groups. This is the whole reason the libraries multi-target: a
+# net10.0 group pinning an 8.x Microsoft.Extensions package puts that older assembly into a .NET 10
+# consumer's output in place of the one its shared framework already supplies.
+for id in "${LIB_PACKAGES[@]}"; do
+    unzip -p "${FEED}/${id}.${VERSION}.nupkg" "${id}.nuspec" | python3 -c '
+import re, sys
+nuspec = sys.stdin.read()
+for tfm, body in re.findall(r"<group targetFramework=\"([^\"]+)\">(.*?)</group>", nuspec, re.S):
+    match = re.match(r"net(\d+)\.", tfm)
+    if not match:
+        continue
+    want = match.group(1)
+    for dep, ver in re.findall(r"id=\"(Microsoft\.Extensions\.[^\"]+)\" version=\"([^\"]+)\"", body):
+        if ver.split(".")[0] != want:
+            sys.exit(f"  {tfm} group depends on {dep} {ver}, expected {want}.x")
+' || fail "${id}: dependency groups are not framework-matched"
+    pass "${id} dependency groups are framework-matched"
+done
+
 # Placeholder metadata must never ship.
 for pkg in "${FEED}"/*.nupkg; do
     id="$(basename "${pkg}" ".${VERSION}.nupkg")"
@@ -88,7 +130,21 @@ for id in DependencyModules.SourceGenerator DependencyModules.Conventions; do
     pass "${id} does not leak compiler dependencies"
 done
 
-echo "==> Building a consumer project against the packed feed"
+for TFM in "${TFMS[@]}"; do
+
+echo "==> Building a ${TFM} consumer project against the packed feed"
+
+APP="${WORK_DIR}/ConsumerApp-${TFM}"
+
+# Match the DI implementation package to the consumer's framework. Referencing 8.0.1 from a net10.0
+# app would mask the very regression this script exists to catch, by pinning the old assembly from
+# the consumer side rather than letting the package's own dependency group decide.
+case "${TFM}" in
+    net8.0)  DI_VERSION="8.0.1" ;;
+    net10.0) DI_VERSION="10.0.0" ;;
+    *)       fail "no Microsoft.Extensions.DependencyInjection version mapped for ${TFM}" ;;
+esac
+
 mkdir -p "${APP}"
 cat >"${APP}/nuget.config" <<EOF
 <?xml version="1.0" encoding="utf-8"?>
@@ -98,6 +154,15 @@ cat >"${APP}/nuget.config" <<EOF
     <add key="local" value="${FEED}"/>
     <add key="nuget.org" value="https://api.nuget.org/v3/index.json"/>
   </packageSources>
+  <!--
+    A private extraction cache, so this really consumes the packages just packed. NuGet keys the
+    global cache on id/version alone: with a fixed VERSION like 1.0.0-verify, an extraction left
+    over from an earlier run shadows the new .nupkg entirely and the script grades stale bits.
+    That silently hid a package whose lib/ layout had changed underneath it.
+  -->
+  <config>
+    <add key="globalPackagesFolder" value="${WORK_DIR}/nuget-cache"/>
+  </config>
 </configuration>
 EOF
 
@@ -105,7 +170,7 @@ cat >"${APP}/ConsumerApp.csproj" <<EOF
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>${TFM}</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <!-- Consumed through the packaged build/*.targets; the generator only sees this
@@ -119,7 +184,7 @@ cat >"${APP}/ConsumerApp.csproj" <<EOF
     <PackageReference Include="DependencyModules.SourceGenerator" Version="${VERSION}"/>
     <PackageReference Include="DependencyModules.Conventions" Version="${VERSION}"/>
     <!-- BuildServiceProvider lives in the DI implementation package, not Abstractions. -->
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1"/>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="${DI_VERSION}"/>
   </ItemGroup>
 </Project>
 EOF
@@ -192,8 +257,14 @@ public static class Program {
 EOF
 
 dotnet build "${APP}/ConsumerApp.csproj" -c Release --nologo -v quiet \
-    || fail "consumer project failed to build against the packed feed"
-pass "consumer project builds"
+    || fail "${TFM} consumer project failed to build against the packed feed"
+pass "${TFM} consumer project builds"
+
+# The package has a lib/ folder per TFM, and NuGet picks one. Assert it picked this consumer's own
+# rather than falling back to an older compatible one, which would still build and still run.
+grep -qF "lib/${TFM}/DependencyModules.Runtime.dll" "${APP}/obj/project.assets.json" \
+    || fail "${TFM} consumer did not resolve lib/${TFM}/ of DependencyModules.Runtime"
+pass "${TFM} consumer resolved lib/${TFM}/"
 
 # Prove the generator actually ran, rather than the build merely succeeding.
 generated="$(find "${APP}/generated" -name '*.g.cs' 2>/dev/null || true)"
@@ -215,11 +286,13 @@ if grep -rq 'ExcludeFromCodeCoverage' "${APP}/generated"; then
 fi
 pass "MSBuild properties reach the generator through build/*.targets"
 
-echo "==> Running the consumer app"
+echo "==> Running the ${TFM} consumer app"
 output="$(dotnet run --project "${APP}/ConsumerApp.csproj" -c Release --no-build --nologo)"
 [ "${output}" = "hello from a packaged generator" ] \
-    || fail "unexpected consumer output: ${output}"
-pass "resolved a generated registration at run time"
+    || fail "unexpected ${TFM} consumer output: ${output}"
+pass "${TFM} resolved a generated registration at run time"
+
+done
 
 echo
-echo "All package verification checks passed."
+echo "All package verification checks passed for: ${TFMS[*]}"

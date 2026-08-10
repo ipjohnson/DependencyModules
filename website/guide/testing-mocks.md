@@ -92,12 +92,49 @@ A.CallTo(() => aiSummaryProvider.GetSummary()).Returns("Sunny");
 
 :::
 
-The `Mock.Get` in the Moq version is the one difference worth knowing about. NSubstitute and
-FakeItEasy hand you an object that *is* the mock, so the parameter the container injected is the
-thing you configure. Moq keeps the two apart — the container receives `Mock<T>.Object`, and
-`Mock.Get(instance)` gets you back to the `Mock<T>` to set expectations on.
-
 Unconfigured members return `default` rather than throwing, in all three.
+
+### Moq: ask for the `Mock<T>` instead
+
+NSubstitute and FakeItEasy hand you an object that *is* the mock, so the parameter the container
+injected is the thing you configure. Moq keeps the two apart, which is why the version above needs
+`Mock.Get`.
+
+You can skip that by naming the mock in the parameter type. No `[Mock]` — the type already says what
+it is:
+
+```csharp
+[ModuleTest]
+public void GetStaticForecast(
+    Weather weather,
+    Mock<ITemperatureProvider> temperatureProvider,
+    Mock<IAiSummaryProvider> aiSummaryProvider) {
+
+    temperatureProvider.Setup(x => x.GetTemperature()).Returns(38);
+    aiSummaryProvider.Setup(x => x.GetSummary()).Returns("Sunny");
+
+    var forecast = weather.GetWeatherForecast().ToArray();
+
+    Assert.All(forecast, day => Assert.Equal(38, day.TemperatureC));
+}
+```
+
+This does the same thing `[Mock]` does — `ITemperatureProvider` is replaced in the container before
+anything is resolved, so `Weather` is built against the same mock. You just hold the `Mock<T>` rather
+than the object, and `mock.Object` gets you the object when you want it.
+
+Both spellings can appear on one test, and they agree: ask for `[Mock] ITemperatureProvider` and
+`Mock<ITemperatureProvider>` together and you get one mock seen two ways, not two mocks. Two
+parameters naming the same `Mock<T>` are likewise one mock.
+
+`[Mock]` on a `Mock<T>` parameter is allowed and does nothing — the type is already enough.
+
+::: warning
+A `Mock<T>` parameter only means anything when `[MoqSupport]` is in scope. Without it the parameter
+still resolves — the container constructs a `Mock<T>` like any other concrete type — but nothing
+registers it, so the service under test gets the real implementation and your setups apply to a mock
+nobody can see.
+:::
 
 ## When you want a real object, not a mock
 

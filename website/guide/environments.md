@@ -62,9 +62,9 @@ Environment **names** compare case-insensitively, matching `IHostEnvironment.IsD
 
 There is always one, and it is never null.
 
-The simplest case needs no wiring at all. Supply nothing and you get `ModuleEnvironment.Default`,
+The simplest case needs no wiring at all. Supply nothing and you get `ModuleEnvironment.CreateDefault()`,
 which reads the process — `ASPNETCORE_ENVIRONMENT`, then `DOTNET_ENVIRONMENT`, then falling back to
-`"Production"`. Values come from environment variables, read on each call rather than captured once.
+`"Production"`. Values come from environment variables.
 
 So `[IfEnvironment("Development")]` already works against the variable your tooling sets for you.
 
@@ -123,6 +123,25 @@ new ModuleEnvironment(false, "Development", new Dictionary<string, string?> { ["
 A comparer you supplied on that dictionary is carried over rather than reset — useful for
 `OrdinalIgnoreCase`, matching how Windows treats variable names.
 
+### What gets cached
+
+An environment caches what it reads from the process, misses included, for its own lifetime. The
+instance `AddModules` registers is held for the application's lifetime, so a service that injects
+`IModuleEnvironment` and reads a value per request pays one process lookup rather than one per call —
+and an unset optional variable, which is the case a default exists for, is cached as absent rather
+than re-read every time.
+
+The trade is that an instance does not see a variable changed mid-process. `CreateDefault()` builds a
+fresh one on each call, so asking again is how you get a current view:
+
+```csharp
+var current = ModuleEnvironment.CreateDefault().Value("FEATURE_X");
+```
+
+Values you supplied yourself are never affected — they are answered directly, and the cache only ever
+holds what came from the process. Enumerating a `ModuleEnvironment` still yields only what you
+supplied.
+
 ### Stating that there is no environment
 
 `ModuleEnvironment.None` has an empty name and no values, so every condition evaluates false. Prefer
@@ -150,7 +169,7 @@ another, read the existing one and combine before you call:
 var existing = services.FirstOrDefault(d => d.ServiceType == typeof(IModuleEnvironment))
     ?.ImplementationInstance as IModuleEnvironment;
 
-services.AddModules(Combine(existing ?? ModuleEnvironment.Default, overlay), modules);
+services.AddModules(Combine(existing ?? ModuleEnvironment.CreateDefault(), overlay), modules);
 ```
 
 ## Overriding a default
@@ -177,8 +196,42 @@ A conditional `Using(RegistrationType.Try)` cannot override an unconditional reg
 
 ## Conditions and conventions
 
-A class matched by a [convention](/guide/conventions) honours its conditions too, so a condition
-behaves the same whether the class was registered by attribute or by rule.
+A class matched by a [convention](/guide/conventions) honours its own conditions, so an attribute
+behaves the same whether the class is registered by attribute or by rule.
+
+A convention can also carry a condition itself, gating every match rather than making you repeat the
+attribute on each class:
+
+```csharp
+conventions.RegisterAll<IDiagnostic>().IfEnvironment("Development").AsScoped();
+```
+
+The same four tests are available, named after the attributes:
+
+| Call | Registers when |
+|---|---|
+| `IfEnvironment(params string[])` | the environment name matches any of them |
+| `IfNotEnvironment(params string[])` | it matches none of them |
+| `IfEnvironmentValue(key)` · `IfEnvironmentValue(key, value)` | the key is present, or equals exactly |
+| `IfNotEnvironmentValue(…)` | the inverse of either form |
+
+When a convention carries a condition **and** a matched class carries its own, the two combine with
+**and** — neither can silently discard the other:
+
+```csharp
+conventions.RegisterAll<IFoo>().IfEnvironment("Development").AsSingleton();
+
+[IfEnvironmentValue("REGION", "eu")]
+public class EuFoo : IFoo { }
+
+// EuFoo registers only when the environment is Development AND REGION is eu
+```
+
+## Conditions and decorators
+
+A [decorator](/guide/decorators#decorating-only-in-some-environments) takes the same conditions. Where
+it does not apply, the service resolves undecorated, and the ordering of everything else is
+unchanged.
 
 ## What conditions cost
 

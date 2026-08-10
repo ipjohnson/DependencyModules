@@ -58,6 +58,19 @@ applied afterwards and any one removes a match.
 | `Using(RegistrationType)` | `Add`, `Try`, `TryEnumerable` or `Replace` |
 | `WithKey(object)` | a service key — literal, `const` or enum member |
 
+## Environment conditions
+
+Gate every match on the [environment](/guide/environments). Named after the attributes, and combined
+with **and** against any condition on a matched class.
+
+| Call | Registers when |
+|---|---|
+| `IfEnvironment(params string[])` | the environment name matches any of them |
+| `IfNotEnvironment(params string[])` | it matches none of them |
+| `IfEnvironmentValue(string key)` | the environment has any value for the key |
+| `IfEnvironmentValue(string key, string value)` | the value equals exactly, compared ordinally |
+| `IfNotEnvironmentValue(string key)` · `IfNotEnvironmentValue(string key, string value)` | the inverse of either form |
+
 ## What is not offered
 
 Anything taking a lambda — a predicate over types, or a lifetime chosen per type. The declaration is

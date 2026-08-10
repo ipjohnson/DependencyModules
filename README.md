@@ -19,7 +19,9 @@ dotnet add package DependencyModules.Runtime
 dotnet add package DependencyModules.SourceGenerator
 ```
 
-Requires .NET 8.0 or later. See [CHANGELOG.md](CHANGELOG.md) for release notes.
+Requires .NET 8.0 or later. The packages ship both `net8.0` and `net10.0` assemblies, so a project on
+either LTS release gets one built against its own framework. See [CHANGELOG.md](CHANGELOG.md) for
+release notes.
 
 ## Service Attributes 
 

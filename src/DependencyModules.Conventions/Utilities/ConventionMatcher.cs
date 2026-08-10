@@ -618,16 +618,21 @@ public static class ConventionMatcher {
         // ServiceModelUtility builds for the attribute path. Two models with the same
         // ImplementationType would duplicate the per-implementation state the writer reads:
         // constructor, conditions, cross-wire.
-        var byImplementation = new Dictionary<ITypeDefinition, List<ServiceRegistrationModel>>();
-        var order = new List<ConventionRegistrationMatch>();
+        // Keyed by implementation *and* the conditions in force, rather than implementation alone.
+        // The writer emits one guard around everything a ServiceModel registers, so two conventions
+        // matching the same class under different conditions have to stay apart — merged into one
+        // model, whichever condition set won would silently gate the other's registrations too.
+        var byGroup = new Dictionary<string, List<ServiceRegistrationModel>>();
+        var order = new List<ConventionModelGroup>();
 
         foreach (var entry in usable) {
-            var implementation = entry.Match.Candidate.ImplementationType;
+            var conditions = MergeConditions(entry.Match);
+            var key = GroupKey(entry.Match.Candidate.ImplementationType, conditions);
 
-            if (!byImplementation.TryGetValue(implementation, out var list)) {
+            if (!byGroup.TryGetValue(key, out var list)) {
                 list = new List<ServiceRegistrationModel>();
-                byImplementation[implementation] = list;
-                order.Add(entry.Match);
+                byGroup[key] = list;
+                order.Add(new ConventionModelGroup(entry.Match, conditions, key));
             }
 
             list.Add(entry.Registration);
@@ -635,26 +640,78 @@ public static class ConventionMatcher {
 
         var models = new List<ServiceModel>(order.Count);
 
-        foreach (var match in order) {
-            var registrations = byImplementation[match.Candidate.ImplementationType];
+        foreach (var group in order) {
+            var registrations = byGroup[group.Key];
 
             logger.Info(
-                $"  {match.Candidate.ImplementationType.Name} -> " +
+                $"  {group.Match.Candidate.ImplementationType.Name} -> " +
                 $"{string.Join(", ", registrations.Select(r => r.ServiceType.Name))} " +
                 "(by convention)");
 
             models.Add(new ServiceModel(
-                match.Candidate.ImplementationType,
-                match.Candidate.Constructor,
+                group.Match.Candidate.ImplementationType,
+                group.Match.Candidate.Constructor,
                 null,
                 null,
                 registrations,
                 RegistrationFeature.None,
-                // Shared across every match for this type, so the first one carries them all.
-                match.Candidate.Conditions));
+                group.Conditions));
         }
 
         return models;
+    }
+
+    /// <summary>
+    /// One ServiceModel's worth of matches: the same implementation under the same conditions.
+    /// </summary>
+    private record ConventionModelGroup(
+        ConventionRegistrationMatch Match,
+        IReadOnlyList<EnvironmentConditionModel>? Conditions,
+        string Key);
+
+    /// <summary>
+    /// The conditions in force for one match: the convention's and the class's, combined.
+    /// </summary>
+    /// <remarks>
+    /// Combined with <b>and</b>, matching how conditions of different kinds already combine on a
+    /// class. Letting either side win would mean one declaration silently discarding a condition
+    /// written in the other, which is the kind of thing nobody finds until production.
+    /// </remarks>
+    private static IReadOnlyList<EnvironmentConditionModel>? MergeConditions(
+        ConventionRegistrationMatch match) {
+
+        var fromConvention = match.Convention.Conditions;
+        var fromCandidate = match.Candidate.Conditions;
+
+        if ((fromConvention?.Count ?? 0) == 0) {
+            return fromCandidate;
+        }
+
+        if ((fromCandidate?.Count ?? 0) == 0) {
+            return fromConvention;
+        }
+
+        var merged = new List<EnvironmentConditionModel>(fromConvention!.Count + fromCandidate!.Count);
+        merged.AddRange(fromConvention);
+        merged.AddRange(fromCandidate);
+
+        return merged;
+    }
+
+    /// <summary>
+    /// A stable key for grouping, so equal condition sets share a model and different ones do not.
+    /// </summary>
+    private static string GroupKey(
+        ITypeDefinition implementation, IReadOnlyList<EnvironmentConditionModel>? conditions) {
+
+        if ((conditions?.Count ?? 0) == 0) {
+            return implementation.ToString();
+        }
+
+        var parts = conditions!.Select(condition =>
+            $"{condition.Kind}|{condition.Negate}|{condition.Key}|{string.Join(",", condition.Values)}");
+
+        return implementation + "::" + string.Join(";", parts);
     }
 
     /// <summary>

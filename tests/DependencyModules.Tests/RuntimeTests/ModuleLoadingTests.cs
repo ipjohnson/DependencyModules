@@ -182,7 +182,15 @@ public class ModuleLoadingTests {
         // Cast is required: without it the call is ambiguous with AddModules(params IDependencyModule[]).
         collection.AddModules((IModuleEnvironment?)null, module);
 
-        Assert.Same(ModuleEnvironment.Default, module.ObservedEnvironment);
+        // The instance registered into the collection, rather than whatever CreateDefault hands out
+        // next — it builds a fresh one per call, so comparing against it would test nothing.
+        var registered = Assert.Single(
+            collection, descriptor => descriptor.ServiceType == typeof(IModuleEnvironment));
+
+        Assert.Same(registered.ImplementationInstance, module.ObservedEnvironment);
+        Assert.Equal(
+            ModuleEnvironment.CreateDefault().EnvironmentName,
+            module.ObservedEnvironment!.EnvironmentName);
         Assert.True(module.ConfigureCalled);
     }
 
