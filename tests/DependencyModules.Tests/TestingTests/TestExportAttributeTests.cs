@@ -1,9 +1,9 @@
+using DependencyModules.Testing.Attributes;
 using DependencyModules.Testing.Attributes.Interfaces;
-using DependencyModules.xUnit.Attributes;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
-namespace DependencyModules.Tests.xUnitTests;
+namespace DependencyModules.Tests.TestingTests;
 
 /// <summary>
 /// [TestExport] lets a test override a registration for the duration of that test, so the lifetime

@@ -20,7 +20,7 @@ public class ConventionDecoratorTests {
         """
         using System.Collections.Generic;
         using DependencyModules.Runtime.Attributes;
-        using DependencyModules.Conventions;
+        using DependencyModules.Runtime.Conventions;
 
         namespace TestNamespace;
 
@@ -55,7 +55,7 @@ public class ConventionDecoratorTests {
         """;
 
     private static GeneratedAssembly Compile(string module) =>
-        GeneratedAssembly.Create(Preamble + module, withConventions: true);
+        GeneratedAssembly.Create(Preamble + module);
 
     /// <summary>
     /// One open generic decorator over every handler a convention registered — the ordinary MediatR

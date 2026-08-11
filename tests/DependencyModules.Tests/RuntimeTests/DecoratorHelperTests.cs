@@ -46,6 +46,24 @@ public class DecoratorHelperTests {
 
     private class StringRepo : Repo<string>;
 
+    private class DisposableThing : IThing, IDisposable {
+        public int Disposals { get; private set; }
+
+        public string Describe() => "thing";
+
+        public void Dispose() => Disposals++;
+    }
+
+    private class DisposableWrapper(IThing inner) : IThing, IDisposable {
+        public IThing Inner { get; } = inner;
+
+        public int Disposals { get; private set; }
+
+        public string Describe() => $"wrapped({Inner.Describe()})";
+
+        public void Dispose() => Disposals++;
+    }
+
     private static IThing Resolve(IServiceCollection services) =>
         services.BuildServiceProvider().GetRequiredService<IThing>();
 
@@ -79,261 +97,85 @@ public class DecoratorHelperTests {
         Assert.Equal("wrapped(thing)", Resolve(services).Describe());
     }
 
-    /// <summary>
-    /// The failure this guards against is not a wrong answer but a stack overflow: if the factory
-    /// reads the collection slot instead of the captured descriptor, it resolves itself forever.
-    /// </summary>
-    [Fact]
-    public void Decorate_DoesNotRecurseIntoItsOwnReplacement() {
-        var services = new ServiceCollection();
-        services.AddSingleton<IThing, Thing>();
 
-        DecoratorHelper.Decorate(services, typeof(IThing), (_, inner) => new Wrapper((IThing)inner));
 
-        var resolved = Assert.IsType<Wrapper>(Resolve(services));
-        Assert.IsType<Thing>(resolved.Inner);
-    }
-
-    [Fact]
-    public void Decorate_WrapsEveryRegistrationOfTheService() {
-        var services = new ServiceCollection();
-        services.AddSingleton<IThing, Thing>();
-        services.AddSingleton<IThing, OtherThing>();
-
-        DecoratorHelper.Decorate(services, typeof(IThing), (_, inner) => new Wrapper((IThing)inner));
-
-        var all = services.BuildServiceProvider().GetServices<IThing>().ToArray();
-
-        Assert.Equal(2, all.Length);
-        Assert.All(all, thing => Assert.IsType<Wrapper>(thing));
-        Assert.Equal(["wrapped(thing)", "wrapped(other)"], all.Select(t => t.Describe()));
-    }
-
-    [Theory]
-    [InlineData(ServiceLifetime.Singleton)]
-    [InlineData(ServiceLifetime.Scoped)]
-    [InlineData(ServiceLifetime.Transient)]
-    public void Decorate_PreservesTheOriginalLifetime(ServiceLifetime lifetime) {
-        IServiceCollection services = new ServiceCollection();
-        services.Add(new ServiceDescriptor(typeof(IThing), typeof(Thing), lifetime));
-
-        DecoratorHelper.Decorate(services, typeof(IThing), (_, inner) => new Wrapper((IThing)inner));
-
-        Assert.Equal(lifetime, Assert.Single(services).Lifetime);
-    }
-
-    [Fact]
-    public void Decorate_LeavesOtherServicesAlone() {
-        var services = new ServiceCollection();
-        services.AddSingleton<IThing, Thing>();
-        services.AddSingleton<IUnrelated, Unrelated>();
-
-        DecoratorHelper.Decorate(services, typeof(IThing), (_, inner) => new Wrapper((IThing)inner));
-
-        Assert.IsType<Unrelated>(services.BuildServiceProvider().GetRequiredService<IUnrelated>());
-    }
-
-    private interface IUnrelated;
-
-    private class Unrelated : IUnrelated;
-
-    [Fact]
-    public void Decorate_WithNoMatchingRegistration_DoesNothing() {
-        var services = new ServiceCollection();
-        services.AddSingleton<IUnrelated, Unrelated>();
-
-        DecoratorHelper.Decorate(services, typeof(IThing), (_, inner) => new Wrapper((IThing)inner));
-
-        Assert.Single(services);
-    }
-
-    [Fact]
-    public void Decorate_AppliedTwice_NestsInApplicationOrder() {
-        var services = new ServiceCollection();
-        services.AddSingleton<IThing, Thing>();
-
-        DecoratorHelper.Decorate(services, typeof(IThing), (_, inner) => new Wrapper((IThing)inner));
-        DecoratorHelper.Decorate(services, typeof(IThing), (_, inner) => new SecondWrapper((IThing)inner));
-
-        // Applied first ends up innermost.
-        Assert.Equal("second(wrapped(thing))", Resolve(services).Describe());
-    }
-
-    [Fact]
-    public void Decorate_ResolvesTheDecoratorsOwnDependencies() {
-        var services = new ServiceCollection();
-        services.AddSingleton<IThing, Thing>();
-        services.AddSingleton<IUnrelated, Unrelated>();
-
-        DecoratorHelper.Decorate(services, typeof(IThing),
-            (provider, inner) => new DependentWrapper((IThing)inner, provider.GetRequiredService<IUnrelated>()));
-
-        var resolved = Assert.IsType<DependentWrapper>(Resolve(services));
-        Assert.NotNull(resolved.Dependency);
-    }
-
-    private class DependentWrapper(IThing inner, IUnrelated dependency) : IThing {
-        public IUnrelated Dependency { get; } = dependency;
-
-        public string Describe() => inner.Describe();
-    }
-
-    private interface IGeneric<T> {
-        string Describe();
-    }
-
-    private class GenericThing<T> : IGeneric<T> {
-        public string Describe() => $"generic<{typeof(T).Name}>";
-    }
-
-    private class GenericWrapper<T>(IGeneric<T> inner) : IGeneric<T> {
-        public string Describe() => $"wrapped({inner.Describe()})";
-    }
 
     /// <summary>
-    /// Decorating an open generic has to wrap each closed registration of it. This is the shape a
-    /// mediator pipeline behaviour takes.
+    /// The generic overload wraps the same shapes the type-driven one does, without a cast at the
+    /// call site.
     /// </summary>
     [Fact]
-    public void Decorate_OpenGeneric_WrapsEveryClosedRegistration() {
-        var services = new ServiceCollection();
-        services.AddSingleton<IGeneric<string>, GenericThing<string>>();
-        services.AddSingleton<IGeneric<int>, GenericThing<int>>();
-
-        DecoratorHelper.Decorate(services, typeof(IGeneric<>), (_, inner) => {
-            var argument = inner.GetType().GetInterfaces()
-                .First(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IGeneric<>))
-                .GetGenericArguments()[0];
-
-            return Activator.CreateInstance(typeof(GenericWrapper<>).MakeGenericType(argument), inner)!;
-        });
-
-        var provider = services.BuildServiceProvider();
-
-        Assert.Equal("wrapped(generic<String>)", provider.GetRequiredService<IGeneric<string>>().Describe());
-        Assert.Equal("wrapped(generic<Int32>)", provider.GetRequiredService<IGeneric<int>>().Describe());
-    }
-
-    [Fact]
-    public void Decorate_OpenGeneric_LeavesUnrelatedClosedTypesAlone() {
-        var services = new ServiceCollection();
-        services.AddSingleton<IThing, Thing>();
-        services.AddSingleton<IGeneric<string>, GenericThing<string>>();
-
-        DecoratorHelper.Decorate(services, typeof(IGeneric<>), (_, inner) => inner);
-
-        Assert.IsType<Thing>(Resolve(services));
-    }
-
-    [Fact]
-    public void Decorate_KeyedRegistration_IsWrappedAndKeepsItsKey() {
-        var services = new ServiceCollection();
-        services.AddKeyedSingleton<IThing, Thing>("the-key");
-
-        DecoratorHelper.Decorate(services, typeof(IThing), (_, inner) => new Wrapper((IThing)inner));
-
-        var provider = services.BuildServiceProvider();
-        var resolved = provider.GetRequiredKeyedService<IThing>("the-key");
-
-        Assert.Equal("wrapped(thing)", resolved.Describe());
-    }
-
-    // --- the type-based overload generated code calls ---
-
-    [Fact]
-    public void DecorateByType_WrapsAndResolvesTheDecoratorsDependencies() {
-        var services = new ServiceCollection();
-        services.AddSingleton<IThing, Thing>();
-        services.AddSingleton<IUnrelated, Unrelated>();
-
-        DecoratorHelper.Decorate(services, typeof(IThing), typeof(DependentWrapper));
-
-        var resolved = Assert.IsType<DependentWrapper>(Resolve(services));
-        Assert.NotNull(resolved.Dependency);
-    }
-
-    [Fact]
-    public void DecorateByType_PassesTheWrappedInstance() {
+    public void DecorateOfT_WrapsAnImplementationTypeRegistration() {
         var services = new ServiceCollection();
         services.AddSingleton<IThing, Thing>();
 
-        DecoratorHelper.Decorate(services, typeof(IThing), typeof(Wrapper));
+        DecoratorHelper.Decorate<IThing>(services, typeof(Wrapper), (_, inner) => new Wrapper(inner));
 
         Assert.Equal("wrapped(thing)", Resolve(services).Describe());
     }
 
     [Fact]
-    public void DecorateByType_OpenGeneric_ClosesTheDecoratorPerRegistration() {
+    public void DecorateOfT_WrapsEveryRegistrationOfTheService() {
         var services = new ServiceCollection();
-        services.AddSingleton<IGeneric<string>, GenericThing<string>>();
-        services.AddSingleton<IGeneric<int>, GenericThing<int>>();
+        services.AddSingleton<IThing, Thing>();
+        services.AddSingleton<IThing, OtherThing>();
 
-        DecoratorHelper.Decorate(services, typeof(IGeneric<>), typeof(GenericWrapper<>));
+        DecoratorHelper.Decorate<IThing>(services, typeof(Wrapper), (_, inner) => new Wrapper(inner));
 
-        var provider = services.BuildServiceProvider();
+        var all = services.BuildServiceProvider().GetServices<IThing>().ToArray();
 
-        Assert.Equal("wrapped(generic<String>)", provider.GetRequiredService<IGeneric<string>>().Describe());
-        Assert.Equal("wrapped(generic<Int32>)", provider.GetRequiredService<IGeneric<int>>().Describe());
-    }
-
-    /// <summary>
-    /// Stacking open generic decorators means the wrapped instance is itself a decorator, so the
-    /// type arguments have to be discovered from whichever of them implements the service.
-    /// </summary>
-    [Fact]
-    public void DecorateByType_OpenGeneric_Stacks() {
-        var services = new ServiceCollection();
-        services.AddSingleton<IGeneric<string>, GenericThing<string>>();
-
-        DecoratorHelper.Decorate(services, typeof(IGeneric<>), typeof(GenericWrapper<>));
-        DecoratorHelper.Decorate(services, typeof(IGeneric<>), typeof(GenericWrapper<>));
-
-        var provider = services.BuildServiceProvider();
-
-        Assert.Equal("wrapped(wrapped(generic<String>))", provider.GetRequiredService<IGeneric<string>>().Describe());
+        Assert.All(all, thing => Assert.IsType<Wrapper>(thing));
+        Assert.Equal(["wrapped(thing)", "wrapped(other)"], all.Select(t => t.Describe()));
     }
 
     [Fact]
-    public void DecorateByType_StacksInApplicationOrder() {
+    public void DecorateOfT_StacksInApplicationOrder() {
         var services = new ServiceCollection();
         services.AddSingleton<IThing, Thing>();
 
-        DecoratorHelper.Decorate(services, typeof(IThing), typeof(Wrapper));
-        DecoratorHelper.Decorate(services, typeof(IThing), typeof(SecondWrapper));
+        DecoratorHelper.Decorate<IThing>(services, typeof(Wrapper), (_, inner) => new Wrapper(inner));
+        DecoratorHelper.Decorate<IThing>(services, typeof(SecondWrapper), (_, inner) => new SecondWrapper(inner));
 
         Assert.Equal("second(wrapped(thing))", Resolve(services).Describe());
     }
 
     /// <summary>
-    /// Decoration replaces a registration with a factory, and the container will not take a factory
-    /// for an open generic service type. Left alone it throws from BuildServiceProvider naming only
-    /// the service, so it is refused here instead, where the decorator is still known.
+    /// A closed construction is decorated by naming it, which is what the generator emits for a
+    /// generic decorator: one call per closed registration rather than one open-generic call.
     /// </summary>
     [Fact]
-    public void Decorate_RefusesAnOpenGenericRegistration() {
+    public void DecorateOfT_WrapsEachClosedConstructionIndependently() {
         var services = new ServiceCollection();
-        services.AddSingleton(typeof(IRepo<>), typeof(Repo<>));
+        services.AddSingleton<IRepo<string>, StringRepo>();
+        services.AddSingleton(typeof(IRepo<int>), typeof(Repo<int>));
 
-        var exception = Assert.Throws<InvalidOperationException>(
-            () => DecoratorHelper.Decorate(services, typeof(IRepo<>), typeof(RepoWrapper<>)));
+        DecoratorHelper.Decorate<IRepo<string>>(services, typeof(RepoWrapper<string>), (_, inner) => new RepoWrapper<string>(inner));
+        DecoratorHelper.Decorate<IRepo<int>>(services, typeof(RepoWrapper<int>), (_, inner) => new RepoWrapper<int>(inner));
 
-        Assert.Contains("open generic", exception.Message);
-        Assert.Contains("RepoWrapper", exception.Message);
-        Assert.Contains("closed constructions", exception.Message);
+        var provider = services.BuildServiceProvider();
+
+        Assert.Equal("wrapped(repo)", provider.GetRequiredService<IRepo<string>>().Describe());
+        Assert.Equal("wrapped(repo)", provider.GetRequiredService<IRepo<int>>().Describe());
     }
 
     /// <summary>
-    /// The way through: a closed construction is decorated like any other registration.
+    /// The inner stays owned by the container here too.
     /// </summary>
     [Fact]
-    public void Decorate_WrapsAClosedConstructionOfAGenericService() {
+    public void DecorateOfT_LeavesTheInnerImplementationOwnedByTheContainer() {
         var services = new ServiceCollection();
-        services.AddSingleton(typeof(IRepo<string>), typeof(StringRepo));
+        services.AddScoped<IThing, DisposableThing>();
 
-        DecoratorHelper.Decorate(services, typeof(IRepo<>), typeof(RepoWrapper<>));
+        DecoratorHelper.Decorate<IThing>(services, typeof(DisposableWrapper), (_, inner) => new DisposableWrapper(inner));
 
-        Assert.Equal(
-            "wrapped(repo)",
-            services.BuildServiceProvider().GetRequiredService<IRepo<string>>().Describe());
+        var provider = services.BuildServiceProvider();
+
+        DisposableWrapper wrapper;
+
+        using (var scope = provider.CreateScope()) {
+            wrapper = (DisposableWrapper)scope.ServiceProvider.GetRequiredService<IThing>();
+        }
+
+        Assert.Equal(1, ((DisposableThing)wrapper.Inner).Disposals);
     }
 }

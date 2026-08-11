@@ -658,10 +658,12 @@ public static class ConventionModelUtility {
                 continue;
             }
 
-            // The explicit implementation is the shape that compiles: an ordinary public one has a
-            // parameter of an internal type, which is CS0051. Preferred, but an implicit one is
-            // still read so the diagnostic comes from this generator rather than only from the
-            // compiler.
+            // Both shapes are legal now that the contracts are public types in
+            // DependencyModules.Runtime rather than internal types emitted into this compilation —
+            // an ordinary `public void Conventions(IConventionDefinitions)` used to be CS0051
+            // against an internal parameter type, which is why explicit implementation was the only
+            // form that compiled. The explicit one is still preferred when a type carries both,
+            // because that is the one the interface is actually satisfied by.
             if (method.ExplicitInterfaceSpecifier != null) {
                 return method;
             }

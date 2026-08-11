@@ -1,3 +1,4 @@
+using System.Linq;
 using CSharpAuthor;
 
 namespace DependencyModules.SourceGenerator.Impl.Models;
@@ -18,12 +19,63 @@ namespace DependencyModules.SourceGenerator.Impl.Models;
 /// on a service. A decorator that does not apply is never invoked, so the service resolves
 /// undecorated rather than being wrapped by something that re-tests the environment per call.
 /// </param>
+/// <param name="Constructor">
+/// The decorator's constructor, so the call can be emitted as a literal <c>new</c> rather than left
+/// to <c>ActivatorUtilities</c> at run time.
+/// </param>
+/// <param name="InnerParameterIndex">
+/// Which constructor parameter takes the service being wrapped. Every other parameter is resolved
+/// from the provider. -1 when the constructor could not be read, which is what
+/// <see cref="CanMonomorphise"/> tests.
+/// </param>
+/// <param name="TypeParametersMatchService">
+/// True when the decorator's type parameters are exactly the service's type arguments, in order —
+/// <c>Logging&lt;TReq, TRes&gt; : IHandler&lt;TReq, TRes&gt;</c>. Only then can closing the service
+/// over a pair of types be turned into closing the decorator over the same pair. A shape that
+/// reorders or reuses them is refused rather than guessed at.
+/// </param>
 public record DecoratorModel(
     ITypeDefinition ServiceType,
     ITypeDefinition DecoratorType,
     int Order,
     ITypeDefinition? Realm,
-    IReadOnlyList<EnvironmentConditionModel>? Conditions = null) {
+    IReadOnlyList<EnvironmentConditionModel>? Conditions = null,
+    ConstructorInfoModel? Constructor = null,
+    int InnerParameterIndex = -1,
+    bool TypeParametersMatchService = true) {
+
+    /// <summary>
+    /// Whether the decorator can be constructed by generated code.
+    /// </summary>
+    /// <remarks>
+    /// The alternative is a run-time <c>ActivatorUtilities.CreateInstance</c> over a
+    /// <see cref="Type"/>, which is exactly what a published Native AOT build cannot rely on. When
+    /// this is false the generator reports rather than emitting something that works under a JIT and
+    /// fails when published.
+    /// </remarks>
+    public bool CanMonomorphise =>
+        Constructor != null && InnerParameterIndex >= 0 && TypeParametersMatchService;
+
+    /// <summary>
+    /// Whether this decorator is generic, and therefore applies to closed constructions of an open
+    /// generic service rather than to one named service type.
+    /// </summary>
+    public bool IsOpenGeneric =>
+        DecoratorType is GenericTypeDefinition { TypeArguments.Count: > 0 };
+
+    /// <summary>
+    /// Whether the decorated service is still the unbound form, <c>IHandler&lt;&gt;</c>.
+    /// </summary>
+    /// <remarks>
+    /// A generic decorator carries the unbound service until it is expanded against the registrations
+    /// that close it. One that reaches emission still unbound had nothing to expand against, and must
+    /// take the reflective path: an unbound name is not a legal type argument, so emitting
+    /// <c>Decorate&lt;IHandler&lt;&gt;&gt;</c> is CS7003 in generated code — which is the failure
+    /// mode this generator is built never to produce.
+    /// </remarks>
+    public bool HasUnboundServiceType =>
+        ServiceType is GenericTypeDefinition generic &&
+        generic.TypeArguments.Any(argument => string.IsNullOrEmpty(argument.Name));
 
     /// <summary>
     /// Sentinel for a syntax node that carried the attribute but produced no usable model, matching
@@ -57,6 +109,9 @@ public class DecoratorModelComparer : IEqualityComparer<DecoratorModel> {
                x.ServiceType.Equals(y.ServiceType) &&
                x.DecoratorType.Equals(y.DecoratorType) &&
                Equals(x.Realm, y.Realm) &&
+               x.InnerParameterIndex == y.InnerParameterIndex &&
+               x.TypeParametersMatchService == y.TypeParametersMatchService &&
+               Equals(x.Constructor, y.Constructor) &&
                ConditionsEqual(x.Conditions, y.Conditions);
     }
 
@@ -73,6 +128,8 @@ public class DecoratorModelComparer : IEqualityComparer<DecoratorModel> {
             hash = hash * 31 + obj.DecoratorType.GetHashCode();
             hash = hash * 31 + obj.Order;
             hash = hash * 31 + (obj.Realm?.GetHashCode() ?? 0);
+            hash = hash * 31 + obj.InnerParameterIndex;
+            hash = hash * 31 + (obj.Constructor?.GetHashCode() ?? 0);
             hash = hash * 31 + ModelEquality.ListHashCode(obj.Conditions);
 
             return hash;

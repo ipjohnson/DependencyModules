@@ -1,0 +1,31 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFrameworks>$(LibraryTargetFrameworks)</TargetFrameworks>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsPackable>False</IsPackable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\DependencyModules.Runtime\DependencyModules.Runtime.csproj"/>
+        <ProjectReference Include="..\..\src\DependencyModules.NSubstitute\DependencyModules.NSubstitute.csproj"/>
+        <ProjectReference Include="..\..\src\DependencyModules.Moq\DependencyModules.Moq.csproj"/>
+        <ProjectReference Include="..\..\src\DependencyModules.FakeItEasy\DependencyModules.FakeItEasy.csproj"/>
+        <ProjectReference Include="..\..\src\DependencyModules.NUnit\DependencyModules.NUnit.csproj"/>
+        <ProjectReference Include="..\SecondarySutProject\SecondarySutProject.csproj"/>
+        <ProjectReference Include="..\SutProject\SutProject.csproj"/>
+        <ProjectReference Include="..\..\src\DependencyModules.SourceGenerator\DependencyModules.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="coverlet.collector" Version="6.0.2">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0"/>
+        <PackageReference Include="NUnit" Version="4.2.2"/>
+        <PackageReference Include="NUnit3TestAdapter" Version="4.6.0"/>
+    </ItemGroup>
+
+</Project>

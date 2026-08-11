@@ -32,6 +32,16 @@ public class PublicApiTests {
     }
 
     /// <summary>
+    /// The NUnit integration. Its <c>[ModuleTest]</c> shares a name with xUnit's and nothing else —
+    /// the two attributes derive from what their own framework requires, and only
+    /// <c>IModuleTestAttribute</c> is common to both.
+    /// </summary>
+    [Fact]
+    public void NUnitApi() {
+        Snapshot.Match(ApiOf(typeof(global::DependencyModules.NUnit.Attributes.ModuleTestAttribute)));
+    }
+
+    /// <summary>
     /// The seam every mocking package implements, and the only assembly they share. It carries no
     /// test framework dependency, which is the point of it — a change here reaches all of them.
     /// </summary>

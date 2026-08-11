@@ -24,7 +24,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\src\DependencyModules.Conventions\DependencyModules.Conventions.csproj"/>
+        <ProjectReference Include="..\..\src\DependencyModules.SourceGenerator\DependencyModules.SourceGenerator.csproj"/>
         <ProjectReference Include="..\..\src\DependencyModules.Runtime\DependencyModules.Runtime.csproj"/>
     </ItemGroup>
 

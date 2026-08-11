@@ -6,9 +6,10 @@ namespace DependencyModules.Testing.Attributes.Interfaces;
 /// Replaces the container a test runs against.
 /// </summary>
 /// <remarks>
-/// Found by walking method, class and assembly, and the first one found wins — unlike the other
-/// hooks, which all contribute. Without one the collection is built with
-/// <c>BuildServiceProvider()</c>.
+/// Only one is used, unlike the other hooks, which all contribute. The narrowest declaration wins:
+/// one on the method beats one on the class, which beats one on the assembly — so a broad default
+/// can be set at assembly level and overridden by the odd test that needs a different container.
+/// Without one the collection is built with <c>BuildServiceProvider()</c>.
 ///
 /// Implement this to hand the test a third-party container, or to build the default one with options
 /// it would not otherwise get, such as scope validation. It runs last, after every other hook has

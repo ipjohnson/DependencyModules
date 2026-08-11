@@ -1,7 +1,6 @@
 using System.Reflection;
 using DependencyModules.Runtime.Helpers;
 using DependencyModules.Runtime.Interfaces;
-using DependencyModules.xUnit.Attributes;
 using DependencyModules.Testing.Attributes.Interfaces;
 using DependencyModules.Testing.Impl;
 using Microsoft.Extensions.DependencyInjection;
@@ -112,10 +111,17 @@ public class ModuleTestCase : XunitTestCase {
             ));
     }
 
+    /// <remarks>
+    /// Last rather than first: <paramref name="knownAttributes"/> is widest scope first — assembly,
+    /// then declaring type, then the method — so the last one is the narrowest, and a builder on the
+    /// method beats one on the class beats one on the assembly. Taking the first would have let an
+    /// assembly-level builder silently win over the method that asked for a different container,
+    /// which is the reverse of how every other attribute here resolves.
+    /// </remarks>
     private IServiceProvider BuildServiceProvider(
         ITestMethodContext context, ServiceCollection serviceCollection, Attribute[] knownAttributes) {
         var serviceProviderBuilderAttribute =
-            knownAttributes.OfType<IServiceProviderBuilderAttribute>().FirstOrDefault();
+            knownAttributes.OfType<IServiceProviderBuilderAttribute>().LastOrDefault();
 
         if (serviceProviderBuilderAttribute != null) {
             return serviceProviderBuilderAttribute.BuildServiceProvider(context, serviceCollection);
@@ -154,7 +160,8 @@ public class ModuleTestCase : XunitTestCase {
             modules.Add(moduleTypes);
         }
 
-        var testAttribute = TestMethod.Method.GetTestAttribute<ModuleTestAttribute>();
+        // The interface rather than ModuleTestAttribute, so this reads the same for any integration.
+        var testAttribute = TestMethod.Method.GetTestAttribute<IModuleTestAttribute>();
 
         if (testAttribute != null) {
             var count = 0;

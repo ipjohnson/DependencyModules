@@ -52,17 +52,19 @@ public static class DecoratorModelUtility {
             }
         }
 
-        var serviceType = explicitService ?? InferDecoratedService(typeDeclarationSyntax, context, implemented);
+        var written = explicitService ?? InferDecoratedService(typeDeclarationSyntax, context, implemented);
 
-        if (serviceType == null) {
+        if (written == null) {
             return null;
         }
 
+        var serviceType = written;
+
         // A generic decorator decorates the open service. Its base list names the service closed over
-        // its own type parameters, as IHandler<T>, which is not a legal typeof argument; the unbound
-        // IHandler<> is what has to be emitted, and what DecoratorHelper matches registrations by.
+        // its own type parameters, as IHandler<T>; the unbound IHandler<> is the form the model
+        // carries, and the closed constructions to emit against are worked out from the registrations.
         if (decoratorType is GenericTypeDefinition { TypeArguments.Count: > 0 }) {
-            serviceType = ToUnboundGeneric(serviceType);
+            serviceType = ToUnboundGeneric(written);
         }
 
         // Read from the decorator class, exactly as they are for a service. A decorator is a
@@ -70,7 +72,77 @@ public static class DecoratorModelUtility {
         var conditions = EnvironmentConditionUtility.GetConditions(
             context, typeDeclarationSyntax, cancellationToken);
 
-        return new DecoratorModel(serviceType, decoratorType, order, realm, conditions);
+        var constructor = ServiceModelUtility.GetConstructorInfo(
+            context, typeDeclarationSyntax, cancellationToken);
+
+        return new DecoratorModel(
+            serviceType,
+            decoratorType,
+            order,
+            realm,
+            conditions,
+            constructor,
+            IndexOfInnerParameter(constructor, written),
+            TypeParametersMatchService(typeDeclarationSyntax, written));
+    }
+
+    /// <summary>
+    /// Which constructor parameter takes the service being wrapped.
+    /// </summary>
+    /// <remarks>
+    /// Matched on the service as written on the class rather than on the unbound form, because that
+    /// is what the parameter is declared as — <c>IHandler&lt;TReq, TRes&gt;</c>, not
+    /// <c>IHandler&lt;,&gt;</c>. Nullability is normalised away: <c>IGreeter? inner</c> is legal and
+    /// carries an annotation the service type does not, and comparing them as written finds no
+    /// parameter at all — which drops the decoration with nothing said.
+    /// </remarks>
+    private static int IndexOfInnerParameter(ConstructorInfoModel? constructor, ITypeDefinition serviceType) {
+        if (constructor == null) {
+            return -1;
+        }
+
+        var wanted = serviceType.MakeNullable(false);
+
+        for (var i = 0; i < constructor.Parameters.Count; i++) {
+            if (constructor.Parameters[i].ParameterType.MakeNullable(false).Equals(wanted)) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    /// <summary>
+    /// Whether closing the service over a set of types means closing the decorator over the same set.
+    /// </summary>
+    /// <remarks>
+    /// True for <c>Logging&lt;TReq, TRes&gt; : IHandler&lt;TReq, TRes&gt;</c> and false for anything
+    /// that reorders, drops or reuses a parameter. The false cases are legal C# but cannot be
+    /// monomorphised by position, and guessing at them would emit a <c>new</c> with the arguments
+    /// the wrong way round — which compiles when the two types happen to be compatible. Nothing is
+    /// emitted for them instead.
+    /// </remarks>
+    private static bool TypeParametersMatchService(
+        TypeDeclarationSyntax typeDeclarationSyntax, ITypeDefinition serviceType) {
+
+        var declared = typeDeclarationSyntax.TypeParameterList?.Parameters;
+
+        if (declared is not { Count: > 0 }) {
+            return true;
+        }
+
+        if (serviceType is not GenericTypeDefinition generic ||
+            generic.TypeArguments.Count != declared.Value.Count) {
+            return false;
+        }
+
+        for (var i = 0; i < declared.Value.Count; i++) {
+            if (generic.TypeArguments[i].Name != declared.Value[i].Identifier.Text) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -116,8 +188,13 @@ public static class DecoratorModelUtility {
         }
 
         foreach (var parameterType in GetConstructorParameterTypes(typeDeclarationSyntax, context)) {
+            // Normalised, because `IGreeter? inner` is legal and its parameter type carries an
+            // annotation the implemented interface does not. Compared as written, no parameter looks
+            // like the service and the class stops being a decorator at all — silently.
+            var declared = parameterType.MakeNullable(false);
+
             foreach (var candidate in implemented) {
-                if (candidate.Equals(parameterType)) {
+                if (candidate.MakeNullable(false).Equals(declared)) {
                     return candidate;
                 }
             }

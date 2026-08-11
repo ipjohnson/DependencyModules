@@ -184,39 +184,13 @@ public static class MetadataCandidateUtility {
     /// The constructor the container would pick, read from symbols.
     /// </summary>
     /// <remarks>
-    /// The greediest public one, matching what the syntax path does within a declaration.
-    /// Parameter attributes are not carried across: they exist to drive <c>[FromKeyedServices]</c>
-    /// on code being generated alongside, and a package's own constructor parameters are not that.
+    /// Shared with the decorator path, which needs the same thing for a type named by
+    /// <c>[Decorate]</c> rather than declared here. It was duplicated until that arrived, and this
+    /// copy dropped parameter attributes — which the shared one carries, because
+    /// <c>[FromKeyedServices]</c> changes which registration the emitted call resolves.
     /// </remarks>
-    private static ConstructorInfoModel? GreediestConstructor(INamedTypeSymbol type) {
-        IMethodSymbol? greediest = null;
-
-        foreach (var constructor in type.InstanceConstructors) {
-            if (constructor.DeclaredAccessibility != Accessibility.Public) {
-                continue;
-            }
-
-            if (greediest == null || constructor.Parameters.Length > greediest.Parameters.Length) {
-                greediest = constructor;
-            }
-        }
-
-        if (greediest == null) {
-            return null;
-        }
-
-        var parameters = new List<ParameterInfoModel>(greediest.Parameters.Length);
-
-        foreach (var parameter in greediest.Parameters) {
-            parameters.Add(new ParameterInfoModel(
-                parameter.Name,
-                parameter.Type.GetTypeDefinition(),
-                parameter.HasExplicitDefaultValue ? parameter.ExplicitDefaultValue : null,
-                Array.Empty<AttributeModel>()));
-        }
-
-        return new ConstructorInfoModel(parameters);
-    }
+    private static ConstructorInfoModel? GreediestConstructor(INamedTypeSymbol type) =>
+        SymbolConstructorReader.Read(type);
 
     private static IReadOnlyList<string>? AttributeKeysOf(INamedTypeSymbol type) {
         var attributes = type.GetAttributes();

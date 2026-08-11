@@ -20,17 +20,17 @@ public class ConventionRegistrationTests {
         """
         using System;
         using DependencyModules.Runtime.Attributes;
-        using DependencyModules.Conventions;
+        using DependencyModules.Runtime.Conventions;
 
         namespace TestNamespace;
 
         """;
 
     private static GeneratedAssembly Compile(string source) =>
-        GeneratedAssembly.Create(Preamble + source, withConventions: true);
+        GeneratedAssembly.Create(Preamble + source);
 
     private static GeneratorResult Run(string source) =>
-        GeneratorTestHarness.Run(Preamble + source, withConventions: true);
+        GeneratorTestHarness.Run(Preamble + source);
 
     /// <summary>
     /// A convention candidate carrying an environment condition registers on the same terms the
@@ -64,7 +64,6 @@ public class ConventionRegistrationTests {
 
         var assembly = GeneratedAssembly.Create(
             Preamble + source,
-            withConventions: true,
             environment: new ModuleEnvironment(environmentName));
 
         Assert.Equal(expected, assembly.Descriptors("IFoo").Count);
@@ -95,7 +94,6 @@ public class ConventionRegistrationTests {
 
         var assembly = GeneratedAssembly.Create(
             Preamble + source,
-            withConventions: true,
             environment: new ModuleEnvironment(environmentName));
 
         Assert.Equal(expected, assembly.Descriptors("IFoo").Count);
@@ -135,7 +133,6 @@ public class ConventionRegistrationTests {
 
         var assembly = GeneratedAssembly.Create(
             Preamble + source,
-            withConventions: true,
             environment: new ModuleEnvironment(false, environmentName) { { "REGION", region } });
 
         Assert.Equal(expected, assembly.Descriptors("IFoo").Count);
@@ -161,7 +158,6 @@ public class ConventionRegistrationTests {
 
         var assembly = GeneratedAssembly.Create(
             Preamble + source,
-            withConventions: true,
             environment: new ModuleEnvironment(false, "Development") { { "FLAG", flag } });
 
         Assert.Equal(expected, assembly.Descriptors("IFoo").Count);
@@ -187,7 +183,6 @@ public class ConventionRegistrationTests {
 
         var assembly = GeneratedAssembly.Create(
             Preamble + source,
-            withConventions: true,
             environment: new ModuleEnvironment(environmentName));
 
         Assert.Equal(expected, assembly.Descriptors("IFoo").Count);
@@ -225,7 +220,6 @@ public class ConventionRegistrationTests {
 
         var assembly = GeneratedAssembly.Create(
             Preamble + source,
-            withConventions: true,
             environment: new ModuleEnvironment(environmentName));
 
         Assert.Equal(expectedFoo, assembly.Descriptors("IFoo").Count);
@@ -633,8 +627,7 @@ public class ConventionRegistrationTests {
                       conventions.RegisterAll().WithName("{{pattern}}").AsSelf().AsScoped();
                   }
               }
-              """,
-            withConventions: true);
+              """);
 
         Assert.Equal(expected, assembly.Services.Count(d => d.ImplementationType?.Namespace == "TestNamespace"));
     }
@@ -1584,7 +1577,7 @@ public class ConventionRegistrationTests {
         const string template =
             """
             using DependencyModules.Runtime.Attributes;
-            using DependencyModules.Conventions;
+            using DependencyModules.Runtime.Conventions;
 
             namespace TestNamespace;
 
@@ -1604,8 +1597,7 @@ public class ConventionRegistrationTests {
 
         var result = GeneratorTestHarness.RunIncremental(
             new Dictionary<string, string> { ["Test.cs"] = template.Replace("VALUE", "1") },
-            new Dictionary<string, string> { ["Test.cs"] = template.Replace("VALUE", "2") },
-            withConventions: true);
+            new Dictionary<string, string> { ["Test.cs"] = template.Replace("VALUE", "2") });
 
         Assert.Equal(result.FirstRun, result.SecondRun);
         Assert.True(result.AllOutputsCached,

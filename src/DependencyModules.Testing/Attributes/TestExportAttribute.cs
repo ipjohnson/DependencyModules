@@ -1,17 +1,23 @@
 using DependencyModules.Testing.Attributes.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace DependencyModules.xUnit.Attributes;
+namespace DependencyModules.Testing.Attributes;
 
 /// <summary>
 /// An attribute used for configuring and exporting services to the dependency injection container
-/// during xUnit test execution. This attribute supports defining services and their implementations
+/// during test execution. This attribute supports defining services and their implementations
 /// with specific lifetimes for test scenarios.
 /// </summary>
 /// <remarks>
 /// This attribute can be applied to assemblies, classes, or methods to provide granular service
 /// configuration for specific testing contexts. It registers through
-/// <see cref="ITestServiceSetupAttribute"/>, which carries no test framework dependency.
+/// <see cref="ITestServiceSetupAttribute"/>, which carries no test framework dependency — which is
+/// why this lives here rather than in an integration, and why every integration gets the same
+/// attribute rather than a copy of it.
+///
+/// A registration made here beats one made by a mocking package for the same service, whichever
+/// order the attributes are declared in. An integration guarantees that by running mock support
+/// first within the setup pass.
 /// </remarks>
 /// <example>
 /// It enables dependency injection for testing by adding services to the service collection
@@ -30,11 +36,11 @@ namespace DependencyModules.xUnit.Attributes;
 public class TestExportAttribute : Attribute, ITestServiceSetupAttribute {
     /// <summary>
     /// An attribute that configures and exports services to the dependency injection container
-    /// for xUnit test scenarios. This supports customized service registrations with specific lifetimes
+    /// for test scenarios. This supports customized service registrations with specific lifetimes
     /// for specified testing contexts.
     /// </summary>
     /// <remarks>
-    /// This attribute facilitates dependency injection configuration for xUnit tests by allowing
+    /// This attribute facilitates dependency injection configuration for tests by allowing
     /// the addition of services and their implementations to the service collection during test execution.
     /// It is applicable to assemblies, classes, or methods, enabling fine-grained control over service
     /// registrations for different testing phases or requirements.
@@ -75,7 +81,7 @@ public class TestExportAttribute : Attribute, ITestServiceSetupAttribute {
 
 
     /// <summary>
-    /// Configures the service collection for an xUnit test method by adding services with specified lifetimes.
+    /// Configures the service collection for a test method by adding services with specified lifetimes.
     /// This method enables dynamic service registration during test execution, supporting dependency injection setup.
     /// </summary>
     /// <param name="testMethod">

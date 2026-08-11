@@ -113,10 +113,64 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
         return true;
     }
 
+    /// <summary>
+    /// Writes the module partial for every type carrying one of <see cref="ModuleAttributeTypes"/>,
+    /// unless those are modules another generator already writes.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The two shapes a generator takes here want opposite things, and this used to be empty for
+    /// both. A framework naming its own module attribute is the only generator that can write those
+    /// modules, and forgetting to override this compiled cleanly, emitted no module, and failed at
+    /// the consumer's <c>AddModule&lt;T&gt;()</c> — a generic constraint error naming neither the
+    /// generator nor the omission. It now writes them by default.
+    /// </para>
+    /// <para>
+    /// A generator triggering on <c>[DependencyModule]</c> instead is adding registrations to
+    /// modules this package's own generator already writes, so it emits nothing; writing them from
+    /// both would declare every module twice. That generator opts in the way the shipped one does,
+    /// by overriding this.
+    /// </para>
+    /// <para>
+    /// A framework that declares its own module attribute and wants no module written for it — one
+    /// contributing only providers — overrides this with an empty body.
+    /// </para>
+    /// </remarks>
     protected virtual void SetupRootGenerator(IncrementalGeneratorInitializationContext context,
-        IncrementalValueProvider<ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)>> valuesProvider) { }
+        IncrementalValueProvider<ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)>> valuesProvider) {
 
-    protected virtual bool ShouldAutoApproveCompilationUnit => true;
+        if (TriggersOnDefaultModuleAttribute()) {
+            return;
+        }
+
+        context.RegisterSourceOutput(valuesProvider, new DependencyModuleWriter(true).GenerateSource);
+    }
+
+    /// <summary>
+    /// Whether <c>Program.cs</c> is an entry point on its own, so that an application written with
+    /// top level statements gets a generated <c>ApplicationModule</c> without declaring one.
+    /// </summary>
+    /// <remarks>
+    /// True only while triggering on <c>[DependencyModule]</c>, which is what an
+    /// <c>ApplicationModule</c> stands in for. A compilation unit carries no module attribute to
+    /// distinguish by, so every generator derived from this class claimed the same
+    /// <c>Program.cs</c> — and a framework generator loaded alongside this package's own emitted a
+    /// second <c>ApplicationModule</c>, with the same members declared twice. A framework that
+    /// ships without this package's generator, and wants the top level statement module for itself,
+    /// overrides this to true.
+    /// </remarks>
+    protected virtual bool ShouldAutoApproveCompilationUnit => TriggersOnDefaultModuleAttribute();
+
+    /// <summary>
+    /// Whether this generator reads the module attribute this package declares, rather than one of
+    /// its own. It decides who writes a module, and who is contributing to someone else's.
+    /// </summary>
+    private bool TriggersOnDefaultModuleAttribute() {
+        var moduleAttributes = ModuleAttributeTypes();
+
+        return moduleAttributes.Length == 1 &&
+               moduleAttributes[0].Equals(KnownTypes.DependencyModules.Attributes.DependencyModuleAttribute);
+    }
 
     private IncrementalValuesProvider<ModuleEntryPointModel> CreateSourceValueProvider(IncrementalGeneratorInitializationContext context) {
         var classSelector = new SyntaxSelector<ClassDeclarationSyntax, RecordDeclarationSyntax, CompilationUnitSyntax>(

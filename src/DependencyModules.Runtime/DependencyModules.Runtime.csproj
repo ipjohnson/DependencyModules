@@ -8,6 +8,14 @@
         <PackageId>DependencyModules.Runtime</PackageId>
         <Description>Runtime support for DependencyModules: attributes, module interfaces, and IServiceCollection extensions used to compose attribute-driven dependency injection modules. Pair with the DependencyModules.SourceGenerator package, which generates the registration code.</Description>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <!--
+            The runtime does no reflection, and this is what enforces it rather than review. Every
+            IL* warning is an error here: each one is a call the trimmer or the AOT compiler cannot
+            follow, and every one of them shipped once already as a decorator that resolved under a
+            JIT and threw in a published application.
+        -->
+        <IsAotCompatible>true</IsAotCompatible>
+        <WarningsAsErrors>$(WarningsAsErrors);IL2026;IL2055;IL2067;IL2072;IL2075;IL2087;IL3050</WarningsAsErrors>
     </PropertyGroup>
 
     <!--

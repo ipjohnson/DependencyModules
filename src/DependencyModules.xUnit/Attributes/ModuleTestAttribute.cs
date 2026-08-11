@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using DependencyModules.Testing.Attributes.Interfaces;
 using DependencyModules.xUnit.Impl;
 using Xunit;
 using Xunit.v3;
@@ -20,7 +21,7 @@ namespace DependencyModules.xUnit.Attributes;
 /// </example>
 [XunitTestCaseDiscoverer(typeof(ModuleTestDiscoverer))]
 [AttributeUsage(AttributeTargets.Method)]
-public class ModuleTestAttribute : FactAttribute {
+public class ModuleTestAttribute : FactAttribute, IModuleTestAttribute {
 
     /// <summary>
     /// Marks a test method, taking no modules.
@@ -73,6 +74,9 @@ public class ModuleTestAttribute : FactAttribute {
     /// This property holds the collection of module types that are passed as parameters
     /// when the <see cref="ModuleTestAttribute"/> is utilized. These types are used to
     /// configure and load dependency modules for the test case at runtime.
+    ///
+    /// Declared by <see cref="IModuleTestAttribute"/>, so the module loading itself is shared with
+    /// every other test framework integration rather than reading this attribute by name.
     /// </remarks>
     public Type[] ModuleTypes {
         get;

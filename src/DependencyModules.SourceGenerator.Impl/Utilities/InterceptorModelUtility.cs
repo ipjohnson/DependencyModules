@@ -31,9 +31,9 @@ public static class InterceptorModelUtility {
             return InterceptorModel.Ignore;
         }
 
-        var attribute = FindAttribute(typeDeclarationSyntax);
+        var attributes = FindAttributes(typeDeclarationSyntax);
 
-        if (attribute == null) {
+        if (attributes.Count == 0) {
             return InterceptorModel.Ignore;
         }
 
@@ -57,7 +57,12 @@ public static class InterceptorModelUtility {
         var order = 0;
         INamedTypeSymbol? explicitService = null;
 
-        ReadAttribute(attribute, context, cancellationToken, interceptorSymbols, ref order, ref explicitService);
+        // Every [Intercept], not the first. The attribute is AllowMultiple, so stacking them is a
+        // supported way to write what one attribute can also express as a params list — and reading
+        // only the first dropped every interceptor after it, with nothing to say so.
+        foreach (var attribute in attributes) {
+            ReadAttribute(attribute, context, cancellationToken, interceptorSymbols, ref order, ref explicitService);
+        }
 
         if (interceptorSymbols.Count == 0) {
             return InterceptorModel.Ignore;
@@ -277,17 +282,19 @@ public static class InterceptorModelUtility {
         return TypeDefinition.Get(namespaceName, name);
     }
 
-    private static AttributeSyntax? FindAttribute(TypeDeclarationSyntax typeDeclarationSyntax) {
+    private static List<AttributeSyntax> FindAttributes(TypeDeclarationSyntax typeDeclarationSyntax) {
+        var attributes = new List<AttributeSyntax>();
+
         foreach (var attributeList in typeDeclarationSyntax.AttributeLists) {
             foreach (var attribute in attributeList.Attributes) {
                 var name = attribute.Name.ToString();
 
                 if (name is "Intercept" or "InterceptAttribute") {
-                    return attribute;
+                    attributes.Add(attribute);
                 }
             }
         }
 
-        return null;
+        return attributes;
     }
 }

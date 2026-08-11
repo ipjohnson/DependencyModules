@@ -1,4 +1,5 @@
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 
 namespace DependencyModules.Conventions.Models;
@@ -33,13 +34,39 @@ public record LocationModel(
                 new LinePosition(StartLine, StartCharacter),
                 new LinePosition(EndLine, EndCharacter)));
 
-    public static LocationModel From(SyntaxNode node) {
-        var span = node.GetLocation().GetLineSpan();
+    public static LocationModel From(SyntaxNode node) => From(NarrowToName(node));
+
+    /// <summary>
+    /// The span a diagnostic about a declaration should point at: its name, not its whole body.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Squiggling the identifier is the better affordance on its own — DM0006 and DM0010 are about
+    /// the type, not about everything inside it — but the reason it is done here is caching.
+    /// </para>
+    /// <para>
+    /// This model takes part in <see cref="ConventionCandidateModel"/> equality, and the declaration's
+    /// full span changes length whenever anything inside the class is edited. Keyed on the whole
+    /// declaration, typing inside any method body produced a model that no longer compared equal, so
+    /// the convention matcher re-ran over every candidate and re-rendered the file to produce
+    /// identical text. The identifier does not move when a body below it is edited, so the common
+    /// keystroke now changes nothing.
+    /// </para>
+    /// </remarks>
+    private static SyntaxNodeOrToken NarrowToName(SyntaxNode node) =>
+        node switch {
+            TypeDeclarationSyntax type => type.Identifier,
+            MethodDeclarationSyntax method => method.Identifier,
+            _ => node
+        };
+
+    private static LocationModel From(SyntaxNodeOrToken nodeOrToken) {
+        var span = nodeOrToken.GetLocation()!.GetLineSpan();
 
         return new LocationModel(
-            node.SyntaxTree.FilePath,
-            node.Span.Start,
-            node.Span.Length,
+            nodeOrToken.SyntaxTree!.FilePath,
+            nodeOrToken.Span.Start,
+            nodeOrToken.Span.Length,
             span.StartLinePosition.Line,
             span.StartLinePosition.Character,
             span.EndLinePosition.Line,

@@ -72,11 +72,18 @@ public enum AccessorForm {
 /// The default as it should be written, or null when the parameter is required. Dropping it would
 /// change the signature callers see through the interface.
 /// </param>
+/// <param name="IsParams">
+/// Whether the parameter was declared with <c>params</c>. Carried because dropping it can turn a
+/// legal signature into an illegal one: <c>Join(string separator = ",", params string[] parts)</c>
+/// becomes an optional parameter followed by a required one, which is CS1737 — in the generated
+/// wrapper, for an interface that compiles perfectly well.
+/// </param>
 public record InterceptedParameterModel(
     string Name,
     string Identifier,
     ITypeDefinition Type,
-    string? DefaultValue);
+    string? DefaultValue,
+    bool IsParams = false);
 
 /// <summary>
 /// One type parameter of an intercepted member, with the constraints the wrapper has to repeat.

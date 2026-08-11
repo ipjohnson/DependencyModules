@@ -49,8 +49,7 @@ public class GeneratedAssembly {
         string source,
         string moduleName = "TestModule",
         IReadOnlyDictionary<string, string>? buildProperties = null,
-        bool withConventions = false,
-        IModuleEnvironment? environment = null,
+                IModuleEnvironment? environment = null,
         IReadOnlyList<MetadataReference>? additionalReferences = null) {
 
         var assemblyName = "GeneratedAssemblyTest" + Interlocked.Increment(ref _assemblyCounter);
@@ -59,8 +58,7 @@ public class GeneratedAssembly {
             new Dictionary<string, string> { ["Test.cs"] = source },
             buildProperties,
             assemblyName: assemblyName,
-            withConventions: withConventions,
-            additionalReferences: additionalReferences);
+                        additionalReferences: additionalReferences);
 
         result.AssertNoErrors();
 

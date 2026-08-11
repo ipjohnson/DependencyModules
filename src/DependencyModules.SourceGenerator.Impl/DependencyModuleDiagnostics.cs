@@ -212,4 +212,5 @@ public static class DependencyModuleDiagnostics {
         category: Category,
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
+
 }

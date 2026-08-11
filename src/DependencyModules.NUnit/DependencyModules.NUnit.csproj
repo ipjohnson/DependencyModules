@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFrameworks>$(LibraryTargetFrameworks)</TargetFrameworks>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsPackable>True</IsPackable>
+        <PackageId>DependencyModules.NUnit</PackageId>
+        <Description>NUnit integration for DependencyModules. Provides the [ModuleTest] attribute, which builds a service provider from your modules for every test iteration and injects the services a test method asks for, plus [ModuleTestCase] for data-driven tests and attributes for per-test service overrides and value injection.</Description>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    </PropertyGroup>
+
+    <!-- Framework-matched per TFM; see DependencyModules.Runtime.csproj for why. -->
+    <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1"/>
+    </ItemGroup>
+
+    <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <!--
+          NUnit ships one package rather than splitting an extensibility surface out of the runner,
+          so unlike the xUnit integration there is no narrower reference to take. The types used
+          here — ITestBuilder, IWrapSetUpTearDown, TestCommand — are NUnit's documented extension
+          points and live in NUnit.Framework.Interfaces and NUnit.Framework.Internal.
+        -->
+        <PackageReference Include="NUnit" Version="4.2.2"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\DependencyModules.Runtime\DependencyModules.Runtime.csproj"/>
+        <ProjectReference Include="..\DependencyModules.Testing\DependencyModules.Testing.csproj"/>
+    </ItemGroup>
+
+</Project>
