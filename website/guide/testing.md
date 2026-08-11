@@ -16,13 +16,9 @@ To test it, you have two options and neither is good.
 **Construct it by hand.** You end up rebuilding the object graph in the test:
 
 ```csharp
-[Fact]
-public void GetForecast() {
-    var weather = new Weather(
-        new SummaryProvider(new AiSummaryProvider()),
-        new TemperatureProvider());
-    // …
-}
+var weather = new Weather(
+    new SummaryProvider(new AiSummaryProvider()),
+    new TemperatureProvider());
 ```
 
 Every constructor change breaks every test that touches the type, and the wiring you are testing is
@@ -32,44 +28,35 @@ the wiring you just wrote — not the wiring your application actually uses.
 part you care about, repeated in every test, and now you have a provider to dispose:
 
 ```csharp
-[Fact]
-public void GetForecast() {
-    var services = new ServiceCollection();
-    services.AddModule<ApplicationModule>();
-    using var provider = services.BuildServiceProvider();
+var services = new ServiceCollection();
+services.AddModule<ApplicationModule>();
+using var provider = services.BuildServiceProvider();
 
-    var weather = provider.GetRequiredService<Weather>();
-    // …
-}
+var weather = provider.GetRequiredService<Weather>();
 ```
 
 ## How DependencyModules helps
 
-`DependencyModules.xUnit` does the second thing for you. You say which modules to load, and the
+A test framework integration does the second thing for you. You say which modules to load, and the
 services your test needs arrive as **method parameters**, resolved from a provider built out of your
 real modules:
 
-```shell
-dotnet add package DependencyModules.xUnit
-```
-
 ```csharp
-using DependencyModules.xUnit.Attributes;
-
 public class WeatherTests {
     [ModuleTest]
     [ApplicationModule]
     public void GetForecast(Weather weather) {
         var forecast = weather.GetWeatherForecast().ToArray();
 
-        Assert.Equal(5, forecast.Length);
+        // assert on forecast
     }
 }
 ```
 
 Three things are happening in that test:
 
-- **`[ModuleTest]`** replaces `[Fact]`. It builds a service provider and runs your method against it.
+- **`[ModuleTest]`** replaces your framework's test attribute. It builds a service provider and runs
+  your method against it.
 - **`[ApplicationModule]`** says which modules to load. It is the attribute the generator produced
   for your module — see [composing modules](/guide/modules#composing-modules).
 - **`Weather weather`** is resolved from the resulting provider, along with its whole dependency
@@ -77,6 +64,34 @@ Three things are happening in that test:
 
 Change `Weather`'s constructor and the test keeps compiling, because the test never mentioned the
 constructor.
+
+## Pick an integration
+
+One package per test framework. Install the one matching the framework you already use:
+
+| Package | Framework | |
+|---|---|---|
+| `DependencyModules.xUnit` | xUnit v3 | [xUnit](/guide/testing-xunit) |
+| `DependencyModules.NUnit` | NUnit | [NUnit](/guide/testing-nunit) |
+
+```shell
+dotnet add package DependencyModules.xUnit
+```
+
+This page is the part they share, and it is most of it. The two framework pages cover only what
+differs — how data rows are supplied, and what each framework's own attributes do around a module
+test.
+
+::: warning Reference one integration, not both
+Each defines a `ModuleTestAttribute`. They share a name and nothing else, because each has to derive
+from what its own framework requires. A project referencing both would need to disambiguate every
+`[ModuleTest]`, which is not a configuration worth having.
+:::
+
+Everything else — `[Mock]`, `[TestExport]`, `[InjectValues]`, keyed services — lives in
+`DependencyModules.Testing`, which your integration brings in. Those types name no test framework, so
+both integrations hand you the *same* attribute rather than a copy of it. They need a
+`using DependencyModules.Testing.Attributes;` alongside the one for `[ModuleTest]`.
 
 ## Stop repeating the module list
 
@@ -91,10 +106,6 @@ using DependencyModules.NSubstitute;
 [assembly: NSubstituteSupport]      // or [MoqSupport] / [FakeItEasySupport]
 ```
 
-`NSubstituteSupport` is what enables [`[Mock]`](/guide/testing-mocks), and it comes from a separate
-package — one per mocking library, so use whichever you already have. See
-[choosing a mocking library](/guide/testing-mocks#choosing-a-mocking-library).
-
 Every test in the project now gets `ApplicationModule` without saying so:
 
 ```csharp
@@ -108,25 +119,17 @@ public class WeatherTests {
 }
 ```
 
-## Data-driven tests
+`NSubstituteSupport` is what enables [`[Mock]`](/guide/testing-mocking), and it comes from a separate
+package — one per mocking library, so use whichever you already have. See
+[Mocking frameworks](/guide/testing-mocking).
 
-`[ModuleTest]` composes with xUnit's data attributes. Data parameters come first, injected ones
-after:
+## A container per test
 
-```csharp
-[ModuleTest]
-[InlineData("one")]
-[InlineData("two")]
-public void MultipleRows(string value, ITemperatureProvider provider) {
-    Assert.NotNull(value);       // from [InlineData]
-    Assert.NotNull(provider);    // from the container
-}
-```
+Each test gets **its own provider**, built before the test runs and disposed after it, so a singleton
+mutated in one test cannot leak into another. That holds per *iteration*, not merely per method — a
+data row, a repeat and a retry each get a fresh container.
 
-## Scopes and isolation
-
-Each `[ModuleTest]` gets **its own provider**, so a singleton mutated in one test cannot leak into
-another. Within a test, ask for `IServiceProvider` and create scopes as usual:
+Within a test, ask for `IServiceProvider` and create scopes as usual:
 
 ```csharp
 [ModuleTest]
@@ -136,10 +139,100 @@ public void ScopedServicesAreScoped(IServiceProvider provider) {
 
     var one = first.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-    Assert.Same(one, first.ServiceProvider.GetRequiredService<IUnitOfWork>());
-    Assert.NotSame(one, second.ServiceProvider.GetRequiredService<IUnitOfWork>());
+    // one is the same instance within first, and a different one in second
 }
 ```
+
+`IServiceProvider` is special-cased: it is the test's container itself, since a container cannot
+resolve itself out of itself.
+
+## How a parameter gets filled
+
+Worth knowing when a parameter does not arrive as you expected. Each one is tried in this order, and
+the first step that answers wins:
+
+1. **A data row**, if the test has one. Row arguments fill the leading parameters, so anything the
+   row supplies is never resolved from the container.
+2. **Attributes on the parameter** — `[Mock]`, `[InjectValues]` and anything else implementing
+   `ITestParameterValueProvider`. Several may sit on one parameter; one returning nothing stands
+   aside for the next.
+3. **The container**, honouring `[FromKeyedServices]` when present.
+4. **Direct construction.** A concrete type the container does not know is built anyway, through
+   `ActivatorUtilities`, with its dependencies resolved from the container.
+
+That last step is why a test can name the class under test directly without registering it:
+
+```csharp
+[ModuleTest]
+public void ConstructsTheSubjectDirectly(OrderCalculator calculator) { }   // never registered
+```
+
+## Keyed services
+
+`[FromKeyedServices]` works on a test parameter the way it does on a constructor parameter:
+
+```csharp
+[ModuleTest]
+public void ResolvesTheKeyedOne([FromKeyedServices("primary")] IRepository repository) { }
+```
+
+See [registering services](/guide/services) for how a registration acquires a key.
+
+## When you want a real object, not a mock
+
+A [mock](/guide/testing-mocking) is right when you intend to **assert on the interaction** — what was
+called, with which arguments. When you instead want a working implementation that simply behaves
+differently, a mock makes you stub out every member you touch.
+
+`[TestExport]` registers a real type into the test's container without touching the module:
+
+```csharp
+public class FixedClock : IClock {
+    public DateTime UtcNow => new(2026, 1, 1);
+}
+
+[ModuleTest]
+[TestExport(typeof(IClock), Implementation = typeof(FixedClock), Lifetime = ServiceLifetime.Singleton)]
+public void OrdersAreStampedWithTheCurrentTime(IOrderService service) { }
+```
+
+`FixedClock` is constructed by the container, so it can have dependencies of its own.
+
+| Property | |
+|---|---|
+| *(constructor)* | the service type |
+| `Implementation` | defaults to the service type when omitted |
+| `Lifetime` | defaults to `Transient` |
+
+Like the module attributes it applies at assembly, class or method level, so a stub every test needs
+can sit in your bootstrap file once. A `[TestExport]` also beats a mock for the same service,
+whatever order the two are declared in — see [ordering](/guide/testing-mocking#what-wins-when-two-things-register-the-same-service).
+
+## When the parameter is not a service at all
+
+Sometimes a test parameter is data — a string, an id, a record combining both. `[InjectValues]`
+supplies the parts the container cannot:
+
+```csharp
+public record InjectModel(IDependencyOne DependencyOne, string StringValue);
+
+[ModuleTest]
+public void InjectTestValue([InjectValues("Hello World!")] InjectModel model) {
+    // model.DependencyOne came from the container
+    // model.StringValue came from the attribute
+}
+```
+
+The values are matched against the constructor parameters the container **cannot** supply, so you
+list only what it could not work out for itself.
+
+## Choosing between the three
+
+| | Reach for it when |
+|---|---|
+| [`[Mock]`](/guide/testing-mocking) | you want to assert on the interaction — what was called, with what |
+| `[TestExport]` | you want a real object with different behaviour, constructed by the container |
+| `[InjectValues]` | the parameter is data, not a service |
 
 ## What is worth testing
 
@@ -156,7 +249,20 @@ The build already covers a good deal of the rest. A convention that matches noth
 [DM0005](/reference/diagnostics#dm0005), and a service that cannot be constructed is
 [DM0002](/reference/diagnostics#dm0002) — both before a test runs.
 
+## A trap worth knowing about
+
+An [intercepted](/guide/interception) service resolves as a **generated wrapper**, not as your class.
+So this fails, confusingly:
+
+```csharp
+Assert.IsType<Orders>(provider.GetRequiredService<IOrders>());   // it is Orders_Intercepted
+```
+
+Assert on the interface, or on behaviour. The same applies to a [decorated](/guide/decorators)
+service, where what resolves is the outermost decorator.
+
 ## Next
 
-- [Mocks and values](/guide/testing-mocks) — faking one service while the rest stays real
+- [xUnit](/guide/testing-xunit) and [NUnit](/guide/testing-nunit) — what differs per framework
+- [Mocking frameworks](/guide/testing-mocking) — faking one service while the rest stays real
 - [Testing registrations](/guide/testing-registrations) — asserting on what a module registered

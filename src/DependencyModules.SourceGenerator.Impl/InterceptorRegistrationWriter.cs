@@ -80,16 +80,30 @@ public class InterceptorRegistrationWriter {
         var wrapperName = $"{model.ImplementationType.Name.Replace(".", "_")}_Intercepted";
         var wrapperType = TypeDefinition.Get(model.ImplementationType.Namespace, wrapperName);
 
+        // The wrapper is generated right here, so its constructor is known exactly: the intercepted
+        // instance, then one parameter per interceptor. Emitting the `new` rather than handing the
+        // type to ActivatorUtilities is what keeps interception working in a published Native AOT
+        // application — the same reason decorators are emitted closed.
+        var arguments = new List<object> { CodeOutputComponent.Get("inner") };
+
+        for (var i = 0; i < model.Interceptors.Count; i++) {
+            arguments.Add(
+                new InvokeGenericDefinition(
+                    "provider", "GetRequiredService", new[] { model.Interceptors[i].Type }));
+        }
+
         method.NewLine();
         method.AddIndentedStatement(
-            new StaticInvokeStatement(
+            SyntaxHelpers.InvokeGeneric(
                 KnownTypes.DependencyModules.Helpers.DecoratorHelper,
                 "Decorate",
-                new List<IOutputComponent> {
-                    CodeOutputComponent.Get(services.Name),
-                    TypeOf(model.ServiceType),
-                    TypeOf(wrapperType)
-                }));
+                new[] { model.ServiceType },
+                CodeOutputComponent.Get(services.Name),
+                TypeOf(wrapperType),
+                new WrapStatement(
+                    CodeOutputComponent.Get(" => "),
+                    CodeOutputComponent.Get("(provider, inner)"),
+                    New(wrapperType, arguments.ToArray()))));
 
         // A field initializer registers the method, matching how decorator registrations are hooked
         // up. DynamicDependency keeps the trimmer from removing a method only referenced this way.

@@ -46,13 +46,15 @@ dotnet add package DependencyModules.SourceGenerator
 ```
 
 Requires .NET 8.0 or later, and ships both `net8.0` and `net10.0` assemblies so a project on either
-LTS release gets one built against its own framework. Two more packages are optional, and this guide
-will tell you when you want them:
+LTS release gets one built against its own framework.
+
+Those two are everything the library itself needs — [conventions](/guide/conventions) included. The
+optional packages are for [testing](/guide/testing), and this guide will tell you when you want them:
 
 | Package | For |
 |---|---|
-| `DependencyModules.Conventions` | [registering by rule](/guide/conventions) instead of per class |
-| `DependencyModules.xUnit` | [building a provider in tests](/guide/testing) from your real modules |
+| `DependencyModules.xUnit` / `DependencyModules.NUnit` | [building a provider in tests](/guide/testing) from your real modules |
+| `DependencyModules.NSubstitute` / `.Moq` / `.FakeItEasy` | [mocking a service](/guide/testing-mocking) inside such a test |
 
 ## Your first module
 

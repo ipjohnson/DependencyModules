@@ -5,6 +5,22 @@ namespace DependencyModules.Testing.Attributes
         public InjectValuesAttribute(params object[] value) { }
         public object[] ProvideValue(System.IServiceProvider serviceProvider, System.Reflection.ParameterInfo parameter) { }
     }
+    [System.AttributeUsage(System.AttributeTargets.Parameter, AllowMultiple=true)]
+    public class MockAttribute : System.Attribute, DependencyModules.Testing.Attributes.Interfaces.ITestParameterValueProvider
+    {
+        public MockAttribute() { }
+        public System.Threading.Tasks.Task<object?> GetParameterValueAsync(DependencyModules.Testing.Attributes.Interfaces.ITestMethodContext testMethod, System.IServiceProvider serviceProvider, System.Reflection.ParameterInfo parameter) { }
+        public void SetupServiceCollection(DependencyModules.Testing.Attributes.Interfaces.ITestMethodContext testMethod, Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection, System.Reflection.ParameterInfo parameter) { }
+    }
+    [System.AttributeUsage(System.AttributeTargets.Assembly | System.AttributeTargets.Class | System.AttributeTargets.Method, AllowMultiple=true)]
+    public class TestExportAttribute : System.Attribute, DependencyModules.Testing.Attributes.Interfaces.ITestServiceSetupAttribute
+    {
+        public TestExportAttribute(System.Type service) { }
+        public System.Type? Implementation { get; set; }
+        public Microsoft.Extensions.DependencyInjection.ServiceLifetime Lifetime { get; set; }
+        public System.Type Service { get; }
+        public void SetupServiceCollection(DependencyModules.Testing.Attributes.Interfaces.ITestMethodContext testMethod, Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection) { }
+    }
 }
 namespace DependencyModules.Testing.Attributes.Interfaces
 {
@@ -15,6 +31,10 @@ namespace DependencyModules.Testing.Attributes.Interfaces
     public interface IMockSupportAttribute
     {
         object ProvideMock(System.Type type);
+    }
+    public interface IModuleTestAttribute
+    {
+        System.Type[] ModuleTypes { get; }
     }
     public interface IOrderedAttribute
     {
@@ -55,5 +75,11 @@ namespace DependencyModules.Testing.Impl
             where T :  class { }
         public static System.Collections.Generic.IEnumerable<T> GetTestAttributes<T>(this System.Reflection.ParameterInfo parameterInfo)
             where T :  class { }
+    }
+    public sealed class TestParameterResolver
+    {
+        public TestParameterResolver(DependencyModules.Testing.Attributes.Interfaces.ITestMethodContext testMethod) { }
+        public System.Threading.Tasks.Task<object?[]> ResolveArgumentsAsync(System.IServiceProvider serviceProvider, object?[] data) { }
+        public void SetupServiceCollection(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection) { }
     }
 }

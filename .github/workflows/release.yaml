@@ -84,9 +84,9 @@ jobs:
             src/DependencyModules.Runtime/DependencyModules.Runtime.csproj \
             src/DependencyModules.SourceGenerator/DependencyModules.SourceGenerator.csproj \
             src/DependencyModules.SourceGenerator.Impl/DependencyModules.SourceGenerator.Impl.csproj \
-            src/DependencyModules.Conventions/DependencyModules.Conventions.csproj \
             src/DependencyModules.Testing/DependencyModules.Testing.csproj \
             src/DependencyModules.xUnit/DependencyModules.xUnit.csproj \
+            src/DependencyModules.NUnit/DependencyModules.NUnit.csproj \
             src/DependencyModules.NSubstitute/DependencyModules.NSubstitute.csproj \
             src/DependencyModules.Moq/DependencyModules.Moq.csproj \
             src/DependencyModules.FakeItEasy/DependencyModules.FakeItEasy.csproj; do

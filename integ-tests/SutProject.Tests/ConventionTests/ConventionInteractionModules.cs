@@ -1,4 +1,4 @@
-using DependencyModules.Conventions;
+using DependencyModules.Runtime.Conventions;
 using DependencyModules.Runtime.Attributes;
 using DependencyModules.Runtime.Interception;
 

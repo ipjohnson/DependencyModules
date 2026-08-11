@@ -1,4 +1,3 @@
-extern alias ConventionsGen;
 
 using System.Collections.Immutable;
 using System.Reflection;
@@ -25,18 +24,15 @@ public static class GeneratorTestHarness {
     /// treats <c>Program.cs</c> specially when auto-generating an application module.</param>
     /// <param name="buildProperties">MSBuild properties visible to the generator, without the
     /// <c>build_property.</c> prefix.</param>
-    /// <param name="withConventions">
-    /// Also runs the convention generator, which ships as its own analyzer. Opt-in rather than
-    /// always on, because it adds its contract types to every compilation through post-initialization
-    /// output and would otherwise change the output of every existing snapshot test.
-    /// </param>
+    /// <param name="generators">The generators to run. Defaults to the one this package ships;
+    /// the extension-seam tests pass a framework-shaped generator of their own instead.</param>
     public static GeneratorResult Run(
         IReadOnlyDictionary<string, string> sources,
         IReadOnlyDictionary<string, string>? buildProperties = null,
         OutputKind outputKind = OutputKind.DynamicallyLinkedLibrary,
         string assemblyName = "GeneratorTestAssembly",
-        bool withConventions = false,
-        IReadOnlyList<MetadataReference>? additionalReferences = null) {
+        IReadOnlyList<MetadataReference>? additionalReferences = null,
+        IReadOnlyList<ISourceGenerator>? generators = null) {
 
         // MSBuild hands the compiler absolute paths, and the generator compares a file's location
         // against ProjectDir to decide whether it owns the auto-generated ApplicationModule.
@@ -59,7 +55,7 @@ public static class GeneratorTestHarness {
             new CSharpCompilationOptions(outputKind, nullableContextOptions: NullableContextOptions.Enable));
 
         var driver = CSharpGeneratorDriver.Create(
-            Generators(withConventions),
+            generators == null ? Generators() : generators.ToArray(),
             optionsProvider: new TestAnalyzerConfigOptionsProvider(buildProperties),
             parseOptions: new CSharpParseOptions(LanguageVersion.Latest));
 
@@ -68,11 +64,24 @@ public static class GeneratorTestHarness {
 
         var runResult = driver.GetRunResult();
 
-        var generatedSources = runResult.Results
+        // Hint names are unique within a generator but not across them, so a run with more than one
+        // generator can produce the same name twice. Keyed rather than grouped it threw, hiding the
+        // duplication behind a dictionary error; two generators emitting one type's partial twice
+        // is a real defect, so it is recorded and asserted on instead.
+        var emitted = runResult.Results
             .SelectMany(result => result.GeneratedSources)
-            .ToDictionary(
-                generated => generated.HintName,
-                generated => generated.SourceText.ToString());
+            .Select(generated => (generated.HintName, Source: generated.SourceText.ToString()))
+            .ToArray();
+
+        var duplicateHintNames = emitted
+            .GroupBy(generated => generated.HintName)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .ToArray();
+
+        var generatedSources = emitted
+            .GroupBy(generated => generated.HintName)
+            .ToDictionary(group => group.Key, group => group.First().Source);
 
         // The generator catches its own exceptions and, with no log folder configured, discards
         // them. Surface them here so a crashing generator fails loudly instead of producing nothing.
@@ -86,7 +95,8 @@ public static class GeneratorTestHarness {
             generatorDiagnostics,
             outputCompilation.GetDiagnostics(),
             outputCompilation,
-            exceptions!);
+            exceptions!,
+            duplicateHintNames);
     }
 
     /// <summary>
@@ -94,20 +104,22 @@ public static class GeneratorTestHarness {
     /// </summary>
     public static GeneratorResult Run(
         string source,
-        IReadOnlyDictionary<string, string>? buildProperties = null,
-        bool withConventions = false) =>
-        Run(new Dictionary<string, string> { ["Test.cs"] = source }, buildProperties,
-            withConventions: withConventions);
+        IReadOnlyDictionary<string, string>? buildProperties = null) =>
+        Run(new Dictionary<string, string> { ["Test.cs"] = source }, buildProperties);
 
-    private static ISourceGenerator[] Generators(bool withConventions) =>
-        withConventions
-            ? new ISourceGenerator[] {
-                new SourceGenerator.SourceGenerator().AsSourceGenerator(),
-                new ConventionsGen::DependencyModules.Conventions.ConventionSourceGenerator().AsSourceGenerator(),
-            }
-            : new ISourceGenerator[] {
-                new SourceGenerator.SourceGenerator().AsSourceGenerator(),
-            };
+    /// <summary>
+    /// One generator. Conventions, services, decorators and interception all come from it.
+    /// </summary>
+    /// <remarks>
+    /// Conventions used to ship as a second analyzer and be opt-in here, so its contract types did
+    /// not land in every compilation. They are declared in DependencyModules.Runtime now, and the
+    /// generator that reads them is part of this one — which is what lets a decoration be emitted
+    /// closed over a registration a convention produced.
+    /// </remarks>
+    private static ISourceGenerator[] Generators() =>
+        new ISourceGenerator[] {
+            new SourceGenerator.SourceGenerator().AsSourceGenerator(),
+        };
 
     /// <summary>
     /// Runs the generator over <paramref name="first"/>, then re-runs the same driver over
@@ -136,7 +148,7 @@ public static class GeneratorTestHarness {
                 new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
 
         GeneratorDriver driver = CSharpGeneratorDriver.Create(
-            Generators(withConventions),
+            Generators(),
             optionsProvider: new TestAnalyzerConfigOptionsProvider(buildProperties),
             parseOptions: new CSharpParseOptions(LanguageVersion.Latest),
             driverOptions: new GeneratorDriverOptions(default, trackIncrementalGeneratorSteps: true));
@@ -272,7 +284,8 @@ public class GeneratorResult(
     ImmutableArray<Diagnostic> generatorDiagnostics,
     ImmutableArray<Diagnostic> compilationDiagnostics,
     Compilation compilation,
-    IReadOnlyList<Exception> generatorExceptions) {
+    IReadOnlyList<Exception> generatorExceptions,
+    IReadOnlyList<string>? duplicateHintNames = null) {
 
     public IReadOnlyDictionary<string, string> GeneratedSources { get; } = generatedSources;
 
@@ -283,6 +296,11 @@ public class GeneratorResult(
     public Compilation Compilation { get; } = compilation;
 
     public IReadOnlyList<Exception> GeneratorExceptions { get; } = generatorExceptions;
+
+    /// <summary>
+    /// Hint names emitted by more than one generator in the same run.
+    /// </summary>
+    public IReadOnlyList<string> DuplicateHintNames { get; } = duplicateHintNames ?? Array.Empty<string>();
 
     public IEnumerable<Diagnostic> Errors =>
         GeneratorDiagnostics.Concat(CompilationDiagnostics)

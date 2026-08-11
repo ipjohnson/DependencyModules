@@ -533,51 +533,9 @@ public class DependencyFileWriter {
         return method;
     }
 
-    private static object[] GetArgumentsForParameterList(ParameterDefinition serviceProvider, IReadOnlyList<ParameterInfoModel> parameterList) {
-        var returnList = new List<object>();
-
-        foreach (var parameterInfoModel in parameterList) {
-            var keyed = parameterInfoModel.Attributes.FirstOrDefault(
-                a =>
-                    a.TypeDefinition.Equals(KnownTypes.Microsoft.DependencyInjection.FromKeyedServicesAttribute));
-
-            if (parameterInfoModel.ParameterType.Equals(KnownTypes.Microsoft.DependencyInjection.IServiceProvider)) {
-                returnList.Add(serviceProvider);
-            }
-            else {
-                var name = "Get";
-                var parameters = new List<object>();
-
-                if (!parameterInfoModel.ParameterType.IsNullable) {
-                    name += "Required";
-                }
-
-                if (keyed != null) {
-                    name += "Keyed";
-
-                    var keyValue = keyed.Arguments.First().Value!;
-                    if (keyValue is string stringValue) {
-                        keyValue = QuoteString(stringValue);
-                    }
-
-                    parameters.Add(keyValue);
-                }
-
-                name += "Service";
-
-                returnList.Add(
-                    serviceProvider.InvokeGeneric(
-                        name,
-                        new[] {
-                            parameterInfoModel.ParameterType.MakeNullable(false)
-                        },
-                        parameters.ToArray()
-                    ));
-            }
-        }
-
-        return returnList.ToArray();
-    }
+    private static object[] GetArgumentsForParameterList(
+        ParameterDefinition serviceProvider, IReadOnlyList<ParameterInfoModel> parameterList) =>
+        ConstructorArgumentWriter.Arguments(serviceProvider, parameterList);
 
     private static RegistrationType GetRegistrationType(ModuleEntryPointModel entryPointModel, DependencyModuleConfigurationModel configurationModel, ServiceRegistrationModel registrationModel) {
         if (registrationModel.RegistrationType.HasValue) {

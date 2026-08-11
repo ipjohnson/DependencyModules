@@ -1,4 +1,4 @@
-using DependencyModules.Conventions;
+using DependencyModules.Runtime.Conventions;
 using DependencyModules.Runtime.Attributes;
 using SecondarySutProject;
 using SutProject.Tests.ConventionTests.Nested;
@@ -67,6 +67,7 @@ public partial class ConventionSharedFirstModule : IConventionModule {
 public partial class ConventionSharedSecondModule : IConventionModule {
     void IConventionModule.Conventions(IConventionDefinitions conventions) {
         conventions.RegisterAll<IShared>().WithName("SharedSecond").AsSingleton();
+        conventions.RegisterAll<IAlsoShaped>().WithoutName("SharedFirst").AsSingleton();
     }
 }
 

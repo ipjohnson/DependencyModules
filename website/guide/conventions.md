@@ -21,6 +21,8 @@ the hand-maintained list, just spread across forty files instead of gathered in 
 State the rule once, and let the generator find the types that fit **while it builds**:
 
 ```csharp
+using DependencyModules.Runtime.Conventions;
+
 [DependencyModule]
 public partial class DataModule : IConventionModule {
     void IConventionModule.Conventions(IConventionDefinitions conventions) {
@@ -31,16 +33,13 @@ public partial class DataModule : IConventionModule {
 
 Forty registrations, one declaration, and the forty-first handler registers itself by existing.
 
-```shell
-dotnet add package DependencyModules.Conventions
-```
+Nothing extra to install: the contracts are part of `DependencyModules.Runtime` and the generator
+that reads them is part of `DependencyModules.SourceGenerator`, both of which you already have.
 
-Conventions ship in their own analyzer package, so a project that does not use them never loads the
-class-scanning providers.
-
-::: warning Implement the interface explicitly
-`void IConventionModule.Conventions(…)`, as above. An implicit `public void Conventions(…)` does not
-compile.
+::: tip Explicit or implicit, either compiles
+`void IConventionModule.Conventions(…)` as above, or an ordinary
+`public void Conventions(IConventionDefinitions conventions)` — both are matched. The explicit form
+is used when a type somehow carries both, since that is the one satisfying the interface.
 :::
 
 ## The body never runs

@@ -1,0 +1,427 @@
+// Convention contracts.
+//
+// These were emitted into every consuming compilation by the conventions analyzer through
+// RegisterPostInitializationOutput, which forced them to be `internal` — an implicit
+// `public void Conventions(...)` was CS0051 against an internal interface, so the method had to be
+// implemented explicitly — and made CS0436 unavoidable between two assemblies that both emitted
+// them and referenced each other.
+//
+// Declared once here instead, they are this package's public API rather than the consumer's, which
+// is what retires both problems.
+//
+// The namespace is DependencyModules.Runtime.Conventions, matching the assembly. Keeping the old
+// DependencyModules.Conventions would have put runtime contracts and the analyzer that reads them in
+// one namespace across two assemblies, which is ambiguous wherever both are referenced.
+//
+// Nothing here has behaviour or is ever executed. The generator reads the chain out of the method
+// body at compile time and emits ordinary registrations; the body itself is never called.
+
+namespace DependencyModules.Runtime.Conventions {
+
+    /// <summary>
+    /// Implement this on a [DependencyModule] class to register services by convention
+    /// instead of attributing each one.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>The body of <c>Conventions</c> is never executed.</b> It is read by the
+    /// DependencyModules.SourceGenerator analyzer at compile time, which resolves the
+    /// matching types and emits ordinary registrations. Nothing implements
+    /// <see cref="IConventionDefinitions"/> at run time and the method is never called.
+    /// </para>
+    /// <para>
+    /// Because it is configuration rather than code, only a chain of the calls declared on
+    /// <see cref="IConventionDefinitions"/> and <see cref="IConventionRegistration"/> can
+    /// appear in it. Loops, conditionals, locals and calls to your own helpers cannot be
+    /// evaluated at compile time and are reported as DM0009 rather than ignored.
+    /// </para>
+    /// <para>
+    /// Either an explicit implementation or an ordinary <c>public void Conventions(…)</c>
+    /// compiles and is matched. Explicit implementation used to be the only form that
+    /// compiled, when the contracts were emitted into the consuming compilation as internal
+    /// types; they are public types in this assembly now, so that constraint is gone. A type
+    /// carrying both shapes is read from the explicit one, since that is the one satisfying
+    /// the interface.
+    /// </para>
+    /// <example>
+    /// <code>
+    /// [DependencyModule]
+    /// public partial class DataModule : IConventionModule {
+    ///     void IConventionModule.Conventions(IConventionDefinitions conventions) {
+    ///         conventions.RegisterAll&lt;IRepository&gt;().AsScoped();
+    ///         conventions.RegisterAll(typeof(IRequestHandler&lt;,&gt;)).AsTransient();
+    ///     }
+    /// }
+    /// </code>
+    /// </example>
+    /// </remarks>
+    public interface IConventionModule {
+
+        /// <summary>
+        /// Declares this module's conventions. Read at compile time; never invoked.
+        /// </summary>
+        /// <param name="conventions">Receives the declarations.</param>
+        void Conventions(IConventionDefinitions conventions);
+    }
+
+    /// <summary>
+    /// Declares which types a module registers by convention.
+    /// </summary>
+    /// <remarks>
+    /// Nothing implements this. The calls made on it are read from source at compile time.
+    /// </remarks>
+    public interface IConventionDefinitions {
+
+        /// <summary>
+        /// Registers every type in this compilation that implements
+        /// <typeparamref name="TService"/>, as <typeparamref name="TService"/>.
+        /// </summary>
+        /// <remarks>
+        /// Matches a type that declares <typeparamref name="TService"/> directly, and one
+        /// that declares an interface extending it — an interface saying it extends another
+        /// is a deliberate statement that it is substitutable for it. Reaching a service
+        /// type through a <i>base class</i> is not matched unless
+        /// <see cref="IConventionRegistration.IncludeBaseClasses"/> is called, because
+        /// extending a class is a statement about implementation reuse rather than about
+        /// the contract, and every subclass added later would silently join the convention.
+        ///
+        /// A type carrying an explicit service attribute is never a convention candidate;
+        /// the attribute always wins.
+        /// </remarks>
+        /// <typeparam name="TService">The service type to scan for and register as.</typeparam>
+        IConventionRegistration RegisterAll<TService>();
+
+        /// <summary>
+        /// The <see cref="RegisterAll{TService}"/> overload for open generics, which cannot
+        /// be written as a type argument: <c>RegisterAll(typeof(IHandler&lt;,&gt;))</c>.
+        /// </summary>
+        /// <remarks>
+        /// Each match is registered against the <i>closed</i> interface it implements, so
+        /// <c>CreateOrderHandler : IHandler&lt;CreateOrder, OrderId&gt;</c> registers
+        /// <c>IHandler&lt;CreateOrder, OrderId&gt;</c>. A generic implementation that closes
+        /// nothing registers as the open generic.
+        /// </remarks>
+        /// <param name="serviceType">The service type to scan for, open or closed.</param>
+        IConventionRegistration RegisterAll(global::System.Type serviceType);
+
+        /// <summary>
+        /// Registers types selected by something other than the service they implement.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// With no service type there is nothing to register the matches <i>as</i>, so this
+        /// form requires <see cref="IConventionRegistration.AsSelf"/> or
+        /// <see cref="IConventionRegistration.AsSelfWithInterfaces"/>. It is how a concrete
+        /// class that implements no interface gets registered by convention.
+        /// </para>
+        /// <para>
+        /// It also requires at least one filter. Without one it would match every class in
+        /// the compilation, which is never what anybody means and is reported rather than
+        /// obeyed.
+        /// </para>
+        /// <example>
+        /// <code>
+        /// conventions.RegisterAll().InNamespaceOf&lt;OrderMarker&gt;().AsSelf().AsScoped();
+        /// </code>
+        /// </example>
+        /// </remarks>
+        IConventionRegistration RegisterAll();
+    }
+
+    /// <summary>
+    /// Configures what a <c>RegisterAll</c> declaration produces.
+    /// </summary>
+    /// <remarks>
+    /// A lifetime is required. There is no default, because a lifetime nobody wrote down is
+    /// the most expensive thing for a registration to get wrong; omitting one is DM0009.
+    /// </remarks>
+    public interface IConventionRegistration {
+
+        /// <summary>Registers the matches as singletons.</summary>
+        IConventionRegistration AsSingleton();
+
+        /// <summary>Registers the matches as scoped.</summary>
+        IConventionRegistration AsScoped();
+
+        /// <summary>Registers the matches as transient.</summary>
+        IConventionRegistration AsTransient();
+
+        /// <summary>
+        /// Also matches types that reach the service type only through a base class.
+        /// </summary>
+        /// <remarks>
+        /// Off by default. Turning it on picks up the common
+        /// <c>CreateOrderValidator : AbstractValidator&lt;CreateOrder&gt;</c> shape, where
+        /// the interface is declared on a base class, at the cost of every future subclass
+        /// of that base joining the convention without anyone revisiting it.
+        /// </remarks>
+        IConventionRegistration IncludeBaseClasses();
+
+        /// <summary>
+        /// Registers each match as its own concrete type rather than as the service type.
+        /// </summary>
+        /// <remarks>
+        /// <c>RegisterAll&lt;IHandler&gt;().AsSelf()</c> puts <c>CreateOrderHandler</c> in
+        /// the container under <c>CreateOrderHandler</c>, not under <c>IHandler</c>.
+        /// </remarks>
+        IConventionRegistration AsSelf();
+
+        /// <summary>
+        /// Registers each match as the service type the convention matched <i>and</i> as its
+        /// own concrete type, sharing one instance between them.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Additive, where <c>AsSelf</c> replaces: <c>AsSelf</c> means "instead of the
+        /// interface", this means "as well as it". Only the interfaces the convention
+        /// matched are registered, not every interface the type can reach — that is
+        /// <see cref="AsSelfWithInterfaces"/>.
+        /// </para>
+        /// <para>
+        /// The shape FluentValidation wants. It registers each validator as
+        /// <c>IValidator&lt;T&gt;</c> and as the concrete type, independently, which hands
+        /// you two instances per scope; cross-wiring them gives one, which is the better
+        /// behaviour and a deliberate difference.
+        /// </para>
+        /// <example>
+        /// <code>
+        /// conventions.RegisterAll(typeof(IValidator&lt;&gt;))
+        ///     .IncludeBaseClasses()
+        ///     .AlsoAsSelf()
+        ///     .AsScoped();
+        /// </code>
+        /// </example>
+        /// </remarks>
+        IConventionRegistration AlsoAsSelf();
+
+        /// <summary>
+        /// Registers each match as its own type <i>and</i> as every interface it implements,
+        /// sharing one instance between them.
+        /// </summary>
+        /// <remarks>
+        /// The same contract as <c>[CrossWireService]</c>: resolving the concrete type and
+        /// resolving any of its interfaces gives the same instance, rather than one instance
+        /// per service type as two independent registrations would.
+        /// </remarks>
+        IConventionRegistration AsSelfWithInterfaces();
+
+        /// <summary>
+        /// Limits matches to the namespace of <typeparamref name="TMarker"/> and the
+        /// namespaces beneath it.
+        /// </summary>
+        /// <remarks>
+        /// A type argument rather than a string, so a namespace that does not exist cannot
+        /// be named. Several namespace filters combine with <b>or</b>.
+        /// </remarks>
+        /// <typeparam name="TMarker">Any type in the namespace to scan.</typeparam>
+        IConventionRegistration InNamespaceOf<TMarker>();
+
+        /// <summary>
+        /// Limits matches to the given namespaces and the namespaces beneath them.
+        /// </summary>
+        /// <param name="namespaces">Namespaces to include.</param>
+        IConventionRegistration InNamespaces(params string[] namespaces);
+
+        /// <summary>
+        /// Limits matches to exactly the given namespaces, excluding those beneath them.
+        /// </summary>
+        /// <param name="namespaces">Namespaces to include.</param>
+        IConventionRegistration InExactNamespaces(params string[] namespaces);
+
+        /// <summary>
+        /// Excludes the namespace of <typeparamref name="TMarker"/> and those beneath it.
+        /// </summary>
+        /// <remarks>
+        /// Exclusions are applied after inclusions, and a match excluded by any of them is
+        /// out however many inclusions it satisfied.
+        /// </remarks>
+        /// <typeparam name="TMarker">Any type in the namespace to exclude.</typeparam>
+        IConventionRegistration NotInNamespaceOf<TMarker>();
+
+        /// <summary>
+        /// Excludes the given namespaces and those beneath them.
+        /// </summary>
+        /// <param name="namespaces">Namespaces to exclude.</param>
+        IConventionRegistration NotInNamespaces(params string[] namespaces);
+
+        /// <summary>
+        /// Chooses how each match is added to the service collection.
+        /// </summary>
+        /// <remarks>
+        /// The same choice <c>[SingletonService(Using = ...)]</c> makes, and the answer to
+        /// Scrutor's <c>RegistrationStrategy</c>: <c>Try</c> skips a service type already
+        /// registered, <c>TryEnumerable</c> allows several implementations of one service,
+        /// and <c>Replace</c> takes over an existing registration. Defaults to <c>Add</c>.
+        /// </remarks>
+        /// <param name="registrationType">How to add the registration.</param>
+        IConventionRegistration Using(
+            global::DependencyModules.Runtime.Attributes.RegistrationType registrationType);
+
+        /// <summary>
+        /// Registers every match under a service key.
+        /// </summary>
+        /// <remarks>
+        /// The key is written into the registration as you wrote it, so a string literal, a
+        /// <c>const</c> or an enum member all work. Every match of this convention shares
+        /// the key — there is no way to vary it per type, because that would take a lambda
+        /// over types the generator is only describing.
+        /// </remarks>
+        /// <param name="key">The service key.</param>
+        IConventionRegistration WithKey(object key);
+
+        /// <summary>
+        /// Limits matches to types carrying <typeparamref name="TAttribute"/>.
+        /// </summary>
+        /// <remarks>
+        /// The attribute is resolved, not matched on how it was written, so a
+        /// namespace-qualified usage and an alias both count. Several attribute filters
+        /// combine with <b>and</b>.
+        /// </remarks>
+        /// <typeparam name="TAttribute">The attribute to require.</typeparam>
+        IConventionRegistration WithAttribute<TAttribute>()
+            where TAttribute : global::System.Attribute;
+
+        /// <summary>
+        /// Excludes types carrying <typeparamref name="TAttribute"/>.
+        /// </summary>
+        /// <typeparam name="TAttribute">The attribute to exclude on.</typeparam>
+        IConventionRegistration WithoutAttribute<TAttribute>()
+            where TAttribute : global::System.Attribute;
+
+        /// <summary>
+        /// Limits matches to types whose name fits one of the given patterns.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Two wildcards and no regex: <c>*</c> matches zero or more characters, <c>?</c>
+        /// matches exactly one. A pattern containing a dot is matched against the full
+        /// <c>Namespace.TypeName</c>; otherwise against the bare type name. Matching is
+        /// ordinal and case-sensitive, like C# identifiers.
+        /// </para>
+        /// <para>
+        /// The weakest selector here, and deliberately last. It is the one most likely to
+        /// match something nobody intended when a class is added years later — prefer
+        /// <c>RegisterAll&lt;T&gt;</c>, an attribute, or a namespace.
+        /// </para>
+        /// </remarks>
+        /// <param name="patterns">Name patterns to include; several combine with or.</param>
+        IConventionRegistration WithName(params string[] patterns);
+
+        /// <summary>
+        /// Excludes types whose name fits one of the given patterns.
+        /// </summary>
+        /// <param name="patterns">Name patterns to exclude.</param>
+        IConventionRegistration WithoutName(params string[] patterns);
+
+        /// <summary>
+        /// Registers the matches only when the environment name is one of
+        /// <paramref name="environmentNames"/>.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The test runs when the modules are applied, not while the build runs, so this
+        /// changes what is registered rather than what the convention matched. Every match
+        /// is still emitted, behind the same guard.
+        /// </para>
+        /// <para>
+        /// A condition here combines with <b>and</b> against any
+        /// <c>[IfEnvironment]</c> on a matched class, so neither can silently override the
+        /// other. Conditions of different kinds also combine with and; alternatives go
+        /// inside one call.
+        /// </para>
+        /// </remarks>
+        /// <param name="environmentNames">
+        /// Accepted names, compared case-insensitively to match
+        /// <c>IHostEnvironment.IsDevelopment()</c>.
+        /// </param>
+        IConventionRegistration IfEnvironment(params string[] environmentNames);
+
+        /// <summary>
+        /// Registers the matches only when the environment name is none of
+        /// <paramref name="environmentNames"/>.
+        /// </summary>
+        /// <param name="environmentNames">Names to exclude, compared case-insensitively.</param>
+        IConventionRegistration IfNotEnvironment(params string[] environmentNames);
+
+        /// <summary>
+        /// Registers the matches only when the environment carries a value for
+        /// <paramref name="key"/>.
+        /// </summary>
+        /// <param name="key">The key that must be present.</param>
+        IConventionRegistration IfEnvironmentValue(string key);
+
+        /// <summary>
+        /// Registers the matches only when the environment's value for
+        /// <paramref name="key"/> equals <paramref name="value"/>.
+        /// </summary>
+        /// <param name="key">The key to read.</param>
+        /// <param name="value">The value it must equal, compared ordinally.</param>
+        IConventionRegistration IfEnvironmentValue(string key, string value);
+
+        /// <summary>
+        /// Registers the matches only when the environment carries no value for
+        /// <paramref name="key"/>.
+        /// </summary>
+        /// <param name="key">The key that must be absent.</param>
+        IConventionRegistration IfNotEnvironmentValue(string key);
+
+        /// <summary>
+        /// Registers the matches only when the environment's value for
+        /// <paramref name="key"/> does not equal <paramref name="value"/>.
+        /// </summary>
+        /// <param name="key">The key to read.</param>
+        /// <param name="value">The value it must not equal, compared ordinally.</param>
+        IConventionRegistration IfNotEnvironmentValue(string key, string value);
+
+        /// <summary>
+        /// Registers every match as <typeparamref name="TService"/>, whatever it matched
+        /// through.
+        /// </summary>
+        /// <typeparam name="TService">The service type to register as.</typeparam>
+        IConventionRegistration As<TService>();
+
+        /// <summary>
+        /// Scans the assembly <typeparamref name="TMarker"/> lives in, instead of the
+        /// project being built.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// For registering types out of a package you do not own. A project you <i>do</i>
+        /// own is better served by giving it its own module with its own conventions and
+        /// composing through module attributes — explicit, ordered, and cross-assembly by
+        /// construction.
+        /// </para>
+        /// <para>
+        /// The assembly is always named, and named by a type rather than a string, so an
+        /// assembly that is not referenced cannot be asked for. There is deliberately no
+        /// "scan everything I depend on": measured, walking every reference visits 5,350
+        /// types where one named assembly visits 10, on every keystroke.
+        /// </para>
+        /// <para>
+        /// Only <c>public</c> types are visible across an assembly boundary, where a scan of
+        /// the project being built also sees <c>internal</c> ones. Nothing can report the
+        /// <c>internal</c> type it cannot see, so this is a difference to know rather than
+        /// one that can be diagnosed.
+        /// </para>
+        /// <example>
+        /// <code>
+        /// conventions.RegisterAll(typeof(IHandler&lt;,&gt;))
+        ///     .InAssemblyOf&lt;SomeTypeInThatPackage&gt;()
+        ///     .AsScoped();
+        /// </code>
+        /// </example>
+        /// </remarks>
+        /// <typeparam name="TMarker">Any type in the assembly to scan.</typeparam>
+        IConventionRegistration InAssemblyOf<TMarker>();
+
+        /// <summary>
+        /// Registers each match as the interface named after it — <c>Foo</c> as
+        /// <c>IFoo</c>.
+        /// </summary>
+        /// <remarks>
+        /// A match that implements no such interface is skipped rather than registered some
+        /// other way, since the convention asked for one specific shape.
+        /// </remarks>
+        IConventionRegistration AsMatchingInterface();
+    }
+}

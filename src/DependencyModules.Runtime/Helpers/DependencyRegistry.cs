@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using DependencyModules.Runtime.Features;
 using DependencyModules.Runtime.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
@@ -90,12 +91,21 @@ public class DependencyRegistry<T> {
     /// <summary>
     /// Add instance of of dependency
     /// </summary>
-    /// <param name="implementationType"></param>
+    /// <param name="implementationType">
+    /// The implementation to register. Annotated so the constructor requirement
+    /// <see cref="ServiceDescriptor"/> declares reaches the type the caller named — without it the
+    /// requirement stops here, and a trimmed build can remove the constructor of a type whose
+    /// <c>typeof()</c> is right there in the generated code.
+    /// </param>
     /// <param name="lifetime"></param>
     /// <param name="serviceKey"></param>
     /// <typeparam name="TInstance"></typeparam>
     /// <returns></returns>
-    public static int Add<TInstance>(Type implementationType, ServiceLifetime lifetime = ServiceLifetime.Transient, object? serviceKey = null) where TInstance : class {
+    public static int Add<TInstance>(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
+        Type implementationType,
+        ServiceLifetime lifetime = ServiceLifetime.Transient,
+        object? serviceKey = null) where TInstance : class {
         lock (SyncLock) {
             RegistryFuncs.Add(
                 (registry, _) => registry.Add(

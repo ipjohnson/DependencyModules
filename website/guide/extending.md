@@ -16,11 +16,13 @@ All of it lives in a shared assembly you can compile into your own analyzer. You
 the same `ServiceModel`s the attribute path produces, so emission needs no special case and your
 registrations compose with `[SingletonService]` and conventions as if they had always been there.
 
-`DependencyModules.Conventions` is exactly this — a separate analyzer package plugged into the same
-pipeline — and it is the worked example throughout this page.
+The [convention](/guide/conventions) generator is exactly this — a registration mechanism of its own,
+plugged into the same pipeline — and it is the worked example throughout this page. It ships inside
+`DependencyModules.SourceGenerator` rather than beside it, but nothing about how it plugs in depends
+on that; yours can live in its own analyzer package.
 
 ::: warning Not a stable public API yet
-These are the extension points the conventions package uses, and they are public. They are **not**
+These are the extension points the convention generator uses, and they are public. They are **not**
 versioned as a stable API, so a minor release may move them. If you build on this, pin the generator
 package version.
 :::
@@ -50,9 +52,37 @@ public class MySourceGenerator : BaseSourceGenerator {
     }
 
     // SetupRootGenerator is deliberately not overridden. DependencyModules.SourceGenerator owns the
-    // module partial; emitting it from here too would declare every module twice.
+    // module partial; emitting it from here too would declare every module twice. The base class
+    // knows that from the attribute you trigger on, so the default does the right thing here.
 }
 ```
+
+A generator that declares its **own** module attribute is the other shape, and the default flips to
+match: nothing else can write those modules, so the base class writes them for you.
+
+```csharp
+[Generator]
+public class MyFrameworkGenerator : BaseSourceGenerator {
+
+    protected override ITypeDefinition[] ModuleAttributeTypes() =>
+        [TypeDefinition.Get("My.Framework", "MyModuleAttribute")];
+
+    protected override IEnumerable<IDependencyModuleSourceGenerator> AttributeSourceGenerators() {
+        yield return new MyGenerator();
+    }
+}
+```
+
+`[MyModule]` on a class now gets everything `[DependencyModule]` does — `AddModule<T>()`, services,
+conventions, decorators, interception — with no `[DependencyModule]` in the consuming project. Two
+things follow from declaring your own attribute:
+
+- **Override `SetupRootGenerator` with an empty body** if you want the attribute as a marker only,
+  and no module written for it.
+- **`Program.cs` is not yours.** A file of top level statements carries no attribute to tell the two
+  generators apart, so the generated `ApplicationModule` belongs to whichever generator reads
+  `[DependencyModule]`. If your framework ships without this package's generator and you want that
+  module, override `ShouldAutoApproveCompilationUnit` to `true`.
 
 `IDependencyModuleSourceGenerator` is one method. You receive the initialization context and a
 provider of every discovered module paired with the configuration in effect:

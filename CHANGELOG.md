@@ -7,7 +7,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`DependencyModules.NUnit`.** An NUnit integration, with the same `[ModuleTest]` a test author
+  already knows: name your modules, take the services you need as method parameters. Everything
+  neutral is genuinely shared rather than reimplemented — `[Mock]`, `[InjectValues]`,
+  `[TestExport]`, keyed services, the parameter resolution rules, and all three mocking packages
+  work against it unchanged.
+
+  **A container per test iteration**, not per test case. Each `[Repeat]` pass and each `[Retry]`
+  attempt builds and tears down its own container, and that container's lifetime brackets the whole
+  iteration — `[SetUp]`, the test method, then `[TearDown]` — so setup and teardown run while it is
+  alive. Wrapping only the method invocation would have left `[SetUp]` running before the container
+  existed and `[TearDown]` after it was disposed.
+
+  **Data rows use `[ModuleTestCase]`, not NUnit's `[TestCase]`.** `[TestCase]` requires a row to
+  supply an argument for every parameter and enforces that when the case is built, before any of
+  this package's code runs, so it cannot express "the row covers the leading parameters and the
+  container covers the rest". It also builds its own cases, so combining the two would produce a
+  case per row plus one more. `[ModuleTestCase]` is the same idea without that rule; a row may
+  supply fewer arguments than the method takes, and `IModuleTestDataAttribute` lets a row come from
+  somewhere other than an attribute literal.
+
+  Reference one integration or the other. Both define a `ModuleTestAttribute`, sharing a name and
+  nothing else — each derives from what its own framework requires, and only `IModuleTestAttribute`
+  is common to the two.
+
+- **Guide pages for each test framework and for mocking.** The testing section now separates what is
+  shared from what is not: `Testing modules` carries the framework-neutral core — `[ModuleTest]`,
+  assembly-level module attributes, container-per-test, the order a parameter is resolved in,
+  `[TestExport]` and `[InjectValues]` — with `xUnit` and `NUnit` pages covering only what differs,
+  and a `Mocking frameworks` page covering `[Mock]` and NSubstitute, Moq and FakeItEasy in turn.
+
+  The `DependencyModules.Conventions` install step is gone from the docs along with the package;
+  conventions need nothing beyond `DependencyModules.Runtime` and `DependencyModules.SourceGenerator`.
+  The conventions guide also no longer claims an implicit `public void Conventions(…)` fails to
+  compile — both that and the explicit form are matched now that the contracts are public types.
+
 ### Changed
+
+- **A generator declaring its own module attribute gets the module written for it.**
+  `BaseSourceGenerator.SetupRootGenerator` was `virtual` and empty, so a framework naming its own
+  attribute through `ModuleAttributeTypes()` and not overriding it compiled cleanly, emitted no
+  module partial, and failed at its consumer's `AddModule<T>()` — a generic constraint error naming
+  neither the generator nor the omission. Nothing else can write those modules, so it now writes
+  them by default.
+
+  The default is still to write nothing for a generator triggering on `[DependencyModule]`, which is
+  adding registrations to modules this package's own generator already writes — the shape the
+  extension guide documents. Declaring your own attribute is what tells the two apart. A framework
+  wanting its attribute as a marker only, with no module written for it, overrides the method with
+  an empty body.
+
+- **`IServiceRegistrationAttribute` documents what it is.** It is the shape of a registration —
+  `As`, `Key`, `Lifetime`, `Using` — for reading one uniformly at run time, and it is not how the
+  generator finds registration attributes. Nothing tested for it, so an attribute implementing it
+  was silently never read, and the interface being public and otherwise unused invited exactly that.
+  Registration attributes are matched by type, which is what keeps them on
+  `ForAttributeWithMetadataName` and out of a syntax provider that re-runs over every node in the
+  compilation per keystroke. The doc comment now says so, and points at the seam that does work.
+
+- **`[TestExport]` moved to `DependencyModules.Testing`.** It registered through
+  `ITestServiceSetupAttribute` and had no test framework dependency left, so both integrations now
+  get the same attribute rather than a copy. It joins `[Mock]` and `[InjectValues]`, which were
+  already there.
+
+  **Breaking, pre-1.0:** a test file needs `using DependencyModules.Testing.Attributes;` alongside
+  the one for `[ModuleTest]` — already what a file using `[Mock]` does.
+
+- **Module declaration is no longer welded to one test framework.** `ModuleTestAttribute` now
+  implements `IModuleTestAttribute`, a two-line interface in `DependencyModules.Testing` carrying
+  the module types, and module loading reads that rather than naming the xUnit attribute. Additive
+  for anyone using `[ModuleTest]`.
+
 
 - **xUnit v3 updated from 1.0.0 to 3.2.2.** `[ModuleTest]` builds on xUnit's extensibility surface —
   a custom test case and discoverer — and that surface moved across the two major versions. Module
@@ -25,6 +97,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   need updating. Using `[ModuleTest]` is unaffected.
 
 ### Fixed
+
+- **The narrowest `IServiceProviderBuilderAttribute` now wins.** Both integrations took the *first*
+  match out of an attribute list ordered widest scope first, so an assembly-level container builder
+  silently beat one on the class or the method — the reverse of the interface's own documentation,
+  and of how every other test attribute resolves. A method asking for a particular container was
+  overridden by a project-wide default with nothing to indicate it. The last match is now taken, so
+  method beats class beats assembly, and a test pins the precedence in both frameworks.
+
+  Only one builder is ever used; that part is unchanged. A project declaring exactly one, at any
+  single scope, sees no difference.
+
+- **Stacked generators no longer emit the application module twice.** `Program.cs` carries no module
+  attribute, so nothing in the syntax said which generator it belonged to and every subclass of
+  `BaseSourceGenerator` claimed it. A framework generator loaded alongside this package's own then
+  produced a second `ApplicationModule` partial declaring the same members, which does not compile —
+  in a console application, the ordinary shape of a consumer. The top level statement module now
+  belongs to the generator that owns `[DependencyModule]`; a framework shipping without that
+  generator takes it back by overriding `ShouldAutoApproveCompilationUnit`.
 
 - **A module test now reports where it is declared.** `[ModuleTest]` captured no source location and
   the discoverer forwarded none, so a test explorer had nowhere to navigate to and results carried
@@ -96,6 +186,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Implementations need a namespace change and the new parameter type; the bodies rarely change, since
   nothing in this repository read more than `.Method` off the xUnit model. An attribute that does need
   the full model can downcast the context to `IXunitTestMethodContext`.
+- **Test parameter resolution moved to `DependencyModules.Testing`**, as `TestParameterResolver`.
+  Turning a parameter list into arguments is the same problem for any test framework — an attribute on
+  the parameter, a keyed service, an ordinary resolution, or constructing an unregistered concrete
+  type — and it was buried in xUnit's test case. Behaviour is unchanged, including the order those are
+  tried in and the rule that a data row's own arguments cover the leading parameters.
+
+  It is used in two phases either side of the container being built, and resolving without the setup
+  phase now throws rather than silently skipping every parameter attribute. Having it addressable on
+  its own also means the precedence rules have direct tests instead of being reachable only by running
+  a `[ModuleTest]` end to end.
+- **`[Mock]` moved from `DependencyModules.xUnit` to `DependencyModules.Testing`**, joining
+  `[InjectValues]` in `DependencyModules.Testing.Attributes`. Once the hooks it implements stopped
+  naming xUnit, nothing about the attribute was specific to a test framework — so a future
+  integration gets the same `[Mock]` rather than a copy of it. Test files need
+  `using DependencyModules.Testing.Attributes;` next to the one for `[ModuleTest]`, which is already
+  what a file using `[InjectValues]` does.
 - **An environment caches what it reads from the process**, misses included, for the life of the
   instance. `IModuleEnvironment` is injectable and the instance `AddModules` registers is held for
   the application's lifetime, so a service reading a value per request was paying a process lookup

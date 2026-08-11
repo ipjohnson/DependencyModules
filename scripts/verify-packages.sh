@@ -36,9 +36,9 @@ for proj in \
     src/DependencyModules.Runtime/DependencyModules.Runtime.csproj \
     src/DependencyModules.SourceGenerator/DependencyModules.SourceGenerator.csproj \
     src/DependencyModules.SourceGenerator.Impl/DependencyModules.SourceGenerator.Impl.csproj \
-    src/DependencyModules.Conventions/DependencyModules.Conventions.csproj \
     src/DependencyModules.Testing/DependencyModules.Testing.csproj \
     src/DependencyModules.xUnit/DependencyModules.xUnit.csproj \
+    src/DependencyModules.NUnit/DependencyModules.NUnit.csproj \
     src/DependencyModules.NSubstitute/DependencyModules.NSubstitute.csproj \
     src/DependencyModules.Moq/DependencyModules.Moq.csproj \
     src/DependencyModules.FakeItEasy/DependencyModules.FakeItEasy.csproj; do
@@ -49,7 +49,7 @@ done
 echo "==> Checking package layout"
 
 # NuGet only auto-imports build/<PackageId>.props|targets at that exact path.
-for id in DependencyModules.SourceGenerator DependencyModules.SourceGenerator.Impl DependencyModules.Conventions; do
+for id in DependencyModules.SourceGenerator DependencyModules.SourceGenerator.Impl; do
     entries="$(unzip -Z1 "${FEED}/${id}.${VERSION}.nupkg")"
     for ext in props targets; do
         grep -qx "build/${id}.${ext}" <<<"${entries}" \
@@ -59,18 +59,16 @@ for id in DependencyModules.SourceGenerator DependencyModules.SourceGenerator.Im
     pass "${id} build/ files are at the convention path"
 done
 
-# The analyzers must ship where Roslyn looks for them.
-for id in DependencyModules.SourceGenerator DependencyModules.Conventions; do
-    unzip -Z1 "${FEED}/${id}.${VERSION}.nupkg" \
-        | grep -qx "analyzers/dotnet/cs/${id}.dll" \
-        || fail "${id}: analyzer assembly is not at analyzers/dotnet/cs/"
+# The analyzer must ship where Roslyn looks for it.
+unzip -Z1 "${FEED}/DependencyModules.SourceGenerator.${VERSION}.nupkg" \
+    | grep -qx "analyzers/dotnet/cs/DependencyModules.SourceGenerator.dll" \
+    || fail "DependencyModules.SourceGenerator: analyzer assembly is not at analyzers/dotnet/cs/"
 
-    # No lib/. An analyzer that reaches a consumer's output ships compiler machinery to run time.
-    unzip -Z1 "${FEED}/${id}.${VERSION}.nupkg" | grep -q '^lib/' \
-        && fail "${id}: ships a lib/ folder, so the analyzer would flow to consumer output"
+# No lib/. An analyzer that reaches a consumer's output ships compiler machinery to run time.
+unzip -Z1 "${FEED}/DependencyModules.SourceGenerator.${VERSION}.nupkg" | grep -q '^lib/' \
+    && fail "DependencyModules.SourceGenerator: ships a lib/ folder, so the analyzer would flow to consumer output"
 
-    pass "${id} analyzer assembly is at analyzers/dotnet/cs/ with no lib/"
-done
+pass "DependencyModules.SourceGenerator analyzer assembly is at analyzers/dotnet/cs/ with no lib/"
 
 # The shipping libraries multi-target. A missing lib/ folder means one TFM quietly stopped being
 # produced, and consumers on it would resolve no assembly at all.
@@ -78,6 +76,7 @@ LIB_PACKAGES=(
     DependencyModules.Runtime
     DependencyModules.Testing
     DependencyModules.xUnit
+    DependencyModules.NUnit
     DependencyModules.NSubstitute
     DependencyModules.Moq
     DependencyModules.FakeItEasy
@@ -122,13 +121,11 @@ for pkg in "${FEED}"/*.nupkg; do
 done
 pass "all packages carry real description/readme/license metadata"
 
-# The generators are a compile-time concern; Roslyn is supplied by the host.
-for id in DependencyModules.SourceGenerator DependencyModules.Conventions; do
-    unzip -p "${FEED}/${id}.${VERSION}.nupkg" "${id}.nuspec" \
-        | grep -q 'id="Microsoft.CodeAnalysis' \
-        && fail "${id} leaks a Microsoft.CodeAnalysis dependency to consumers"
-    pass "${id} does not leak compiler dependencies"
-done
+# The generator is a compile-time concern; Roslyn is supplied by the host.
+unzip -p "${FEED}/DependencyModules.SourceGenerator.${VERSION}.nupkg" "DependencyModules.SourceGenerator.nuspec" \
+    | grep -q 'id="Microsoft.CodeAnalysis' \
+    && fail "DependencyModules.SourceGenerator leaks a Microsoft.CodeAnalysis dependency to consumers"
+pass "DependencyModules.SourceGenerator does not leak compiler dependencies"
 
 for TFM in "${TFMS[@]}"; do
 
@@ -182,7 +179,6 @@ cat >"${APP}/ConsumerApp.csproj" <<EOF
   <ItemGroup>
     <PackageReference Include="DependencyModules.Runtime" Version="${VERSION}"/>
     <PackageReference Include="DependencyModules.SourceGenerator" Version="${VERSION}"/>
-    <PackageReference Include="DependencyModules.Conventions" Version="${VERSION}"/>
     <!-- BuildServiceProvider lives in the DI implementation package, not Abstractions. -->
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="${DI_VERSION}"/>
   </ItemGroup>
@@ -190,9 +186,9 @@ cat >"${APP}/ConsumerApp.csproj" <<EOF
 EOF
 
 cat >"${APP}/Program.cs" <<'EOF'
-using DependencyModules.Conventions;
 using DependencyModules.Runtime;
 using DependencyModules.Runtime.Attributes;
+using DependencyModules.Runtime.Conventions;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ConsumerApp;
@@ -273,12 +269,18 @@ grep -rq 'PopulateServiceCollection' "${APP}/generated" \
     || fail "generated output is missing the module registration code"
 pass "generator emitted module registration code"
 
-# The convention analyzer is a separate package and loads independently of the main one.
+# Conventions are generated by DependencyModules.SourceGenerator rather than by a package of their
+# own, so a consumer referencing only the one analyzer package must still get them.
 grep -rq 'ConventionDependencies' "${APP}/generated" \
     || fail "convention generator produced no registrations in the consumer project"
+pass "convention registrations are generated by the main analyzer package"
+
+# The contracts are DependencyModules.Runtime's public API. Emitting them into the consumer as well
+# is what previously forced them to be internal, and made CS0436 unavoidable between two assemblies
+# that both emitted them and referenced each other.
 grep -rq 'interface IConventionModule' "${APP}/generated" \
-    || fail "convention contract types were not emitted into the consumer project"
-pass "convention generator emitted its contracts and registrations"
+    && fail "convention contracts were emitted into the consumer; they ship in DependencyModules.Runtime"
+pass "convention contracts are not duplicated into the consumer"
 
 # ExcludeGeneratedCodeFromCoverage=false must reach the generator via build/*.targets.
 if grep -rq 'ExcludeFromCodeCoverage' "${APP}/generated"; then

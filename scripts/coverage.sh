@@ -27,6 +27,7 @@ mkdir -p "${OUT}" "${RAW}"
 PROJECTS=(
     "tests/DependencyModules.Tests/DependencyModules.Tests.csproj"
     "integ-tests/SutProject.Tests/SutProject.Tests.csproj"
+    "integ-tests/SutProject.NUnitTests/SutProject.NUnitTests.csproj"
     "integ-tests/web/WebApiApp.Tests/WebApiApp.Tests.csproj"
 )
 
@@ -70,7 +71,7 @@ reportgenerator \
     "-targetdir:${OUT}" \
     "-reporttypes:Html;Cobertura;TextSummary;MarkdownSummaryGithub;Badges" \
     "-title:DependencyModules" \
-    "-assemblyfilters:+DependencyModules.Runtime;+DependencyModules.SourceGenerator;+DependencyModules.Conventions;+DependencyModules.Testing;+DependencyModules.xUnit;+DependencyModules.NSubstitute;+DependencyModules.Moq;+DependencyModules.FakeItEasy" \
+    "-assemblyfilters:+DependencyModules.Runtime;+DependencyModules.SourceGenerator;+DependencyModules.Testing;+DependencyModules.xUnit;+DependencyModules.NUnit;+DependencyModules.NSubstitute;+DependencyModules.Moq;+DependencyModules.FakeItEasy" \
     "-classfilters:-CSharpAuthor.*" \
     >/dev/null
 

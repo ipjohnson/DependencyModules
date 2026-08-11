@@ -186,7 +186,11 @@ public static class AttributeModelHelper {
             var type = typeOf.Type.GetTypeDefinition(context);
 
             if (type != null) {
-                return type;
+                // typeof(IRepo<>) binds to the unbound symbol, which carries the declaration's type
+                // parameters as its arguments. Re-emitting that verbatim writes typeof(IRepo<T>)
+                // into the generated module, where T is not in scope — CS0246, in generated code,
+                // for an attribute the developer wrote correctly.
+                return IsUnboundGeneric(typeOf.Type) ? type.ToUnboundGeneric() : type;
             }
         }
 
@@ -208,4 +212,12 @@ public static class AttributeModelHelper {
 
         return interfaces;
     }
+    /// <summary>
+    /// Whether the type was written as <c>Foo&lt;&gt;</c> rather than closed over anything.
+    /// </summary>
+    private static bool IsUnboundGeneric(TypeSyntax type) =>
+        type is GenericNameSyntax generic &&
+        generic.TypeArgumentList.Arguments.Count > 0 &&
+        generic.TypeArgumentList.Arguments.All(argument => argument is OmittedTypeArgumentSyntax);
+
 }

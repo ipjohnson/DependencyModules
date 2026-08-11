@@ -1,6 +1,9 @@
 using System.Diagnostics;
 using System.Text;
-using DependencyModules.Conventions;
+using CSharpAuthor;
+using DependencyModules.SourceGenerator.Impl;
+using DependencyModules.SourceGenerator.Impl.Models;
+using DependencyModules.SourceGenerator.Impl.Utilities;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.Extensions.DependencyInjection;
@@ -65,6 +68,10 @@ public static class Program {
                 Console.WriteLine($"{total,7}  {implementing,12}  {cold,8:F1}  {incremental,18:F1}");
             }
         }
+
+        Console.WriteLine();
+        Console.WriteLine("Frameworks stacked on the extension seam, 2000 classes:");
+        FrameworkStack(2000);
     }
 
     private static double Median(Func<double> measure) {
@@ -79,12 +86,104 @@ public static class Program {
         return timings[timings.Count / 2];
     }
 
+    /// <summary>
+    /// What a framework building on this library adds: its own module attribute as the entry point,
+    /// and its own attributes collected through the shared indexed provider.
+    /// </summary>
+    /// <remarks>
+    /// Third parties compile in the Impl source package and declare a generator of this shape, so
+    /// what a consuming project loads is this one plus one per framework. Measured rather than
+    /// assumed, because it is the cost every such framework imposes on every build.
+    /// </remarks>
+    private class ExtensionShapedGenerator(string attributeName) : BaseSourceGenerator {
+
+        protected override ITypeDefinition[] ModuleAttributeTypes() =>
+            new[] { TypeDefinition.Get("Bench.Framework", attributeName) };
+
+        protected override IEnumerable<IDependencyModuleSourceGenerator> AttributeSourceGenerators() {
+            yield return new FrameworkAttributeGenerator();
+        }
+    }
+
+    private class FrameworkAttributeGenerator : IDependencyModuleSourceGenerator {
+
+        private static readonly ITypeDefinition[] _attributes = {
+            TypeDefinition.Get("Bench.Framework", "EndpointAttribute"),
+            TypeDefinition.Get("Bench.Framework", "HandlerAttribute"),
+            TypeDefinition.Get("Bench.Framework", "JobAttribute"),
+        };
+
+        public void SetupGenerator(
+            IncrementalGeneratorInitializationContext context,
+            IncrementalValuesProvider<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> incrementalValueProvider) {
+
+            var models = AttributeModelCollector.Collect(
+                context,
+                _attributes,
+                static (syntaxContext, cancellation) =>
+                    ServiceModelUtility.GetServiceModel(syntaxContext, cancellation) ?? ServiceModel.Ignore,
+                new ServiceModelComparer(),
+                ServiceModel.Ignore);
+
+            context.RegisterSourceOutput(
+                incrementalValueProvider.Collect().Combine(models),
+                static (productionContext, data) => { });
+        }
+    }
+
+    private static void FrameworkStack(int total) {
+        Console.WriteLine();
+        Console.WriteLine("analyzers loaded                          cold ms   after one edit ms");
+        Console.WriteLine("--------------------------------------------------------------------");
+
+        for (var frameworks = 0; frameworks <= 3; frameworks++) {
+            var count = frameworks;
+
+            var cold = Median(() => Run(BuildSources(total, total / 4), count, cold: true));
+            var incremental = Median(() => Run(BuildSources(total, total / 4), count, cold: false));
+
+            var label = count == 0
+                ? "DependencyModules only"
+                : $"DependencyModules + {count} framework generator(s)";
+
+            Console.WriteLine($"{label,-40} {cold,8:F1} {incremental,18:F1}");
+        }
+    }
+
+    private static double Run(string[] sources, int frameworks, bool cold) {
+        var compilation = Compile(sources);
+
+        var generators = new List<ISourceGenerator> {
+            new SourceGenerator.SourceGenerator().AsSourceGenerator()
+        };
+
+        for (var i = 0; i < frameworks; i++) {
+            generators.Add(new ExtensionShapedGenerator($"Framework{i}Attribute").AsSourceGenerator());
+        }
+
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(generators);
+
+        if (cold) {
+            return Time(() => driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out _));
+        }
+
+        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out _);
+
+        var options = new CSharpParseOptions(LanguageVersion.Latest);
+
+        var edited = compilation.ReplaceSyntaxTree(
+            compilation.SyntaxTrees.ElementAt(1),
+            CSharpSyntaxTree.ParseText(sources[1].Replace("_seed = 0", "_seed = 42"), options));
+
+        return Time(() => driver.RunGeneratorsAndUpdateCompilation(edited, out _, out _));
+    }
+
     private static double ColdRun(string[] sources) {
         var compilation = Compile(sources);
 
         // A fresh driver each run: reusing one would measure the incremental cache instead.
         var driver = CSharpGeneratorDriver.Create(
-            new ConventionSourceGenerator().AsSourceGenerator());
+            new SourceGenerator.SourceGenerator().AsSourceGenerator());
 
         return Time(() => driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out _));
     }
@@ -98,7 +197,7 @@ public static class Program {
         var compilation = Compile(sources);
 
         GeneratorDriver driver = CSharpGeneratorDriver.Create(
-            new ConventionSourceGenerator().AsSourceGenerator());
+            new SourceGenerator.SourceGenerator().AsSourceGenerator());
 
         driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out _);
 
@@ -145,7 +244,7 @@ public static class Program {
         var builder = new StringBuilder();
 
         builder.AppendLine("using DependencyModules.Runtime.Attributes;");
-        builder.AppendLine("using DependencyModules.Conventions;");
+        builder.AppendLine("using DependencyModules.Runtime.Conventions;");
         builder.AppendLine("namespace BenchNamespace;");
         builder.AppendLine("[DependencyModule]");
         builder.AppendLine("public partial class BenchModule : IConventionModule {");

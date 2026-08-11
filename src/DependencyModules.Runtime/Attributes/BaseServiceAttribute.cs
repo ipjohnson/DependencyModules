@@ -32,9 +32,31 @@ public enum RegistrationType {
 }
 
 /// <summary>
-/// Represents an interface for attributes used to define service registration metadata in
-/// dependency injection frameworks.
+/// The shape of a service registration attribute: what it registers as, under what key, with what
+/// lifetime, and by which registration method.
 /// </summary>
+/// <remarks>
+/// <para>
+/// <b>Descriptive, not a discovery mechanism.</b> Implementing this interface does not make an
+/// attribute one the generator reads. Nothing in the generator tests for it — registration
+/// attributes are matched by type, through the names a generator declares, because that is what
+/// keeps them on <c>ForAttributeWithMetadataName</c> and therefore on Roslyn's attribute index.
+/// Discovery by interface would mean a syntax provider over every node in the compilation, with the
+/// transform re-running per keystroke, which is the cost this generator is built to avoid.
+/// </para>
+/// <para>
+/// A framework wanting its own registration attributes to be first class declares them to its own
+/// generator instead: derive from <c>BaseSourceGenerator</c>, name the module attribute in
+/// <c>ModuleAttributeTypes()</c>, and collect the rest through <c>AttributeSourceGenerators()</c>.
+/// A generator built that way stacks with this one for about 0.4 ms per keystroke.
+/// </para>
+/// <para>
+/// What the interface is for is reading a registration uniformly at run time or through reflection
+/// — <c>[SingletonService]</c>, <c>[ScopedService]</c>, <c>[TransientService]</c> and
+/// <c>[CrossWireService]</c> all answer to it — and giving those attributes one place to define what
+/// a registration consists of.
+/// </para>
+/// </remarks>
 public interface  IServiceRegistrationAttribute {
     /// <summary>
     /// Gets or sets a key used for service registration,

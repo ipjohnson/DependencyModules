@@ -295,7 +295,8 @@ public static class InterceptedMemberReader {
                 parameter.Name,
                 EscapeIdentifier(parameter.Name),
                 parameter.Type.GetTypeDefinition(),
-                RenderDefaultValue(parameter)));
+                RenderDefaultValue(parameter),
+                parameter.IsParams));
         }
 
         return parameters;

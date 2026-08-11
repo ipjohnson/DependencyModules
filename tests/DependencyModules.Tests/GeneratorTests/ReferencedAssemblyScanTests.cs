@@ -41,7 +41,7 @@ public class ReferencedAssemblyScanTests {
     private const string Preamble =
         """
         using DependencyModules.Runtime.Attributes;
-        using DependencyModules.Conventions;
+        using DependencyModules.Runtime.Conventions;
         using ThePackage;
 
         namespace TestNamespace;
@@ -56,12 +56,11 @@ public class ReferencedAssemblyScanTests {
 
         var result = GeneratorTestHarness.Run(
             new Dictionary<string, string> { ["Test.cs"] = Preamble + module },
-            withConventions: true,
             additionalReferences: references);
 
         var assembly = compile
             ? GeneratedAssembly.Create(
-                Preamble + module, withConventions: true, additionalReferences: references)
+                Preamble + module, additionalReferences: references)
             : null;
 
         return (result, assembly);

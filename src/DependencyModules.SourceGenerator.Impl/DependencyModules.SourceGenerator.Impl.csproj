@@ -39,6 +39,21 @@
             <PackagePath>src/DependencyModules.SourceGenerator/</PackagePath>
             <PackageCopyToOutput>true</PackageCopyToOutput>
         </Content>
+        <!--
+            Convention registration and decoration, so a framework building on this seam gets them
+            against its own module attribute rather than only against [DependencyModule].
+            ConventionGenerator is the single emission stage: it owns convention registrations and
+            every decoration, because a generic decorator has to be closed over the type arguments
+            each registration used and both halves of that live here.
+
+            Packed as a tree rather than file by file — it depends on its own Models and Utilities,
+            and shipping the entry point without them compiles nowhere.
+        -->
+        <Content Include="..\DependencyModules.SourceGenerator\Conventions\**\*.cs" Visible="true">
+            <Pack>true</Pack>
+            <PackagePath>src/DependencyModules.SourceGenerator/Conventions/</PackagePath>
+            <PackageCopyToOutput>true</PackageCopyToOutput>
+        </Content>
     </ItemGroup>
 
     <!-- These deps intentionally flow: consumers compile the shipped sources into their own generator. -->

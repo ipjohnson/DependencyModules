@@ -7,6 +7,6 @@ public class CustomDependencyTestCase {
     [ModuleTest]
     [CustomServiceProvider]
     public void TestCase(ICustomTestDependency dependency) {
-        //Assert.NotNull(dependency);
+        Assert.NotNull(dependency);
     }
 }

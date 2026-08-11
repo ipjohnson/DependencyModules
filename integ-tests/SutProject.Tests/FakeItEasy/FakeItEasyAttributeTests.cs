@@ -1,4 +1,5 @@
 using DependencyModules.FakeItEasy;
+using DependencyModules.Testing.Attributes;
 using DependencyModules.xUnit.Attributes;
 using FakeItEasy;
 using Xunit;

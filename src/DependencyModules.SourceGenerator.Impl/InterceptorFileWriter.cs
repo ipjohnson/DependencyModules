@@ -253,6 +253,10 @@ public class InterceptorFileWriter {
         foreach (var parameter in member.Parameters) {
             var declared = method.AddParameter(parameter.Type, parameter.Identifier);
 
+            // Dropping params does not merely lose sugar: an optional parameter ahead of it becomes
+            // an optional parameter followed by a required one, which the compiler refuses.
+            declared.IsParams = parameter.IsParams;
+
             if (parameter.DefaultValue != null) {
                 declared.DefaultValue = new CodeOutputComponent(parameter.DefaultValue) { Indented = false };
             }

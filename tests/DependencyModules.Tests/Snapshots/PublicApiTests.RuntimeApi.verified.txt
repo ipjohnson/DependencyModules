@@ -114,6 +114,51 @@ namespace DependencyModules.Runtime.Attributes
         protected override Microsoft.Extensions.DependencyInjection.ServiceLifetime Lifetime { get; }
     }
 }
+namespace DependencyModules.Runtime.Conventions
+{
+    public interface IConventionDefinitions
+    {
+        DependencyModules.Runtime.Conventions.IConventionRegistration RegisterAll();
+        DependencyModules.Runtime.Conventions.IConventionRegistration RegisterAll(System.Type serviceType);
+        DependencyModules.Runtime.Conventions.IConventionRegistration RegisterAll<TService>();
+    }
+    public interface IConventionModule
+    {
+        void Conventions(DependencyModules.Runtime.Conventions.IConventionDefinitions conventions);
+    }
+    public interface IConventionRegistration
+    {
+        DependencyModules.Runtime.Conventions.IConventionRegistration AlsoAsSelf();
+        DependencyModules.Runtime.Conventions.IConventionRegistration As<TService>();
+        DependencyModules.Runtime.Conventions.IConventionRegistration AsMatchingInterface();
+        DependencyModules.Runtime.Conventions.IConventionRegistration AsScoped();
+        DependencyModules.Runtime.Conventions.IConventionRegistration AsSelf();
+        DependencyModules.Runtime.Conventions.IConventionRegistration AsSelfWithInterfaces();
+        DependencyModules.Runtime.Conventions.IConventionRegistration AsSingleton();
+        DependencyModules.Runtime.Conventions.IConventionRegistration AsTransient();
+        DependencyModules.Runtime.Conventions.IConventionRegistration IfEnvironment(params string[] environmentNames);
+        DependencyModules.Runtime.Conventions.IConventionRegistration IfEnvironmentValue(string key);
+        DependencyModules.Runtime.Conventions.IConventionRegistration IfEnvironmentValue(string key, string value);
+        DependencyModules.Runtime.Conventions.IConventionRegistration IfNotEnvironment(params string[] environmentNames);
+        DependencyModules.Runtime.Conventions.IConventionRegistration IfNotEnvironmentValue(string key);
+        DependencyModules.Runtime.Conventions.IConventionRegistration IfNotEnvironmentValue(string key, string value);
+        DependencyModules.Runtime.Conventions.IConventionRegistration InAssemblyOf<TMarker>();
+        DependencyModules.Runtime.Conventions.IConventionRegistration InExactNamespaces(params string[] namespaces);
+        DependencyModules.Runtime.Conventions.IConventionRegistration InNamespaceOf<TMarker>();
+        DependencyModules.Runtime.Conventions.IConventionRegistration InNamespaces(params string[] namespaces);
+        DependencyModules.Runtime.Conventions.IConventionRegistration IncludeBaseClasses();
+        DependencyModules.Runtime.Conventions.IConventionRegistration NotInNamespaceOf<TMarker>();
+        DependencyModules.Runtime.Conventions.IConventionRegistration NotInNamespaces(params string[] namespaces);
+        DependencyModules.Runtime.Conventions.IConventionRegistration Using(DependencyModules.Runtime.Attributes.RegistrationType registrationType);
+        DependencyModules.Runtime.Conventions.IConventionRegistration WithAttribute<TAttribute>()
+            where TAttribute : System.Attribute;
+        DependencyModules.Runtime.Conventions.IConventionRegistration WithKey(object key);
+        DependencyModules.Runtime.Conventions.IConventionRegistration WithName(params string[] patterns);
+        DependencyModules.Runtime.Conventions.IConventionRegistration WithoutAttribute<TAttribute>()
+            where TAttribute : System.Attribute;
+        DependencyModules.Runtime.Conventions.IConventionRegistration WithoutName(params string[] patterns);
+    }
+}
 namespace DependencyModules.Runtime.Features
 {
     public class FeatureApplicator<TFeature> : DependencyModules.Runtime.Features.IFeatureApplicator
@@ -142,7 +187,8 @@ namespace DependencyModules.Runtime.Helpers
     public static class DecoratorHelper
     {
         public static void Decorate(Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Type serviceType, System.Func<System.IServiceProvider, object, object> decoratorFactory) { }
-        public static void Decorate(Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Type serviceType, System.Type decoratorType) { }
+        public static void Decorate<TService>(Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Type decoratorIdentity, System.Func<System.IServiceProvider, TService, TService> decoratorFactory)
+            where TService :  class { }
     }
     public readonly struct DecoratorRegistration
     {
@@ -158,7 +204,7 @@ namespace DependencyModules.Runtime.Helpers
         public static int Add(DependencyModules.Runtime.Helpers.RegistryFunc registryFunc) { }
         public static int Add<TInstance>(System.Func<System.IServiceProvider, TInstance> provider, Microsoft.Extensions.DependencyInjection.ServiceLifetime lifetime = 2)
             where TInstance :  class { }
-        public static int Add<TInstance>(System.Type implementationType, Microsoft.Extensions.DependencyInjection.ServiceLifetime lifetime = 2, object? serviceKey = null)
+        public static int Add<TInstance>([System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors)] System.Type implementationType, Microsoft.Extensions.DependencyInjection.ServiceLifetime lifetime = 2, object? serviceKey = null)
             where TInstance :  class { }
         public static int AddDecorator(DependencyModules.Runtime.Helpers.EnvironmentRegistryFunc registryFunc, int order = 0) { }
         public static int AddDecorator(DependencyModules.Runtime.Helpers.RegistryFunc registryFunc, int order = 0) { }

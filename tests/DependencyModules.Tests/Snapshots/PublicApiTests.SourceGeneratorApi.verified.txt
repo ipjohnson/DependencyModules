@@ -770,58 +770,216 @@ namespace CSharpAuthor
         protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
     }
 }
-namespace DependencyModules.SourceGenerator
+namespace DependencyModules.Conventions
 {
-    public class DecoratorSourceGenerator : DependencyModules.SourceGenerator.Impl.BaseAttributeSourceGenerator<DependencyModules.SourceGenerator.Impl.Models.DecoratorModel>
+    public static class ConventionContractSource
     {
-        public DecoratorSourceGenerator() { }
-        protected override DependencyModules.SourceGenerator.Impl.Models.DecoratorModel IgnoredModel { get; }
-        protected override string LoggerName { get; }
-        protected override System.Collections.Generic.IEnumerable<CSharpAuthor.ITypeDefinition> AttributeTypes() { }
-        protected override DependencyModules.SourceGenerator.Impl.Models.DecoratorModel GenerateAttributeModel(Microsoft.CodeAnalysis.GeneratorAttributeSyntaxContext context, System.Threading.CancellationToken cancellationToken) { }
-        protected override void GenerateSourceOutput(Microsoft.CodeAnalysis.SourceProductionContext context, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
-                "Left",
-                "Right",
-                "Left",
-                "Right"})] System.ValueTuple<System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>>, System.Collections.Immutable.ImmutableArray<DependencyModules.SourceGenerator.Impl.Models.DecoratorModel>> inputData, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
-        protected override System.Collections.Generic.IEqualityComparer<DependencyModules.SourceGenerator.Impl.Models.DecoratorModel> GetComparer() { }
+        public const string ConventionMethod = "Conventions";
+        public const string ConventionModule = "IConventionModule";
+        public const string Namespace = "DependencyModules.Runtime.Conventions";
     }
-    public class InterceptorSourceGenerator : DependencyModules.SourceGenerator.Impl.BaseAttributeSourceGenerator<DependencyModules.SourceGenerator.Impl.Models.InterceptorModel>
+    public class ConventionGenerator : DependencyModules.SourceGenerator.Impl.IDependencyModuleSourceGenerator
     {
-        public InterceptorSourceGenerator() { }
-        protected override DependencyModules.SourceGenerator.Impl.Models.InterceptorModel IgnoredModel { get; }
-        protected override string LoggerName { get; }
-        protected override System.Collections.Generic.IEnumerable<CSharpAuthor.ITypeDefinition> AttributeTypes() { }
-        protected override DependencyModules.SourceGenerator.Impl.Models.InterceptorModel GenerateAttributeModel(Microsoft.CodeAnalysis.GeneratorAttributeSyntaxContext context, System.Threading.CancellationToken cancellationToken) { }
-        protected override void GenerateSourceOutput(Microsoft.CodeAnalysis.SourceProductionContext context, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
+        public ConventionGenerator() { }
+        public void SetupGenerator(Microsoft.CodeAnalysis.IncrementalGeneratorInitializationContext context, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
                 "Left",
-                "Right",
-                "Left",
-                "Right"})] System.ValueTuple<System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>>, System.Collections.Immutable.ImmutableArray<DependencyModules.SourceGenerator.Impl.Models.InterceptorModel>> inputData, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
-        protected override System.Collections.Generic.IEqualityComparer<DependencyModules.SourceGenerator.Impl.Models.InterceptorModel> GetComparer() { }
+                "Right"})] Microsoft.CodeAnalysis.IncrementalValuesProvider<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>> incrementalValueProvider) { }
     }
-    public class ServiceSourceGenerator : DependencyModules.SourceGenerator.Impl.BaseAttributeSourceGenerator<DependencyModules.SourceGenerator.Impl.Models.ServiceModel>
+    public class ModuleDecorators : System.IEquatable<DependencyModules.Conventions.ModuleDecorators>
     {
-        public ServiceSourceGenerator() { }
-        protected override DependencyModules.SourceGenerator.Impl.Models.ServiceModel IgnoredModel { get; }
-        protected override System.Collections.Generic.IEnumerable<CSharpAuthor.ITypeDefinition> AttributeTypes() { }
-        protected override DependencyModules.SourceGenerator.Impl.Models.ServiceModel GenerateAttributeModel(Microsoft.CodeAnalysis.GeneratorAttributeSyntaxContext context, System.Threading.CancellationToken cancellationToken) { }
-        protected override void GenerateSourceOutput(Microsoft.CodeAnalysis.SourceProductionContext context, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
-                "Left",
-                "Right",
-                "Left",
-                "Right"})] System.ValueTuple<System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>>, System.Collections.Immutable.ImmutableArray<DependencyModules.SourceGenerator.Impl.Models.ServiceModel>> inputData, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
-        protected void GenerateSourceOutput(Microsoft.CodeAnalysis.SourceProductionContext context, DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel configurationModel, System.Collections.Immutable.ImmutableArray<DependencyModules.SourceGenerator.Impl.Models.ServiceModel> serviceModels, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
-        protected override System.Collections.Generic.IEqualityComparer<DependencyModules.SourceGenerator.Impl.Models.ServiceModel> GetComparer() { }
+        public ModuleDecorators(DependencyModules.Conventions.Models.EquatableList<DependencyModules.Conventions.ResolvedModuleDecorator> Resolved, Microsoft.CodeAnalysis.Compilation Compilation) { }
+        public Microsoft.CodeAnalysis.Compilation Compilation { get; init; }
+        public DependencyModules.Conventions.Models.EquatableList<DependencyModules.Conventions.ResolvedModuleDecorator> Resolved { get; init; }
+        public virtual bool Equals(DependencyModules.Conventions.ModuleDecorators? other) { }
+        public override int GetHashCode() { }
     }
-    [Microsoft.CodeAnalysis.Generator]
-    public class SourceGenerator : DependencyModules.SourceGenerator.Impl.BaseSourceGenerator
+    public class ResolvedModuleDecorator : System.IEquatable<DependencyModules.Conventions.ResolvedModuleDecorator>
     {
-        public SourceGenerator() { }
-        protected override System.Collections.Generic.IEnumerable<DependencyModules.SourceGenerator.Impl.IDependencyModuleSourceGenerator> AttributeSourceGenerators() { }
-        protected override void SetupRootGenerator(Microsoft.CodeAnalysis.IncrementalGeneratorInitializationContext context, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
-                "Left",
-                "Right"})] Microsoft.CodeAnalysis.IncrementalValueProvider<System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>>> valuesProvider) { }
+        public ResolvedModuleDecorator(CSharpAuthor.ITypeDefinition ModuleType, DependencyModules.SourceGenerator.Impl.Models.DecoratorModel Model, string? Reason) { }
+        public DependencyModules.SourceGenerator.Impl.Models.DecoratorModel Model { get; init; }
+        public CSharpAuthor.ITypeDefinition ModuleType { get; init; }
+        public string? Reason { get; init; }
+    }
+}
+namespace DependencyModules.Conventions.Models
+{
+    public class AttributeFilterModel : System.IEquatable<DependencyModules.Conventions.Models.AttributeFilterModel>
+    {
+        public AttributeFilterModel(string TypeKey, bool Exclude) { }
+        public bool Exclude { get; init; }
+        public string TypeKey { get; init; }
+    }
+    public class ConventionCandidateModel : System.IEquatable<DependencyModules.Conventions.Models.ConventionCandidateModel>
+    {
+        public static readonly DependencyModules.Conventions.Models.ConventionCandidateModel Ignore;
+        public ConventionCandidateModel(CSharpAuthor.ITypeDefinition ImplementationType, System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ImplementedInterfaceModel> DeclaredInterfaces, System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ImplementedInterfaceModel> BaseClassInterfaces, DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? Constructor, bool HasAccessibleConstructor, DependencyModules.Conventions.Models.LocationModel Location, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? Conditions = null, System.Collections.Generic.IReadOnlyList<string>? AttributeTypeKeys = null, string? AssemblyName = null) { }
+        public string? AssemblyName { get; init; }
+        public System.Collections.Generic.IReadOnlyList<string>? AttributeTypeKeys { get; init; }
+        public System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ImplementedInterfaceModel> BaseClassInterfaces { get; init; }
+        public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? Conditions { get; init; }
+        public DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? Constructor { get; init; }
+        public System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ImplementedInterfaceModel> DeclaredInterfaces { get; init; }
+        public bool HasAccessibleConstructor { get; init; }
+        public CSharpAuthor.ITypeDefinition ImplementationType { get; init; }
+        public bool IsIgnored { get; }
+        public DependencyModules.Conventions.Models.LocationModel Location { get; init; }
+        public virtual bool Equals(DependencyModules.Conventions.Models.ConventionCandidateModel? other) { }
+        public override int GetHashCode() { }
+        public System.Collections.Generic.IEnumerable<DependencyModules.Conventions.Models.ImplementedInterfaceModel> InterfacesInReach(bool includeBaseClasses) { }
+    }
+    public class ConventionModel : System.IEquatable<DependencyModules.Conventions.Models.ConventionModel>
+    {
+        public ConventionModel(
+                    CSharpAuthor.ITypeDefinition? ServiceType,
+                    string? DefinitionKey,
+                    bool IsOpenGeneric,
+                    DependencyModules.SourceGenerator.Impl.Models.ServiceLifestyle? Lifestyle,
+                    bool IncludeBaseClasses,
+                    DependencyModules.Conventions.Models.LocationModel Location,
+                    DependencyModules.Conventions.Models.ConventionRegisterAs RegisterAs = 0,
+                    System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.NamespaceFilterModel>? NamespaceFilters = null,
+                    DependencyModules.SourceGenerator.Impl.Models.RegistrationType? RegistrationType = default,
+                    object? Key = null,
+                    System.Collections.Generic.IReadOnlyList<string>? KeyNamespaces = null,
+                    System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.AttributeFilterModel>? AttributeFilters = null,
+                    System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.NameFilterModel>? NameFilters = null,
+                    CSharpAuthor.ITypeDefinition? ExplicitServiceType = null,
+                    string? AssemblyName = null,
+                    System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? Conditions = null) { }
+        public string? AssemblyName { get; init; }
+        public System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.AttributeFilterModel>? AttributeFilters { get; init; }
+        public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? Conditions { get; init; }
+        public string? DefinitionKey { get; init; }
+        public string DisplayName { get; }
+        public CSharpAuthor.ITypeDefinition? ExplicitServiceType { get; init; }
+        public bool IncludeBaseClasses { get; init; }
+        public bool IsOpenGeneric { get; init; }
+        public object? Key { get; init; }
+        public System.Collections.Generic.IReadOnlyList<string>? KeyNamespaces { get; init; }
+        public DependencyModules.SourceGenerator.Impl.Models.ServiceLifestyle? Lifestyle { get; init; }
+        public DependencyModules.Conventions.Models.LocationModel Location { get; init; }
+        public System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.NameFilterModel>? NameFilters { get; init; }
+        public System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.NamespaceFilterModel>? NamespaceFilters { get; init; }
+        public DependencyModules.Conventions.Models.ConventionRegisterAs RegisterAs { get; init; }
+        public DependencyModules.SourceGenerator.Impl.Models.RegistrationType? RegistrationType { get; init; }
+        public CSharpAuthor.ITypeDefinition? ServiceType { get; init; }
+        public bool AttributesMatch(System.Collections.Generic.IReadOnlyList<string>? candidateAttributes) { }
+        public virtual bool Equals(DependencyModules.Conventions.Models.ConventionModel? other) { }
+        public override int GetHashCode() { }
+        public bool NamespaceMatches(string? candidateNamespace) { }
+    }
+    public class ConventionModuleModel : System.IEquatable<DependencyModules.Conventions.Models.ConventionModuleModel>
+    {
+        public static readonly DependencyModules.Conventions.Models.ConventionModuleModel Ignore;
+        public ConventionModuleModel(CSharpAuthor.ITypeDefinition ModuleType, System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ConventionModel> Conventions, System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.UnreadableStatementModel> Unreadable) { }
+        public System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ConventionModel> Conventions { get; init; }
+        public bool IsIgnored { get; }
+        public CSharpAuthor.ITypeDefinition ModuleType { get; init; }
+        public System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.UnreadableStatementModel> Unreadable { get; init; }
+        public virtual bool Equals(DependencyModules.Conventions.Models.ConventionModuleModel? other) { }
+        public override int GetHashCode() { }
+    }
+    public enum ConventionRegisterAs
+    {
+        Interfaces = 0,
+        Self = 1,
+        SelfAndInterfaces = 2,
+        AlsoSelf = 3,
+        Explicit = 4,
+        MatchingInterface = 5,
+    }
+    public static class ConventionTypeKey
+    {
+        public static string For(CSharpAuthor.ITypeDefinition type) { }
+    }
+    public sealed class EquatableList<T> : System.Collections.Generic.IEnumerable<T>, System.Collections.Generic.IReadOnlyCollection<T>, System.Collections.Generic.IReadOnlyList<T>, System.Collections.IEnumerable
+    {
+        public EquatableList(System.Collections.Generic.IReadOnlyList<T> items) { }
+        public int Count { get; }
+        public T this[int index] { get; }
+        public override bool Equals(object? obj) { }
+        public System.Collections.Generic.IEnumerator<T> GetEnumerator() { }
+        public override int GetHashCode() { }
+    }
+    public class ImplementedInterfaceModel : System.IEquatable<DependencyModules.Conventions.Models.ImplementedInterfaceModel>
+    {
+        public ImplementedInterfaceModel(CSharpAuthor.ITypeDefinition InterfaceType, string DefinitionKey, string? ViaTypeName) { }
+        public string DefinitionKey { get; init; }
+        public CSharpAuthor.ITypeDefinition InterfaceType { get; init; }
+        public string? ViaTypeName { get; init; }
+    }
+    public class LocationModel : System.IEquatable<DependencyModules.Conventions.Models.LocationModel>
+    {
+        public static readonly DependencyModules.Conventions.Models.LocationModel None;
+        public LocationModel(string FilePath, int SpanStart, int SpanLength, int StartLine, int StartCharacter, int EndLine, int EndCharacter) { }
+        public int EndCharacter { get; init; }
+        public int EndLine { get; init; }
+        public string FilePath { get; init; }
+        public int SpanLength { get; init; }
+        public int SpanStart { get; init; }
+        public int StartCharacter { get; init; }
+        public int StartLine { get; init; }
+        public Microsoft.CodeAnalysis.Location ToLocation() { }
+        public Microsoft.CodeAnalysis.Location ToLocationOrNone() { }
+        public static DependencyModules.Conventions.Models.LocationModel From(Microsoft.CodeAnalysis.SyntaxNode node) { }
+    }
+    public class NameFilterModel : System.IEquatable<DependencyModules.Conventions.Models.NameFilterModel>
+    {
+        public NameFilterModel(string Pattern, bool Exclude) { }
+        public bool Exclude { get; init; }
+        public bool IsQualified { get; }
+        public string Pattern { get; init; }
+    }
+    public class NamespaceFilterModel : System.IEquatable<DependencyModules.Conventions.Models.NamespaceFilterModel>
+    {
+        public NamespaceFilterModel(string Namespace, bool Exact, bool Exclude) { }
+        public bool Exact { get; init; }
+        public bool Exclude { get; init; }
+        public string Namespace { get; init; }
+        public bool Covers(string? candidateNamespace) { }
+    }
+    public class UnreadableStatementModel : System.IEquatable<DependencyModules.Conventions.Models.UnreadableStatementModel>
+    {
+        public UnreadableStatementModel(string Text, string Reason, DependencyModules.Conventions.Models.LocationModel Location) { }
+        public DependencyModules.Conventions.Models.LocationModel Location { get; init; }
+        public string Reason { get; init; }
+        public string Text { get; init; }
+    }
+}
+namespace DependencyModules.Conventions.Utilities
+{
+    public static class ConventionCandidateCache
+    {
+        public static DependencyModules.Conventions.Models.ConventionCandidateModel GetOrAdd(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, System.Threading.CancellationToken cancellationToken) { }
+    }
+    public static class ConventionCandidateUtility
+    {
+        public static DependencyModules.Conventions.Models.ConventionCandidateModel GetCandidateModel(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, System.Threading.CancellationToken cancellationToken) { }
+        public static bool IsCandidate(Microsoft.CodeAnalysis.SyntaxNode node, System.Threading.CancellationToken cancellationToken) { }
+    }
+    public static class ConventionMatcher
+    {
+        public static System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ServiceModel> Match(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel, DependencyModules.Conventions.Models.ConventionModuleModel conventionModule, System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ConventionCandidateModel> candidates, System.Action<Microsoft.CodeAnalysis.Diagnostic> report, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
+    }
+    public static class ConventionModelUtility
+    {
+        public static DependencyModules.Conventions.Models.ConventionModuleModel GetConventionModuleModel(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, System.Threading.CancellationToken cancellationToken) { }
+        public static bool IsConventionModuleCandidate(Microsoft.CodeAnalysis.SyntaxNode node, System.Threading.CancellationToken cancellationToken) { }
+    }
+    public class ConventionRegistrationMatch : System.IEquatable<DependencyModules.Conventions.Utilities.ConventionRegistrationMatch>
+    {
+        public ConventionRegistrationMatch(DependencyModules.Conventions.Models.ConventionModel Convention, DependencyModules.Conventions.Models.ConventionCandidateModel Candidate, DependencyModules.Conventions.Models.ImplementedInterfaceModel? Interface) { }
+        public DependencyModules.Conventions.Models.ConventionCandidateModel Candidate { get; init; }
+        public DependencyModules.Conventions.Models.ConventionModel Convention { get; init; }
+        public DependencyModules.Conventions.Models.ImplementedInterfaceModel? Interface { get; init; }
+    }
+    public static class DeclarationStamp
+    {
+        public static long Of(Microsoft.CodeAnalysis.Compilation compilation) { }
+    }
+    public static class MetadataCandidateUtility
+    {
+        public static System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ConventionCandidateModel> Collect(System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ConventionModuleModel> conventionModules, Microsoft.CodeAnalysis.Compilation compilation, System.Threading.CancellationToken cancellationToken) { }
     }
 }
 namespace DependencyModules.SourceGenerator.Impl
@@ -886,7 +1044,7 @@ namespace DependencyModules.SourceGenerator.Impl
     public class DecoratorFileWriter
     {
         public DecoratorFileWriter() { }
-        public string Write(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel configurationModel, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.DecoratorModel> decorators) { }
+        public string Write(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel configurationModel, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.DecoratorModel> decorators, string uniqueId = "") { }
     }
     public class DependencyFileWriter
     {
@@ -1074,13 +1232,19 @@ namespace DependencyModules.SourceGenerator.Impl.Models
     public class DecoratorModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.DecoratorModel>
     {
         public static readonly DependencyModules.SourceGenerator.Impl.Models.DecoratorModel Ignore;
-        public DecoratorModel(CSharpAuthor.ITypeDefinition ServiceType, CSharpAuthor.ITypeDefinition DecoratorType, int Order, CSharpAuthor.ITypeDefinition? Realm, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? Conditions = null) { }
+        public DecoratorModel(CSharpAuthor.ITypeDefinition ServiceType, CSharpAuthor.ITypeDefinition DecoratorType, int Order, CSharpAuthor.ITypeDefinition? Realm, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? Conditions = null, DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? Constructor = null, int InnerParameterIndex = -1, bool TypeParametersMatchService = true) { }
+        public bool CanMonomorphise { get; }
         public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? Conditions { get; init; }
+        public DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? Constructor { get; init; }
         public CSharpAuthor.ITypeDefinition DecoratorType { get; init; }
+        public bool HasUnboundServiceType { get; }
+        public int InnerParameterIndex { get; init; }
         public bool IsIgnored { get; }
+        public bool IsOpenGeneric { get; }
         public int Order { get; init; }
         public CSharpAuthor.ITypeDefinition? Realm { get; init; }
         public CSharpAuthor.ITypeDefinition ServiceType { get; init; }
+        public bool TypeParametersMatchService { get; init; }
     }
     public class DecoratorModelComparer : System.Collections.Generic.IEqualityComparer<DependencyModules.SourceGenerator.Impl.Models.DecoratorModel>
     {
@@ -1159,9 +1323,10 @@ namespace DependencyModules.SourceGenerator.Impl.Models
     }
     public class InterceptedParameterModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.InterceptedParameterModel>
     {
-        public InterceptedParameterModel(string Name, string Identifier, CSharpAuthor.ITypeDefinition Type, string? DefaultValue) { }
+        public InterceptedParameterModel(string Name, string Identifier, CSharpAuthor.ITypeDefinition Type, string? DefaultValue, bool IsParams = false) { }
         public string? DefaultValue { get; init; }
         public string Identifier { get; init; }
+        public bool IsParams { get; init; }
         public string Name { get; init; }
         public CSharpAuthor.ITypeDefinition Type { get; init; }
     }
@@ -1356,6 +1521,10 @@ namespace DependencyModules.SourceGenerator.Impl.Models
 }
 namespace DependencyModules.SourceGenerator.Impl.Utilities
 {
+    public static class AttributeModelCollector
+    {
+        public static Microsoft.CodeAnalysis.IncrementalValueProvider<System.Collections.Immutable.ImmutableArray<TModel>> Collect<TModel>(Microsoft.CodeAnalysis.IncrementalGeneratorInitializationContext context, CSharpAuthor.ITypeDefinition[] attributeTypes, System.Func<Microsoft.CodeAnalysis.GeneratorAttributeSyntaxContext, System.Threading.CancellationToken, TModel> generate, System.Collections.Generic.IEqualityComparer<TModel> comparer, TModel ignored) { }
+    }
     public static class AttributeModelHelper
     {
         public static DependencyModules.SourceGenerator.Impl.Models.AttributeModel? GetAttribute(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, Microsoft.CodeAnalysis.CSharp.Syntax.AttributeSyntax attribute) { }
@@ -1385,10 +1554,27 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities
         protected abstract bool TestForTypes(Microsoft.CodeAnalysis.SyntaxNode node, System.Threading.CancellationToken token);
         public bool Where(Microsoft.CodeAnalysis.SyntaxNode node, System.Threading.CancellationToken token) { }
     }
+    public static class ConstructorArgumentWriter
+    {
+        public static object[] Arguments(CSharpAuthor.ParameterDefinition serviceProvider, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ParameterInfoModel> parameters) { }
+        public static object[] Arguments(CSharpAuthor.ParameterDefinition serviceProvider, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ParameterInfoModel> parameters, int suppliedIndex, object? supplied) { }
+    }
+    public static class DecoratorConstraintChecker
+    {
+        public static bool CanClose(Microsoft.CodeAnalysis.Compilation compilation, CSharpAuthor.ITypeDefinition decoratorType, CSharpAuthor.GenericTypeDefinition closedService) { }
+    }
+    public static class DecoratorExpansion
+    {
+        public static System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.DecoratorModel> Expand(System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.DecoratorModel> decorators, System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> registeredServiceTypes, bool includeNonGeneric = true, System.Func<CSharpAuthor.ITypeDefinition, CSharpAuthor.GenericTypeDefinition, bool>? canClose = null) { }
+    }
     public static class DecoratorModelUtility
     {
         public static DependencyModules.SourceGenerator.Impl.Models.DecoratorModel? GetDecoratorModel(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, System.Threading.CancellationToken cancellationToken) { }
         public static System.Collections.Generic.IEnumerable<DependencyModules.SourceGenerator.Impl.Models.DecoratorModel> GetModuleDeclaredDecorators(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel) { }
+    }
+    public static class DecoratorTypeUtility
+    {
+        public static DependencyModules.SourceGenerator.Impl.Models.DecoratorModel? Close(DependencyModules.SourceGenerator.Impl.Models.DecoratorModel decorator, CSharpAuthor.GenericTypeDefinition closedService) { }
     }
     public class EntryModelUtil
     {
@@ -1426,6 +1612,7 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities
     public static class ITypeDefinitionExtensions
     {
         public static string GetFileNameHint(this CSharpAuthor.ITypeDefinition typeDefinition, string rootNamespace, string uniquePart) { }
+        public static CSharpAuthor.ITypeDefinition ToUnboundGeneric(this CSharpAuthor.ITypeDefinition type) { }
     }
     public static class InterceptedMemberReader
     {
@@ -1435,11 +1622,25 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities
     {
         public static DependencyModules.SourceGenerator.Impl.Models.InterceptorModel GetInterceptorModel(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, System.Threading.CancellationToken cancellationToken) { }
     }
+    public static class ModuleDecoratorResolver
+    {
+        public static System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Utilities.ModuleDecoratorResolver.Resolution> Resolve(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel, Microsoft.CodeAnalysis.Compilation compilation, System.Threading.CancellationToken cancellationToken) { }
+        public class Resolution : System.IEquatable<DependencyModules.SourceGenerator.Impl.Utilities.ModuleDecoratorResolver.Resolution>
+        {
+            public Resolution(DependencyModules.SourceGenerator.Impl.Models.DecoratorModel Model, string? Reason) { }
+            public DependencyModules.SourceGenerator.Impl.Models.DecoratorModel Model { get; init; }
+            public string? Reason { get; init; }
+        }
+    }
     public class ServiceModelUtility
     {
         public ServiceModelUtility() { }
         public static DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? GetConstructorInfo(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, Microsoft.CodeAnalysis.SyntaxNode node, System.Threading.CancellationToken cancellationToken) { }
         public static DependencyModules.SourceGenerator.Impl.Models.ServiceModel? GetServiceModel(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, System.Threading.CancellationToken cancellationToken) { }
+    }
+    public static class SymbolConstructorReader
+    {
+        public static DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? Read(Microsoft.CodeAnalysis.INamedTypeSymbol type) { }
     }
     public static class SyntaxNodeExtensions
     {
@@ -1492,5 +1693,45 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities
     {
         public UsageAttributeComponent(string usage) { }
         protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+}
+namespace DependencyModules.SourceGenerator
+{
+    public class InterceptorSourceGenerator : DependencyModules.SourceGenerator.Impl.BaseAttributeSourceGenerator<DependencyModules.SourceGenerator.Impl.Models.InterceptorModel>
+    {
+        public InterceptorSourceGenerator() { }
+        protected override DependencyModules.SourceGenerator.Impl.Models.InterceptorModel IgnoredModel { get; }
+        protected override string LoggerName { get; }
+        protected override System.Collections.Generic.IEnumerable<CSharpAuthor.ITypeDefinition> AttributeTypes() { }
+        protected override DependencyModules.SourceGenerator.Impl.Models.InterceptorModel GenerateAttributeModel(Microsoft.CodeAnalysis.GeneratorAttributeSyntaxContext context, System.Threading.CancellationToken cancellationToken) { }
+        protected override void GenerateSourceOutput(Microsoft.CodeAnalysis.SourceProductionContext context, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Left",
+                "Right",
+                "Left",
+                "Right"})] System.ValueTuple<System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>>, System.Collections.Immutable.ImmutableArray<DependencyModules.SourceGenerator.Impl.Models.InterceptorModel>> inputData, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
+        protected override System.Collections.Generic.IEqualityComparer<DependencyModules.SourceGenerator.Impl.Models.InterceptorModel> GetComparer() { }
+    }
+    public class ServiceSourceGenerator : DependencyModules.SourceGenerator.Impl.BaseAttributeSourceGenerator<DependencyModules.SourceGenerator.Impl.Models.ServiceModel>
+    {
+        public ServiceSourceGenerator() { }
+        protected override DependencyModules.SourceGenerator.Impl.Models.ServiceModel IgnoredModel { get; }
+        protected override System.Collections.Generic.IEnumerable<CSharpAuthor.ITypeDefinition> AttributeTypes() { }
+        protected override DependencyModules.SourceGenerator.Impl.Models.ServiceModel GenerateAttributeModel(Microsoft.CodeAnalysis.GeneratorAttributeSyntaxContext context, System.Threading.CancellationToken cancellationToken) { }
+        protected override void GenerateSourceOutput(Microsoft.CodeAnalysis.SourceProductionContext context, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Left",
+                "Right",
+                "Left",
+                "Right"})] System.ValueTuple<System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>>, System.Collections.Immutable.ImmutableArray<DependencyModules.SourceGenerator.Impl.Models.ServiceModel>> inputData, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
+        protected void GenerateSourceOutput(Microsoft.CodeAnalysis.SourceProductionContext context, DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel configurationModel, System.Collections.Immutable.ImmutableArray<DependencyModules.SourceGenerator.Impl.Models.ServiceModel> serviceModels, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
+        protected override System.Collections.Generic.IEqualityComparer<DependencyModules.SourceGenerator.Impl.Models.ServiceModel> GetComparer() { }
+    }
+    [Microsoft.CodeAnalysis.Generator]
+    public class SourceGenerator : DependencyModules.SourceGenerator.Impl.BaseSourceGenerator
+    {
+        public SourceGenerator() { }
+        protected override System.Collections.Generic.IEnumerable<DependencyModules.SourceGenerator.Impl.IDependencyModuleSourceGenerator> AttributeSourceGenerators() { }
+        protected override void SetupRootGenerator(Microsoft.CodeAnalysis.IncrementalGeneratorInitializationContext context, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Left",
+                "Right"})] Microsoft.CodeAnalysis.IncrementalValueProvider<System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>>> valuesProvider) { }
     }
 }

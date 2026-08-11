@@ -46,11 +46,9 @@ export default defineConfig({
             text: 'SourceGenerator',
             link: 'https://www.nuget.org/packages/DependencyModules.SourceGenerator/',
           },
-          {
-            text: 'Conventions',
-            link: 'https://www.nuget.org/packages/DependencyModules.Conventions/',
-          },
+          { text: 'Testing', link: 'https://www.nuget.org/packages/DependencyModules.Testing/' },
           { text: 'xUnit', link: 'https://www.nuget.org/packages/DependencyModules.xUnit/' },
+          { text: 'NUnit', link: 'https://www.nuget.org/packages/DependencyModules.NUnit/' },
           {
             text: 'NSubstitute',
             link: 'https://www.nuget.org/packages/DependencyModules.NSubstitute/',
@@ -78,7 +76,9 @@ export default defineConfig({
           text: 'Testing',
           items: [
             { text: 'Testing modules', link: '/guide/testing' },
-            { text: 'Mocks and values', link: '/guide/testing-mocks' },
+            { text: 'xUnit', link: '/guide/testing-xunit' },
+            { text: 'NUnit', link: '/guide/testing-nunit' },
+            { text: 'Mocking frameworks', link: '/guide/testing-mocking' },
             { text: 'Testing registrations', link: '/guide/testing-registrations' },
           ],
         },

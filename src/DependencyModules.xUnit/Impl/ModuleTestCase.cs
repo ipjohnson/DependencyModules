@@ -1,7 +1,6 @@
 using System.Reflection;
 using DependencyModules.Runtime.Helpers;
 using DependencyModules.Runtime.Interfaces;
-using DependencyModules.xUnit.Attributes;
 using DependencyModules.Testing.Attributes.Interfaces;
 using DependencyModules.Testing.Impl;
 using Microsoft.Extensions.DependencyInjection;
@@ -70,23 +69,24 @@ public class ModuleTestCase : XunitTestCase {
     public override void PreInvoke() { }
 
     private record StartupValues(
-        ITestMethodContext Context,
         IServiceProvider ServiceProvider,
-        Dictionary<ParameterInfo, List<ITestParameterValueProvider>> KnownValues);
+        TestParameterResolver Resolver);
 
     private async Task<StartupValues> SetupServiceCollection() {
         var serviceCollection = new ServiceCollection();
-        var knownValues = new Dictionary<ParameterInfo, List<ITestParameterValueProvider>>();
 
         var knownAttributes = TestMethod.Method.GetTestAttributes<Attribute>().ToArray();
 
         var context = new XunitTestMethodContext(TestMethod, knownAttributes);
 
+        // One resolver per container. A data-driven test builds both again for every row.
+        var resolver = new TestParameterResolver(context);
+
         SetupTestCaseInfo(serviceCollection, knownAttributes);
 
         SetupModules(serviceCollection, knownAttributes);
 
-        SetValueProviders(context, serviceCollection, knownValues);
+        resolver.SetupServiceCollection(serviceCollection);
 
         SetupServiceSetupAttributes(context, serviceCollection, knownAttributes);
 
@@ -98,7 +98,7 @@ public class ModuleTestCase : XunitTestCase {
             await startupAttribute.StartupAsync(context, provider);
         }
 
-        return new StartupValues(context, provider, knownValues);
+        return new StartupValues(provider, resolver);
     }
 
     private void SetupTestCaseInfo(ServiceCollection serviceCollection, Attribute[] knownAttributes) {
@@ -111,10 +111,17 @@ public class ModuleTestCase : XunitTestCase {
             ));
     }
 
+    /// <remarks>
+    /// Last rather than first: <paramref name="knownAttributes"/> is widest scope first — assembly,
+    /// then declaring type, then the method — so the last one is the narrowest, and a builder on the
+    /// method beats one on the class beats one on the assembly. Taking the first would have let an
+    /// assembly-level builder silently win over the method that asked for a different container,
+    /// which is the reverse of how every other attribute here resolves.
+    /// </remarks>
     private IServiceProvider BuildServiceProvider(
         ITestMethodContext context, ServiceCollection serviceCollection, Attribute[] knownAttributes) {
         var serviceProviderBuilderAttribute =
-            knownAttributes.OfType<IServiceProviderBuilderAttribute>().FirstOrDefault();
+            knownAttributes.OfType<IServiceProviderBuilderAttribute>().LastOrDefault();
 
         if (serviceProviderBuilderAttribute != null) {
             return serviceProviderBuilderAttribute.BuildServiceProvider(context, serviceCollection);
@@ -143,22 +150,6 @@ public class ModuleTestCase : XunitTestCase {
         }
     }
 
-    private void SetValueProviders(
-        ITestMethodContext context,
-        ServiceCollection serviceCollection,
-        Dictionary<ParameterInfo, List<ITestParameterValueProvider>> knownValues) {
-        foreach (var parameterInfo in TestMethod.Method.GetParameters()) {
-            var list = new List<ITestParameterValueProvider>();
-
-            knownValues.Add(parameterInfo, list);
-
-            foreach (var valueProvider in parameterInfo.GetCustomAttributes().OfType<ITestParameterValueProvider>()) {
-                valueProvider.SetupServiceCollection(context, serviceCollection, parameterInfo);
-                list.Add(valueProvider);
-            }
-        }
-    }
-
     private void SetupModules(ServiceCollection serviceCollection, IEnumerable<Attribute> knownAttributes) {
         var modules = new List<IDependencyModule>();
 
@@ -169,7 +160,8 @@ public class ModuleTestCase : XunitTestCase {
             modules.Add(moduleTypes);
         }
 
-        var testAttribute = TestMethod.Method.GetTestAttribute<ModuleTestAttribute>();
+        // The interface rather than ModuleTestAttribute, so this reads the same for any integration.
+        var testAttribute = TestMethod.Method.GetTestAttribute<IModuleTestAttribute>();
 
         if (testAttribute != null) {
             var count = 0;
@@ -285,76 +277,15 @@ public class ModuleTestCase : XunitTestCase {
         ];
     }
 
-    private async Task<object?[]> ResolveArguments(object?[] data, StartupValues startupValues) {
-        var parameters = new List<object?>(data);
+    /// <remarks>
+    /// The arguments are published on <see cref="TestCaseInfo"/> so a test can read what it was
+    /// invoked with. That is xUnit's own object, which is why this is not part of the shared resolver.
+    /// </remarks>
+    private static async Task<object?[]> ResolveArguments(object?[] data, StartupValues startupValues) {
+        var arguments = await startupValues.Resolver.ResolveArgumentsAsync(startupValues.ServiceProvider, data);
 
-        var testCaseInfo = startupValues.ServiceProvider.GetRequiredService<TestCaseInfo>();
-        
-        var parameterList = TestMethod.Method.GetParameters();
+        startupValues.ServiceProvider.GetRequiredService<TestCaseInfo>().TestMethodArguments = arguments;
 
-        for (var i = data.Length; i < parameterList.Length; i++) {
-            var parameterInfo = parameterList[i];
-            var attributes = parameterInfo.GetCustomAttributes().ToList();
-            
-            var value = await ResolveParameter(parameterInfo, startupValues);
-
-            parameters.Add(value ?? ResolveArgumentFromProvider(parameterInfo, startupValues, attributes));
-        }
-        
-        testCaseInfo.TestMethodArguments = parameters;
-        
-        return parameters.ToArray();
-    }
-
-    private async Task<object?> ResolveParameter(ParameterInfo parameterInfo, StartupValues startupValues) {
-        object? value = null;
-
-        if (parameterInfo.ParameterType == typeof(IServiceProvider)) {
-            value = startupValues.ServiceProvider;
-        }
-        else {
-            foreach (var valueProvider in startupValues.KnownValues[parameterInfo]) {
-                value = await valueProvider.GetParameterValueAsync(
-                    startupValues.Context, startupValues.ServiceProvider, parameterInfo);
-
-                if (value != null) {
-                    break;
-                }
-            }
-        }
-
-        return value;
-    }
-
-    private object? ResolveArgumentFromProvider(ParameterInfo parameterInfo, StartupValues startupValues, List<Attribute> attributes) {
-        var keyedServicesAttribute = parameterInfo.GetCustomAttribute<FromKeyedServicesAttribute>();
-
-        if (keyedServicesAttribute != null && startupValues.ServiceProvider is IKeyedServiceProvider keyedServiceProvider) {
-            return keyedServiceProvider.GetKeyedService(parameterInfo.ParameterType, keyedServicesAttribute.Key);
-        }
-        
-        var value = startupValues.ServiceProvider.GetService(parameterInfo.ParameterType);
-
-        if (value != null) {
-            return value;
-        }
-
-        return ConstructValueFromType(parameterInfo, startupValues, attributes);
-    }
-
-    private object? ConstructValueFromType(
-        ParameterInfo parameterInfo,
-        StartupValues startupValues,
-        IReadOnlyList<Attribute> attributes) {
-        object[] parameterValues = [];
-
-        foreach (var attribute in attributes) {
-            if (attribute is IInjectValueAttribute injectValueAttribute) {
-                parameterValues = injectValueAttribute.ProvideValue(startupValues.ServiceProvider, parameterInfo);
-            }
-        }
-        
-        return ActivatorUtilities.CreateInstance(
-            startupValues.ServiceProvider, parameterInfo.ParameterType, parameterValues);
+        return arguments;
     }
 }

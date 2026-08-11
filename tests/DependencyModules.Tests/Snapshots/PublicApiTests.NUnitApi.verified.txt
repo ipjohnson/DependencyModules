@@ -1,0 +1,48 @@
+namespace DependencyModules.NUnit.Attributes
+{
+    public interface IModuleTestDataAttribute
+    {
+        System.Collections.Generic.IEnumerable<object?[]> GetRows(System.Reflection.MethodInfo method);
+    }
+    [System.AttributeUsage(System.AttributeTargets.Method)]
+    public class ModuleTestAttribute : System.Attribute, DependencyModules.Testing.Attributes.Interfaces.IModuleTestAttribute, NUnit.Framework.Interfaces.ICommandWrapper, NUnit.Framework.Interfaces.IImplyFixture, NUnit.Framework.Interfaces.ITestBuilder, NUnit.Framework.Interfaces.IWrapSetUpTearDown
+    {
+        public ModuleTestAttribute(params System.Type[] modules) { }
+        public System.Type[] ModuleTypes { get; }
+        public System.Collections.Generic.IEnumerable<NUnit.Framework.Internal.TestMethod> BuildFrom(NUnit.Framework.Interfaces.IMethodInfo method, NUnit.Framework.Internal.Test? suite) { }
+        public NUnit.Framework.Internal.Commands.TestCommand Wrap(NUnit.Framework.Internal.Commands.TestCommand command) { }
+    }
+    [System.AttributeUsage(System.AttributeTargets.Method, AllowMultiple=true)]
+    public class ModuleTestCaseAttribute : System.Attribute, DependencyModules.NUnit.Attributes.IModuleTestDataAttribute
+    {
+        public ModuleTestCaseAttribute(params object?[] arguments) { }
+        public object?[] Arguments { get; }
+        public string? TestName { get; set; }
+        public System.Collections.Generic.IEnumerable<object?[]> GetRows(System.Reflection.MethodInfo method) { }
+    }
+}
+namespace DependencyModules.NUnit.Impl
+{
+    public interface INUnitTestMethodContext : DependencyModules.Testing.Attributes.Interfaces.ITestMethodContext
+    {
+        NUnit.Framework.Internal.TestMethod NUnitTestMethod { get; }
+    }
+    public interface ITestCaseInfo
+    {
+        NUnit.Framework.Internal.TestMethod TestMethod { get; }
+        System.Collections.Generic.IReadOnlyList<object?> TestMethodArguments { get; set; }
+        System.Collections.Generic.IReadOnlyList<System.Attribute> TestMethodAttributes { get; }
+    }
+    public class ModuleTestCommand : NUnit.Framework.Internal.Commands.DelegatingTestCommand
+    {
+        public ModuleTestCommand(NUnit.Framework.Internal.Commands.TestCommand innerCommand) { }
+        public override NUnit.Framework.Internal.TestResult Execute(NUnit.Framework.Internal.TestExecutionContext context) { }
+    }
+    public class TestCaseInfo : DependencyModules.NUnit.Impl.ITestCaseInfo
+    {
+        public TestCaseInfo(NUnit.Framework.Internal.TestMethod testMethod, System.Collections.Generic.IReadOnlyList<object?> testMethodArguments, System.Collections.Generic.IReadOnlyList<System.Attribute> testMethodAttributes) { }
+        public NUnit.Framework.Internal.TestMethod TestMethod { get; }
+        public System.Collections.Generic.IReadOnlyList<object?> TestMethodArguments { get; set; }
+        public System.Collections.Generic.IReadOnlyList<System.Attribute> TestMethodAttributes { get; }
+    }
+}
