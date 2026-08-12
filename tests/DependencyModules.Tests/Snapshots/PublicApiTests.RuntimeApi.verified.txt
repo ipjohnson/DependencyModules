@@ -190,7 +190,7 @@ namespace DependencyModules.Runtime.Helpers
         public static void Decorate<TService>(Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Type decoratorIdentity, System.Func<System.IServiceProvider, TService, TService> decoratorFactory)
             where TService :  class { }
     }
-    public readonly struct DecoratorRegistration
+    public sealed class DecoratorRegistration
     {
         public DecoratorRegistration(int order, DependencyModules.Runtime.Helpers.EnvironmentRegistryFunc registryFunc) { }
         public DecoratorRegistration(int order, DependencyModules.Runtime.Helpers.RegistryFunc registryFunc) { }

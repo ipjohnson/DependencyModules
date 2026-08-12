@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Collections.Concurrent;
 using DependencyModules.Runtime.Interfaces;
 
 namespace DependencyModules.Runtime;
@@ -29,7 +28,11 @@ public class ModuleEnvironment : IModuleEnvironment, IEnumerable<KeyValuePair<st
 
     // Null values are cached too — an unset optional variable is the case a default exists for, and
     // not caching it would leave the common path paying a process read every call.
-    private readonly ConcurrentDictionary<string, string?> _processValues = new();
+    // Allocated on first process read rather than in the constructor. An environment is built on
+    // every AddModules call and most applications never read a value through it, so constructing a
+    // ConcurrentDictionary here put its type load and its lock and bucket arrays on every startup
+    // to serve a cache that stayed empty.
+    private Dictionary<string, string?>? _processValues;
 
     /// <summary>
     /// Creates an environment with a fixed name and an optional set of values, falling back to
@@ -104,7 +107,7 @@ public class ModuleEnvironment : IModuleEnvironment, IEnumerable<KeyValuePair<st
         // Separate from _values rather than written back into it. That dictionary is what the caller
         // supplied, and GetEnumerator says so — folding process reads into it would have this
         // environment report values nobody gave it.
-        return _processValues.GetOrAdd(name, static key => Environment.GetEnvironmentVariable(key));
+        return ProcessValueCache.Read(ref _processValues, name);
     }
 
     /// <summary>
@@ -172,8 +175,45 @@ public class ModuleEnvironment : IModuleEnvironment, IEnumerable<KeyValuePair<st
     /// </remarks>
     public static IModuleEnvironment None { get; } = new EmptyModuleEnvironment();
 
+    /// <summary>
+    /// The process-variable cache both environments read through, allocated on first use.
+    /// </summary>
+    /// <remarks>
+    /// A plain dictionary behind a lock rather than a ConcurrentDictionary. Reads are rare and
+    /// almost always hits, while the constructor ran on every startup - loading the concurrent
+    /// collections and allocating its lock and bucket arrays to serve a cache most applications
+    /// never touch.
+    /// </remarks>
+    private static class ProcessValueCache {
+        public static string? Read(ref Dictionary<string, string?>? cache, string name) {
+            var map = Volatile.Read(ref cache);
+
+            if (map != null) {
+                lock (map) {
+                    if (map.TryGetValue(name, out var cached)) {
+                        return cached;
+                    }
+                }
+            }
+            else {
+                // Whoever gets there first owns the cache; a loser simply fills the winner's.
+                map = Interlocked.CompareExchange(
+                    ref cache, new Dictionary<string, string?>(StringComparer.Ordinal), null)
+                      ?? Volatile.Read(ref cache)!;
+            }
+
+            var value = Environment.GetEnvironmentVariable(name);
+
+            lock (map) {
+                map[name] = value;
+            }
+
+            return value;
+        }
+    }
+
     private sealed class ProcessModuleEnvironment : IModuleEnvironment {
-        private readonly ConcurrentDictionary<string, string?> _values = new();
+        private Dictionary<string, string?>? _values;
 
         // Not cached. It is read once per AddModules call rather than per service, and a fresh
         // instance is what CreateDefault hands out anyway.
@@ -182,8 +222,7 @@ public class ModuleEnvironment : IModuleEnvironment, IEnumerable<KeyValuePair<st
             Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ??
             "Production";
 
-        public string? Value(string name) =>
-            _values.GetOrAdd(name, static key => Environment.GetEnvironmentVariable(key));
+        public string? Value(string name) => ProcessValueCache.Read(ref _values, name);
     }
 
     private sealed class EmptyModuleEnvironment : IModuleEnvironment {

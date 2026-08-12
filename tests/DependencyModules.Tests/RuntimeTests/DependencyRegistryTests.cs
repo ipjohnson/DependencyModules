@@ -285,4 +285,77 @@ public class DependencyRegistryTests {
     private class StubModule : IDependencyModule {
         public void PopulateServiceCollection(IServiceCollection serviceCollection) { }
     }
+
+    /// <summary>
+    /// The single-argument overloads used to refuse any collection with an IModuleEnvironment in it,
+    /// including one registered in the only form they accept, because the guard ran before the
+    /// lookup. Every test above passes a collection with no environment at all, which is why it went
+    /// unnoticed.
+    /// </summary>
+    [Fact]
+    public void ApplyServices_UsesAnEnvironmentAlreadyInTheCollection() {
+        DependencyRegistry<SuppliedEnvironmentMarker>.Add(
+            (services, environment) => {
+                if (environment.EnvironmentName == "Development") {
+                    services.AddSingleton<IThing, OtherThing>();
+                }
+            });
+
+        var collection = new ServiceCollection();
+        collection.AddSingleton<IModuleEnvironment>(new StubEnvironment("Development"));
+
+        DependencyRegistry<SuppliedEnvironmentMarker>.ApplyServices(collection);
+
+        Assert.Contains(collection, descriptor => descriptor.ImplementationType == typeof(OtherThing));
+    }
+
+    private class SuppliedEnvironmentMarker;
+
+    [Fact]
+    public void ApplyDecorators_UsesAnEnvironmentAlreadyInTheCollection() {
+        var seen = "";
+
+        DependencyRegistry<SuppliedDecoratorEnvironmentMarker>.AddDecorator(
+            (EnvironmentRegistryFunc)((_, environment) => seen = environment.EnvironmentName));
+
+        var collection = new ServiceCollection();
+        collection.AddSingleton<IModuleEnvironment>(new StubEnvironment("Staging"));
+
+        DependencyRegistry<SuppliedDecoratorEnvironmentMarker>.ApplyDecorators(collection);
+
+        Assert.Equal("Staging", seen);
+    }
+
+    private class SuppliedDecoratorEnvironmentMarker;
+
+    /// <summary>
+    /// The guard still has to fire. An environment the container would build rather than hand back
+    /// cannot decide registrations, because there is no provider yet to build it with.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ApplyServices_RefusesAnEnvironmentItCannotUse(bool registeredByType) {
+        var collection = new ServiceCollection();
+
+        if (registeredByType) {
+            collection.AddSingleton<IModuleEnvironment, DefaultStubEnvironment>();
+        }
+        else {
+            collection.AddSingleton<IModuleEnvironment>(_ => new StubEnvironment("Development"));
+        }
+
+        Assert.Throws<InvalidOperationException>(
+            () => DependencyRegistry<RefusedEnvironmentMarker>.ApplyServices(collection));
+    }
+
+    private class RefusedEnvironmentMarker;
+
+    private class StubEnvironment(string name) : IModuleEnvironment {
+        public string EnvironmentName => name;
+
+        public string? Value(string valueName) => null;
+    }
+
+    private class DefaultStubEnvironment() : StubEnvironment("Development");
 }
