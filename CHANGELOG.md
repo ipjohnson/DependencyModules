@@ -5,7 +5,11 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0-rc9230] - 2026-08-12
+
+Everything since `1.0.0-rc9210`. Still a release candidate: convention registration and the NUnit
+integration are both new, and `DecoratorRegistration` changed shape, so the surface is not committed
+to yet.
 
 ### Added
 
@@ -45,6 +49,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   compile — both that and the explicit form are matched now that the contracts are public types.
 
 ### Changed
+
+- **Module loading costs about a third less to start.** Registering 200 services takes 6µs; the
+  first `AddModules` call took 4.16ms and the second 0.03ms, so nearly all of it was one-time JIT
+  and type loading rather than work that scales with the number of services. An empty module cost
+  2.9ms against a 0.62ms floor for a bare `ServiceCollection`. Measured against that:
+
+  `ProcessModuleEnvironment` built a `ConcurrentDictionary` on every `AddModules` call to serve a
+  cache most applications never read; it is allocated on first process read instead. Module
+  discovery used `List.Contains`, which routes through `EqualityComparer<IDependencyModule>.Default`
+  — constructing that for an interface was the single most expensive step in the load path, to
+  compare a list that usually holds one item. The interface defaults returned
+  `ArraySegment<T>.Empty` and reached the empty case by building an enumerator; they return
+  `Array.Empty<T>()` and the empty case is a `Count` test. The environment lookup and its guard
+  walked the collection twice and now share one scan. The lists in `DependencyRegistry<T>` allocate
+  on first use, and the `System.Linq` tokens in `GetModules` moved behind a non-inlined method so
+  that assembly is not loaded for applications that never call `AddModule`.
+
+  Empty module 2.92ms → 1.81ms; 200 services 4.44ms → 3.17ms; 42 → 34 methods JIT-ed. Native AOT
+  startup was already 0.02ms and is unchanged — there is no JIT there, so for AOT this is a size
+  change, 33KB off a published binary.
+
+- **`ApplicationModule` defers to a declared module instead of repeating it.** A project with a
+  `Program.cs` gets an `ApplicationModule` whether or not it declares a module of its own, and both
+  are modules with no realm restriction, so both registered every service in the compilation — the
+  registrations, decorations *and* interceptions were each emitted twice, byte for byte. In a 200
+  service project the duplicate was 5,413 bytes of IL, 44% of the assembly and 21% of the
+  ReadyToRun image, dead in every application that never names `ApplicationModule`.
+
+  The auto module now returns the declared one from `InternalGetModules`, so
+  `AddModule<ApplicationModule>()` registers exactly what it always did from one copy. It defers
+  only to a module with no realm restriction and no constructor parameters, since an `OnlyRealm`
+  module takes just the registrations aimed at it and deferring to one would drop the rest.
+  Assembly IL for that project falls from 17,763 to 12,337 bytes.
+
+  **Behaviour change:** loading `ApplicationModule` alongside the module it defers to now registers
+  each service once. It previously registered everything twice, because the two carried independent
+  copies of the same registrations.
+
+- **`DecoratorRegistration` is a sealed class rather than a readonly struct.** As a struct it forced
+  its own instantiation of `List<T>` and of the LINQ ordering machinery — 44 methods JIT-ed to sort
+  three decorators, 13% of every method compiled in the process. Ordering is a stable insertion sort
+  now, so no LINQ is instantiated for it at all.
+
+  **Breaking:** this changes the signature encoding of `IEnumerable<DecoratorRegistration>`, so an
+  assembly compiled against an earlier runtime throws `MissingMethodException` from
+  `IDependencyModule.InternalGetDecorators` until it is rebuilt. Source is unaffected.
 
 - **A generator declaring its own module attribute gets the module written for it.**
   `BaseSourceGenerator.SetupRootGenerator` was `virtual` and empty, so a framework naming its own
@@ -97,6 +147,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   need updating. Using `[ModuleTest]` is unaffected.
 
 ### Fixed
+
+- **The single-argument apply overloads no longer refuse the environment they were given.**
+  `FindOrCreateEnvironment` ran its guard before its lookup, so `DependencyRegistry<T>.ApplyServices`
+  and `ApplyDecorators` taking only a service collection — and the generated
+  `IDependencyModule.InternalApplyServices(IServiceCollection)` that calls into them — threw for any
+  collection holding an `IModuleEnvironment`, including one registered as the singleton instance
+  they document as the way to supply it. The message said it was not registered as a singleton
+  instance while it was. The lookup runs first now, matching the two-argument path, which always had
+  the order right.
+
+  The guard still fires for an environment registered by type or by factory, which cannot decide
+  registrations because there is no provider to build it from yet. It now tests the descriptor the
+  container would actually resolve rather than any match, so an unusable registration shadowed by a
+  usable one is no longer reported.
 
 - **The narrowest `IServiceProviderBuilderAttribute` now wins.** Both integrations took the *first*
   match out of an attribute list ordered widest scope first, so an assembly-level container builder
@@ -458,4 +522,5 @@ The entries below were written for a 1.0.0 that was not cut. They describe the s
   Enable it with `<DependencyModules_LogOutputDirectory>`.
 - A tag-driven release workflow publishing to nuget.org and GitHub Packages.
 
+[1.0.0-rc9230]: https://github.com/ipjohnson/DependencyModules/releases/tag/v1.0.0-rc9230
 [1.0.0-rc9210]: https://github.com/ipjohnson/DependencyModules/releases/tag/v1.0.0-rc9210
