@@ -28,9 +28,39 @@ public class DependencyModuleWriter {
 
         foreach (var entryPointModel in entryPointList) {
             context.CancellationToken.ThrowIfCancellationRequested();
-            
-            ProcessEntryPoint(context, entryPointModel, configurationModel);
+
+            ProcessEntryPoint(
+                context,
+                WithDelegateTarget(entryPointModel, entryPointList),
+                configurationModel);
         }
+    }
+
+    /// <summary>
+    /// Points an auto-generated module at the declared one carrying the registrations it would
+    /// otherwise have emitted for itself.
+    /// </summary>
+    /// <remarks>
+    /// The target joins <c>AdditionalModules</c>, so it comes out of <c>InternalGetModules</c> and
+    /// the runtime loads it exactly as it loads a module named by an attribute. Nothing else about
+    /// the emitted module changes, and a module with nothing to defer to is returned untouched.
+    /// </remarks>
+    private static ModuleEntryPointModel WithDelegateTarget(
+        ModuleEntryPointModel entryPointModel, IList<ModuleEntryPointModel> entryPointList) {
+
+        var target = EntryModelUtil.DelegateTargetFor(entryPointModel, entryPointList);
+
+        if (target == null) {
+            return entryPointModel;
+        }
+
+        var modules = new List<ITypeDefinition>(entryPointModel.AdditionalModules);
+
+        if (!modules.Contains(target)) {
+            modules.Add(target);
+        }
+
+        return entryPointModel with { AdditionalModules = modules };
     }
 
     private void ProcessEntryPoint(

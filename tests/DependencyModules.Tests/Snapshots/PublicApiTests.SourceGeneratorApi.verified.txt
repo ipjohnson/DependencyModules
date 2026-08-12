@@ -1586,8 +1586,10 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities
         public static System.ValueTuple<System.Collections.Generic.IList<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel>, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel> ConsolidateEntryPointModels([System.Runtime.CompilerServices.TupleElementNames(new string[] {
                 "Left",
                 "Right"})] System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>> entryPointList) { }
+        public static CSharpAuthor.ITypeDefinition? DelegateTargetFor(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel, System.Collections.Generic.IEnumerable<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel> allEntryPoints) { }
         public static DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel EnsureNamespace(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel configurationModel) { }
         public static string GenerateFileName(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel, string uniquePortion) { }
+        public static System.Collections.Generic.IList<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel> RegistrationTargets(System.Collections.Generic.IList<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel> entryPoints) { }
     }
     public static class EnvironmentConditionUtility
     {

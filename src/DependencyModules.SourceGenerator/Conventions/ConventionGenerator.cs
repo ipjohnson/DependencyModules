@@ -230,7 +230,11 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
 
         var claimed = new HashSet<ConventionModuleModel>();
 
-        foreach (var entryPointModel in entryPointList) {
+        // An auto-generated module deferring to a declared one is not among these, so its decorations
+        // and convention registrations are emitted once rather than alongside an identical copy on
+        // the module it defers to. It can never be a convention module itself - IConventionModule is
+        // implemented by hand - so nothing here goes unclaimed as a result.
+        foreach (var entryPointModel in EntryModelUtil.RegistrationTargets(entryPointList)) {
             context.CancellationToken.ThrowIfCancellationRequested();
 
             var conventionModule = conventionModules.FirstOrDefault(

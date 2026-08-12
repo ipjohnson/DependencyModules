@@ -25,7 +25,7 @@ public interface IDependencyModule {
     /// </summary>
     /// <returns></returns>
     IEnumerable<IDependencyModule> GetModules() {
-        return ArraySegment<IDependencyModule>.Empty;
+        return Array.Empty<IDependencyModule>();
     }
     
     /// <summary>
@@ -34,7 +34,9 @@ public interface IDependencyModule {
     /// <returns></returns>
     [Browsable(false)]
     IEnumerable<object> InternalGetModules() {
-        return ArraySegment<IDependencyModule>.Empty;
+        // Array.Empty<object>() rather than an array of the interface, so the runtime's empty check
+        // is a plain ICollection<object> test rather than one relying on array covariance.
+        return Array.Empty<object>();
     }
 
     /// <summary>
@@ -77,6 +79,6 @@ public interface IDependencyModule {
     /// </remarks>
     [Browsable(false)]
     IEnumerable<DecoratorRegistration> InternalGetDecorators() {
-        return ArraySegment<DecoratorRegistration>.Empty;
+        return Array.Empty<DecoratorRegistration>();
     }
 }

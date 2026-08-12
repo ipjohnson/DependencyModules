@@ -74,7 +74,7 @@ public class InterceptorSourceGenerator : BaseAttributeSourceGenerator<Intercept
         }
 
         // One registration file per module, so every wrapper is applied wherever its service is.
-        foreach (var entryPointModel in entryPointList) {
+        foreach (var entryPointModel in EntryModelUtil.RegistrationTargets(entryPointList)) {
             var registrationWriter = new InterceptorRegistrationWriter();
 
             context.AddSource(

@@ -49,7 +49,7 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
         var (entryPointList, configurationModel) =
             EntryModelUtil.ConsolidateEntryPointModels(inputData.Left);
 
-        foreach (var entryPointModel in entryPointList) {
+        foreach (var entryPointModel in EntryModelUtil.RegistrationTargets(entryPointList)) {
             context.CancellationToken.ThrowIfCancellationRequested();
             GenerateSourceOutput(context, entryPointModel, configurationModel, serviceModels, logger);
         }

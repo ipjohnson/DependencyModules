@@ -19,7 +19,7 @@ namespace DependencyModules.Runtime.Helpers;
 /// The function that rewrites registrations in the collection, receiving the environment any
 /// condition on the decorator is evaluated against.
 /// </param>
-public readonly struct DecoratorRegistration(int order, EnvironmentRegistryFunc registryFunc) {
+public sealed class DecoratorRegistration(int order, EnvironmentRegistryFunc registryFunc) {
     /// <summary>
     /// A decorator with no environment condition.
     /// </summary>
