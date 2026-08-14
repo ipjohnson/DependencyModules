@@ -5,7 +5,14 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0-rc9330] - 2026-08-14
+
+Everything since `1.0.0-rc9230`, and a small release: the generator refuses two things it used to
+get wrong about open generics, rather than dropping a declaration in silence or emitting code that
+does not compile. No registration that built correctly before builds differently now.
+
+Still a release candidate. `DecoratorExpansion.Expand` changed shape, but only on the generator
+extension points, which are documented as unversioned.
 
 ### Added
 
@@ -577,6 +584,6 @@ The entries below were written for a 1.0.0 that was not cut. They describe the s
   Enable it with `<DependencyModules_LogOutputDirectory>`.
 - A tag-driven release workflow publishing to nuget.org and GitHub Packages.
 
-[Unreleased]: https://github.com/ipjohnson/DependencyModules/compare/v1.0.0-rc9230...HEAD
+[1.0.0-rc9330]: https://github.com/ipjohnson/DependencyModules/releases/tag/v1.0.0-rc9330
 [1.0.0-rc9230]: https://github.com/ipjohnson/DependencyModules/releases/tag/v1.0.0-rc9230
 [1.0.0-rc9210]: https://github.com/ipjohnson/DependencyModules/releases/tag/v1.0.0-rc9210
