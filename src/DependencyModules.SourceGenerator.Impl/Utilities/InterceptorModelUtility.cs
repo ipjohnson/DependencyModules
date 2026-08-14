@@ -42,15 +42,26 @@ public static class InterceptorModelUtility {
             return InterceptorModel.Ignore;
         }
 
-        // A generic implementation registers as an open generic, and decorating one of those is not
-        // supported: DecoratorHelper rewrites the registration into a factory, which the container
-        // rejects for an open generic service type. Refusing here turns what would be an
-        // ArgumentException when the provider is built into a message naming the declaration.
+        // A generic implementation registers as an open generic. Decoration cannot touch one — it
+        // rewrites the registration into a factory, and the container refuses a factory for an open
+        // generic service type — but interception does not need one: the wrapper is a generated type,
+        // and an open generic implementation type is exactly what the container does accept. It is
+        // registered as the service, and takes the implementation by its own type so that resolving
+        // it does not come back round to the wrapper.
+        //
+        // Constraints are the one thing that shape cannot carry. The wrapper has to repeat the
+        // implementation's constraints to reference it, and the writer has no way to emit them, so a
+        // constrained implementation is refused rather than emitted as code that does not compile.
         if (implementationSymbol.IsGenericType) {
-            return InterceptorModel.Refused(
-                $"'{implementationSymbol.Name}' is generic, so it registers as an open generic, and " +
-                "decorating an open generic registration is not supported. Register a closed " +
-                $"construction instead, such as a class deriving from '{implementationSymbol.Name}<...>'");
+            var constrained = ConstrainedTypeParameter(implementationSymbol);
+
+            if (constrained != null) {
+                return InterceptorModel.Refused(
+                    $"'{implementationSymbol.Name}' is generic and its type parameter " +
+                    $"'{constrained}' is constrained. The generated wrapper would have to repeat the " +
+                    "constraint and cannot, so it was not generated. Intercept a closed construction " +
+                    $"instead, such as a class deriving from '{implementationSymbol.Name}<...>'");
+            }
         }
 
         var interceptorSymbols = new List<INamedTypeSymbol>();
@@ -101,7 +112,8 @@ public static class InterceptorModelUtility {
             interceptors,
             members,
             declarations,
-            order);
+            order,
+            TypeParameters: TypeParameterNames(implementationSymbol));
     }
 
     private static InterceptorModel Refuse(string? reason) =>
@@ -266,6 +278,48 @@ public static class InterceptorModelUtility {
         }
 
         return ImmutableArray<INamedTypeSymbol>.Empty;
+    }
+
+    /// <summary>
+    /// The first type parameter carrying a constraint, or null when none does.
+    /// </summary>
+    /// <remarks>
+    /// Every kind counts, <c>class</c> and <c>new()</c> included: the wrapper closes the
+    /// implementation over its own parameters, and any constraint the implementation declares has to
+    /// hold there too.
+    /// </remarks>
+    private static string? ConstrainedTypeParameter(INamedTypeSymbol symbol) {
+        foreach (var parameter in symbol.TypeParameters) {
+            if (parameter.HasReferenceTypeConstraint ||
+                parameter.HasValueTypeConstraint ||
+                parameter.HasNotNullConstraint ||
+                parameter.HasUnmanagedTypeConstraint ||
+                parameter.HasConstructorConstraint ||
+                parameter.ConstraintTypes.Length > 0) {
+
+                return parameter.Name;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The implementation's type parameter names, which the wrapper repeats verbatim so that its own
+    /// parameters line up with the ones the service and the implementation are closed over.
+    /// </summary>
+    private static IReadOnlyList<string> TypeParameterNames(INamedTypeSymbol symbol) {
+        if (symbol.TypeParameters.Length == 0) {
+            return Array.Empty<string>();
+        }
+
+        var names = new string[symbol.TypeParameters.Length];
+
+        for (var i = 0; i < names.Length; i++) {
+            names[i] = symbol.TypeParameters[i].Name;
+        }
+
+        return names;
     }
 
     private static ITypeDefinition ToTypeDefinition(INamedTypeSymbol symbol) {

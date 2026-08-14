@@ -1353,15 +1353,17 @@ namespace DependencyModules.SourceGenerator.Impl.Models
     public class InterceptorModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.InterceptorModel>
     {
         public static readonly DependencyModules.SourceGenerator.Impl.Models.InterceptorModel Ignore;
-        public InterceptorModel(CSharpAuthor.ITypeDefinition ServiceType, CSharpAuthor.ITypeDefinition ImplementationType, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptorTypeModel> Interceptors, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedMemberModel> Members, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedDeclarationModel> Declarations, int Order, DependencyModules.SourceGenerator.Impl.Models.InterceptionRefusal? Refusal = null) { }
+        public InterceptorModel(CSharpAuthor.ITypeDefinition ServiceType, CSharpAuthor.ITypeDefinition ImplementationType, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptorTypeModel> Interceptors, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedMemberModel> Members, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedDeclarationModel> Declarations, int Order, DependencyModules.SourceGenerator.Impl.Models.InterceptionRefusal? Refusal = null, System.Collections.Generic.IReadOnlyList<string>? TypeParameters = null) { }
         public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedDeclarationModel> Declarations { get; init; }
         public CSharpAuthor.ITypeDefinition ImplementationType { get; init; }
         public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptorTypeModel> Interceptors { get; init; }
         public bool IsIgnored { get; }
+        public bool IsOpenGeneric { get; }
         public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedMemberModel> Members { get; init; }
         public int Order { get; init; }
         public DependencyModules.SourceGenerator.Impl.Models.InterceptionRefusal? Refusal { get; init; }
         public CSharpAuthor.ITypeDefinition ServiceType { get; init; }
+        public System.Collections.Generic.IReadOnlyList<string>? TypeParameters { get; init; }
         public static DependencyModules.SourceGenerator.Impl.Models.InterceptorModel Refused(string message) { }
     }
     public class InterceptorModelComparer : System.Collections.Generic.IEqualityComparer<DependencyModules.SourceGenerator.Impl.Models.InterceptorModel>

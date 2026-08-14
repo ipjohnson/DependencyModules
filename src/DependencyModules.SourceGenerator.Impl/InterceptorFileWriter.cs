@@ -33,6 +33,17 @@ public class InterceptorFileWriter {
         var wrapper = csharpFile.AddClass(wrapperName);
 
         wrapper.Modifiers |= ComponentModifier.Internal;
+
+        // A generic service is wrapped by a generic type closed over the same parameters, which is
+        // what lets the container register it as an open generic implementation. Only constraint-free
+        // parameters reach here; a constrained one is refused upstream, because the wrapper would have
+        // to repeat the constraint and there is no way to emit one.
+        if (model.IsOpenGeneric) {
+            foreach (var typeParameter in model.TypeParameters!) {
+                wrapper.AddGenericParameter(typeParameter);
+            }
+        }
+
         wrapper.AddBaseType(model.ServiceType);
         wrapper.AddAttribute(TypeDefinition.Get("System.Diagnostics.CodeAnalysis", "ExcludeFromCodeCoverage"));
 
@@ -62,8 +73,51 @@ public class InterceptorFileWriter {
         return output.Output();
     }
 
+    /// <summary>
+    /// What the wrapper holds and is handed as the instance it wraps.
+    /// </summary>
+    /// <remarks>
+    /// The service interface for an ordinary wrapper, which the container hands over because
+    /// decoration captured the original registration first.
+    ///
+    /// For an open generic there is no factory to capture anything, so the wrapper <i>is</i> the
+    /// registration for the service — and asking for the service would resolve the wrapper itself and
+    /// recurse. It takes the implementation by its own concrete type instead, which
+    /// <c>DecoratorHelper.InterceptOpenGeneric</c> registers alongside it.
+    /// </remarks>
+    private static ITypeDefinition InnerType(InterceptorModel model) =>
+        model.IsOpenGeneric ? Closed(model.ImplementationType, model.TypeParameters!) : model.ServiceType;
+
+    /// <summary>
+    /// A type closed over the wrapper's own type parameters — <c>Repository</c> becomes
+    /// <c>Repository&lt;T&gt;</c>.
+    /// </summary>
+    private static ITypeDefinition Closed(ITypeDefinition type, IReadOnlyList<string> typeParameters) {
+        var arguments = new ITypeDefinition[typeParameters.Count];
+
+        for (var i = 0; i < arguments.Length; i++) {
+            arguments[i] = TypeDefinition.Get("", typeParameters[i]);
+        }
+
+        return new GenericTypeDefinition(
+            TypeDefinitionEnum.ClassDefinition, type.Namespace, type.Name, arguments);
+    }
+
+    /// <summary>
+    /// How a nested state class names the wrapper that owns it.
+    /// </summary>
+    /// <remarks>
+    /// A nested type inherits its outer type's parameters but still has to write them: inside
+    /// <c>Repository_Intercepted&lt;T&gt;</c> the name is <c>Repository_Intercepted&lt;T&gt;</c>, and
+    /// the bare name is CS0305.
+    /// </remarks>
+    private static ITypeDefinition SelfType(InterceptorModel model, string wrapperName) =>
+        model.IsOpenGeneric
+            ? Closed(TypeDefinition.Get("", wrapperName), model.TypeParameters!)
+            : TypeDefinition.Get("", wrapperName);
+
     private static void WriteFields(ClassDefinition wrapper, InterceptorModel model) {
-        var inner = wrapper.AddField(model.ServiceType, InnerField);
+        var inner = wrapper.AddField(InnerType(model), InnerField);
         inner.Modifiers |= ComponentModifier.Private | ComponentModifier.Readonly;
 
         for (var index = 0; index < model.Interceptors.Count; index++) {
@@ -93,7 +147,7 @@ public class InterceptorFileWriter {
     private static void WriteConstructor(ClassDefinition wrapper, InterceptorModel model) {
         var constructor = wrapper.AddConstructor();
 
-        constructor.AddParameter(model.ServiceType, "inner");
+        constructor.AddParameter(InnerType(model), "inner");
         constructor.AddIndentedStatement($"{InnerField} = inner");
 
         for (var index = 0; index < model.Interceptors.Count; index++) {
@@ -333,8 +387,10 @@ public class InterceptorFileWriter {
 
         state.WhereStatement = Constraints(member);
 
-        WriteStateFields(state, member, wrapperName);
-        WriteStateConstructor(state, member, index, wrapperName);
+        var selfType = SelfType(model, wrapperName);
+
+        WriteStateFields(state, member, selfType);
+        WriteStateConstructor(state, member, index, selfType);
         WriteCallerAndCount(state, member, index);
         WriteArgumentsIndexer(state, member);
         WriteNameAt(state, member);
@@ -342,9 +398,9 @@ public class InterceptorFileWriter {
     }
 
     private static void WriteStateFields(
-        ClassDefinition state, InterceptedMemberModel member, string wrapperName) {
+        ClassDefinition state, InterceptedMemberModel member, ITypeDefinition selfType) {
 
-        var self = state.AddField(TypeDefinition.Get("", wrapperName), "_self");
+        var self = state.AddField(selfType, "_self");
         self.Modifiers |= ComponentModifier.Private | ComponentModifier.Readonly;
 
         for (var index = 0; index < member.Parameters.Count; index++) {
@@ -358,11 +414,11 @@ public class InterceptorFileWriter {
     /// non-nullable reference is definitely assigned and the wrapper needs no nullable suppression.
     /// </summary>
     private static void WriteStateConstructor(
-        ClassDefinition state, InterceptedMemberModel member, int index, string wrapperName) {
+        ClassDefinition state, InterceptedMemberModel member, int index, ITypeDefinition selfType) {
 
         var constructor = state.AddConstructor();
 
-        constructor.AddParameter(TypeDefinition.Get("", wrapperName), "self");
+        constructor.AddParameter(selfType, "self");
         constructor.AddIndentedStatement("_self = self");
 
         for (var argument = 0; argument < member.Parameters.Count; argument++) {

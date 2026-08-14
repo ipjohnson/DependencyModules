@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Everything since `1.0.0-rc9230`. The theme is registrations that were silently not happening: an
 attribute the generator declined to recognise, a `Replace` that depended on how a class was named, a
-mock that replaced the wrong slot, and three shapes it refused without saying so.
+mock that replaced the wrong slot, and three shapes it refused without saying so. One of those
+refusals turned out to be unnecessary, and generic services can now be intercepted.
 
 Still a release candidate. `DecoratorExpansion.Expand` changed shape, but only on the generator
 extension points, which are documented as unversioned.
@@ -57,6 +58,32 @@ a build break rather than a nudge. `NoWarn` takes them per-project; note that `.
   members are all async, where it never ran at all — was invisible even to the generator, which
   discarded the model before anything could report on it. Reported once per interceptor and member
   shape, so a wide interface produces one line rather than forty.
+
+- **A generic service can be intercepted.** A generic implementation registers as an open generic, and
+  it was refused outright — because *decoration* cannot touch one, and interception inherited that
+  constraint without needing it. Decoration rewrites a registration into a factory, which an open
+  generic service type cannot carry; interception generates a type, and an open generic implementation
+  type is what the container does accept.
+
+  ```csharp
+  [SingletonService]
+  [Intercept(typeof(TracingInterceptor))]
+  public class Repository<T> : IRepository<T> { … }
+  ```
+
+  The wrapper is generic over the same parameters — `Repository_Intercepted<T> : IRepository<T>` — and
+  takes `Repository<T>` by its own type rather than the service, which would resolve back to the
+  wrapper and recurse. `DecoratorHelper.InterceptOpenGeneric` swaps the registration and registers the
+  implementation alongside it, carrying the lifetime and the service key across.
+
+  A **constrained** type parameter is still refused, and now says why: the wrapper would have to repeat
+  the constraint and there is no way to emit one.
+
+  Worth knowing before relying on it under Native AOT, and true of open generic registrations
+  generally rather than of interception: a published binary closes them over reference types only.
+  Measured on `osx-arm64`, `IRepository<Order>` resolves and `IRepository<int>` throws
+  `Unable to create a generic service … because 'System.Int32' is a ValueType`. A plain
+  `[SingletonService]` on a generic class behaves identically, which the AOT guide now says.
 
 ### Fixed
 

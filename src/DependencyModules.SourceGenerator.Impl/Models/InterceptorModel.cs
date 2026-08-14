@@ -282,6 +282,14 @@ public record InterceptedDeclarationModel(
 /// after the position, so the order is part of the model.
 /// </param>
 /// <param name="Declarations">What the wrapper declares, pointing back into the members.</param>
+/// <param name="TypeParameters">
+/// The implementation's type parameter names, empty for a non-generic service. The wrapper repeats
+/// them verbatim, so <c>Repository&lt;T&gt;</c> becomes <c>Repository_Intercepted&lt;T&gt;</c>
+/// implementing <c>IRepository&lt;T&gt;</c> and holding a <c>Repository&lt;T&gt;</c>.
+///
+/// Names rather than models: only constraint-free parameters reach here, since the writer cannot
+/// emit a constraint and one that is dropped produces code that does not compile.
+/// </param>
 public record InterceptorModel(
     ITypeDefinition ServiceType,
     ITypeDefinition ImplementationType,
@@ -289,7 +297,14 @@ public record InterceptorModel(
     IReadOnlyList<InterceptedMemberModel> Members,
     IReadOnlyList<InterceptedDeclarationModel> Declarations,
     int Order,
-    InterceptionRefusal? Refusal = null) {
+    InterceptionRefusal? Refusal = null,
+    IReadOnlyList<string>? TypeParameters = null) {
+
+    /// <summary>
+    /// Whether the intercepted service is an open generic, and so registers as an implementation type
+    /// rather than through a factory.
+    /// </summary>
+    public bool IsOpenGeneric => TypeParameters is { Count: > 0 };
 
     /// <summary>
     /// Sentinel for a node carrying the attribute that produced no usable model and nothing to say
@@ -333,7 +348,8 @@ public class InterceptorModelComparer : IEqualityComparer<InterceptorModel> {
                Equals(x.Refusal, y.Refusal) &&
                ModelEquality.ListEquals(x.Interceptors, y.Interceptors) &&
                ModelEquality.ListEquals(x.Members, y.Members) &&
-               ModelEquality.ListEquals(x.Declarations, y.Declarations);
+               ModelEquality.ListEquals(x.Declarations, y.Declarations) &&
+               ModelEquality.ListEquals(x.TypeParameters, y.TypeParameters);
     }
 
     public int GetHashCode(InterceptorModel obj) {
@@ -346,6 +362,7 @@ public class InterceptorModelComparer : IEqualityComparer<InterceptorModel> {
             hash = hash * 31 + ModelEquality.ListHashCode(obj.Interceptors);
             hash = hash * 31 + ModelEquality.ListHashCode(obj.Members);
             hash = hash * 31 + ModelEquality.ListHashCode(obj.Declarations);
+            hash = hash * 31 + ModelEquality.ListHashCode(obj.TypeParameters);
 
             return hash;
         }

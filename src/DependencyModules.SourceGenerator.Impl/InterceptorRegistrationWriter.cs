@@ -34,6 +34,26 @@ public class InterceptorRegistrationWriter {
         return EntryModelUtil.ApplyRecordDeclaration(outputContext.Output(), entryPointModel);
     }
 
+    /// <summary>
+    /// A type written as its unbound generic form — <c>IVault&lt;&gt;</c> rather than
+    /// <c>IVault&lt;T&gt;</c>.
+    /// </summary>
+    /// <remarks>
+    /// The only form a <c>typeof</c> can carry outside the type's own declaration. Writing the
+    /// parameter names instead is CS0246, because no <c>T</c> is in scope at the registration.
+    /// Blank-named arguments are how this codebase represents unbound throughout.
+    /// </remarks>
+    private static ITypeDefinition Unbound(ITypeDefinition type, int arity) {
+        var arguments = new ITypeDefinition[arity];
+
+        for (var i = 0; i < arity; i++) {
+            arguments[i] = TypeDefinition.Get("", "");
+        }
+
+        return new GenericTypeDefinition(
+            TypeDefinitionEnum.ClassDefinition, type.Namespace, type.Name, arguments);
+    }
+
     private static void WriteInterceptor(
         ModuleEntryPointModel entryPointModel,
         ClassDefinition classDefinition,
@@ -80,30 +100,52 @@ public class InterceptorRegistrationWriter {
         var wrapperName = $"{model.ImplementationType.Name.Replace(".", "_")}_Intercepted";
         var wrapperType = TypeDefinition.Get(model.ImplementationType.Namespace, wrapperName);
 
-        // The wrapper is generated right here, so its constructor is known exactly: the intercepted
-        // instance, then one parameter per interceptor. Emitting the `new` rather than handing the
-        // type to ActivatorUtilities is what keeps interception working in a published Native AOT
-        // application — the same reason decorators are emitted closed.
-        var arguments = new List<object> { CodeOutputComponent.Get("inner") };
-
-        for (var i = 0; i < model.Interceptors.Count; i++) {
-            arguments.Add(
-                new InvokeGenericDefinition(
-                    "provider", "GetRequiredService", new[] { model.Interceptors[i].Type }));
-        }
-
         method.NewLine();
-        method.AddIndentedStatement(
-            SyntaxHelpers.InvokeGeneric(
-                KnownTypes.DependencyModules.Helpers.DecoratorHelper,
-                "Decorate",
-                new[] { model.ServiceType },
-                CodeOutputComponent.Get(services.Name),
-                TypeOf(wrapperType),
-                new WrapStatement(
-                    CodeOutputComponent.Get(" => "),
-                    CodeOutputComponent.Get("(provider, inner)"),
-                    New(wrapperType, arguments.ToArray()))));
+
+        if (model.IsOpenGeneric) {
+            // An open generic service cannot be decorated: decoration rewrites the registration into
+            // a factory, and the container refuses a factory for one. It does accept an open generic
+            // implementation type, and the wrapper is one — so the registration is swapped for the
+            // wrapper and the implementation is registered under its own type for the wrapper to take.
+            //
+            // Nothing is closed here. The container closes the wrapper per requested construction, and
+            // every type it names exists in the assembly, so this survives publishing as the closed
+            // path does.
+            method.AddIndentedStatement(
+                new StaticInvokeStatement(
+                    KnownTypes.DependencyModules.Helpers.DecoratorHelper,
+                    "InterceptOpenGeneric",
+                    new List<IOutputComponent> {
+                        CodeOutputComponent.Get(services.Name),
+                        TypeOf(Unbound(model.ServiceType, model.TypeParameters!.Count)),
+                        TypeOf(Unbound(model.ImplementationType, model.TypeParameters!.Count)),
+                        TypeOf(Unbound(wrapperType, model.TypeParameters!.Count))
+                    }));
+        } else {
+            // The wrapper is generated right here, so its constructor is known exactly: the
+            // intercepted instance, then one parameter per interceptor. Emitting the `new` rather than
+            // handing the type to ActivatorUtilities is what keeps interception working in a published
+            // Native AOT application — the same reason decorators are emitted closed.
+            var arguments = new List<object> { CodeOutputComponent.Get("inner") };
+
+            for (var i = 0; i < model.Interceptors.Count; i++) {
+                arguments.Add(
+                    new InvokeGenericDefinition(
+                        "provider", "GetRequiredService", new[] { model.Interceptors[i].Type }));
+            }
+
+            method.AddIndentedStatement(
+                SyntaxHelpers.InvokeGeneric(
+                    KnownTypes.DependencyModules.Helpers.DecoratorHelper,
+                    "Decorate",
+                    new[] { model.ServiceType },
+                    CodeOutputComponent.Get(services.Name),
+                    TypeOf(wrapperType),
+                    new WrapStatement(
+                        CodeOutputComponent.Get(" => "),
+                        CodeOutputComponent.Get("(provider, inner)"),
+                        New(wrapperType, arguments.ToArray()))));
+        }
 
         // A field initializer registers the method, matching how decorator registrations are hooked
         // up. DynamicDependency keeps the trimmer from removing a method only referenced this way.

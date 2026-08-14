@@ -118,7 +118,7 @@ public async IAsyncEnumerable<TItem> InterceptStream<TItem>(StreamInvocationCont
 |---|---|
 | `Proceed()` / `ProceedAsync()` | run the rest of the pipeline — more than once to retry, or not at all to skip the implementation |
 | `Caller.ServiceType`, `Caller.MemberName` | what is being called |
-| `Arguments` | by index or by name, and **writable** — a write replaces what the implementation receives |
+| `Arguments` | by index, and **writable** — a write replaces what the implementation receives. `NameAt(index)` gives the declared parameter name |
 
 Arguments cost nothing until you read one.
 
@@ -141,7 +141,9 @@ The generator has to emit a real override, so some shapes are impossible. These 
 - by-reference returns
 - `init`-only setters
 - static members
-- generic implementations, which register as an open generic
+- a generic implementation whose type parameters are **constrained** — the wrapper would have to
+  repeat the constraint, and there is no way to emit one. An unconstrained generic implementation is
+  intercepted; see below.
 
 ::: warning One such member disables interception for the whole interface
 There is no partial wrapper. A single `out` parameter anywhere on the interface means no wrapper is
@@ -152,6 +154,34 @@ uncover another.
 Move the member to an interface that is not intercepted, or write a
 [decorator](/guide/decorators) for the service instead.
 :::
+
+## Intercepting a generic service
+
+A generic implementation registers as an open generic, and a decorator cannot touch one — decoration
+rewrites a registration into a factory, and the container refuses a factory for an open generic
+service type. Interception does not need a factory: the wrapper is a generated type, and an open
+generic implementation type is what the container does accept.
+
+```csharp
+[SingletonService]
+[Intercept(typeof(TracingInterceptor))]
+public class Repository<T> : IRepository<T> { … }
+```
+
+The wrapper is generic over the same parameters — `Repository_Intercepted<T> : IRepository<T>` — and
+takes `Repository<T>` by its own type rather than the service, which would resolve back to the wrapper
+and recurse. The container closes it per construction, so `IRepository<Order>` and
+`IRepository<Invoice>` each get their own.
+
+::: warning Native AOT closes this over reference types only
+An open generic registration is the container's least AOT-friendly shape, intercepted or not: a
+published binary can construct `IRepository<Order>` and throws for `IRepository<int>`. That is not
+specific to interception — a plain `[SingletonService]` on a generic class behaves identically. See
+[Trimming and AOT](/guide/aot#what-it-does-not-cover).
+:::
+
+A **constrained** type parameter is refused, because the wrapper cannot repeat the constraint. Give
+the service a closed construction to intercept instead.
 
 ## When an interceptor covers only some members
 
