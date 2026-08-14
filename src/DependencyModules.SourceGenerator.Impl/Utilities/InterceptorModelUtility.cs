@@ -49,20 +49,8 @@ public static class InterceptorModelUtility {
         // registered as the service, and takes the implementation by its own type so that resolving
         // it does not come back round to the wrapper.
         //
-        // Constraints are the one thing that shape cannot carry. The wrapper has to repeat the
-        // implementation's constraints to reference it, and the writer has no way to emit them, so a
-        // constrained implementation is refused rather than emitted as code that does not compile.
-        if (implementationSymbol.IsGenericType) {
-            var constrained = ConstrainedTypeParameter(implementationSymbol);
-
-            if (constrained != null) {
-                return InterceptorModel.Refused(
-                    $"'{implementationSymbol.Name}' is generic and its type parameter " +
-                    $"'{constrained}' is constrained. The generated wrapper would have to repeat the " +
-                    "constraint and cannot, so it was not generated. Intercept a closed construction " +
-                    $"instead, such as a class deriving from '{implementationSymbol.Name}<...>'");
-            }
-        }
+        // Constraints come along with the parameters. The wrapper is declared over the same ones and
+        // repeats their constraints, without which it could not reference what it wraps.
 
         var interceptorSymbols = new List<INamedTypeSymbol>();
         var order = 0;
@@ -113,7 +101,7 @@ public static class InterceptorModelUtility {
             members,
             declarations,
             order,
-            TypeParameters: TypeParameterNames(implementationSymbol));
+            TypeParameters: TypeParameterModels(implementationSymbol));
     }
 
     private static InterceptorModel Refuse(string? reason) =>
@@ -281,45 +269,21 @@ public static class InterceptorModelUtility {
     }
 
     /// <summary>
-    /// The first type parameter carrying a constraint, or null when none does.
+    /// The implementation's type parameters and their constraints, which the wrapper repeats so its
+    /// own parameters line up with the ones the service and the implementation are closed over.
     /// </summary>
-    /// <remarks>
-    /// Every kind counts, <c>class</c> and <c>new()</c> included: the wrapper closes the
-    /// implementation over its own parameters, and any constraint the implementation declares has to
-    /// hold there too.
-    /// </remarks>
-    private static string? ConstrainedTypeParameter(INamedTypeSymbol symbol) {
-        foreach (var parameter in symbol.TypeParameters) {
-            if (parameter.HasReferenceTypeConstraint ||
-                parameter.HasValueTypeConstraint ||
-                parameter.HasNotNullConstraint ||
-                parameter.HasUnmanagedTypeConstraint ||
-                parameter.HasConstructorConstraint ||
-                parameter.ConstraintTypes.Length > 0) {
-
-                return parameter.Name;
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// The implementation's type parameter names, which the wrapper repeats verbatim so that its own
-    /// parameters line up with the ones the service and the implementation are closed over.
-    /// </summary>
-    private static IReadOnlyList<string> TypeParameterNames(INamedTypeSymbol symbol) {
+    private static IReadOnlyList<TypeParameterModel> TypeParameterModels(INamedTypeSymbol symbol) {
         if (symbol.TypeParameters.Length == 0) {
-            return Array.Empty<string>();
+            return Array.Empty<TypeParameterModel>();
         }
 
-        var names = new string[symbol.TypeParameters.Length];
+        var models = new TypeParameterModel[symbol.TypeParameters.Length];
 
-        for (var i = 0; i < names.Length; i++) {
-            names[i] = symbol.TypeParameters[i].Name;
+        for (var i = 0; i < models.Length; i++) {
+            models[i] = TypeParameterReader.Read(symbol.TypeParameters[i]);
         }
 
-        return names;
+        return models;
     }
 
     private static ITypeDefinition ToTypeDefinition(INamedTypeSymbol symbol) {

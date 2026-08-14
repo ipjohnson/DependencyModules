@@ -14,7 +14,9 @@ namespace CSharpAuthor
     {
         public AttributeDefinition(CSharpAuthor.ITypeDefinition attributeType) { }
         public System.Collections.Generic.IList<CSharpAuthor.IOutputComponent>? Arguments { get; set; }
+        public string? Target { get; set; }
         protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+        public void WriteInline(CSharpAuthor.IOutputContext outputContext) { }
     }
     public abstract class BaseBlockDefinition : CSharpAuthor.BaseOutputComponent
     {
@@ -113,6 +115,7 @@ namespace CSharpAuthor
     public class ClassDefinition : CSharpAuthor.BaseOutputComponent, CSharpAuthor.IConstructContainer, CSharpAuthor.INamedComponent
     {
         public ClassDefinition(string name) { }
+        public System.Collections.Generic.IReadOnlyList<CSharpAuthor.ConstraintDefinition> Constraints { get; }
         public System.Collections.Generic.IReadOnlyList<CSharpAuthor.ConstructorDefinition> Constructors { get; }
         public int FieldCount { get; }
         public System.Collections.Generic.IReadOnlyList<CSharpAuthor.FieldDefinition> Fields { get; }
@@ -120,11 +123,14 @@ namespace CSharpAuthor
         public System.Collections.Generic.IReadOnlyList<CSharpAuthor.MethodDefinition> Methods { get; }
         public string Name { get; }
         public System.Collections.Generic.IReadOnlyList<CSharpAuthor.PropertyDefinition> Properties { get; }
+        public bool TerminateWithSemicolon { get; set; }
         public CSharpAuthor.ClassKeyword TypeKeyword { get; set; }
         public CSharpAuthor.IOutputComponent? WhereStatement { get; set; }
         public CSharpAuthor.ClassDefinition AddBaseType(CSharpAuthor.ITypeDefinition typeDefinition) { }
+        public CSharpAuthor.ClassDefinition AddBaseType(CSharpAuthor.ITypeDefinition typeDefinition, params CSharpAuthor.IOutputComponent[] arguments) { }
         public CSharpAuthor.ClassDefinition AddClass(string name) { }
         public void AddComponent(CSharpAuthor.IOutputComponent outputComponent) { }
+        public CSharpAuthor.ConstraintDefinition AddConstraint(string typeParameter) { }
         public CSharpAuthor.ConstructorDefinition AddConstructor(CSharpAuthor.IOutputComponent? baseComponent = null) { }
         public CSharpAuthor.EnumDefinition AddEnum(string name) { }
         public CSharpAuthor.EventDefinition AddEvent(CSharpAuthor.ITypeDefinition handlerType, string name) { }
@@ -186,10 +192,25 @@ namespace CSharpAuthor
         NoAccessibility = 2048,
         Sealed = 4096,
     }
+    public class ConstraintDefinition
+    {
+        public ConstraintDefinition(string typeParameter) { }
+        public bool IsEmpty { get; }
+        public string TypeParameter { get; }
+        public CSharpAuthor.ConstraintDefinition Class(bool nullable = false) { }
+        public CSharpAuthor.ConstraintDefinition Default() { }
+        public CSharpAuthor.ConstraintDefinition DefaultConstructor() { }
+        public CSharpAuthor.ConstraintDefinition Implements(CSharpAuthor.ITypeDefinition type) { }
+        public CSharpAuthor.ConstraintDefinition NotNull() { }
+        public CSharpAuthor.ConstraintDefinition Struct() { }
+        public CSharpAuthor.ConstraintDefinition Unmanaged() { }
+        public void WriteOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
     public class ConstructorDefinition : CSharpAuthor.MethodDefinition
     {
         public ConstructorDefinition(string name, CSharpAuthor.IOutputComponent? base = null) { }
         public CSharpAuthor.IOutputComponent? Base { get; }
+        public bool IsPrimary { get; set; }
         protected override void WriteAccessModifier(CSharpAuthor.IOutputContext outputContext) { }
         protected override void WriteEndOfMethodSignature(CSharpAuthor.IOutputContext outputContext) { }
         protected override void WriteReturnType(CSharpAuthor.IOutputContext outputContext) { }
@@ -214,12 +235,14 @@ namespace CSharpAuthor
         public CSharpAuthor.EnumDefinition AddFlags() { }
         public CSharpAuthor.EnumValueDefinition AddValue(string enumValueName) { }
         public CSharpAuthor.EnumValueDefinition AddValue(string enumValueName, object value) { }
+        protected override void WriteComment(CSharpAuthor.IOutputContext outputContext) { }
         protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
     }
     public class EnumValueDefinition : CSharpAuthor.BaseOutputComponent
     {
         public EnumValueDefinition(string enumValueName) { }
         public object? Value { get; set; }
+        protected override void WriteComment(CSharpAuthor.IOutputContext outputContext) { }
         protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
     }
     public class EventDefinition : CSharpAuthor.BaseOutputComponent, CSharpAuthor.INamedComponent
@@ -445,6 +468,7 @@ namespace CSharpAuthor
         protected readonly System.Collections.Generic.List<CSharpAuthor.ParameterDefinition> ParameterList;
         protected int VariableCount;
         public MethodDefinition(string name) { }
+        public System.Collections.Generic.IReadOnlyList<CSharpAuthor.ConstraintDefinition> Constraints { get; }
         public System.Collections.Generic.List<CSharpAuthor.ITypeDefinition> GenericParameters { get; }
         public CSharpAuthor.ITypeDefinition? InterfaceImplementation { get; set; }
         public string Name { get; }
@@ -452,6 +476,7 @@ namespace CSharpAuthor
         public string? ReturnComment { get; set; }
         public CSharpAuthor.ITypeDefinition? ReturnType { get; }
         public CSharpAuthor.IOutputComponent? WhereStatement { get; set; }
+        public CSharpAuthor.ConstraintDefinition AddConstraint(string typeParameter) { }
         public void AddGenericParameter(CSharpAuthor.ITypeDefinition typeDefinition) { }
         public CSharpAuthor.MethodDefinition AddParameter(CSharpAuthor.ParameterDefinition parameterDefinition) { }
         public CSharpAuthor.ParameterDefinition AddParameter(CSharpAuthor.ITypeDefinition typeDefinition, string name) { }
@@ -471,6 +496,7 @@ namespace CSharpAuthor
     {
         public NamespaceDefinition(string ns = "") { }
         public bool FileScopedNamespace { get; set; }
+        public string Namespace { get; }
         public CSharpAuthor.ClassDefinition AddClass(string name) { }
         public void AddComponent(CSharpAuthor.IOutputComponent component) { }
         public CSharpAuthor.EnumDefinition AddEnum(string name) { }
@@ -1311,7 +1337,7 @@ namespace DependencyModules.SourceGenerator.Impl.Models
     }
     public class InterceptedMemberModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.InterceptedMemberModel>
     {
-        public InterceptedMemberModel(string Name, string Identifier, DependencyModules.SourceGenerator.Impl.Models.AccessorForm Form, CSharpAuthor.ITypeDefinition? ReturnType, CSharpAuthor.ITypeDefinition ResultType, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedParameterModel> Parameters, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedTypeParameterModel> TypeParameters, DependencyModules.SourceGenerator.Impl.Models.ReturnShape ReturnShape) { }
+        public InterceptedMemberModel(string Name, string Identifier, DependencyModules.SourceGenerator.Impl.Models.AccessorForm Form, CSharpAuthor.ITypeDefinition? ReturnType, CSharpAuthor.ITypeDefinition ResultType, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedParameterModel> Parameters, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.TypeParameterModel> TypeParameters, DependencyModules.SourceGenerator.Impl.Models.ReturnShape ReturnShape) { }
         public DependencyModules.SourceGenerator.Impl.Models.AccessorForm Form { get; init; }
         public string Identifier { get; init; }
         public DependencyModules.SourceGenerator.Impl.Models.InterceptorKind Kind { get; }
@@ -1320,7 +1346,7 @@ namespace DependencyModules.SourceGenerator.Impl.Models
         public CSharpAuthor.ITypeDefinition ResultType { get; init; }
         public DependencyModules.SourceGenerator.Impl.Models.ReturnShape ReturnShape { get; init; }
         public CSharpAuthor.ITypeDefinition? ReturnType { get; init; }
-        public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedTypeParameterModel> TypeParameters { get; init; }
+        public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.TypeParameterModel> TypeParameters { get; init; }
         public virtual bool Equals(DependencyModules.SourceGenerator.Impl.Models.InterceptedMemberModel? other) { }
         public override int GetHashCode() { }
     }
@@ -1332,12 +1358,6 @@ namespace DependencyModules.SourceGenerator.Impl.Models
         public bool IsParams { get; init; }
         public string Name { get; init; }
         public CSharpAuthor.ITypeDefinition Type { get; init; }
-    }
-    public class InterceptedTypeParameterModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.InterceptedTypeParameterModel>
-    {
-        public InterceptedTypeParameterModel(string Name, string Constraints) { }
-        public string Constraints { get; init; }
-        public string Name { get; init; }
     }
     public class InterceptionRefusal : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.InterceptionRefusal>
     {
@@ -1353,7 +1373,7 @@ namespace DependencyModules.SourceGenerator.Impl.Models
     public class InterceptorModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.InterceptorModel>
     {
         public static readonly DependencyModules.SourceGenerator.Impl.Models.InterceptorModel Ignore;
-        public InterceptorModel(CSharpAuthor.ITypeDefinition ServiceType, CSharpAuthor.ITypeDefinition ImplementationType, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptorTypeModel> Interceptors, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedMemberModel> Members, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedDeclarationModel> Declarations, int Order, DependencyModules.SourceGenerator.Impl.Models.InterceptionRefusal? Refusal = null, System.Collections.Generic.IReadOnlyList<string>? TypeParameters = null) { }
+        public InterceptorModel(CSharpAuthor.ITypeDefinition ServiceType, CSharpAuthor.ITypeDefinition ImplementationType, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptorTypeModel> Interceptors, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedMemberModel> Members, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedDeclarationModel> Declarations, int Order, DependencyModules.SourceGenerator.Impl.Models.InterceptionRefusal? Refusal = null, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.TypeParameterModel>? TypeParameters = null) { }
         public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedDeclarationModel> Declarations { get; init; }
         public CSharpAuthor.ITypeDefinition ImplementationType { get; init; }
         public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptorTypeModel> Interceptors { get; init; }
@@ -1363,7 +1383,7 @@ namespace DependencyModules.SourceGenerator.Impl.Models
         public int Order { get; init; }
         public DependencyModules.SourceGenerator.Impl.Models.InterceptionRefusal? Refusal { get; init; }
         public CSharpAuthor.ITypeDefinition ServiceType { get; init; }
-        public System.Collections.Generic.IReadOnlyList<string>? TypeParameters { get; init; }
+        public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.TypeParameterModel>? TypeParameters { get; init; }
         public static DependencyModules.SourceGenerator.Impl.Models.InterceptorModel Refused(string message) { }
     }
     public class InterceptorModelComparer : System.Collections.Generic.IEqualityComparer<DependencyModules.SourceGenerator.Impl.Models.InterceptorModel>
@@ -1522,6 +1542,16 @@ namespace DependencyModules.SourceGenerator.Impl.Models
         public CSharpAuthor.ITypeDefinition? Realm { get; init; }
         public DependencyModules.SourceGenerator.Impl.Models.RegistrationType? RegistrationType { get; init; }
         public CSharpAuthor.ITypeDefinition ServiceType { get; init; }
+    }
+    public class TypeParameterModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.TypeParameterModel>
+    {
+        public TypeParameterModel(string Name, string? Primary, System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> ConstraintTypes, bool DefaultConstructor) { }
+        public System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> ConstraintTypes { get; init; }
+        public bool DefaultConstructor { get; init; }
+        public string Name { get; init; }
+        public string? Primary { get; init; }
+        public virtual bool Equals(DependencyModules.SourceGenerator.Impl.Models.TypeParameterModel? other) { }
+        public override int GetHashCode() { }
     }
 }
 namespace DependencyModules.SourceGenerator.Impl.Utilities
@@ -1690,6 +1720,10 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities
         public Microsoft.CodeAnalysis.SemanticModel SemanticModel { get; }
         public static DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext op_Implicit(Microsoft.CodeAnalysis.GeneratorAttributeSyntaxContext context) { }
         public static DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext op_Implicit(Microsoft.CodeAnalysis.GeneratorSyntaxContext context) { }
+    }
+    public static class TypeParameterReader
+    {
+        public static DependencyModules.SourceGenerator.Impl.Models.TypeParameterModel Read(Microsoft.CodeAnalysis.ITypeParameterSymbol parameter) { }
     }
     public static class TypeSyntaxExtensions
     {

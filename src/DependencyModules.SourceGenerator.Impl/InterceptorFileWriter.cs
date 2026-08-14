@@ -40,7 +40,9 @@ public class InterceptorFileWriter {
         // to repeat the constraint and there is no way to emit one.
         if (model.IsOpenGeneric) {
             foreach (var typeParameter in model.TypeParameters!) {
-                wrapper.AddGenericParameter(typeParameter);
+                wrapper.AddGenericParameter(typeParameter.Name);
+
+                WriteConstraint(wrapper.AddConstraint(typeParameter.Name), typeParameter);
             }
         }
 
@@ -92,11 +94,13 @@ public class InterceptorFileWriter {
     /// A type closed over the wrapper's own type parameters — <c>Repository</c> becomes
     /// <c>Repository&lt;T&gt;</c>.
     /// </summary>
-    private static ITypeDefinition Closed(ITypeDefinition type, IReadOnlyList<string> typeParameters) {
+    private static ITypeDefinition Closed(
+        ITypeDefinition type, IReadOnlyList<TypeParameterModel> typeParameters) {
+
         var arguments = new ITypeDefinition[typeParameters.Count];
 
         for (var i = 0; i < arguments.Length; i++) {
-            arguments[i] = TypeDefinition.Get("", typeParameters[i]);
+            arguments[i] = TypeDefinition.Get("", typeParameters[i].Name);
         }
 
         return new GenericTypeDefinition(
@@ -115,6 +119,53 @@ public class InterceptorFileWriter {
         model.IsOpenGeneric
             ? Closed(TypeDefinition.Get("", wrapperName), model.TypeParameters!)
             : TypeDefinition.Get("", wrapperName);
+
+    /// <summary>
+    /// The constraints a member declares, which both the forwarding member and its state class have
+    /// to repeat or the call they forward will not satisfy them.
+    /// </summary>
+    private static void WriteConstraints(
+        InterceptedMemberModel member, Func<string, ConstraintDefinition> addConstraint) {
+
+        foreach (var typeParameter in member.TypeParameters) {
+            WriteConstraint(addConstraint(typeParameter.Name), typeParameter);
+        }
+    }
+
+    /// <summary>
+    /// Repeats one type parameter's constraints.
+    /// </summary>
+    /// <remarks>
+    /// The parts go in as the symbol reported them and come out in the order C# requires, which is
+    /// <c>ConstraintDefinition</c>'s job rather than this writer's.
+    /// </remarks>
+    private static void WriteConstraint(ConstraintDefinition constraint, TypeParameterModel typeParameter) {
+        switch (typeParameter.Primary) {
+            case "class":
+                constraint.Class();
+                break;
+            case "class?":
+                constraint.Class(nullable: true);
+                break;
+            case "struct":
+                constraint.Struct();
+                break;
+            case "unmanaged":
+                constraint.Unmanaged();
+                break;
+            case "notnull":
+                constraint.NotNull();
+                break;
+        }
+
+        foreach (var constraintType in typeParameter.ConstraintTypes) {
+            constraint.Implements(constraintType);
+        }
+
+        if (typeParameter.DefaultConstructor) {
+            constraint.DefaultConstructor();
+        }
+    }
 
     private static void WriteFields(ClassDefinition wrapper, InterceptorModel model) {
         var inner = wrapper.AddField(InnerType(model), InnerField);
@@ -300,7 +351,7 @@ public class InterceptorFileWriter {
             method.AddGenericParameter(new TypeParameterDefinition(typeParameter.Name));
         }
 
-        method.WhereStatement = Constraints(member);
+        WriteConstraints(member, method.AddConstraint);
 
         var arguments = new List<string> { "this" };
 
@@ -385,7 +436,7 @@ public class InterceptorFileWriter {
             state.AddGenericParameter(typeParameter.Name);
         }
 
-        state.WhereStatement = Constraints(member);
+        WriteConstraints(member, state.AddConstraint);
 
         var selfType = SelfType(model, wrapperName);
 
@@ -670,20 +721,6 @@ public class InterceptorFileWriter {
                ">";
     }
 
-    /// <summary>
-    /// The constraints the member declares, which both the forwarding member and the state class
-    /// have to repeat or the call they forward will not satisfy them.
-    /// </summary>
-    private static IOutputComponent? Constraints(InterceptedMemberModel member) {
-        var clauses = member.TypeParameters
-            .Where(parameter => parameter.Constraints.Length > 0)
-            .Select(parameter => $"where {parameter.Name} : {parameter.Constraints}")
-            .ToList();
-
-        return clauses.Count == 0
-            ? null
-            : new CodeOutputComponent(" " + string.Join(" ", clauses)) { Indented = false };
-    }
 
     private static string InterceptorField(int index) => $"_dmInterceptor{index}";
 

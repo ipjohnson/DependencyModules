@@ -141,9 +141,7 @@ The generator has to emit a real override, so some shapes are impossible. These 
 - by-reference returns
 - `init`-only setters
 - static members
-- a generic implementation whose type parameters are **constrained** — the wrapper would have to
-  repeat the constraint, and there is no way to emit one. An unconstrained generic implementation is
-  intercepted; see below.
+- a generic *method* whose shape the wrapper cannot forward, by the same rules as above
 
 ::: warning One such member disables interception for the whole interface
 There is no partial wrapper. A single `out` parameter anywhere on the interface means no wrapper is
@@ -180,8 +178,9 @@ specific to interception — a plain `[SingletonService]` on a generic class beh
 [Trimming and AOT](/guide/aot#what-it-does-not-cover).
 :::
 
-A **constrained** type parameter is refused, because the wrapper cannot repeat the constraint. Give
-the service a closed construction to intercept instead.
+Constraints come along with the parameters. `Repository<T> where T : class, IEntity, new()` is wrapped
+by `Repository_Intercepted<T> : IRepository<T> where T : class, IEntity, new()`, because without them
+the wrapper could not reference what it wraps.
 
 ## When an interceptor covers only some members
 

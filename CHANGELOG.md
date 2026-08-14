@@ -76,8 +76,11 @@ a build break rather than a nudge. `NoWarn` takes them per-project; note that `.
   wrapper and recurse. `DecoratorHelper.InterceptOpenGeneric` swaps the registration and registers the
   implementation alongside it, carrying the lifetime and the service key across.
 
-  A **constrained** type parameter is still refused, and now says why: the wrapper would have to repeat
-  the constraint and there is no way to emit one.
+  Constraints come along with the parameters: `Repository<T> where T : class, IEntity, new()` is
+  wrapped by `Repository_Intercepted<T> : IRepository<T> where T : class, IEntity, new()`, without
+  which the wrapper could not reference what it wraps. `struct` and `unmanaged` already guarantee a
+  default constructor and Roslyn reports one for them, so `new()` is dropped rather than repeated —
+  writing it out is CS0451.
 
   Worth knowing before relying on it under Native AOT, and true of open generic registrations
   generally rather than of interception: a published binary closes them over reference types only.
@@ -141,6 +144,12 @@ a build break rather than a nudge. `NoWarn` takes them per-project; note that `.
   way. Both are now `DM0014` and `DM0013`.
 
 ### Changed
+
+- **`CSharpAuthor` 1.1.1010**, for `AddConstraint`. A `where` clause was previously assembled as a
+  string and assigned to `WhereStatement`, which put C#'s ordering rules — one primary constraint
+  first, `new()` last — in this generator. Two places needed them once a class could carry constraints
+  as well as a method, and two copies of a subtle rule drift. `TypeParameterReader` reads a parameter
+  once for both, and the library puts the parts in order.
 
 - **`DM0008` now says what it costs.** One member the wrapper cannot override means *no* wrapper is
   generated, so every other member on the interface goes uninterceped too — and the guide read as

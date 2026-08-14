@@ -626,28 +626,73 @@ public class InterceptorGenerationTests {
     }
 
     /// <summary>
-    /// A constrained type parameter is the one shape this cannot carry: the wrapper would have to
-    /// repeat the constraint to reference the implementation, and there is no way to emit one.
-    /// Refused rather than emitted as code that does not compile.
+    /// The wrapper repeats the implementation's constraints, without which it could not reference
+    /// what it wraps.
     /// </summary>
     [Fact]
-    public void ConstrainedGenericImplementation_ReportsDM0008() {
+    public void ConstrainedGenericImplementation_RepeatsTheConstraints() {
         var result = GeneratorTestHarness.Run(
-            GenericRepo("public class Repo<T> : IRepo<T> where T : class { public void Run() { } }"));
+            GenericRepo(
+                "public class Repo<T> : IRepo<T> where T : class, IMarker, new() { public void Run() { } }",
+                supporting: "public interface IMarker;"));
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0008");
+        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0008");
 
-        Assert.Contains("constrained", diagnostic.GetMessage());
-        Assert.DoesNotContain(result.GeneratedSources.Keys, key => key.Contains("Repo_Intercepted"));
+        var wrapper = Assert.Single(result.GeneratedSources, pair => pair.Key.Contains("Repo_Intercepted")).Value;
+
+        Assert.Contains("where T : class, global::TestNamespace.IMarker, new()", wrapper);
     }
 
-    private static string GenericRepo(string implementation) =>
+    /// <summary>
+    /// struct already guarantees a default constructor, and repeating new() alongside it is CS0451.
+    /// Roslyn reports the constructor constraint for a struct-constrained parameter anyway, so the
+    /// reader has to drop it rather than pass it through.
+    /// </summary>
+    [Fact]
+    public void StructConstrainedGeneric_DoesNotRepeatTheDefaultConstructor() {
+        var result = GeneratorTestHarness.Run(
+            GenericRepo("public class Repo<T> : IRepo<T> where T : struct { public void Run() { } }"));
+
+        var wrapper = Assert.Single(result.GeneratedSources, pair => pair.Key.Contains("Repo_Intercepted")).Value;
+
+        Assert.Contains("where T : struct", wrapper);
+        Assert.DoesNotContain("new()", wrapper);
+    }
+
+    /// <summary>
+    /// And the constrained wrapper is not merely well-formed text: it compiles, loads and runs.
+    /// </summary>
+    [Fact]
+    public void ConstrainedGenericImplementation_ResolvesAndIntercepts() {
+        var generated = GeneratedAssembly.Create(
+            GenericRepo(
+                "public class Repo<T> : IRepo<T> where T : class, IMarker, new() { public void Run() { } }",
+                supporting: """
+                            public interface IMarker;
+
+                            public class Marked : IMarker;
+                            """));
+
+        var closed = generated.Type("IRepo`1").MakeGenericType(generated.Type("Marked"));
+        var resolved = generated.BuildProvider().GetService(closed);
+
+        Assert.NotNull(resolved);
+        Assert.StartsWith("Repo_Intercepted", resolved!.GetType().Name);
+    }
+
+    /// <summary>
+    /// The attributes land on whatever <paramref name="implementation"/> declares first, so anything
+    /// the implementation needs alongside it goes in <paramref name="supporting"/>.
+    /// </summary>
+    private static string GenericRepo(string implementation, string supporting = "") =>
         $$"""
           {{Preamble}}
 
           {{Tracing("Tracing", "tracing")}}
 
           public interface IRepo<T> { void Run(); }
+
+          {{supporting}}
 
           [SingletonService]
           [Intercept(typeof(TracingInterceptor))]

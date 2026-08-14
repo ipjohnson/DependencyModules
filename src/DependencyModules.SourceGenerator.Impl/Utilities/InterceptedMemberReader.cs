@@ -158,7 +158,7 @@ public static class InterceptedMemberReader {
                 type,
                 type,
                 indices,
-                Array.Empty<InterceptedTypeParameterModel>(),
+                Array.Empty<TypeParameterModel>(),
                 ReturnShape.Value));
         }
 
@@ -178,7 +178,7 @@ public static class InterceptedMemberReader {
                 null,
                 KnownTypes.DependencyModules.Interception.NoResult,
                 arguments,
-                Array.Empty<InterceptedTypeParameterModel>(),
+                Array.Empty<TypeParameterModel>(),
                 ReturnShape.Void));
         }
 
@@ -234,7 +234,7 @@ public static class InterceptedMemberReader {
             null,
             KnownTypes.DependencyModules.Interception.NoResult,
             new InterceptedParameterModel[] { new("value", "value", handlerType, null) },
-            Array.Empty<InterceptedTypeParameterModel>(),
+            Array.Empty<TypeParameterModel>(),
             ReturnShape.Void);
 
     /// <summary>
@@ -337,51 +337,18 @@ public static class InterceptedMemberReader {
     /// The member's type parameters and their constraints. The state class repeats both, or the call
     /// it forwards will not satisfy the constraints the interface declared.
     /// </summary>
-    private static IReadOnlyList<InterceptedTypeParameterModel> ReadTypeParameters(IMethodSymbol method) {
+    private static IReadOnlyList<TypeParameterModel> ReadTypeParameters(IMethodSymbol method) {
         if (method.TypeParameters.Length == 0) {
-            return Array.Empty<InterceptedTypeParameterModel>();
+            return Array.Empty<TypeParameterModel>();
         }
 
-        var typeParameters = new List<InterceptedTypeParameterModel>();
+        var typeParameters = new List<TypeParameterModel>();
 
         foreach (var parameter in method.TypeParameters) {
-            typeParameters.Add(new InterceptedTypeParameterModel(parameter.Name, RenderConstraints(parameter)));
+            typeParameters.Add(TypeParameterReader.Read(parameter));
         }
 
         return typeParameters;
-    }
-
-    private static string RenderConstraints(ITypeParameterSymbol parameter) {
-        var constraints = new List<string>();
-
-        // Unmanaged implies a value type constraint, so it has to be tested first or the narrower
-        // constraint would be rendered as the wider one.
-        if (parameter.HasUnmanagedTypeConstraint) {
-            constraints.Add("unmanaged");
-        } else if (parameter.HasValueTypeConstraint) {
-            constraints.Add("struct");
-        } else if (parameter.HasReferenceTypeConstraint) {
-            constraints.Add(
-                parameter.ReferenceTypeConstraintNullableAnnotation == NullableAnnotation.Annotated
-                    ? "class?"
-                    : "class");
-        } else if (parameter.HasNotNullConstraint) {
-            constraints.Add("notnull");
-        }
-
-        foreach (var constraintType in parameter.ConstraintTypes) {
-            var builder = new StringBuilder();
-
-            constraintType.GetTypeDefinition().WriteTypeName(builder, TypeOutputMode.Global);
-
-            constraints.Add(builder.ToString());
-        }
-
-        if (parameter.HasConstructorConstraint) {
-            constraints.Add("new()");
-        }
-
-        return string.Join(", ", constraints);
     }
 
     private static string EscapeIdentifier(string name) =>

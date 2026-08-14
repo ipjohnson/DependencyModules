@@ -98,8 +98,7 @@ Their nesting would be ambiguous. See [Decorators](/guide/decorators#ordering).
 **A service marked for interception cannot be wrapped.**
 
 The member uses `ref`, `in`, `out` or a `ref struct` parameter, returns by reference, has an
-`init`-only setter, or is static — or the implementation is generic with a **constrained** type
-parameter, which the generated wrapper would have to repeat and cannot.
+`init`-only setter, or is static.
 
 One such member costs the whole interface: no wrapper is generated, so every other member goes
 uninterceped too. The message names the first offender it found. See
