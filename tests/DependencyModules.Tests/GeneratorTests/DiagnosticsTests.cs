@@ -158,6 +158,213 @@ public class DiagnosticsTests {
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0002");
     }
 
+    /// <summary>
+    /// A generic decorator declared on the class, over a service registered as an open generic. The
+    /// expansion has no closed construction to close over, so the declaration used to disappear with
+    /// a green build — a decorator in the source that never ran.
+    /// </summary>
+    [Fact]
+    public void GenericDecoratorOverOpenGenericRegistration_ReportsDM0013() {
+        var result = GeneratorTestHarness.Run(
+            OpenGenericStore(
+                """
+                [Decorator]
+                public class LoggingStore<T>(IStore<T> inner) : IStore<T> {
+                    public string Read(T key) => inner.Read(key);
+                }
+                """));
+
+        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0013");
+
+        Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
+        Assert.Contains("IStore", diagnostic.GetMessage());
+        Assert.Contains("LoggingStore", diagnostic.GetMessage());
+    }
+
+    /// <summary>
+    /// The same service, decorated from the module instead. Both declaration forms reach the same
+    /// expansion, so both have to report.
+    /// </summary>
+    [Fact]
+    public void ModuleDeclaredDecoratorOverOpenGenericRegistration_ReportsDM0013() {
+        var result = GeneratorTestHarness.Run(
+            OpenGenericStore(
+                """
+                public class LoggingStore<T>(IStore<T> inner) : IStore<T> {
+                    public string Read(T key) => inner.Read(key);
+                }
+                """,
+                moduleAttributes: "[Decorate(typeof(IStore<>), typeof(LoggingStore<>))]"));
+
+        Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0013");
+    }
+
+    /// <summary>
+    /// A <i>non-generic</i> decorator named against an unbound service type. This one needed no
+    /// expansion, so nothing caught it and it reached emission still carrying <c>IStore&lt;&gt;</c> —
+    /// which is CS7003 in generated code.
+    /// </summary>
+    [Fact]
+    public void NonGenericDecoratorOverOpenGenericRegistration_ReportsDM0013() {
+        var result = GeneratorTestHarness.Run(
+            OpenGenericStore(
+                """
+                public class StringStoreDecorator(IStore<string> inner) : IStore<string> {
+                    public string Read(string key) => inner.Read(key);
+                }
+                """,
+                moduleAttributes: "[Decorate(typeof(IStore<>), typeof(StringStoreDecorator))]"));
+
+        Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0013");
+    }
+
+    /// <summary>
+    /// And the generated code compiles, which it did not before: <c>GeneratedAssembly.Create</c>
+    /// asserts the compilation is clean and emits.
+    /// </summary>
+    [Fact]
+    public void NonGenericDecoratorOverOpenGenericRegistration_StillCompiles() {
+        var generated = GeneratedAssembly.Create(
+            OpenGenericStore(
+                """
+                public class StringStoreDecorator(IStore<string> inner) : IStore<string> {
+                    public string Read(string key) => inner.Read(key);
+                }
+                """,
+                moduleAttributes: "[Decorate(typeof(IStore<>), typeof(StringStoreDecorator))]"));
+
+        Assert.Contains(generated.Services, d => d.ServiceType == generated.Type("IStore`1"));
+    }
+
+    /// <summary>
+    /// The case that must keep working: closed registrations, which a generic decorator is expanded
+    /// across. This is the shape a MediatR-style pipeline is built from.
+    /// </summary>
+    [Fact]
+    public void GenericDecoratorOverClosedRegistrations_DoesNotReportDM0013() {
+        var result = GeneratorTestHarness.Run(
+            """
+            using DependencyModules.Runtime.Attributes;
+
+            namespace TestNamespace;
+
+            public interface IStore<T> { string Read(T key); }
+
+            [SingletonService] public class IntStore : IStore<int> { public string Read(int key) => "int"; }
+            [SingletonService] public class StringStore : IStore<string> { public string Read(string key) => "string"; }
+
+            [Decorator]
+            public class LoggingStore<T>(IStore<T> inner) : IStore<T> {
+                public string Read(T key) => inner.Read(key);
+            }
+
+            [DependencyModule]
+            public partial class TestModule;
+            """);
+
+        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0013");
+    }
+
+    /// <summary>
+    /// A decorator naming a service this compilation does not register at all stays quiet. Naming a
+    /// service someone else registers is what <c>[Decorate]</c> is for, so reporting here would fire
+    /// on the feature's primary use.
+    /// </summary>
+    [Fact]
+    public void DecoratorForAServiceThisCompilationDoesNotRegister_DoesNotReportDM0013() {
+        var result = GeneratorTestHarness.Run(
+            """
+            using DependencyModules.Runtime.Attributes;
+
+            namespace TestNamespace;
+
+            public interface IElsewhere<T> { string Read(T key); }
+
+            public class LoggingElsewhere<T>(IElsewhere<T> inner) : IElsewhere<T> {
+                public string Read(T key) => inner.Read(key);
+            }
+
+            [DependencyModule]
+            [Decorate(typeof(IElsewhere<>), typeof(LoggingElsewhere<>))]
+            public partial class TestModule;
+            """);
+
+        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0013");
+    }
+
+    /// <summary>
+    /// Cross-wiring shares one instance across every service type, which needs a factory — and an
+    /// open generic registration cannot have one. The emission was invalid on its face: the type
+    /// parameter leaked into <c>typeof(ILedger&lt;T&gt;)</c> beside
+    /// <c>GetRequiredService&lt;Ledger&lt;&gt;&gt;()</c>.
+    /// </summary>
+    [Fact]
+    public void CrossWiredGenericType_ReportsDM0014() {
+        var result = GeneratorTestHarness.Run(CrossWiredLedger("public class Ledger<T> : ILedger<T>, IAudit<T>;"));
+
+        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0014");
+
+        Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
+        Assert.Contains("Ledger", diagnostic.GetMessage());
+    }
+
+    [Fact]
+    public void CrossWiredGenericType_IsNotRegistered() {
+        var result = GeneratorTestHarness.Run(CrossWiredLedger("public class Ledger<T> : ILedger<T>, IAudit<T>;"));
+
+        Assert.DoesNotContain(result.GeneratedSources.Keys, key => key.Contains("Dependencies"));
+    }
+
+    /// <summary>
+    /// Cross-wiring a non-generic type is untouched, and still shares one instance across both
+    /// interfaces.
+    /// </summary>
+    [Fact]
+    public void CrossWiredNonGenericType_StillRegisters() {
+        var generated = GeneratedAssembly.Create(CrossWiredLedger("public class Ledger : ILedger<int>, IAudit<int>;"));
+
+        var provider = generated.BuildProvider();
+
+        // The point of cross-wiring: both interfaces answer with the one instance.
+        Assert.Same(
+            provider.GetService(generated.Type("ILedger`1").MakeGenericType(typeof(int))),
+            provider.GetService(generated.Type("IAudit`1").MakeGenericType(typeof(int))));
+    }
+
+    private static string OpenGenericStore(string body, string moduleAttributes = "") =>
+        $$"""
+          using DependencyModules.Runtime.Attributes;
+
+          namespace TestNamespace;
+
+          public interface IStore<T> { string Read(T key); }
+
+          [SingletonService]
+          public class Store<T> : IStore<T> { public string Read(T key) => "store"; }
+
+          {{body}}
+
+          [DependencyModule]
+          {{moduleAttributes}}
+          public partial class TestModule;
+          """;
+
+    private static string CrossWiredLedger(string implementation) =>
+        $$"""
+          using DependencyModules.Runtime.Attributes;
+
+          namespace TestNamespace;
+
+          public interface ILedger<T>;
+          public interface IAudit<T>;
+
+          [CrossWireService]
+          {{implementation}}
+
+          [DependencyModule]
+          public partial class TestModule;
+          """;
+
     private static string Module(string body) =>
         $$"""
           using DependencyModules.Runtime.Attributes;

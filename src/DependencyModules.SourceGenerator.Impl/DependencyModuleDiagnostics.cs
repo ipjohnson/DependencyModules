@@ -213,4 +213,64 @@ public static class DependencyModuleDiagnostics {
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
+    /// <summary>
+    /// Raised for a decorator whose service is registered as an open generic.
+    /// </summary>
+    /// <remarks>
+    /// Decoration replaces a registration with a factory, and the container refuses a factory for an
+    /// open generic service type — "requires registering an open generic implementation type". So
+    /// there is nothing to emit, and both shapes of the mistake failed badly until this existed.
+    ///
+    /// A <i>generic</i> decorator is expanded against the closed constructions a compilation
+    /// registers. An open generic registration closes nothing, so the expansion produced no
+    /// decorations and the declaration was dropped in silence — a build with a decorator in it that
+    /// never runs.
+    ///
+    /// A <i>non-generic</i> decorator named against an unbound service is worse: it needs no
+    /// expansion, so it reached emission carrying <c>IHolder&lt;&gt;</c> and produced
+    /// <c>Decorate&lt;IHolder&lt;&gt;&gt;</c> — CS7003 inside generated code, which is the one failure
+    /// mode this generator exists to avoid.
+    ///
+    /// Registering closed constructions is the way through, and the message says so.
+    /// </remarks>
+    public static readonly DiagnosticDescriptor OpenGenericCannotBeDecorated = new(
+        id: "DM0013",
+        title: "Open generic registration cannot be decorated",
+        messageFormat:
+        "'{0}' is registered as an open generic, so '{1}' cannot decorate it. Decoration replaces a " +
+        "registration with a factory, and the container does not allow one for an open generic " +
+        "service type. Register closed constructions of '{0}' instead — a convention over the open " +
+        "generic registers one per implementation, and a generic decorator is then expanded across them.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    /// <summary>
+    /// Raised for <c>[CrossWireService]</c> on a generic type.
+    /// </summary>
+    /// <remarks>
+    /// Cross-wiring means one instance shared across the implementation and every interface it
+    /// declares, which is emitted as <c>s =&gt; s.GetRequiredService&lt;T&gt;()</c> per interface — a
+    /// factory, and a factory is what an open generic registration cannot have.
+    ///
+    /// Registering each interface to the same open generic implementation type compiles, and is a
+    /// different contract: the container builds one instance per service type, which is the opposite
+    /// of what the attribute promises. Silently substituting that would be worse than refusing.
+    ///
+    /// Until this existed the generated code did not compile at all — the type parameter leaked into
+    /// the registration as <c>typeof(ILedger&lt;T&gt;)</c> (CS0246, no <c>T</c> in scope) beside
+    /// <c>GetRequiredService&lt;Ledger&lt;&gt;&gt;()</c> (CS7003).
+    /// </remarks>
+    public static readonly DiagnosticDescriptor CrossWireCannotBeGeneric = new(
+        id: "DM0014",
+        title: "Generic type cannot be cross-wired",
+        messageFormat:
+        "'{0}' is generic, so [CrossWireService] cannot register it. Cross-wiring shares one instance " +
+        "across every service type, which needs a factory, and the container does not allow one for an " +
+        "open generic registration. Use [SingletonService], [ScopedService] or [TransientService] to " +
+        "register it, applying one per interface if it needs to answer to more than one.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
 }

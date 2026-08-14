@@ -171,12 +171,11 @@ public class Repository<T> : IRepository<T> { }   // registers IRepository<> its
 public class CachingRepository<T>(IRepository<T> inner) : IRepository<T> { }
 ```
 
-```
-InvalidOperationException: 'IRepository`1' is registered as an open generic and cannot be
-decorated by 'CachingRepository`1'. …
-```
+This is [DM0013](/reference/diagnostics#dm0013) at build time, whichever way the decorator was
+declared — on the class, or on the module with `[Decorate]`.
 
-Register closed constructions instead.
+Register closed constructions instead. A [convention](/guide/conventions) over the open generic
+registers one per implementation, and an open generic decorator is then expanded across them.
 
 Note that this is about the **registration**, not the decorator. An open generic decorator over
 closed registrations — the example further up — works, and is the common case.

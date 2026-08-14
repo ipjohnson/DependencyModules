@@ -40,6 +40,8 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
 
         var serviceModels = ReportUnconstructableServices(context, inputData.Right, logger);
 
+        serviceModels = ReportCrossWiredGenerics(context, serviceModels, logger);
+
         if (serviceModels.Length == 0) {
             return;
         }
@@ -159,6 +161,58 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
 
         return builder.ToImmutable();
     }
+
+    /// <summary>
+    /// Reports cross-wired generic types and removes them from generation.
+    /// </summary>
+    /// <remarks>
+    /// Cross-wiring shares one instance across every service type, which is emitted as a factory per
+    /// interface. An open generic registration cannot carry a factory, so the emission was invalid on
+    /// its face: the type parameter leaked into the registration as <c>typeof(ILedger&lt;T&gt;)</c>
+    /// and the factory read <c>GetRequiredService&lt;Ledger&lt;&gt;&gt;()</c>, giving CS0246 and
+    /// CS7003 in generated code.
+    ///
+    /// The whole model is dropped rather than the cross-wired registrations alone. Keeping the
+    /// implementation's own registration would honour half an attribute — the instance would no
+    /// longer be reachable through any of its interfaces, which is the entire reason the attribute
+    /// was written.
+    /// </remarks>
+    private static ImmutableArray<ServiceModel> ReportCrossWiredGenerics(
+        SourceProductionContext context, ImmutableArray<ServiceModel> serviceModels, FileLogger logger) {
+
+        if (!serviceModels.Any(IsCrossWiredGeneric)) {
+            return serviceModels;
+        }
+
+        var builder = ImmutableArray.CreateBuilder<ServiceModel>(serviceModels.Length);
+
+        foreach (var serviceModel in serviceModels) {
+            if (!IsCrossWiredGeneric(serviceModel)) {
+                builder.Add(serviceModel);
+
+                continue;
+            }
+
+            var typeName = serviceModel.ImplementationType.Name;
+
+            logger.Error($"Skipping '{typeName}' because a generic type cannot be cross-wired.");
+
+            context.ReportDiagnostic(
+                Diagnostic.Create(
+                    DependencyModuleDiagnostics.CrossWireCannotBeGeneric,
+                    Location.None,
+                    typeName));
+        }
+
+        return builder.ToImmutable();
+    }
+
+    /// <summary>
+    /// A cross-wired registration on an implementation that is itself generic.
+    /// </summary>
+    private static bool IsCrossWiredGeneric(ServiceModel serviceModel) =>
+        serviceModel.ImplementationType is GenericTypeDefinition { TypeArguments.Count: > 0 } &&
+        serviceModel.Registrations.Any(registration => registration.CrossWire == true);
 
     /// <summary>
     /// Reports what each conditional registration depends on, and refuses conditions that name

@@ -28,6 +28,8 @@ them if the IDE gets noisy; the rest are worth reading.
 | [DM0010](#dm0010) | Info | A service is registered by convention |
 | [DM0011](#dm0011) | Info | A service is registered only when a condition holds |
 | [DM0012](#dm0012) | Warning | An environment condition names nothing to test |
+| [DM0013](#dm0013) | Warning | A service registered as an open generic cannot be decorated |
+| [DM0014](#dm0014) | Warning | A generic type cannot be cross-wired |
 
 ## DM0001 {#dm0001}
 
@@ -123,3 +125,45 @@ Informational, reported at the class. See [Environments](/guide/environments).
 
 `[IfEnvironment()]` and `[IfEnvironmentValue("")]` both compile. Written plain they mean the service
 never registers; written as the `IfNot` form they mean the attribute does nothing at all.
+
+## DM0013 {#dm0013}
+
+**A service registered as an open generic cannot be decorated.**
+
+Decoration replaces a registration with a factory, and the container does not allow one for an open
+generic service type — `Open generic service type 'IRepository`1[T]' requires registering an open
+generic implementation type`.
+
+```csharp
+[SingletonService]
+public class Repository<T> : IRepository<T> { }   // registers IRepository<> itself
+
+[Decorator]
+public class CachingRepository<T>(IRepository<T> inner) : IRepository<T> { }   // DM0013
+```
+
+Reported whichever way the decorator was declared — on the class, or on the module with
+`[Decorate]` — and whether or not the decorator is itself generic.
+
+Register closed constructions instead. A [convention](/guide/conventions) over the open generic
+registers one per implementation, and an open generic decorator is expanded across them. See
+[Decorators](/guide/decorators#one-limitation).
+
+## DM0014 {#dm0014}
+
+**A generic type cannot be cross-wired.**
+
+`[CrossWireService]` shares one instance across the implementation and every interface it declares,
+which is emitted as a factory per interface — and an open generic registration cannot carry one.
+
+```csharp
+[CrossWireService]
+public class Ledger<T> : ILedger<T>, IAudit<T> { }   // DM0014
+```
+
+Registering each interface to the same open generic implementation type would compile, and is a
+different contract: the container builds one instance per service type, which is the opposite of what
+the attribute promises.
+
+Use `[SingletonService]`, `[ScopedService]` or `[TransientService]` instead, applying one per
+interface if the type needs to answer to more than one.

@@ -13,7 +13,12 @@ namespace DependencyModules.Runtime.Attributes;
 /// public partial class DataModule;
 /// </code>
 /// </remarks>
-/// <param name="service">The service being decorated. May be an open generic.</param>
+/// <param name="service">
+/// The service being decorated. A generic service is named unbound — <c>typeof(IHandler&lt;,&gt;)</c>
+/// — and the decoration is expanded across the closed constructions the compilation registers. A
+/// service <i>registered</i> as an open generic cannot be decorated at all, and is reported as
+/// DM0013.
+/// </param>
 /// <param name="decorator">The decorator, which must implement <paramref name="service"/>.</param>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
 public class DecorateAttribute(Type service, Type decorator) : Attribute {

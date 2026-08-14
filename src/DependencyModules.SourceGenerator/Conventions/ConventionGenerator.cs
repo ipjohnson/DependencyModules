@@ -355,9 +355,12 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
         var expanded = DecoratorExpansion.Expand(
             decorators,
             registeredServiceTypes,
+            out var refusedForOpenGenericRegistration,
             canClose: (decoratorType, closedService) =>
                 DecoratorConstraintChecker.CanClose(
                     moduleDecorators.Compilation, decoratorType, closedService));
+
+        ReportOpenGenericDecoration(context, refusedForOpenGenericRegistration, logger);
 
         if (expanded.Count == 0) {
             return;
@@ -426,6 +429,37 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
         ReportAmbiguousOrdering(context, decorators, logger);
 
         return decorators;
+    }
+
+    /// <summary>
+    /// Reports the decorators that were dropped because their service is registered as an open
+    /// generic.
+    /// </summary>
+    /// <remarks>
+    /// The expansion cannot produce anything for these, and until this existed the two shapes failed
+    /// differently and both badly: a generic decorator vanished with a green build, and a non-generic
+    /// one reached emission carrying an unbound service type and produced CS7003 in generated code.
+    /// </remarks>
+    private static void ReportOpenGenericDecoration(
+        SourceProductionContext context,
+        IReadOnlyList<DecoratorModel> refused,
+        FileLogger logger) {
+
+        foreach (var decorator in refused) {
+            var serviceName = decorator.ServiceType.Name;
+            var decoratorName = decorator.DecoratorType.Name;
+
+            logger.Error(
+                $"'{decoratorName}' cannot decorate '{serviceName}' because it is registered as an " +
+                "open generic.");
+
+            context.ReportDiagnostic(
+                Diagnostic.Create(
+                    DependencyModuleDiagnostics.OpenGenericCannotBeDecorated,
+                    Location.None,
+                    serviceName,
+                    decoratorName));
+        }
     }
 
     /// <summary>

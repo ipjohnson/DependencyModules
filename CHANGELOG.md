@@ -5,6 +5,61 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Two diagnostics for open generics, where the generator previously failed silently or emitted
+  code that did not compile.** Both cases are the same underlying constraint: decoration and
+  cross-wiring replace a registration with a factory, and the container refuses a factory for an
+  open generic service type — ``Open generic service type 'IRepository`1[T]' requires registering an
+  open generic implementation type``.
+
+  **`DM0013`** reports a decorator whose service is registered as an open generic. It covers all
+  three shapes of the mistake, which until now failed in two different ways. A *generic* decorator
+  is expanded against the closed constructions a compilation registers; an open generic registration
+  closes nothing, so the expansion produced no decorations and the declaration was dropped in
+  silence — a decorator sitting in the source, a green build, and nothing wrapping anything. A
+  *non-generic* decorator named against an unbound service needed no expansion at all, so nothing
+  caught it: it reached emission carrying `IStore<>` and produced `Decorate<IStore<>>`, which is
+  CS7003 inside generated code. Reported whichever way the decorator was declared, on the class or
+  on the module with `[Decorate]`.
+
+  A decorator naming a service the compilation does **not** register stays quiet. Naming a service
+  someone else registers is what `[Decorate]` exists for, so reporting there would fire on the
+  feature's primary use.
+
+  **`DM0014`** reports `[CrossWireService]` on a generic type. Cross-wiring shares one instance
+  across the implementation and every interface it declares, which is emitted as a factory per
+  interface. Registering each interface to the same open generic implementation type would compile
+  and is a different contract — one instance per service type, the opposite of what the attribute
+  promises — so it is refused rather than quietly substituted. The whole registration is dropped
+  rather than the cross-wired half, because keeping the implementation's own registration would
+  leave the instance unreachable through any of its interfaces.
+
+### Fixed
+
+- **Generated code that did not compile.** `[CrossWireService]` on a generic type leaked the type
+  parameter into the registration as `typeof(ILedger<T>)`, with no `T` in scope, beside
+  `GetRequiredService<Ledger<>>()` — CS0246 and CS7003, in a file the developer did not write. A
+  non-generic decorator named against an open generic service produced CS7003 and CS1503 the same
+  way. Both are now `DM0014` and `DM0013`.
+
+### Changed
+
+- **`DecorateAttribute`'s documentation said the opposite of the README.** Its `service` parameter
+  was documented as "may be an open generic", which reads as a service *registered* as one. It means
+  a generic service named unbound, expanded across the closed constructions the compilation
+  registers. The decorators guide also described the failure as an `InvalidOperationException` from
+  `DecoratorHelper`; that guard is unreachable from generated code, because the expansion drops the
+  decorator before anything is emitted, so the guide now points at `DM0013`.
+
+- **Breaking, for anyone building on the generator extension points:**
+  `DecoratorExpansion.Expand` takes an additional `out IReadOnlyList<DecoratorModel>` parameter,
+  carrying the decorators it refused so the caller can report them. These are the extension points
+  the convention generator uses and are not a versioned API — see the
+  [generator guide](https://ipjohnson.github.io/DependencyModules/guide/extending).
+
 ## [1.0.0-rc9230] - 2026-08-12
 
 Everything since `1.0.0-rc9210`. Still a release candidate: convention registration and the NUnit
@@ -522,5 +577,6 @@ The entries below were written for a 1.0.0 that was not cut. They describe the s
   Enable it with `<DependencyModules_LogOutputDirectory>`.
 - A tag-driven release workflow publishing to nuget.org and GitHub Packages.
 
+[Unreleased]: https://github.com/ipjohnson/DependencyModules/compare/v1.0.0-rc9230...HEAD
 [1.0.0-rc9230]: https://github.com/ipjohnson/DependencyModules/releases/tag/v1.0.0-rc9230
 [1.0.0-rc9210]: https://github.com/ipjohnson/DependencyModules/releases/tag/v1.0.0-rc9210
