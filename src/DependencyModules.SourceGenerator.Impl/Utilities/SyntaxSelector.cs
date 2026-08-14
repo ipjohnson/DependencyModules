@@ -16,12 +16,22 @@ public abstract class BaseSyntaxSelector {
         _names = GetAttributeStrings(attributes);
     }
 
+    /// <summary>
+    /// The bare names an attribute may be written as, with and without the <c>Attribute</c> suffix.
+    /// </summary>
+    /// <remarks>
+    /// Qualification is stripped from the usage rather than enumerated here — see
+    /// <see cref="LastSegment"/>. Listing prefixes was the previous approach and it missed the
+    /// namespace-qualified form without the suffix, so
+    /// <c>[DependencyModules.Runtime.Attributes.DependencyModule]</c> — valid C# — was silently not a
+    /// module: no partial written, no diagnostic, and a CS0311 at the consumer's
+    /// <c>AddModule&lt;T&gt;()</c> naming neither the attribute nor the omission.
+    /// </remarks>
     private List<string> GetAttributeStrings(ITypeDefinition[] attributes) {
         var returnList = new List<string>();
 
         foreach (var attribute in attributes) {
             returnList.Add(attribute.Name);
-            returnList.Add(attribute.Namespace + "." + attribute.Name);
 
             if (attribute.Name.EndsWith(_attributeString)) {
                 var simpleName = attribute.Name.Substring(0, attribute.Name.Length - _attributeString.Length);
@@ -31,6 +41,31 @@ public abstract class BaseSyntaxSelector {
         }
 
         return returnList;
+    }
+
+    /// <summary>
+    /// An attribute usage reduced to the name it ends in, so every way of qualifying it compares
+    /// equal.
+    /// </summary>
+    /// <remarks>
+    /// Covers <c>Ns.Attr</c>, <c>global::Ns.Attr</c> and <c>alias::Ns.Attr</c>. It does not cover a
+    /// <c>using</c> alias of the attribute type itself, which resolves only through the semantic
+    /// model and so cannot be seen from a predicate that must stay syntax-only.
+    ///
+    /// This does not widen what matches by namespace: the bare simple name was already accepted
+    /// regardless of which namespace it came from, so a same-named attribute from elsewhere was
+    /// always a candidate and is filtered downstream as it always was.
+    /// </remarks>
+    private static string LastSegment(string attributeName) {
+        var lastDot = attributeName.LastIndexOf('.');
+
+        if (lastDot >= 0) {
+            return attributeName.Substring(lastDot + 1);
+        }
+
+        var lastColon = attributeName.LastIndexOf(':');
+
+        return lastColon >= 0 ? attributeName.Substring(lastColon + 1) : attributeName;
     }
 
     protected abstract bool TestForTypes(SyntaxNode node, CancellationToken token);
@@ -51,10 +86,7 @@ public abstract class BaseSyntaxSelector {
         }
         
         var found = node.DescendantNodes()
-            .OfType<AttributeSyntax>().Any(a => {
-                var name = a.Name.ToString();
-                return _names.Contains(name);
-            });
+            .OfType<AttributeSyntax>().Any(a => _names.Contains(LastSegment(a.Name.ToString())));
         
         return found;
     }
@@ -72,9 +104,7 @@ public abstract class BaseSyntaxSelector {
         var foundAttribute = false;
         foreach (var attributeListSyntax in attributeLists) {
             foreach (var attributeSyntax in attributeListSyntax.Attributes) {
-                var name = attributeSyntax.Name.ToString();
-                    
-                foundAttribute = _names.Contains(name);
+                foundAttribute = _names.Contains(LastSegment(attributeSyntax.Name.ToString()));
                     
                 if (foundAttribute) {
                     break;

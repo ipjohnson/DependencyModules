@@ -55,8 +55,24 @@ a compile-time decision, and belongs to `#if`. See
 [what conditions cost](/guide/environments#what-conditions-cost).
 
 **Open generic registration is the least AOT-friendly part of the container itself**, independent of
-this library — the container has to construct a closed type at run time. If you are targeting Native
-AOT aggressively, prefer closed registrations.
+this library — the container has to construct a closed type at run time, and Native AOT only has code
+for the instantiations the compiler could see.
+
+In practice the line falls between reference and value type arguments. Measured on a published
+`osx-arm64` binary, with `[SingletonService]` on `Bin<T> : IBin<T>`:
+
+```
+GetRequiredService<IBin<string>>()   works — reference types share one instantiation
+GetRequiredService<IBin<int>>()      InvalidOperationException: Unable to create a generic service
+                                     for type 'IBin`1[System.Int32]' because 'System.Int32' is a
+                                     ValueType. Native code to support creating generic services
+                                     might not be available with native AOT.
+```
+
+This is the container, not the generator: an [intercepted](/guide/interception) open generic behaves
+exactly the same way, because it is registered the same way. If you are targeting Native AOT, register
+closed constructions — a [convention](/guide/conventions) over the open generic does that for you,
+emitting one registration per implementation.
 
 **Runtime assembly discovery is not supported**, because there would be nothing to resolve at build
 time. See [Scanning a package](/guide/scanning).

@@ -55,8 +55,17 @@ public class MockAttribute : Attribute, ITestParameterValueProvider {
         }
 
         var mockedValue = mockAttribute.ProvideMock(parameter.ParameterType);
+        var key = ServiceKeyOf(parameter);
 
-        serviceCollection.AddSingleton(parameter.ParameterType, _ => mockedValue);
+        // Registered under the parameter's key when it has one. Registering unkeyed regardless left
+        // the keyed registration — the one the consumer actually injects — untouched, so the service
+        // under test kept the real implementation while the test held a double it believed was wired
+        // in. The arrangement ran, the double recorded nothing, and the assertion failed elsewhere.
+        if (key == null) {
+            serviceCollection.AddSingleton(parameter.ParameterType, _ => mockedValue);
+        } else {
+            serviceCollection.AddKeyedSingleton(parameter.ParameterType, key, (_, _) => mockedValue);
+        }
     }
 
     /// <summary>
@@ -77,6 +86,22 @@ public class MockAttribute : Attribute, ITestParameterValueProvider {
     /// </returns>
     public Task<object?> GetParameterValueAsync(
         ITestMethodContext testMethod, IServiceProvider serviceProvider, ParameterInfo parameter) {
+        var key = ServiceKeyOf(parameter);
+
+        if (key != null && serviceProvider is IKeyedServiceProvider keyedServiceProvider) {
+            return Task.FromResult(keyedServiceProvider.GetKeyedService(parameter.ParameterType, key));
+        }
+
         return Task.FromResult(serviceProvider.GetService(parameter.ParameterType));
     }
+
+    /// <summary>
+    /// The key the parameter asks for, or null when it asks for the unkeyed service.
+    /// </summary>
+    /// <remarks>
+    /// The same attribute the container path honours, read here so that a parameter carrying both
+    /// <c>[Mock]</c> and <c>[FromKeyedServices]</c> means one thing rather than two.
+    /// </remarks>
+    private static object? ServiceKeyOf(ParameterInfo parameter) =>
+        parameter.GetCustomAttribute<FromKeyedServicesAttribute>()?.Key;
 }

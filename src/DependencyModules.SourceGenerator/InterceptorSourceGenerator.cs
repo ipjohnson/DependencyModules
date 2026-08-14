@@ -113,9 +113,86 @@ public class InterceptorSourceGenerator : BaseAttributeSourceGenerator<Intercept
                 continue;
             }
 
+            ReportUnservedMembers(context, model, logger);
+
+            // No member has an interceptor that can serve it, so a wrapper would forward every call
+            // untouched. Dropped after reporting rather than before, which is what makes the case
+            // visible at all.
+            if (!model.Members.Any(member =>
+                    model.Interceptors.Any(interceptor => interceptor.CanServe(member.Kind)))) {
+
+                continue;
+            }
+
             usable.Add(model);
         }
 
         return usable;
     }
+
+    /// <summary>
+    /// Reports interceptors that are quietly absent from some of the members they were applied to.
+    /// </summary>
+    /// <remarks>
+    /// The generator picks per member from the three interceptor interfaces, and an interceptor
+    /// implementing none of the one a member needs was simply left out of that member's chain. That
+    /// is an interceptor that does not run, which is a correctness question rather than a style one:
+    /// an argument-rewriting interceptor stops rewriting, and an authorisation gate stops gating.
+    ///
+    /// One diagnostic per interceptor and member shape, so a wide interface produces one line rather
+    /// than one per member.
+    /// </remarks>
+    private static void ReportUnservedMembers(
+        SourceProductionContext context, InterceptorModel model, FileLogger logger) {
+
+        foreach (var interceptor in model.Interceptors) {
+            foreach (var kind in new[] {
+                         InterceptorKind.Sync, InterceptorKind.Async, InterceptorKind.Stream
+                     }) {
+
+                if (interceptor.CanServe(kind)) {
+                    continue;
+                }
+
+                var unserved = model.Members
+                    .Where(member => member.Kind == kind)
+                    .Select(member => member.Name)
+                    .Distinct()
+                    .OrderBy(name => name, StringComparer.Ordinal)
+                    .ToArray();
+
+                if (unserved.Length == 0) {
+                    continue;
+                }
+
+                logger.Error(
+                    $"'{interceptor.Type.Name}' does not implement {InterfaceFor(kind)}, so it is not " +
+                    $"applied to {string.Join(", ", unserved)} on '{model.ServiceType.Name}'.");
+
+                context.ReportDiagnostic(
+                    Diagnostic.Create(
+                        DependencyModuleDiagnostics.InterceptorCannotServeMembers,
+                        Location.None,
+                        interceptor.Type.Name,
+                        InterfaceFor(kind),
+                        DescriptionFor(kind),
+                        model.ServiceType.Name,
+                        string.Join(", ", unserved)));
+            }
+        }
+    }
+
+    private static string InterfaceFor(InterceptorKind kind) =>
+        kind switch {
+            InterceptorKind.Async => "IAsyncInterceptor",
+            InterceptorKind.Stream => "IAsyncEnumerableInterceptor",
+            _ => "IInterceptor"
+        };
+
+    private static string DescriptionFor(InterceptorKind kind) =>
+        kind switch {
+            InterceptorKind.Async => "the members returning a task",
+            InterceptorKind.Stream => "the members returning an async stream",
+            _ => "the members returning a value directly"
+        };
 }

@@ -92,7 +92,54 @@ public record InterceptedParameterModel(
 /// <param name="Constraints">
 /// The constraints without the <c>where T :</c> prefix, such as <c>class, new()</c>, or empty.
 /// </param>
-public record InterceptedTypeParameterModel(string Name, string Constraints);
+/// <summary>
+/// A type parameter of the intercepted <i>class</i>, with its constraints held as parts rather than
+/// rendered.
+/// </summary>
+/// <remarks>
+/// The wrapper is declared over the same parameters and has to repeat their constraints, or it cannot
+/// reference the implementation it wraps. Parts rather than a string because the writer decides how a
+/// type name is written and the reader does not know: rendering here would bake one output mode into
+/// the model, and <c>CSharpAuthor</c>'s <c>AddConstraint</c> takes the pieces and puts them in the
+/// order C# requires.
+/// </remarks>
+/// <param name="Name">The parameter name, repeated verbatim on the wrapper.</param>
+/// <param name="Primary">
+/// The primary constraint keyword — <c>class</c>, <c>struct</c>, <c>unmanaged</c>, <c>notnull</c> —
+/// or null when there is none. At most one is legal.
+/// </param>
+/// <param name="ConstraintTypes">Base class and interface constraints, in declaration order.</param>
+/// <param name="DefaultConstructor">Whether <c>new()</c> was declared.</param>
+public record TypeParameterModel(
+    string Name,
+    string? Primary,
+    IReadOnlyList<ITypeDefinition> ConstraintTypes,
+    bool DefaultConstructor) {
+
+    /// <summary>
+    /// Structural equality over the constraint types, which the compiler-generated version compares
+    /// by reference — two identical models built on consecutive runs would never match, and the
+    /// incremental cache would miss on every keystroke.
+    /// </summary>
+    public virtual bool Equals(TypeParameterModel? other) =>
+        other is not null &&
+        Name == other.Name &&
+        Primary == other.Primary &&
+        DefaultConstructor == other.DefaultConstructor &&
+        ModelEquality.ListEquals(ConstraintTypes, other.ConstraintTypes);
+
+    public override int GetHashCode() {
+        unchecked {
+            var hash = Name.GetHashCode();
+
+            hash = hash * 31 + (Primary?.GetHashCode() ?? 0);
+            hash = hash * 31 + DefaultConstructor.GetHashCode();
+            hash = hash * 31 + ModelEquality.ListHashCode(ConstraintTypes);
+
+            return hash;
+        }
+    }
+}
 
 /// <summary>
 /// An interceptor named by the attribute, with the interfaces it implements.
@@ -147,7 +194,7 @@ public record InterceptedMemberModel(
     ITypeDefinition? ReturnType,
     ITypeDefinition ResultType,
     IReadOnlyList<InterceptedParameterModel> Parameters,
-    IReadOnlyList<InterceptedTypeParameterModel> TypeParameters,
+    IReadOnlyList<TypeParameterModel> TypeParameters,
     ReturnShape ReturnShape) {
 
     /// <summary>
@@ -282,6 +329,13 @@ public record InterceptedDeclarationModel(
 /// after the position, so the order is part of the model.
 /// </param>
 /// <param name="Declarations">What the wrapper declares, pointing back into the members.</param>
+/// <param name="TypeParameters">
+/// The implementation's type parameters, empty for a non-generic service. The wrapper repeats them
+/// and their constraints, so <c>Repository&lt;T&gt; where T : class</c> becomes
+/// <c>Repository_Intercepted&lt;T&gt; : IRepository&lt;T&gt; where T : class</c> holding a
+/// <c>Repository&lt;T&gt;</c>. A constraint that were dropped would leave the wrapper unable to
+/// reference what it wraps.
+/// </param>
 public record InterceptorModel(
     ITypeDefinition ServiceType,
     ITypeDefinition ImplementationType,
@@ -289,7 +343,14 @@ public record InterceptorModel(
     IReadOnlyList<InterceptedMemberModel> Members,
     IReadOnlyList<InterceptedDeclarationModel> Declarations,
     int Order,
-    InterceptionRefusal? Refusal = null) {
+    InterceptionRefusal? Refusal = null,
+    IReadOnlyList<TypeParameterModel>? TypeParameters = null) {
+
+    /// <summary>
+    /// Whether the intercepted service is an open generic, and so registers as an implementation type
+    /// rather than through a factory.
+    /// </summary>
+    public bool IsOpenGeneric => TypeParameters is { Count: > 0 };
 
     /// <summary>
     /// Sentinel for a node carrying the attribute that produced no usable model and nothing to say
@@ -333,7 +394,8 @@ public class InterceptorModelComparer : IEqualityComparer<InterceptorModel> {
                Equals(x.Refusal, y.Refusal) &&
                ModelEquality.ListEquals(x.Interceptors, y.Interceptors) &&
                ModelEquality.ListEquals(x.Members, y.Members) &&
-               ModelEquality.ListEquals(x.Declarations, y.Declarations);
+               ModelEquality.ListEquals(x.Declarations, y.Declarations) &&
+               ModelEquality.ListEquals(x.TypeParameters, y.TypeParameters);
     }
 
     public int GetHashCode(InterceptorModel obj) {
@@ -346,6 +408,7 @@ public class InterceptorModelComparer : IEqualityComparer<InterceptorModel> {
             hash = hash * 31 + ModelEquality.ListHashCode(obj.Interceptors);
             hash = hash * 31 + ModelEquality.ListHashCode(obj.Members);
             hash = hash * 31 + ModelEquality.ListHashCode(obj.Declarations);
+            hash = hash * 31 + ModelEquality.ListHashCode(obj.TypeParameters);
 
             return hash;
         }

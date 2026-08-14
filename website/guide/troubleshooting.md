@@ -45,6 +45,26 @@ the reason**.
 </PropertyGroup>
 ```
 
+::: warning No log appeared?
+Every `DependencyModules_*` property reaches the generator through
+`build/DependencyModules.SourceGenerator.targets`, which ships **inside the NuGet package**. A project
+that references the analyzer as a `ProjectReference` — building this library from source, or vendoring
+it — never imports that file, so the property is invisible and silently takes its default.
+
+Declare them yourself in that project, or in a `Directory.Build.props` above it:
+
+```xml
+<ItemGroup>
+  <CompilerVisibleProperty Include="DependencyModules_RegistrationType"/>
+  <CompilerVisibleProperty Include="DependencyModules_LogOutputDirectory"/>
+  <CompilerVisibleProperty Include="DependencyModules_RegisterGenerator"/>
+  <CompilerVisibleProperty Include="DependencyModules_AutoGenerateModule"/>
+  <CompilerVisibleProperty Include="DependencyModules_GenerateFactories"/>
+  <CompilerVisibleProperty Include="ExcludeGeneratedCodeFromCoverage"/>
+</ItemGroup>
+```
+:::
+
 ## 3. Check for DM diagnostics
 
 The generator reports what it can detect at build time, and a good deal of what goes wrong here is

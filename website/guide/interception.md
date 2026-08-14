@@ -118,7 +118,7 @@ public async IAsyncEnumerable<TItem> InterceptStream<TItem>(StreamInvocationCont
 |---|---|
 | `Proceed()` / `ProceedAsync()` | run the rest of the pipeline — more than once to retry, or not at all to skip the implementation |
 | `Caller.ServiceType`, `Caller.MemberName` | what is being called |
-| `Arguments` | by index or by name, and **writable** — a write replaces what the implementation receives |
+| `Arguments` | by index, and **writable** — a write replaces what the implementation receives. `NameAt(index)` gives the declared parameter name |
 
 Arguments cost nothing until you read one.
 
@@ -135,12 +135,74 @@ dependencies of its own — as `TimingInterceptor` does with its `ILogger`.
 ## What cannot be intercepted
 
 The generator has to emit a real override, so some shapes are impossible. These are reported as
-[DM0008](/reference/diagnostics#dm0008) and left unwrapped rather than failing the build:
+[DM0008](/reference/diagnostics#dm0008) rather than failing the build:
 
 - `ref`, `in` and `out` parameters, and `ref struct` parameters
 - by-reference returns
 - `init`-only setters
 - static members
-- generic implementations, which register as an open generic
+- a generic *method* whose shape the wrapper cannot forward, by the same rules as above
 
-Write a [decorator](/guide/decorators) for those.
+::: warning One such member disables interception for the whole interface
+There is no partial wrapper. A single `out` parameter anywhere on the interface means no wrapper is
+generated at all, so every other member goes uninterceped too, and `GetRequiredService<IOrders>()`
+returns the plain implementation. The diagnostic names the member it found first; fixing it may
+uncover another.
+
+Move the member to an interface that is not intercepted, or write a
+[decorator](/guide/decorators) for the service instead.
+:::
+
+## Intercepting a generic service
+
+A generic implementation registers as an open generic, and a decorator cannot touch one — decoration
+rewrites a registration into a factory, and the container refuses a factory for an open generic
+service type. Interception does not need a factory: the wrapper is a generated type, and an open
+generic implementation type is what the container does accept.
+
+```csharp
+[SingletonService]
+[Intercept(typeof(TracingInterceptor))]
+public class Repository<T> : IRepository<T> { … }
+```
+
+The wrapper is generic over the same parameters — `Repository_Intercepted<T> : IRepository<T>` — and
+takes `Repository<T>` by its own type rather than the service, which would resolve back to the wrapper
+and recurse. The container closes it per construction, so `IRepository<Order>` and
+`IRepository<Invoice>` each get their own.
+
+::: warning Native AOT closes this over reference types only
+An open generic registration is the container's least AOT-friendly shape, intercepted or not: a
+published binary can construct `IRepository<Order>` and throws for `IRepository<int>`. That is not
+specific to interception — a plain `[SingletonService]` on a generic class behaves identically. See
+[Trimming and AOT](/guide/aot#what-it-does-not-cover).
+:::
+
+Constraints come along with the parameters. `Repository<T> where T : class, IEntity, new()` is wrapped
+by `Repository_Intercepted<T> : IRepository<T> where T : class, IEntity, new()`, because without them
+the wrapper could not reference what it wraps.
+
+## When an interceptor covers only some members
+
+Separate from the above, and quieter. Each interceptor is placed only around the members whose shape
+it can serve — `IInterceptor` for a direct return, `IAsyncInterceptor` for a task,
+`IAsyncEnumerableInterceptor` for a stream — and it is simply absent from the rest:
+
+```csharp
+public class AuditInterceptor : IInterceptor { … }      // sync only
+
+[SingletonService]
+[Intercept(typeof(AuditInterceptor))]
+public class Orders : IOrders {
+    public int Count(string customer) { … }             // audited
+    public Task<int> CountAsync(string customer) { … }  // not audited
+}
+```
+
+That is [DM0015](/reference/diagnostics#dm0015). It is worth taking seriously rather than silencing:
+an interceptor that rewrites arguments stops rewriting them, and one that authorises or audits stops
+doing that — on the async members, which are usually the ones doing the work. Implement the missing
+interface, or apply the interceptor to a service with no such member.
+
+One type may implement any combination of the three, which is how a single interceptor covers a mixed
+interface.

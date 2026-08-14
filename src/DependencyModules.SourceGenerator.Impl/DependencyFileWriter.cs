@@ -125,7 +125,7 @@ public class DependencyFileWriter {
 
         var stringBuilder = new StringBuilder();
 
-        var sortedServiceModels = GetSortedServiceModels(serviceModels);
+        var sortedServiceModels = GetSortedServiceModels(serviceModels, configurationModel);
         var autoRegisterGenerators =
             entryPointModel.RegisterJsonSerializers ?? configurationModel.RegisterSourceGenerator;
 
@@ -570,17 +570,34 @@ public class DependencyFileWriter {
     /// because by the time it runs the service type is already registered. That is what <c>Try</c>
     /// means, and the override pattern wants the default <c>Add</c>.
     /// </para>
+    /// <para>
+    /// <c>Try</c> and <c>Replace</c> are ordered after plain <c>Add</c> within each group for the same
+    /// reason the conditional key exists: both act <i>on</i> a registration that has to already be
+    /// there. Ordered by name alone, whether they worked depended on how the two classes happened to
+    /// be named — a <c>Replace</c> emitted before its target replaced nothing, added itself, and was
+    /// then beaten by the very registration it meant to displace. Renaming the class fixed it, and
+    /// nothing said so.
+    /// </para>
     /// </remarks>
-    private List<ServiceModel> GetSortedServiceModels(IEnumerable<ServiceModel> serviceModels) {
+    private List<ServiceModel> GetSortedServiceModels(
+        IEnumerable<ServiceModel> serviceModels, DependencyModuleConfigurationModel configurationModel) {
+
         var list = new List<ServiceModel>(serviceModels);
 
         list.Sort((x, y) => {
             var byCondition = IsConditional(x).CompareTo(IsConditional(y));
 
+            if (byCondition != 0) {
+                return byCondition;
+            }
+
+            var byStrategy = ActsOnExistingRegistration(x, configurationModel)
+                .CompareTo(ActsOnExistingRegistration(y, configurationModel));
+
             // Name is the tie-break rather than the only key, so the order stays total and the
             // output stays deterministic under List.Sort, which is not stable.
-            return byCondition != 0
-                ? byCondition
+            return byStrategy != 0
+                ? byStrategy
                 : string.Compare(x.ImplementationType.Name, y.ImplementationType.Name, StringComparison.Ordinal);
         });
 
@@ -589,4 +606,28 @@ public class DependencyFileWriter {
 
     private static bool IsConditional(ServiceModel serviceModel) =>
         serviceModel.Conditions is { Count: > 0 };
+
+    /// <summary>
+    /// Whether any of a service's registrations only makes sense once its service type is registered.
+    /// </summary>
+    /// <remarks>
+    /// <c>TryEnumerable</c> is deliberately not here. It skips only an identical service-and-
+    /// implementation pair, so several implementations of one service all register whatever order
+    /// they arrive in, and deferring it would change nothing.
+    /// </remarks>
+    private static bool ActsOnExistingRegistration(
+        ServiceModel serviceModel, DependencyModuleConfigurationModel configurationModel) {
+
+        foreach (var registration in serviceModel.Registrations) {
+            // Null means the registration took the project-wide default, which is what
+            // DependencyModules_RegistrationType sets.
+            var registrationType = registration.RegistrationType ?? configurationModel.RegistrationType;
+
+            if (registrationType is RegistrationType.Try or RegistrationType.Replace) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

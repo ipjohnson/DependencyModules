@@ -7,4 +7,20 @@
         <IsPackable>false</IsPackable>
     </PropertyGroup>
 
+    <!--
+        The generator reads these through build/DependencyModules.SourceGenerator.targets, which ships
+        inside the NuGet package. Projects here reference the analyzer as a ProjectReference, which
+        never imports that file, so without this every DependencyModules_* property silently took its
+        default — including DependencyModules_LogOutputDirectory, which produced no log and no
+        message. Anyone testing the generator from source hits the same thing.
+    -->
+    <ItemGroup>
+        <CompilerVisibleProperty Include="DependencyModules_RegistrationType"/>
+        <CompilerVisibleProperty Include="DependencyModules_LogOutputDirectory"/>
+        <CompilerVisibleProperty Include="DependencyModules_RegisterGenerator"/>
+        <CompilerVisibleProperty Include="DependencyModules_AutoGenerateModule"/>
+        <CompilerVisibleProperty Include="DependencyModules_GenerateFactories"/>
+        <CompilerVisibleProperty Include="ExcludeGeneratedCodeFromCoverage"/>
+    </ItemGroup>
+
 </Project>

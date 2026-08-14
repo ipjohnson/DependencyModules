@@ -323,14 +323,17 @@ public class ServiceModelUtility {
             foreach (var typeDefinition in _attributeTypes) {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (attributeSyntax.Name.ToString() == typeDefinition.Name ||
-                    attributeSyntax.Name + "Attribute" == typeDefinition.Name) {
+                // Resolved, not compared as written: a namespace-qualified usage, a global:: prefix
+                // and a using alias all name the same attribute, and all of them used to be silently
+                // skipped — leaving the class unregistered with nothing to say so.
+                if (AttributeTypeMatcher.Matches(
+                        context.SemanticModel, attributeSyntax, typeDefinition, cancellationToken)) {
                     list.Add(GetServiceRegistration(context, attributeSyntax, classDefinition));
                 }
             }
 
-            if (attributeSyntax.Name.ToString() == _crossWireService.Name ||
-                attributeSyntax.Name + "Attribute" == _crossWireService.Name) {
+            if (AttributeTypeMatcher.Matches(
+                    context.SemanticModel, attributeSyntax, _crossWireService, cancellationToken)) {
                 list.AddRange(GetCrossWiredService(context, attributeSyntax, classDefinition));
             }
         }

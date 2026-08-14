@@ -131,10 +131,19 @@ public static class DependencyModuleDiagnostics {
     /// interface, and a few member shapes cannot be forwarded; saying so beats emitting a wrapper
     /// that does not compile.
     /// </summary>
+    /// <remarks>
+    /// The message names the consequence as well as the cause. One member the wrapper cannot override
+    /// means <i>no</i> wrapper is generated, so every other member on the interface goes uninterceped
+    /// too — and the guide read as though only the offending member did. A reader who fixed the named
+    /// member and rebuilt would then meet the next one.
+    /// </remarks>
     public static readonly DiagnosticDescriptor CannotIntercept = new(
         id: "DM0008",
         title: "Service cannot be intercepted",
-        messageFormat: "This service cannot be intercepted: {0}",
+        messageFormat:
+        "This service cannot be intercepted, so no wrapper was generated and none of its members are " +
+        "intercepted: {0}. Other members may be unsupported for the same reason. Write a decorator " +
+        "instead, or move the member to an interface that is not intercepted.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
@@ -209,6 +218,93 @@ public static class DependencyModuleDiagnostics {
         id: "DM0012",
         title: "Environment condition tests nothing",
         messageFormat: "{0} names no {1} to test, so it does not depend on the environment",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    /// <summary>
+    /// Raised for an interceptor that cannot serve some of the members it was applied to.
+    /// </summary>
+    /// <remarks>
+    /// Three interfaces cover the member shapes — <c>IInterceptor</c> for a direct return,
+    /// <c>IAsyncInterceptor</c> for a task, <c>IAsyncEnumerableInterceptor</c> for a stream — and the
+    /// generator picks per member. An interceptor that implements none of the one a member needs was
+    /// simply left out of that member's chain, with nothing said.
+    ///
+    /// That is the interceptor silently not running. An argument-rewriting interceptor stops
+    /// rewriting; read as an authorisation or audit gate, it is a service that quietly is not gated.
+    /// The sharpest form is an interceptor implementing only <c>IInterceptor</c> applied to a service
+    /// whose members are all async, where it never runs at all and the build is green.
+    ///
+    /// Reported once per interceptor and member shape rather than once per member, so a wide
+    /// interface produces one line rather than forty.
+    /// </remarks>
+    public static readonly DiagnosticDescriptor InterceptorCannotServeMembers = new(
+        id: "DM0015",
+        title: "Interceptor does not apply to every member",
+        messageFormat:
+        "'{0}' does not implement '{1}', so it is not applied to {2} on '{3}': {4}. Those members run " +
+        "without it. Implement '{1}' on the interceptor, or apply it to a service that has no such member.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    /// <summary>
+    /// Raised for a decorator whose service is registered as an open generic.
+    /// </summary>
+    /// <remarks>
+    /// Decoration replaces a registration with a factory, and the container refuses a factory for an
+    /// open generic service type — "requires registering an open generic implementation type". So
+    /// there is nothing to emit, and both shapes of the mistake failed badly until this existed.
+    ///
+    /// A <i>generic</i> decorator is expanded against the closed constructions a compilation
+    /// registers. An open generic registration closes nothing, so the expansion produced no
+    /// decorations and the declaration was dropped in silence — a build with a decorator in it that
+    /// never runs.
+    ///
+    /// A <i>non-generic</i> decorator named against an unbound service is worse: it needs no
+    /// expansion, so it reached emission carrying <c>IHolder&lt;&gt;</c> and produced
+    /// <c>Decorate&lt;IHolder&lt;&gt;&gt;</c> — CS7003 inside generated code, which is the one failure
+    /// mode this generator exists to avoid.
+    ///
+    /// Registering closed constructions is the way through, and the message says so.
+    /// </remarks>
+    public static readonly DiagnosticDescriptor OpenGenericCannotBeDecorated = new(
+        id: "DM0013",
+        title: "Open generic registration cannot be decorated",
+        messageFormat:
+        "'{0}' is registered as an open generic, so '{1}' cannot decorate it. Decoration replaces a " +
+        "registration with a factory, and the container does not allow one for an open generic " +
+        "service type. Register closed constructions of '{0}' instead — a convention over the open " +
+        "generic registers one per implementation, and a generic decorator is then expanded across them.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    /// <summary>
+    /// Raised for <c>[CrossWireService]</c> on a generic type.
+    /// </summary>
+    /// <remarks>
+    /// Cross-wiring means one instance shared across the implementation and every interface it
+    /// declares, which is emitted as <c>s =&gt; s.GetRequiredService&lt;T&gt;()</c> per interface — a
+    /// factory, and a factory is what an open generic registration cannot have.
+    ///
+    /// Registering each interface to the same open generic implementation type compiles, and is a
+    /// different contract: the container builds one instance per service type, which is the opposite
+    /// of what the attribute promises. Silently substituting that would be worse than refusing.
+    ///
+    /// Until this existed the generated code did not compile at all — the type parameter leaked into
+    /// the registration as <c>typeof(ILedger&lt;T&gt;)</c> (CS0246, no <c>T</c> in scope) beside
+    /// <c>GetRequiredService&lt;Ledger&lt;&gt;&gt;()</c> (CS7003).
+    /// </remarks>
+    public static readonly DiagnosticDescriptor CrossWireCannotBeGeneric = new(
+        id: "DM0014",
+        title: "Generic type cannot be cross-wired",
+        messageFormat:
+        "'{0}' is generic, so [CrossWireService] cannot register it. Cross-wiring shares one instance " +
+        "across every service type, which needs a factory, and the container does not allow one for an " +
+        "open generic registration. Use [SingletonService], [ScopedService] or [TransientService] to " +
+        "register it, applying one per interface if it needs to answer to more than one.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true);

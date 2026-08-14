@@ -27,6 +27,76 @@ namespace DependencyModules.Runtime.Helpers;
 public static class DecoratorHelper {
 
     /// <summary>
+    /// Swaps an <b>open generic</b> registration for a generated wrapper that implements the same
+    /// open generic service.
+    /// </summary>
+    /// <param name="services">The collection to rewrite.</param>
+    /// <param name="serviceType">The open generic service, such as <c>IRepository&lt;&gt;</c>.</param>
+    /// <param name="implementationType">
+    /// The open generic implementation currently registered for it, such as <c>Repository&lt;&gt;</c>.
+    /// </param>
+    /// <param name="wrapperType">
+    /// The generated wrapper, such as <c>Repository_Intercepted&lt;&gt;</c>. It implements the service
+    /// and takes the implementation as a constructor parameter.
+    /// </param>
+    /// <remarks>
+    /// <para>
+    /// <see cref="Decorate(IServiceCollection, Type, Func{IServiceProvider, object, object})"/> cannot
+    /// serve this: it rewrites a registration into a factory, and the container rejects a factory for
+    /// an open generic service type — "requires registering an open generic implementation type". An
+    /// open generic implementation type is exactly what it does accept, and a generated wrapper is
+    /// one.
+    /// </para>
+    /// <para>
+    /// The implementation is additionally registered under its own concrete type, which is how the
+    /// wrapper receives it without asking for the service it is itself registered as — that would
+    /// resolve to the wrapper and recurse. Lifetime is carried across to both, so wrapping does not
+    /// change how long anything lives.
+    /// </para>
+    /// <para>
+    /// Idempotent: a second pass finds the wrapper in the slot rather than the implementation and
+    /// leaves it alone, which is what keeps two modules carrying the same registration from
+    /// double-wrapping.
+    /// </para>
+    /// </remarks>
+    public static void InterceptOpenGeneric(
+        IServiceCollection services,
+        Type serviceType,
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
+        Type implementationType,
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
+        Type wrapperType) {
+
+        // Snapshotted: the loop appends the implementation's own registration, and re-reading Count
+        // would walk into what it just added.
+        var count = services.Count;
+
+        for (var i = 0; i < count; i++) {
+            var descriptor = services[i];
+
+            if (descriptor.ServiceType != serviceType || ImplementationOf(descriptor) != implementationType) {
+                continue;
+            }
+
+            services.Add(new ServiceDescriptor(implementationType, implementationType, descriptor.Lifetime));
+
+            services[i] = descriptor.IsKeyedService
+                ? new ServiceDescriptor(serviceType, descriptor.ServiceKey, wrapperType, descriptor.Lifetime)
+                : new ServiceDescriptor(serviceType, wrapperType, descriptor.Lifetime);
+        }
+    }
+
+    /// <summary>
+    /// The implementation type of a descriptor, keyed or not.
+    /// </summary>
+    /// <remarks>
+    /// A keyed descriptor throws from <c>ImplementationType</c> rather than returning null, so the two
+    /// cannot be read through one property.
+    /// </remarks>
+    private static Type? ImplementationOf(ServiceDescriptor descriptor) =>
+        descriptor.IsKeyedService ? descriptor.KeyedImplementationType : descriptor.ImplementationType;
+
+    /// <summary>
     /// Wraps every registration of <paramref name="serviceType"/> using <paramref name="decoratorFactory"/>.
     /// </summary>
     /// <param name="services">The collection to rewrite.</param>

@@ -42,16 +42,15 @@ public static class InterceptorModelUtility {
             return InterceptorModel.Ignore;
         }
 
-        // A generic implementation registers as an open generic, and decorating one of those is not
-        // supported: DecoratorHelper rewrites the registration into a factory, which the container
-        // rejects for an open generic service type. Refusing here turns what would be an
-        // ArgumentException when the provider is built into a message naming the declaration.
-        if (implementationSymbol.IsGenericType) {
-            return InterceptorModel.Refused(
-                $"'{implementationSymbol.Name}' is generic, so it registers as an open generic, and " +
-                "decorating an open generic registration is not supported. Register a closed " +
-                $"construction instead, such as a class deriving from '{implementationSymbol.Name}<...>'");
-        }
+        // A generic implementation registers as an open generic. Decoration cannot touch one — it
+        // rewrites the registration into a factory, and the container refuses a factory for an open
+        // generic service type — but interception does not need one: the wrapper is a generated type,
+        // and an open generic implementation type is exactly what the container does accept. It is
+        // registered as the service, and takes the implementation by its own type so that resolving
+        // it does not come back round to the wrapper.
+        //
+        // Constraints come along with the parameters. The wrapper is declared over the same ones and
+        // repeats their constraints, without which it could not reference what it wraps.
 
         var interceptorSymbols = new List<INamedTypeSymbol>();
         var order = 0;
@@ -90,18 +89,19 @@ public static class InterceptorModelUtility {
         }
 
         // Nothing here can be placed around anything, so the wrapper would forward every call
-        // untouched. Not generating one leaves the service registered as it already was.
-        if (!AnyMemberIsIntercepted(interceptors, members)) {
-            return InterceptorModel.Ignore;
-        }
-
+        // untouched, and none is generated. The model is still returned rather than ignored: this is
+        // the sharpest form of an interceptor that does not run — an interceptor implementing only
+        // IInterceptor applied to a service whose members are all async never runs at all — and
+        // returning Ignore here is what kept DM0015 from ever seeing it. The generator drops it after
+        // reporting.
         return new InterceptorModel(
             serviceSymbol.GetTypeDefinition(),
             ToTypeDefinition(implementationSymbol),
             interceptors,
             members,
             declarations,
-            order);
+            order,
+            TypeParameters: TypeParameterModels(implementationSymbol));
     }
 
     private static InterceptorModel Refuse(string? reason) =>
@@ -266,6 +266,24 @@ public static class InterceptorModelUtility {
         }
 
         return ImmutableArray<INamedTypeSymbol>.Empty;
+    }
+
+    /// <summary>
+    /// The implementation's type parameters and their constraints, which the wrapper repeats so its
+    /// own parameters line up with the ones the service and the implementation are closed over.
+    /// </summary>
+    private static IReadOnlyList<TypeParameterModel> TypeParameterModels(INamedTypeSymbol symbol) {
+        if (symbol.TypeParameters.Length == 0) {
+            return Array.Empty<TypeParameterModel>();
+        }
+
+        var models = new TypeParameterModel[symbol.TypeParameters.Length];
+
+        for (var i = 0; i < models.Length; i++) {
+            models[i] = TypeParameterReader.Read(symbol.TypeParameters[i]);
+        }
+
+        return models;
     }
 
     private static ITypeDefinition ToTypeDefinition(INamedTypeSymbol symbol) {

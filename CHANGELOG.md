@@ -5,6 +5,199 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0-rc9330] - 2026-08-14
+
+Everything since `1.0.0-rc9230`. The theme is registrations that were silently not happening: an
+attribute the generator declined to recognise, a `Replace` that depended on how a class was named, a
+mock that replaced the wrong slot, and three shapes it refused without saying so. One of those
+refusals turned out to be unnecessary, and generic services can now be intercepted.
+
+Still a release candidate. `DecoratorExpansion.Expand` changed shape, but only on the generator
+extension points, which are documented as unversioned.
+
+**Upgrade note:** three new warnings. A project building with `TreatWarningsAsErrors` may go red on
+work that was previously green and quietly not doing anything — which is the point of them, but it is
+a build break rather than a nudge. `NoWarn` takes them per-project; note that `.editorconfig` does not
+(see below).
+
+### Added
+
+- **Three diagnostics for shapes the generator used to refuse without saying so.** The first two share
+  a constraint: decoration and cross-wiring replace a registration with a factory, and the container
+  refuses a factory for an open generic service type — ``Open generic service type 'IRepository`1[T]'
+  requires registering an open generic implementation type``. The third is about an interceptor that
+  does not run.
+
+  **`DM0013`** reports a decorator whose service is registered as an open generic. It covers all
+  three shapes of the mistake, which until now failed in two different ways. A *generic* decorator
+  is expanded against the closed constructions a compilation registers; an open generic registration
+  closes nothing, so the expansion produced no decorations and the declaration was dropped in
+  silence — a decorator sitting in the source, a green build, and nothing wrapping anything. A
+  *non-generic* decorator named against an unbound service needed no expansion at all, so nothing
+  caught it: it reached emission carrying `IStore<>` and produced `Decorate<IStore<>>`, which is
+  CS7003 inside generated code. Reported whichever way the decorator was declared, on the class or
+  on the module with `[Decorate]`.
+
+  A decorator naming a service the compilation does **not** register stays quiet. Naming a service
+  someone else registers is what `[Decorate]` exists for, so reporting there would fire on the
+  feature's primary use.
+
+  **`DM0014`** reports `[CrossWireService]` on a generic type. Cross-wiring shares one instance
+  across the implementation and every interface it declares, which is emitted as a factory per
+  interface. Registering each interface to the same open generic implementation type would compile
+  and is a different contract — one instance per service type, the opposite of what the attribute
+  promises — so it is refused rather than quietly substituted. The whole registration is dropped
+  rather than the cross-wired half, because keeping the implementation's own registration would
+  leave the instance unreachable through any of its interfaces.
+
+  **`DM0015`** reports an interceptor that is quietly absent from some of the members it was applied
+  to. Three interfaces cover the member shapes and the generator picks per member, so an interceptor
+  implementing none of the one a member needs was simply left out of that member's chain. An
+  argument-rewriting interceptor stopped rewriting; read as an authorisation or audit gate, it was a
+  service that quietly was not gated. The sharpest form — an `IInterceptor` applied to a service whose
+  members are all async, where it never ran at all — was invisible even to the generator, which
+  discarded the model before anything could report on it. Reported once per interceptor and member
+  shape, so a wide interface produces one line rather than forty.
+
+- **A generic service can be intercepted.** A generic implementation registers as an open generic, and
+  it was refused outright — because *decoration* cannot touch one, and interception inherited that
+  constraint without needing it. Decoration rewrites a registration into a factory, which an open
+  generic service type cannot carry; interception generates a type, and an open generic implementation
+  type is what the container does accept.
+
+  ```csharp
+  [SingletonService]
+  [Intercept(typeof(TracingInterceptor))]
+  public class Repository<T> : IRepository<T> { … }
+  ```
+
+  The wrapper is generic over the same parameters — `Repository_Intercepted<T> : IRepository<T>` — and
+  takes `Repository<T>` by its own type rather than the service, which would resolve back to the
+  wrapper and recurse. `DecoratorHelper.InterceptOpenGeneric` swaps the registration and registers the
+  implementation alongside it, carrying the lifetime and the service key across.
+
+  Constraints come along with the parameters: `Repository<T> where T : class, IEntity, new()` is
+  wrapped by `Repository_Intercepted<T> : IRepository<T> where T : class, IEntity, new()`, without
+  which the wrapper could not reference what it wraps. `struct` and `unmanaged` already guarantee a
+  default constructor and Roslyn reports one for them, so `new()` is dropped rather than repeated —
+  writing it out is CS0451.
+
+  Worth knowing before relying on it under Native AOT, and true of open generic registrations
+  generally rather than of interception: a published binary closes them over reference types only.
+  Measured on `osx-arm64`, `IRepository<Order>` resolves and `IRepository<int>` throws
+  `Unable to create a generic service … because 'System.Int32' is a ValueType`. A plain
+  `[SingletonService]` on a generic class behaves identically, which the AOT guide now says.
+
+### Fixed
+
+- **An attribute the generator declined to recognise, depending on how it was spelled.** Attribute
+  usages were compared as written — the type's simple name, and that name with `Attribute` appended —
+  so every other legal spelling missed, and missing meant the registration was silently absent: no
+  diagnostic, a green build, and a failure at the first resolve.
+
+  | Written as | Before | Now |
+  |---|---|---|
+  | `[SingletonService]` | registered | registered |
+  | `[DependencyModules.Runtime.Attributes.SingletonService]` | **skipped** | registered |
+  | `[global::DependencyModules.Runtime.Attributes.SingletonServiceAttribute]` | **skipped** | registered |
+  | `[DmAttrs.SingletonService]` (namespace alias) | **skipped** | registered |
+  | `[DmSingleton]` (type alias) | **skipped** | registered |
+
+  Service attributes are now resolved through the semantic model rather than string-matched, which is
+  what makes an alias and a qualified name mean the same thing. Module attributes are matched on the
+  name the usage ends in, so every qualified form works there too; a `using` alias of a *module*
+  attribute is still not seen, because a predicate that must stay syntax-only cannot resolve one — and
+  that case fails as a `CS0311` at `AddModule<T>()` rather than silently.
+
+- **`Using = Replace` and `Using = Try` decided by the alphabet.** Registrations within a module are
+  emitted sorted by implementation type name, and both act *on* a registration that has to already be
+  there. Named so that the sort put them first, they ran before their target existed: `Replace`
+  replaced nothing, added itself, and was then beaten by the very registration it meant to displace.
+
+  ```csharp
+  [SingletonService(Using = RegistrationType.Replace)] public class AaaThing : IThing;
+  [SingletonService] public class ZzzThing : IThing;
+  // asked for AaaThing; got [AaaThing, ZzzThing], and ZzzThing won
+  ```
+
+  They are now emitted after the plain `Add` registrations in their group, the same rule that already
+  put conditional registrations last so the override pattern works. Renaming the class was the
+  previous workaround, and nothing said you needed it.
+
+- **`[Mock]` ignored `[FromKeyedServices]` on the same parameter.** The double was registered
+  unkeyed, leaving the keyed registration — the one a consumer injects — untouched. The service under
+  test kept the real implementation while the test held a double it believed was wired in: the
+  arrangement ran, the double recorded nothing, and the assertion failed somewhere else entirely. The
+  key on the parameter is now the key the double is registered under, and read back from. Identical
+  under NSubstitute, Moq and FakeItEasy.
+
+- **The generator copied 50 of its own source files into consuming projects' output.**
+  `CopyToOutputDirectory` on a `Compile` item copies the *source*, and the metadata flowed to every
+  project referencing the analyzer — 428KB of generator internals in `bin` and in `publish`. It
+  affected `ProjectReference` consumers and this repository's own `benchmarks/` and test output; the
+  NuGet package, which ships only `analyzers/dotnet/cs` and `build/`, was never affected.
+
+- **Generated code that did not compile.** `[CrossWireService]` on a generic type leaked the type
+  parameter into the registration as `typeof(ILedger<T>)`, with no `T` in scope, beside
+  `GetRequiredService<Ledger<>>()` — CS0246 and CS7003, in a file the developer did not write. A
+  non-generic decorator named against an open generic service produced CS7003 and CS1503 the same
+  way. Both are now `DM0014` and `DM0013`.
+
+### Changed
+
+- **`CSharpAuthor` 1.1.1010**, for `AddConstraint`. A `where` clause was previously assembled as a
+  string and assigned to `WhereStatement`, which put C#'s ordering rules — one primary constraint
+  first, `new()` last — in this generator. Two places needed them once a class could carry constraints
+  as well as a method, and two copies of a subtle rule drift. `TypeParameterReader` reads a parameter
+  once for both, and the library puts the parts in order.
+
+- **`DM0008` now says what it costs.** One member the wrapper cannot override means *no* wrapper is
+  generated, so every other member on the interface goes uninterceped too — and the guide read as
+  though only the offending member did. A reader who fixed the named member and rebuilt would then
+  meet the next one. The message and the interception guide both say so now.
+
+- **Documentation corrections, each with a reproduction behind it.** The README's duplicate-module
+  example compared `module.someString` against a primary constructor parameter, which is captured
+  rather than a member — `CS1061`, and it was the only documented way to load a module more than
+  once. `ExcludeGeneratedCodeFromCoverage` was documented with a `DependencyModules_` prefix it does
+  not have. Getting started did not mention that a console app or class library needs
+  `Microsoft.Extensions.DependencyInjection` for `ServiceCollection` and `BuildServiceProvider`.
+  `[Decorator]`'s `Realm` property was undocumented.
+
+- **`DM####` diagnostics cannot be tuned through `.editorconfig`, and the reference said they could.**
+  They are reported by a source generator rather than an analyzer, and Roslyn's `.editorconfig`
+  severity mapping applies to analyzer diagnostics — so `dotnet_diagnostic.DM0005.severity = none` had
+  no effect. `NoWarn`, `WarningsAsErrors` and `#pragma warning disable` are applied at the compilation
+  level and do work; the reference now says that instead.
+
+- **Two traps are written down rather than left to be discovered.**
+  `DependencyModules_GenerateFactories` emits a factory per registration, which
+  `Microsoft.Extensions.DependencyInjection` cannot see inside — so it silently disables
+  `ValidateOnBuild` and `ValidateScopes` for the whole project, measured on the same captive
+  dependency with only that property differing. And an assembly declaring two modules that neither set
+  `OnlyRealm` puts the whole registration list in both, so loading both in one `AddModules` call
+  registers everything twice.
+
+- **`DependencyModules_*` properties are invisible over a `ProjectReference`.** They reach the
+  generator through `build/DependencyModules.SourceGenerator.targets`, which ships inside the NuGet
+  package, so a project referencing the analyzer as a project never imports it and every property
+  silently takes its default — `DependencyModules_LogOutputDirectory` included, producing no log and
+  no message. Troubleshooting now says so and gives the `CompilerVisibleProperty` block, and this
+  repository's own integration projects declare it.
+
+- **`DecorateAttribute`'s documentation said the opposite of the README.** Its `service` parameter
+  was documented as "may be an open generic", which reads as a service *registered* as one. It means
+  a generic service named unbound, expanded across the closed constructions the compilation
+  registers. The decorators guide also described the failure as an `InvalidOperationException` from
+  `DecoratorHelper`; that guard is unreachable from generated code, because the expansion drops the
+  decorator before anything is emitted, so the guide now points at `DM0013`.
+
+- **Breaking, for anyone building on the generator extension points:**
+  `DecoratorExpansion.Expand` takes an additional `out IReadOnlyList<DecoratorModel>` parameter,
+  carrying the decorators it refused so the caller can report them. These are the extension points
+  the convention generator uses and are not a versioned API — see the
+  [generator guide](https://ipjohnson.github.io/DependencyModules/guide/extending).
+
 ## [1.0.0-rc9230] - 2026-08-12
 
 Everything since `1.0.0-rc9210`. Still a release candidate: convention registration and the NUnit
@@ -522,5 +715,6 @@ The entries below were written for a 1.0.0 that was not cut. They describe the s
   Enable it with `<DependencyModules_LogOutputDirectory>`.
 - A tag-driven release workflow publishing to nuget.org and GitHub Packages.
 
+[1.0.0-rc9330]: https://github.com/ipjohnson/DependencyModules/releases/tag/v1.0.0-rc9330
 [1.0.0-rc9230]: https://github.com/ipjohnson/DependencyModules/releases/tag/v1.0.0-rc9230
 [1.0.0-rc9210]: https://github.com/ipjohnson/DependencyModules/releases/tag/v1.0.0-rc9210

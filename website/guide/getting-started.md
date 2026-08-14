@@ -48,6 +48,17 @@ dotnet add package DependencyModules.SourceGenerator
 Requires .NET 8.0 or later, and ships both `net8.0` and `net10.0` assemblies so a project on either
 LTS release gets one built against its own framework.
 
+::: tip A console app or class library needs one more
+`DependencyModules.Runtime` depends on `Microsoft.Extensions.DependencyInjection.Abstractions`, which
+is the right dependency for a library — but `ServiceCollection` and `BuildServiceProvider()` live in
+the implementation package. A project using the Web or Worker SDK already has it through its framework
+reference. Anything else needs:
+
+```shell
+dotnet add package Microsoft.Extensions.DependencyInjection
+```
+:::
+
 Those two are everything the library itself needs — [conventions](/guide/conventions) included. The
 optional packages are for [testing](/guide/testing), and this guide will tell you when you want them:
 

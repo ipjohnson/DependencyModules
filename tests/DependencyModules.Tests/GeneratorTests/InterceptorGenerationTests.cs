@@ -579,33 +579,128 @@ public class InterceptorGenerationTests {
     }
 
     /// <summary>
-    /// A generic implementation registers as an open generic, and decorating one of those rewrites
-    /// the registration into a factory, which the container rejects for an open generic service
-    /// type. Refused here so the failure names the declaration rather than surfacing as an
-    /// ArgumentException when the provider is built.
+    /// A generic implementation registers as an open generic. Decoration cannot touch one — it
+    /// rewrites the registration into a factory, and the container refuses a factory for an open
+    /// generic service type — but interception does not need one: the wrapper is a generated type,
+    /// and an open generic implementation type is what the container does accept.
     /// </summary>
     [Fact]
-    public void GenericImplementation_ReportsDM0008() {
-        var result = GeneratorTestHarness.Run(
-            $$"""
-              {{Preamble}}
+    public void GenericImplementation_IsIntercepted() {
+        var result = GeneratorTestHarness.Run(GenericRepo("public class Repo<T> : IRepo<T> { public void Run() { } }"));
 
-              {{Tracing("Tracing", "tracing")}}
-
-              public interface IRepo<T> { void Run(); }
-
-              [SingletonService]
-              [Intercept(typeof(TracingInterceptor))]
-              public class Repo<T> : IRepo<T> { public void Run() { } }
-
-              [DependencyModule]
-              public partial class TestModule;
-              """);
-
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0008");
-
-        Assert.Contains("open generic", diagnostic.GetMessage());
+        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0008");
+        Assert.Contains(result.GeneratedSources.Keys, key => key.Contains("Repo_Intercepted"));
     }
+
+    /// <summary>
+    /// The wrapper is generic over the same parameters, so the container can register it as an open
+    /// generic implementation type and close it per construction.
+    /// </summary>
+    [Fact]
+    public void GenericImplementation_EmitsAGenericWrapper() {
+        var result = GeneratorTestHarness.Run(GenericRepo("public class Repo<T> : IRepo<T> { public void Run() { } }"));
+
+        var wrapper = Assert.Single(result.GeneratedSources, pair => pair.Key.Contains("Repo_Intercepted")).Value;
+
+        Assert.Contains("class Repo_Intercepted<T>", wrapper);
+
+        // It takes the implementation by its own type. Asking for the service would resolve the
+        // wrapper itself, which is registered as that service, and recurse.
+        Assert.Contains("Repo<T> inner", wrapper);
+    }
+
+    /// <summary>
+    /// Registered by swapping the open generic registration rather than through the decorator
+    /// factory, which an open generic service type cannot carry. Every type is written unbound: no
+    /// `T` is in scope at the registration.
+    /// </summary>
+    [Fact]
+    public void GenericImplementation_RegistersAsAnOpenGenericImplementation() {
+        var result = GeneratorTestHarness.Run(GenericRepo("public class Repo<T> : IRepo<T> { public void Run() { } }"));
+
+        var registration = Assert.Single(result.GeneratedSources, pair => pair.Key.Contains("Interceptors")).Value;
+
+        Assert.Contains("InterceptOpenGeneric", registration);
+        Assert.Contains("typeof(global::TestNamespace.IRepo<>)", registration);
+        Assert.Contains("typeof(global::TestNamespace.Repo_Intercepted<>)", registration);
+    }
+
+    /// <summary>
+    /// The wrapper repeats the implementation's constraints, without which it could not reference
+    /// what it wraps.
+    /// </summary>
+    [Fact]
+    public void ConstrainedGenericImplementation_RepeatsTheConstraints() {
+        var result = GeneratorTestHarness.Run(
+            GenericRepo(
+                "public class Repo<T> : IRepo<T> where T : class, IMarker, new() { public void Run() { } }",
+                supporting: "public interface IMarker;"));
+
+        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0008");
+
+        var wrapper = Assert.Single(result.GeneratedSources, pair => pair.Key.Contains("Repo_Intercepted")).Value;
+
+        Assert.Contains("where T : class, global::TestNamespace.IMarker, new()", wrapper);
+    }
+
+    /// <summary>
+    /// struct already guarantees a default constructor, and repeating new() alongside it is CS0451.
+    /// Roslyn reports the constructor constraint for a struct-constrained parameter anyway, so the
+    /// reader has to drop it rather than pass it through.
+    /// </summary>
+    [Fact]
+    public void StructConstrainedGeneric_DoesNotRepeatTheDefaultConstructor() {
+        var result = GeneratorTestHarness.Run(
+            GenericRepo("public class Repo<T> : IRepo<T> where T : struct { public void Run() { } }"));
+
+        var wrapper = Assert.Single(result.GeneratedSources, pair => pair.Key.Contains("Repo_Intercepted")).Value;
+
+        Assert.Contains("where T : struct", wrapper);
+        Assert.DoesNotContain("new()", wrapper);
+    }
+
+    /// <summary>
+    /// And the constrained wrapper is not merely well-formed text: it compiles, loads and runs.
+    /// </summary>
+    [Fact]
+    public void ConstrainedGenericImplementation_ResolvesAndIntercepts() {
+        var generated = GeneratedAssembly.Create(
+            GenericRepo(
+                "public class Repo<T> : IRepo<T> where T : class, IMarker, new() { public void Run() { } }",
+                supporting: """
+                            public interface IMarker;
+
+                            public class Marked : IMarker;
+                            """));
+
+        var closed = generated.Type("IRepo`1").MakeGenericType(generated.Type("Marked"));
+        var resolved = generated.BuildProvider().GetService(closed);
+
+        Assert.NotNull(resolved);
+        Assert.StartsWith("Repo_Intercepted", resolved!.GetType().Name);
+    }
+
+    /// <summary>
+    /// The attributes land on whatever <paramref name="implementation"/> declares first, so anything
+    /// the implementation needs alongside it goes in <paramref name="supporting"/>.
+    /// </summary>
+    private static string GenericRepo(string implementation, string supporting = "") =>
+        $$"""
+          {{Preamble}}
+
+          {{Tracing("Tracing", "tracing")}}
+
+          public interface IRepo<T> { void Run(); }
+
+          {{supporting}}
+
+          [SingletonService]
+          [Intercept(typeof(TracingInterceptor))]
+          {{implementation}}
+
+          [DependencyModule]
+          public partial class TestModule;
+          """;
 
     /// <summary>
     /// A closed construction of a generic service, which is the answer to the refusal above. The
