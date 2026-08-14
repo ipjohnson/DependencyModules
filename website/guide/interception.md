@@ -135,7 +135,7 @@ dependencies of its own — as `TimingInterceptor` does with its `ILogger`.
 ## What cannot be intercepted
 
 The generator has to emit a real override, so some shapes are impossible. These are reported as
-[DM0008](/reference/diagnostics#dm0008) and left unwrapped rather than failing the build:
+[DM0008](/reference/diagnostics#dm0008) rather than failing the build:
 
 - `ref`, `in` and `out` parameters, and `ref struct` parameters
 - by-reference returns
@@ -143,4 +143,37 @@ The generator has to emit a real override, so some shapes are impossible. These 
 - static members
 - generic implementations, which register as an open generic
 
-Write a [decorator](/guide/decorators) for those.
+::: warning One such member disables interception for the whole interface
+There is no partial wrapper. A single `out` parameter anywhere on the interface means no wrapper is
+generated at all, so every other member goes uninterceped too, and `GetRequiredService<IOrders>()`
+returns the plain implementation. The diagnostic names the member it found first; fixing it may
+uncover another.
+
+Move the member to an interface that is not intercepted, or write a
+[decorator](/guide/decorators) for the service instead.
+:::
+
+## When an interceptor covers only some members
+
+Separate from the above, and quieter. Each interceptor is placed only around the members whose shape
+it can serve — `IInterceptor` for a direct return, `IAsyncInterceptor` for a task,
+`IAsyncEnumerableInterceptor` for a stream — and it is simply absent from the rest:
+
+```csharp
+public class AuditInterceptor : IInterceptor { … }      // sync only
+
+[SingletonService]
+[Intercept(typeof(AuditInterceptor))]
+public class Orders : IOrders {
+    public int Count(string customer) { … }             // audited
+    public Task<int> CountAsync(string customer) { … }  // not audited
+}
+```
+
+That is [DM0015](/reference/diagnostics#dm0015). It is worth taking seriously rather than silencing:
+an interceptor that rewrites arguments stops rewriting them, and one that authorises or audits stops
+doing that — on the async members, which are usually the ones doing the work. Implement the missing
+interface, or apply the interceptor to a service with no such member.
+
+One type may implement any combination of the three, which is how a single interceptor covers a mixed
+interface.

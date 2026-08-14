@@ -131,10 +131,19 @@ public static class DependencyModuleDiagnostics {
     /// interface, and a few member shapes cannot be forwarded; saying so beats emitting a wrapper
     /// that does not compile.
     /// </summary>
+    /// <remarks>
+    /// The message names the consequence as well as the cause. One member the wrapper cannot override
+    /// means <i>no</i> wrapper is generated, so every other member on the interface goes uninterceped
+    /// too — and the guide read as though only the offending member did. A reader who fixed the named
+    /// member and rebuilt would then meet the next one.
+    /// </remarks>
     public static readonly DiagnosticDescriptor CannotIntercept = new(
         id: "DM0008",
         title: "Service cannot be intercepted",
-        messageFormat: "This service cannot be intercepted: {0}",
+        messageFormat:
+        "This service cannot be intercepted, so no wrapper was generated and none of its members are " +
+        "intercepted: {0}. Other members may be unsupported for the same reason. Write a decorator " +
+        "instead, or move the member to an interface that is not intercepted.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
@@ -209,6 +218,33 @@ public static class DependencyModuleDiagnostics {
         id: "DM0012",
         title: "Environment condition tests nothing",
         messageFormat: "{0} names no {1} to test, so it does not depend on the environment",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    /// <summary>
+    /// Raised for an interceptor that cannot serve some of the members it was applied to.
+    /// </summary>
+    /// <remarks>
+    /// Three interfaces cover the member shapes — <c>IInterceptor</c> for a direct return,
+    /// <c>IAsyncInterceptor</c> for a task, <c>IAsyncEnumerableInterceptor</c> for a stream — and the
+    /// generator picks per member. An interceptor that implements none of the one a member needs was
+    /// simply left out of that member's chain, with nothing said.
+    ///
+    /// That is the interceptor silently not running. An argument-rewriting interceptor stops
+    /// rewriting; read as an authorisation or audit gate, it is a service that quietly is not gated.
+    /// The sharpest form is an interceptor implementing only <c>IInterceptor</c> applied to a service
+    /// whose members are all async, where it never runs at all and the build is green.
+    ///
+    /// Reported once per interceptor and member shape rather than once per member, so a wide
+    /// interface produces one line rather than forty.
+    /// </remarks>
+    public static readonly DiagnosticDescriptor InterceptorCannotServeMembers = new(
+        id: "DM0015",
+        title: "Interceptor does not apply to every member",
+        messageFormat:
+        "'{0}' does not implement '{1}', so it is not applied to {2} on '{3}': {4}. Those members run " +
+        "without it. Implement '{1}' on the interceptor, or apply it to a service that has no such member.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true);

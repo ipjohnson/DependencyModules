@@ -90,11 +90,11 @@ public static class InterceptorModelUtility {
         }
 
         // Nothing here can be placed around anything, so the wrapper would forward every call
-        // untouched. Not generating one leaves the service registered as it already was.
-        if (!AnyMemberIsIntercepted(interceptors, members)) {
-            return InterceptorModel.Ignore;
-        }
-
+        // untouched, and none is generated. The model is still returned rather than ignored: this is
+        // the sharpest form of an interceptor that does not run — an interceptor implementing only
+        // IInterceptor applied to a service whose members are all async never runs at all — and
+        // returning Ignore here is what kept DM0015 from ever seeing it. The generator drops it after
+        // reporting.
         return new InterceptorModel(
             serviceSymbol.GetTypeDefinition(),
             ToTypeDefinition(implementationSymbol),

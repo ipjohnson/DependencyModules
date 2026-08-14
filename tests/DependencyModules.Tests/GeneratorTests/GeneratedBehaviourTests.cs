@@ -151,6 +151,37 @@ public class GeneratedBehaviourTests {
         Assert.Single(generated.Descriptors("IThing"));
     }
 
+    /// <summary>
+    /// Registrations within a module are emitted sorted by implementation type name, and both
+    /// Replace and Try act on a registration that has to already be there. Named so that the
+    /// alphabet puts them first, they used to run before their target existed: Replace replaced
+    /// nothing and added itself, then the registration it meant to displace was added after it and
+    /// won. Renaming the class fixed it, and nothing said so.
+    /// </summary>
+    [Fact]
+    public void ReplaceRegistration_WinsEvenWhenItsTypeNameSortsFirst() {
+        var generated = GeneratedAssembly.Create(Module(
+            """
+            [SingletonService(Using = RegistrationType.Replace)] public class AaaThing : IThing;
+            [SingletonService] public class ZzzThing : IThing;
+            """));
+
+        Assert.Single(generated.Descriptors("IThing"));
+        Assert.Equal(generated.Type("AaaThing"), generated.ResolveRequired("IThing").GetType());
+    }
+
+    [Fact]
+    public void TryRegistration_DeclinesEvenWhenItsTypeNameSortsFirst() {
+        var generated = GeneratedAssembly.Create(Module(
+            """
+            [SingletonService(Using = RegistrationType.Try)] public class AaaThing : IThing;
+            [SingletonService] public class ZzzThing : IThing;
+            """));
+
+        Assert.Single(generated.Descriptors("IThing"));
+        Assert.Equal(generated.Type("ZzzThing"), generated.ResolveRequired("IThing").GetType());
+    }
+
     [Fact]
     public void ConstructorDependencies_AreInjectedFromTheContainer() {
         var generated = GeneratedAssembly.Create(Module(

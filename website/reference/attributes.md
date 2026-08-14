@@ -59,6 +59,11 @@ A `[Decorator]` is never a convention candidate — it is not a service.
 | Property | |
 |---|---|
 | `Order` | nesting; lower sits closer to the implementation |
+| `Service` | the decorated interface, when it cannot be inferred |
+| `Realm` | restrict the decorator to one module, matching `Realm` on the service attributes |
+
+An unrestricted decorator belongs to every module that is not `OnlyRealm`, exactly as an unrestricted
+service registration does — so a decorator with no `Realm` is not picked up by an `OnlyRealm` module.
 
 ### `[Intercept(params Type[])]`
 

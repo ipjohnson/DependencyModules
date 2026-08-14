@@ -1063,6 +1063,7 @@ namespace DependencyModules.SourceGenerator.Impl
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor EmptyEnvironmentCondition;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ExposedByConvention;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor GeneratorFailure;
+        public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor InterceptorCannotServeMembers;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ModuleMustBePartial;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor OpenGenericCannotBeDecorated;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor RegisteredConditionally;
@@ -1533,6 +1534,10 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities
         public static DependencyModules.SourceGenerator.Impl.Models.AttributeClassInfo GetAttributeClassInfo(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, System.Threading.CancellationToken cancellationToken) { }
         public static System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.AttributeModel> GetAttributeModels(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, Microsoft.CodeAnalysis.SyntaxNode node, System.Threading.CancellationToken cancellationToken, System.Func<Microsoft.CodeAnalysis.CSharp.Syntax.AttributeSyntax, bool>? filter = null) { }
         public static System.Collections.Generic.IEnumerable<DependencyModules.SourceGenerator.Impl.Models.AttributeModel> GetAttributes(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, Microsoft.CodeAnalysis.SyntaxList<Microsoft.CodeAnalysis.CSharp.Syntax.AttributeListSyntax> attributeListSyntax, System.Threading.CancellationToken cancellationToken, System.Func<Microsoft.CodeAnalysis.CSharp.Syntax.AttributeSyntax, bool>? filter = null) { }
+    }
+    public static class AttributeTypeMatcher
+    {
+        public static bool Matches(Microsoft.CodeAnalysis.SemanticModel semanticModel, Microsoft.CodeAnalysis.CSharp.Syntax.AttributeSyntax attributeSyntax, CSharpAuthor.ITypeDefinition attributeType, System.Threading.CancellationToken cancellationToken) { }
     }
     public abstract class BaseAttributeWriter<T>
         where T : DependencyModules.SourceGenerator.Impl.Models.IClassModel

@@ -133,6 +133,61 @@ public class TestParameterResolverTests {
         Assert.Contains(nameof(TestParameterResolver.SetupServiceCollection), exception.Message);
     }
 
+    /// <summary>
+    /// A [Mock] on a keyed parameter replaces the <i>keyed</i> registration. It used to register the
+    /// double unkeyed, leaving the keyed registration — the one a consumer injects — untouched, so
+    /// the service under test kept the real implementation while the test held a double it believed
+    /// was wired in.
+    /// </summary>
+    [Fact]
+    public async Task KeyedMockReplacesTheKeyedRegistration() {
+        var (resolver, provider) = Build(
+            nameof(Samples.KeyedMock),
+            services => services.AddKeyedSingleton<IThing, Thing>("primary"));
+
+        var arguments = await resolver.ResolveArgumentsAsync(provider, []);
+
+        Assert.IsType<Other>(Assert.Single(arguments));
+        Assert.IsType<Other>(provider.GetRequiredKeyedService<IThing>("primary"));
+    }
+
+    /// <summary>
+    /// And it does not spill into the unkeyed slot, where nothing asked for it.
+    /// </summary>
+    [Fact]
+    public void KeyedMockRegistersNothingUnkeyed() {
+        var (_, provider) = Build(
+            nameof(Samples.KeyedMock),
+            services => services.AddKeyedSingleton<IThing, Thing>("primary"));
+
+        Assert.Null(provider.GetService<IThing>());
+    }
+
+    /// <summary>
+    /// A key the mock did not name is left alone, so mocking one keyed implementation leaves its
+    /// siblings real.
+    /// </summary>
+    [Fact]
+    public void KeyedMockLeavesOtherKeysAlone() {
+        var (_, provider) = Build(
+            nameof(Samples.KeyedMock),
+            services => {
+                services.AddKeyedSingleton<IThing, Thing>("primary");
+                services.AddKeyedSingleton<IThing, Thing>("secondary");
+            });
+
+        Assert.IsType<Thing>(provider.GetRequiredKeyedService<IThing>("secondary"));
+    }
+
+    /// <summary>Control: an unkeyed mock still replaces the unkeyed registration.</summary>
+    [Fact]
+    public async Task UnkeyedMockReplacesTheUnkeyedRegistration() {
+        var arguments = await Resolve(
+            nameof(Samples.UnkeyedMock), services => services.AddSingleton<IThing, Thing>());
+
+        Assert.IsType<Other>(Assert.Single(arguments));
+    }
+
     [Fact]
     public void SetupIsOfferedEveryParameter() {
         var services = new ServiceCollection();
@@ -175,8 +230,13 @@ public class TestParameterResolverTests {
     /// Signatures only — never invoked. Static so nothing needs constructing; the members are public
     /// within this private class so one set of binding flags finds them all.
     /// </summary>
+    [StubMockSupport]
     private static class Samples {
         public static void OneService(IThing thing) { }
+
+        public static void KeyedMock([Mock] [FromKeyedServices("primary")] IThing thing) { }
+
+        public static void UnkeyedMock([Mock] IThing thing) { }
 
         public static void WantsTheProvider(IServiceProvider provider) { }
 
@@ -191,6 +251,15 @@ public class TestParameterResolverTests {
         public static void UnregisteredWithInjectedValue([InjectValues("supplied")] NeedsAValue value) { }
 
         public static void TwoRegisteringAttributes([RegistersOther] IThing first, [RegistersOther] IThing second) { }
+    }
+
+    /// <summary>
+    /// Stands in for a mocking package, so the real [Mock] can be driven without one. What the
+    /// double actually is does not matter here; where it gets registered does.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Class)]
+    private class StubMockSupportAttribute : Attribute, IMockSupportAttribute {
+        public object ProvideMock(Type type) => new Other();
     }
 
     /// <summary>

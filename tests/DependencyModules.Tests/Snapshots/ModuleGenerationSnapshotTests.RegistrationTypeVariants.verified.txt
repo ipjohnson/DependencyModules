@@ -13,14 +13,14 @@ namespace TestNamespace
 
         private static void ModuleDependencies(global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)
         {
-            services.Replace(new global::Microsoft.Extensions.DependencyInjection.ServiceDescriptor(
-                typeof(global::TestNamespace.IReplace),
-                typeof(global::TestNamespace.ReplaceThing),
-                ServiceLifetime.Singleton
-            ));
             services.TryAddEnumerable(new global::Microsoft.Extensions.DependencyInjection.ServiceDescriptor(
                 typeof(global::TestNamespace.ITryEnumerable),
                 typeof(global::TestNamespace.TryEnumerableThing),
+                ServiceLifetime.Singleton
+            ));
+            services.Replace(new global::Microsoft.Extensions.DependencyInjection.ServiceDescriptor(
+                typeof(global::TestNamespace.IReplace),
+                typeof(global::TestNamespace.ReplaceThing),
                 ServiceLifetime.Singleton
             ));
             services.TryAddSingleton(

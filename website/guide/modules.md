@@ -124,6 +124,20 @@ public partial class DiagnosticsModule;
 Convention registrations always name their declaring module as their realm, which is why two modules
 running conventions over the same interface do not leak into each other.
 
+::: warning Two modules in one assembly, loaded together, register everything twice
+"Joins every module in its compilation" is literal. An assembly declaring two modules that neither set
+`OnlyRealm` puts the *whole* registration list in both — decorators included — so loading both in one
+call runs it twice:
+
+```csharp
+services.AddModules(new AppModule(), new DataModule());   // every service registered twice
+```
+
+Declaring two modules is fine; loading both is what doubles up. If they are meant to be composed
+together, give one a realm, or have one compose the other with its
+[generated attribute](#composing-modules) instead of naming both at the call site.
+:::
+
 ## Parameters
 
 A module can take values from whoever loads it — a connection string, a base URL. Declare them as

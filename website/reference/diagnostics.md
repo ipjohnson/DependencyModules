@@ -4,15 +4,22 @@ The generator reports what it can work out at build time as `DM####` codes, so a
 shows up in the IDE rather than as a resolution failure at startup. This page says what each one
 means and what to do about it.
 
-They behave like any other analyzer diagnostic, so each can be tuned or silenced through
-`.editorconfig`:
+These are reported by a source generator rather than by an analyzer, which decides how they are
+tuned. Roslyn applies `.editorconfig` severity mapping to *analyzer* diagnostics, and a generator's
+reach the compilation with the severity already fixed — so `dotnet_diagnostic.DM0005.severity = none`
+has no effect. Use the compilation-level properties instead, which are applied later and do work:
 
-```ini
-dotnet_diagnostic.DM0010.severity = none
+```xml
+<PropertyGroup>
+  <NoWarn>$(NoWarn);DM0005</NoWarn>
+  <WarningsAsErrors>$(WarningsAsErrors);DM0013</WarningsAsErrors>
+</PropertyGroup>
 ```
 
-`DM0010` and `DM0011` are informational and exist to make registration visible at the class. Silence
-them if the IDE gets noisy; the rest are worth reading.
+`#pragma warning disable DM0005` works too, for silencing one site rather than a project.
+
+`DM0010` and `DM0011` are informational and exist to make registration visible at the class, which
+means they appear in the IDE and never in `dotnet build` at any verbosity. The rest are worth reading.
 
 | Code | Severity | Meaning |
 |---|---|---|
@@ -30,6 +37,7 @@ them if the IDE gets noisy; the rest are worth reading.
 | [DM0012](#dm0012) | Warning | An environment condition names nothing to test |
 | [DM0013](#dm0013) | Warning | A service registered as an open generic cannot be decorated |
 | [DM0014](#dm0014) | Warning | A generic type cannot be cross-wired |
+| [DM0015](#dm0015) | Warning | An interceptor does not apply to every member |
 
 ## DM0001 {#dm0001}
 
@@ -167,3 +175,39 @@ the attribute promises.
 
 Use `[SingletonService]`, `[ScopedService]` or `[TransientService]` instead, applying one per
 interface if the type needs to answer to more than one.
+
+## DM0015 {#dm0015}
+
+**An interceptor does not apply to every member it was applied to.**
+
+Three interfaces cover the member shapes, and the generator picks per member:
+
+| Interface | Members |
+|---|---|
+| `IInterceptor` | returning a value directly, or `void` |
+| `IAsyncInterceptor` | returning `Task`, `Task<T>`, `ValueTask`, `ValueTask<T>` |
+| `IAsyncEnumerableInterceptor` | returning `IAsyncEnumerable<T>` |
+
+An interceptor that implements none of the one a member needs is left out of that member's chain, and
+those calls run without it:
+
+```csharp
+public class AuditInterceptor : IInterceptor { … }      // sync only
+
+[SingletonService]
+[Intercept(typeof(AuditInterceptor))]
+public class Orders : IOrders {
+    public int Count(string customer) { … }             // audited
+    public Task<int> CountAsync(string customer) { … }  // DM0015 — not audited
+}
+```
+
+This matters more than it first reads. An interceptor that rewrites arguments stops rewriting them;
+one that authorises or audits stops doing that, on exactly the members most likely to be the
+interesting ones. In the sharpest case — an `IInterceptor` applied to a service whose members are all
+async — it never runs at all.
+
+Implement the missing interface on the interceptor, or apply it to a service with no such member.
+
+Reported once per interceptor and member shape, so a wide interface produces one line rather than
+one per member. See [Interception](/guide/interception).

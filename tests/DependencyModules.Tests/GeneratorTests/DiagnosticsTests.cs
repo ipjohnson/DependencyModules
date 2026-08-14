@@ -331,6 +331,132 @@ public class DiagnosticsTests {
             provider.GetService(generated.Type("IAudit`1").MakeGenericType(typeof(int))));
     }
 
+    /// <summary>
+    /// An interceptor implementing only <c>IInterceptor</c>, applied to a service whose members are
+    /// all async. It never runs, and the build used to be green — the model was ignored before
+    /// anything could report on it.
+    /// </summary>
+    [Fact]
+    public void InterceptorThatServesNoMember_ReportsDM0015() {
+        var result = GeneratorTestHarness.Run(
+            Intercepted(
+                """
+                public interface IAsyncOnly {
+                    Task<string> GetAsync(string key);
+                }
+
+                [SingletonService]
+                [Intercept(typeof(SyncOnlyInterceptor))]
+                public class AsyncOnly : IAsyncOnly {
+                    public Task<string> GetAsync(string key) => Task.FromResult(key);
+                }
+                """));
+
+        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0015");
+
+        Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
+        Assert.Contains("SyncOnlyInterceptor", diagnostic.GetMessage());
+        Assert.Contains("IAsyncInterceptor", diagnostic.GetMessage());
+        Assert.Contains("GetAsync", diagnostic.GetMessage());
+    }
+
+    /// <summary>
+    /// The partial case: the interceptor serves the sync members and is quietly absent from the async
+    /// one, which is how an argument-rewriting interceptor stops rewriting halfway through a service.
+    /// </summary>
+    [Fact]
+    public void InterceptorThatServesSomeMembers_ReportsDM0015ForTheRest() {
+        var result = GeneratorTestHarness.Run(
+            Intercepted(
+                """
+                public interface IMixed {
+                    int Count(string key);
+                    Task<int> CountAsync(string key);
+                }
+
+                [SingletonService]
+                [Intercept(typeof(SyncOnlyInterceptor))]
+                public class Mixed : IMixed {
+                    public int Count(string key) => key.Length;
+                    public Task<int> CountAsync(string key) => Task.FromResult(key.Length);
+                }
+                """));
+
+        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0015");
+
+        Assert.Contains("CountAsync", diagnostic.GetMessage());
+        Assert.DoesNotContain("'Count'", diagnostic.GetMessage());
+    }
+
+    /// <summary>
+    /// An interceptor covering every shape the service uses says nothing.
+    /// </summary>
+    [Fact]
+    public void InterceptorThatServesEveryMember_DoesNotReportDM0015() {
+        var result = GeneratorTestHarness.Run(
+            Intercepted(
+                """
+                public interface ISyncOnly {
+                    int Count(string key);
+                }
+
+                [SingletonService]
+                [Intercept(typeof(SyncOnlyInterceptor))]
+                public class SyncOnly : ISyncOnly {
+                    public int Count(string key) => key.Length;
+                }
+                """));
+
+        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0015");
+    }
+
+    /// <summary>
+    /// DM0008 drops the whole wrapper, not only the member it names, and the message has to say so —
+    /// the guide read as though the other members were still intercepted.
+    /// </summary>
+    [Fact]
+    public void UnsupportedMember_ReportsThatNoMemberIsIntercepted() {
+        var result = GeneratorTestHarness.Run(
+            Intercepted(
+                """
+                public interface IAwkward {
+                    bool TryGet(string key, out string value);
+                    int Fine(string key);
+                }
+
+                [SingletonService]
+                [Intercept(typeof(SyncOnlyInterceptor))]
+                public class Awkward : IAwkward {
+                    public bool TryGet(string key, out string value) { value = key; return true; }
+                    public int Fine(string key) => key.Length;
+                }
+                """));
+
+        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0008");
+
+        Assert.Contains("none of its members are intercepted", diagnostic.GetMessage());
+        Assert.Contains("TryGet", diagnostic.GetMessage());
+    }
+
+    private static string Intercepted(string body) =>
+        $$"""
+          using System.Threading.Tasks;
+          using DependencyModules.Runtime.Attributes;
+          using DependencyModules.Runtime.Interception;
+
+          namespace TestNamespace;
+
+          [SingletonService]
+          public class SyncOnlyInterceptor : IInterceptor {
+              public TResult Intercept<TResult>(InvocationContext<TResult> context) => context.Proceed();
+          }
+
+          {{body}}
+
+          [DependencyModule]
+          public partial class TestModule;
+          """;
+
     private static string OpenGenericStore(string body, string moduleAttributes = "") =>
         $$"""
           using DependencyModules.Runtime.Attributes;

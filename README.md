@@ -174,11 +174,15 @@ public partial class CustomModule(string someString) : IServiceCollectionConfigu
     // custom logic
   }
 
-  public override bool Equals(object obj)
+  // Re-exposed as a member: a primary constructor parameter is captured, not a property, so
+  // module.someString would not compile.
+  private string Key => someString;
+
+  public override bool Equals(object? obj)
   {
     if (obj is CustomModule module)
     {
-      return someString.Equals(module.someString);
+      return someString.Equals(module.Key);
     }
 
     return false;
