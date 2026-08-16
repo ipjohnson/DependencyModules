@@ -101,10 +101,17 @@ every test needs in one file at the assembly level:
 ```csharp
 // Bootstrap.cs
 using DependencyModules.NSubstitute;
+using MyApp.Tests;                  // the namespace the module is declared in
 
 [assembly: ApplicationModule]
 [assembly: NSubstituteSupport]      // or [MoqSupport] / [FakeItEasySupport]
 ```
+
+That second `using` is easy to miss. A module generates its attribute in the module's own
+namespace, and an assembly-level attribute has no namespace context to inherit — so without it the
+build fails with `CS0246: The type or namespace name 'ApplicationModuleAttribute' could not be
+found`, naming a type you never wrote. Importing the namespace or writing the attribute qualified,
+`[assembly: MyApp.Tests.ApplicationModule]`, both work.
 
 Every test in the project now gets `ApplicationModule` without saying so:
 
@@ -210,8 +217,8 @@ whatever order the two are declared in — see [ordering](/guide/testing-mocking
 
 ## When the parameter is not a service at all
 
-Sometimes a test parameter is data — a string, an id, a record combining both. `[InjectValues]`
-supplies the parts the container cannot:
+Sometimes a test parameter is a type the container cannot build on its own, because part of it is
+data rather than a service. `[InjectValues]` supplies the parts the container cannot:
 
 ```csharp
 public record InjectModel(IDependencyOne DependencyOne, string StringValue);
@@ -226,13 +233,30 @@ public void InjectTestValue([InjectValues("Hello World!")] InjectModel model) {
 The values are matched against the constructor parameters the container **cannot** supply, so you
 list only what it could not work out for itself.
 
+They are the parameter type's *constructor arguments*, not the parameter's own value — so a
+parameter that should simply **be** a value wants a data row instead. `[InlineData]` and NUnit's
+`[TestCase]` both compose with `[ModuleTest]`, and the container fills whatever the row does not:
+
+```csharp
+[ModuleTest]
+[InlineData("978-0132350884")]
+[InlineData("978-0201616224")]
+public async Task GetBook_FindsEachIsbn(string isbn, IRequestHandler<GetBook, Book?> handler) {
+    // isbn came from the row, handler from the container
+}
+```
+
+Asking for a bare `string` through `[InjectValues]` fails with *"A suitable constructor for type
+'System.String' could not be located"*, because that is exactly what it tried to do.
+
 ## Choosing between the three
 
 | | Reach for it when |
 |---|---|
 | [`[Mock]`](/guide/testing-mocking) | you want to assert on the interaction — what was called, with what |
 | `[TestExport]` | you want a real object with different behaviour, constructed by the container |
-| `[InjectValues]` | the parameter is data, not a service |
+| `[InjectValues]` | the parameter is a type the container cannot finish building, because part of it is data |
+| `[InlineData]` / `[TestCase]` | the parameter simply **is** a value — one test per row |
 
 ## What is worth testing
 

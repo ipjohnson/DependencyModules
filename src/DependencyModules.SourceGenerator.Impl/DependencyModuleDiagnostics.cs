@@ -309,4 +309,33 @@ public static class DependencyModuleDiagnostics {
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
+    /// <summary>
+    /// Raised for an assembly-level module attribute whose namespace the file does not import.
+    /// </summary>
+    /// <remarks>
+    /// A module generates its attribute in the module's own namespace, and an assembly-level
+    /// attribute has no namespace context to inherit — a <c>using</c> inside a namespace declaration
+    /// cannot apply to it, because assembly attributes precede every namespace in the file.
+    ///
+    /// So <c>[assembly: ApplicationModule]</c> in a file that does not import the module's namespace
+    /// fails with <c>CS0246</c> naming <c>ApplicationModuleAttribute</c> — a type the developer never
+    /// wrote, generated into a namespace the error does not mention, by a generator whose output they
+    /// have probably never looked at. Every part of that error points away from the fix.
+    ///
+    /// This cannot be decided by asking the compiler, because the attribute does not exist yet while
+    /// the generator that writes it is running. It is read from syntax instead: an assembly attribute
+    /// whose name matches a module this compilation declares, written unqualified, in a file that
+    /// imports neither that namespace nor anything <c>global using</c> supplies.
+    /// </remarks>
+    public static readonly DiagnosticDescriptor ModuleAttributeNamespaceNotImported = new(
+        id: "DM0016",
+        title: "Assembly-level module attribute needs its namespace imported",
+        messageFormat:
+        "'{0}' is declared in '{1}', and an assembly-level attribute has no namespace context, so " +
+        "this does not compile. Add 'using {1};' to this file, or write it qualified as " +
+        "'[assembly: {1}.{0}]'.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
 }

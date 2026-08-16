@@ -27,5 +27,11 @@ public class SourceGenerator : BaseSourceGenerator {
         IncrementalValueProvider<ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)>> valuesProvider) {
 
         context.RegisterSourceOutput(valuesProvider, new DependencyModuleWriter(true).GenerateSource);
+
+        // DM0016. Registered here rather than on the base class so that a framework generator loaded
+        // alongside this one does not report the same usage twice.
+        context.RegisterSourceOutput(
+            valuesProvider.Combine(AssemblyModuleAttributeDiagnostics.Collect(context)),
+            AssemblyModuleAttributeDiagnostics.Report);
     }
 }

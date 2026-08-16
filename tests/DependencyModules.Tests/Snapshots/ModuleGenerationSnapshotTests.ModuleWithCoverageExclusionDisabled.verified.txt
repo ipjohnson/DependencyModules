@@ -5,6 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace TestNamespace
 {
+    #nullable enable
     public partial class TestModule
     {
         [DynamicDependency(nameof(ModuleDependencies))]
@@ -18,6 +19,7 @@ namespace TestNamespace
             );
         }
     }
+    #nullable disable
 }
 
 // ---- TestModule.Module.g.cs ----

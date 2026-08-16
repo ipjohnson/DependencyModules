@@ -1090,6 +1090,7 @@ namespace DependencyModules.SourceGenerator.Impl
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ExposedByConvention;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor GeneratorFailure;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor InterceptorCannotServeMembers;
+        public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ModuleAttributeNamespaceNotImported;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ModuleMustBePartial;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor OpenGenericCannotBeDecorated;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor RegisteredConditionally;

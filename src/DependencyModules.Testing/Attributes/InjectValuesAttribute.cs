@@ -14,6 +14,19 @@ namespace DependencyModules.Testing.Attributes;
 /// This attribute can be applied to method parameters and is resolved when
 /// the method is invoked, enabling runtime value injection.
 /// </summary>
+/// <remarks>
+/// The values are the parameter type's <i>constructor arguments</i>, not the parameter's value.
+/// They are combined with whatever the container supplies, so
+/// <c>[InjectValues("wholesale")] OrderRequest</c> constructs an
+/// <c>OrderRequest(IValidator&lt;PlaceOrder&gt;, string)</c> with the validator resolved and the
+/// string supplied. A parameter that should simply <i>be</i> a value wants a data row —
+/// <c>[InlineData]</c> or <c>[TestCase]</c> — which composes with <c>[ModuleTest]</c>; asking for a
+/// bare <c>string</c> here fails, because <c>System.String</c> has no matching constructor.
+///
+/// Restricted to parameters. Applied anywhere else it is never read, and the test then fails inside
+/// ActivatorUtilities naming the parameter's type rather than the misplaced attribute.
+/// </remarks>
+[AttributeUsage(AttributeTargets.Parameter)]
 public class InjectValuesAttribute(params object[] value) : Attribute, IInjectValueAttribute {
 
     /// <summary>

@@ -88,6 +88,9 @@ For applications using [top-level statements](https://learn.microsoft.com/en-us/
 an `ApplicationModule` is generated for you from `Program.cs`:
 
 ```csharp
+using MyApp;                       // the generated module takes your RootNamespace
+using DependencyModules.Runtime;
+
 [assembly: SomeOtherModule]        // compose other modules at the assembly level
 
 var services = new ServiceCollection();
@@ -95,6 +98,13 @@ var services = new ServiceCollection();
 // SomeOtherModule, plus every attributed service in this project
 services.AddModule<ApplicationModule>();
 ```
+
+::: warning The first `using` is not optional
+The generated module takes the project's `RootNamespace`, and top-level statements sit in the
+global namespace — so `Program.cs` cannot see `ApplicationModule` until it imports that namespace.
+Leave it out and the build fails with `CS0246: The type or namespace name 'ApplicationModule' could
+not be found`, which does not hint at the cause.
+:::
 
 This is why the ASP.NET sample in this repository never declares a module — the web project's
 `Program.cs` gets one automatically, and the test project composes it by name.

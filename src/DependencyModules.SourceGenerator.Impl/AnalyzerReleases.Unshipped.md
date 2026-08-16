@@ -20,3 +20,4 @@ DM0012 | DependencyModules | Warning | An environment condition names nothing to
 DM0013 | DependencyModules | Warning | A service registered as an open generic cannot be decorated.
 DM0014 | DependencyModules | Warning | A generic type cannot be cross-wired.
 DM0015 | DependencyModules | Warning | An interceptor does not apply to every member it was applied to.
+DM0016 | DependencyModules | Warning | An assembly-level module attribute's namespace is not imported.

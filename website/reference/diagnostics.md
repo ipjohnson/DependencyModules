@@ -38,6 +38,7 @@ means they appear in the IDE and never in `dotnet build` at any verbosity. The r
 | [DM0013](#dm0013) | Warning | A service registered as an open generic cannot be decorated |
 | [DM0014](#dm0014) | Warning | A generic type cannot be cross-wired |
 | [DM0015](#dm0015) | Warning | An interceptor does not apply to every member |
+| [DM0016](#dm0016) | Warning | An assembly-level module attribute's namespace is not imported |
 
 ## DM0001 {#dm0001}
 
@@ -214,3 +215,36 @@ Implement the missing interface on the interceptor, or apply it to a service wit
 
 Reported once per interceptor and member shape, so a wide interface produces one line rather than
 one per member. See [Interception](/guide/interception).
+
+## DM0016 {#dm0016}
+
+**An assembly-level module attribute's namespace is not imported.**
+
+A module generates its attribute in the module's own namespace, and an assembly-level attribute has
+no namespace context to inherit — a `using` written inside a namespace declaration cannot apply to
+it, because assembly attributes precede every namespace in the file.
+
+```csharp
+// Bootstrap.cs
+using DependencyModules.NSubstitute;
+
+[assembly: ApplicationModule]     // DM0016 — nothing brings MyApp.Composition into scope
+[assembly: NSubstituteSupport]
+```
+
+Left alone this is `CS0246: The type or namespace name 'ApplicationModuleAttribute' could not be
+found` — a type you never wrote, generated into a namespace the error does not name. Every part of
+that message points away from the fix, which is one line:
+
+```csharp
+using MyApp.Composition;          // or write it as [assembly: MyApp.Composition.ApplicationModule]
+```
+
+Unlike the other diagnostics here this one is read from syntax rather than from the compiler's view
+of your code, and it has to be: the attribute is written by the generator that is running, so it does
+not exist in the compilation being examined and nothing about it can be resolved. The check is
+therefore "is there a module by this name, and could this file see it" — which is why it stays quiet
+for an attribute matching no module in the compilation, a module in the global namespace, a usage
+already written qualified, and a namespace supplied by a `global using` in any file.
+
+See [Testing](/guide/testing#stop-repeating-the-module-list) and [Modules](/guide/modules).

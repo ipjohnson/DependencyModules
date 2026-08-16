@@ -5,20 +5,27 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0-rc9330] - 2026-08-14
+## [1.0.0-rc9340] - 2026-08-16
 
 Everything since `1.0.0-rc9230`. The theme is registrations that were silently not happening: an
 attribute the generator declined to recognise, a `Replace` that depended on how a class was named, a
 mock that replaced the wrong slot, and three shapes it refused without saying so. One of those
 refusals turned out to be unnecessary, and generic services can now be intercepted.
 
+The other half came from building five applications against the released package and writing down
+everything that got in the way — which turned up a generated file that could break a consumer's build
+on an ordinary signature, an attribute that did nothing where it was written, and several documented
+examples that did not compile.
+
 Still a release candidate. `DecoratorExpansion.Expand` changed shape, but only on the generator
 extension points, which are documented as unversioned.
 
-**Upgrade note:** three new warnings. A project building with `TreatWarningsAsErrors` may go red on
-work that was previously green and quietly not doing anything — which is the point of them, but it is
-a build break rather than a nudge. `NoWarn` takes them per-project; note that `.editorconfig` does not
-(see below).
+**Upgrade note:** four new warnings, and one thing that will stop compiling. A project building with
+`TreatWarningsAsErrors` may go red on work that was previously green and quietly not doing anything —
+which is the point of them, but it is a build break rather than a nudge. `NoWarn` takes them
+per-project; note that `.editorconfig` does not (see below). Separately, `[InjectValues]` is now
+restricted to parameters, so a usage anywhere else is `CS0592` where it used to compile and be
+ignored. Both are cases where the build going red is the fix arriving, not a regression.
 
 ### Added
 
@@ -88,6 +95,21 @@ a build break rather than a nudge. `NoWarn` takes them per-project; note that `.
   `Unable to create a generic service … because 'System.Int32' is a ValueType`. A plain
   `[SingletonService]` on a generic class behaves identically, which the AOT guide now says.
 
+- **`DM0016`, for an assembly-level module attribute whose namespace nothing imports.** A module
+  generates its attribute in the module's own namespace, and an assembly attribute has no namespace
+  context to inherit — a `using` inside a namespace declaration cannot reach it, because assembly
+  attributes precede every namespace in the file. So `[assembly: ApplicationModule]` without the
+  import fails with `CS0246` naming `ApplicationModuleAttribute`: a type the developer never wrote,
+  generated into a namespace the error does not mention. Every part of that message points away from
+  the one-line fix, and both the testing guide and this README used to show the shape without it.
+
+  Alone among these it is read from syntax rather than from the semantic model, and has to be — the
+  attribute is written by the generator that is running, so it does not exist in the compilation
+  being examined and nothing about it resolves. The question it can answer is "is there a module by
+  this name, and could this file see it", which is why it stays quiet for an attribute matching no
+  module in the compilation, a module in the global namespace, a usage already written qualified, and
+  a namespace a `global using` supplies from any file.
+
 ### Fixed
 
 - **An attribute the generator declined to recognise, depending on how it was spelled.** Attribute
@@ -143,7 +165,35 @@ a build break rather than a nudge. `NoWarn` takes them per-project; note that `.
   non-generic decorator named against an open generic service produced CS7003 and CS1503 the same
   way. Both are now `DM0014` and `DM0013`.
 
+- **A nullable type argument in a service type broke the build, and the consumer could not fix it.**
+  A registered service type carries whatever nullable annotation its declaration used, so
+  `class GetBookHandler : IHandler<GetBook, Book?>` emits `typeof(…Book?)`. Roslyn requires generated
+  code to open a nullable context explicitly however the consuming project is configured, and the
+  registrations file was the one generated file that never did — the module, attribute and interceptor
+  writers all already called `EnableNullable`.
+
+  The result was `CS8669` on a find-by-id handler, which is about as ordinary a shape as exists: a
+  warning nobody could silence from their own source without dropping the annotation from their own
+  domain signatures, and a hard failure under `TreatWarningsAsErrors`. It reproduced on the attribute
+  and the convention path alike, because the convention path emits through the same writer — which is
+  also why one call fixes both files.
+
+  The annotation is still emitted. It is inert inside a `typeof`, since `typeof(Book?)` and
+  `typeof(Book)` are one runtime type, and removing it would mean changing type modelling that
+  decoration and interception depend on: `ConstructorArgumentWriter` reads nullability to choose
+  `GetService` over `GetRequiredService`, and an interceptor wrapper needs the annotations to keep
+  implementing what it wraps. A decorator declared against `IStore<Document>` still matches a
+  registration of `IStore<Document?>`, so the difference is cosmetic rather than a silent miss.
+
 ### Changed
+
+- **Breaking, and deliberately so: `[InjectValues]` is restricted to parameters.** It was the only
+  one of the three testing attributes without an `AttributeUsage` — `[Mock]` is pinned to parameters
+  and `[TestExport]` to methods — so writing it on a test method compiled, was never read, and then
+  failed inside `ActivatorUtilities` with *"Multiple constructors accepting all given argument types
+  have been found in type 'System.String'"*, naming neither the parameter nor the mistake. It is now
+  `CS0592` at the attribute itself. Code that was silently doing nothing will stop compiling, which
+  is the point.
 
 - **`CSharpAuthor` 1.1.1010**, for `AddConstraint`. A `where` clause was previously assembled as a
   string and assigned to `WhereStatement`, which put C#'s ordering rules — one primary constraint
@@ -191,6 +241,30 @@ a build break rather than a nudge. `NoWarn` takes them per-project; note that `.
   registers. The decorators guide also described the failure as an `InvalidOperationException` from
   `DecoratorHelper`; that guard is unreachable from generated code, because the expansion drops the
   decorator before anything is emitted, so the guide now points at `DM0013`.
+
+- **The README leads with the problem rather than the mechanism.** It opened by naming the
+  implementation, which says what the thing is before the reader knows why they want one, and the
+  most persuasive artefact in it — a generated registration that is plainly ordinary C# — sat at the
+  bottom below four hundred lines of reference. It now opens with the hook, a link to the
+  documentation site, the attribute beside the code it generates, and a table answering the question
+  every reader of a .NET DI library arrives with, which is why not Scrutor. The reference the site
+  covers in depth is a lookup table that links out, and the samples in `integ-tests/` are pointed at
+  rather than left to be discovered.
+
+- **Three documented examples did not compile, all found by building them.** The README quick start
+  omitted `using DependencyModules.Runtime.Attributes;`. The README and the modules guide both showed
+  top-level statements naming `ApplicationModule` without importing the root namespace it is generated
+  into — `integ-tests/ConsoleTestProject` has always carried that `using`; the docs omitted it and
+  sent the reader into a `CS0246` naming a type they never wrote. The testing bootstrap referenced a
+  module without importing its namespace, which fails the same way on the generated attribute.
+
+- **`[InjectValues]` was documented as being for the one thing it cannot do.** It was introduced as
+  taking "a string, an id, a record combining both", and the comparison table said "the parameter is
+  data, not a service". The values are the parameter type's *constructor arguments*, so asking for a
+  bare `string` tries to construct `System.String` from a string and fails. The prose beneath it was
+  already correct; only the framing promised otherwise. Data rows are what a parameter that simply
+  *is* a value wants, and `[InlineData]` composing with `[ModuleTest]` is now shown, since nothing
+  said so.
 
 - **Breaking, for anyone building on the generator extension points:**
   `DecoratorExpansion.Expand` takes an additional `out IReadOnlyList<DecoratorModel>` parameter,
