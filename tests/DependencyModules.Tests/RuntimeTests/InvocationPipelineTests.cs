@@ -157,10 +157,15 @@ public class InvocationPipelineTests {
     [Fact]
     public async Task AsyncMember_ExitsWhenTheWorkFinishesRatherThanWhenTheTaskIsHandedBack() {
         var fixture = new Fixture();
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.Implementation.ComputeGate = gate.Task;
 
         var task = fixture.Service.ComputeAsync(21);
 
+        // The work is suspended at a gate nothing has released, so this cannot have happened yet.
         Assert.DoesNotContain(fixture.Log, entry => entry.Contains("exit"));
+
+        gate.SetResult();
 
         var result = await task;
 
@@ -243,8 +248,15 @@ public class InvocationPipelineTests {
             Calls.Add($"Record({entry})");
         }
 
+        /// <summary>
+        /// Held open by the test rather than by a timer. A test asserting that the work has not
+        /// finished yet is asserting about a suspension, and a sleep only makes that likely.
+        /// Defaults to already-completed so a test that does not care cannot deadlock on it.
+        /// </summary>
+        public Task ComputeGate { get; set; } = Task.CompletedTask;
+
         public async Task<int> ComputeAsync(int value) {
-            await Task.Delay(20);
+            await ComputeGate;
 
             Calls.Add($"ComputeAsync({value})");
 

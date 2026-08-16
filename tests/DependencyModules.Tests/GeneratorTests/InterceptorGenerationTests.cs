@@ -48,11 +48,14 @@ public class InterceptorGenerationTests {
     public async Task AsyncMethod_ExitsAfterTheWorkCompletes() {
         var generated = GeneratedAssembly.Create(Source(
             "System.Threading.Tasks.Task<int> Compute(int a);",
-            "public async System.Threading.Tasks.Task<int> Compute(int a) { await System.Threading.Tasks.Task.Delay(20); return a * 2; }"));
+            "public async System.Threading.Tasks.Task<int> Compute(int a) { await Recorder.Gate.Task; return a * 2; }"));
 
         var task = (Task<int>)Invoke(generated.ResolveRequired("IWork"), "Compute", 21)!;
 
+        // The work is suspended at a gate nothing has released, so this cannot have happened yet.
         Assert.DoesNotContain("exit Compute", Log(generated));
+
+        Gate(generated).SetResult();
 
         var result = await task;
 
@@ -807,6 +810,13 @@ public class InterceptorGenerationTests {
     private static IReadOnlyList<string> Log(GeneratedAssembly generated) =>
         (IReadOnlyList<string>)generated.Type("Recorder").GetField("Entries")!.GetValue(null)!;
 
+    /// <summary>
+    /// The gate belongs to the generated assembly, so each compilation gets its own and no test can
+    /// release another's.
+    /// </summary>
+    private static TaskCompletionSource Gate(GeneratedAssembly generated) =>
+        (TaskCompletionSource)generated.Type("Recorder").GetField("Gate")!.GetValue(null)!;
+
     private static object? Invoke(object target, string method, params object?[] arguments) =>
         target.GetType().GetMethod(method)!.Invoke(target, arguments);
 
@@ -821,6 +831,12 @@ public class InterceptorGenerationTests {
 
         public static class Recorder {
             public static readonly List<string> Entries = new();
+
+            // Released by the test. An implementation awaiting this is suspended until the test says
+            // otherwise, which is what "the work has not finished yet" needs in order to be a fact
+            // rather than a race against a timer.
+            public static readonly TaskCompletionSource Gate =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
         """;
 
