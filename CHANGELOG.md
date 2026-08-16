@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0-rc9330] - 2026-08-16
+## [1.0.0-rc9340] - 2026-08-16
 
 Everything since `1.0.0-rc9230`. The theme is registrations that were silently not happening: an
 attribute the generator declined to recognise, a `Replace` that depended on how a class was named, a
@@ -20,7 +20,7 @@ examples that did not compile.
 Still a release candidate. `DecoratorExpansion.Expand` changed shape, but only on the generator
 extension points, which are documented as unversioned.
 
-**Upgrade note:** three new warnings, and one thing that will stop compiling. A project building with
+**Upgrade note:** four new warnings, and one thing that will stop compiling. A project building with
 `TreatWarningsAsErrors` may go red on work that was previously green and quietly not doing anything —
 which is the point of them, but it is a build break rather than a nudge. `NoWarn` takes them
 per-project; note that `.editorconfig` does not (see below). Separately, `[InjectValues]` is now
@@ -94,6 +94,21 @@ ignored. Both are cases where the build going red is the fix arriving, not a reg
   Measured on `osx-arm64`, `IRepository<Order>` resolves and `IRepository<int>` throws
   `Unable to create a generic service … because 'System.Int32' is a ValueType`. A plain
   `[SingletonService]` on a generic class behaves identically, which the AOT guide now says.
+
+- **`DM0016`, for an assembly-level module attribute whose namespace nothing imports.** A module
+  generates its attribute in the module's own namespace, and an assembly attribute has no namespace
+  context to inherit — a `using` inside a namespace declaration cannot reach it, because assembly
+  attributes precede every namespace in the file. So `[assembly: ApplicationModule]` without the
+  import fails with `CS0246` naming `ApplicationModuleAttribute`: a type the developer never wrote,
+  generated into a namespace the error does not mention. Every part of that message points away from
+  the one-line fix, and both the testing guide and this README used to show the shape without it.
+
+  Alone among these it is read from syntax rather than from the semantic model, and has to be — the
+  attribute is written by the generator that is running, so it does not exist in the compilation
+  being examined and nothing about it resolves. The question it can answer is "is there a module by
+  this name, and could this file see it", which is why it stays quiet for an attribute matching no
+  module in the compilation, a module in the global namespace, a usage already written qualified, and
+  a namespace a `global using` supplies from any file.
 
 ### Fixed
 

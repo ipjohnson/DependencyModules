@@ -11,7 +11,7 @@
             The release candidate label. Assembly and file versions carry no prerelease part, so
             they stay put until the version they do carry changes.
         -->
-        <VersionSuffix>rc9330</VersionSuffix>
+        <VersionSuffix>rc9340</VersionSuffix>
         <AssemblyVersion>1.0.0.0</AssemblyVersion>
         <FileVersion>1.0.0.0</FileVersion>
     </PropertyGroup>
