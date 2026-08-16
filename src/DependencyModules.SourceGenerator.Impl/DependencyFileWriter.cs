@@ -69,6 +69,14 @@ public class DependencyFileWriter {
 
         classDefinition.Modifiers |= ComponentModifier.Partial;
 
+        // A registered service type carries whatever nullable annotation its declaration used, so
+        // `class GetBookHandler : IRequestHandler<GetBook, Book?>` emits typeof(...Book?). Roslyn
+        // requires generated code to open a nullable context explicitly whatever the project sets,
+        // and without one that annotation is CS8669 — a warning the consumer cannot fix from their
+        // own source, and a build break under TreatWarningsAsErrors. The module and attribute
+        // writers already do this; the registrations file is where the annotations actually land.
+        classDefinition.EnableNullable();
+
         if (configurationModel.ExcludeGeneratedCodeFromCoverage && !_coverageAttributeOnMethod) {
             classDefinition.AddAttribute(
                 TypeDefinition.Get("System.Diagnostics.CodeAnalysis", "ExcludeFromCodeCoverage"));

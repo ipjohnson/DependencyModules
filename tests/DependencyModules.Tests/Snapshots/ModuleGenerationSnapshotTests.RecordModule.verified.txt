@@ -5,6 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace TestNamespace
 {
+    #nullable enable
     [ExcludeFromCodeCoverage]
     public partial record class TestModule
     {
@@ -19,6 +20,7 @@ namespace TestNamespace
             );
         }
     }
+    #nullable disable
 }
 
 // ---- TestModule.Module.g.cs ----
