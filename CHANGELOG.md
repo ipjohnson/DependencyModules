@@ -5,6 +5,33 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-08-16
+
+The first stable release. Identical in content to `1.0.0-rc9340` below — it is the same commit
+without the prerelease label, published so that `dotnet add package DependencyModules.Runtime`
+resolves without `--prerelease`, which is the single most common thing to have gone wrong for someone
+trying this library for the first time.
+
+**What stability means here.** The public API is now under [semantic
+versioning](https://semver.org/spec/v2.0.0.html): the attributes, the convention contracts, the
+runtime interfaces and the testing attributes will not break within 1.x. Two things are deliberately
+outside that promise, and both say so in their own documentation — the generator extension points
+that `DependencyModules.SourceGenerator.Impl` ships as source, which exist for frameworks building
+their own generator on this one, and the exact text of generated code, which is an implementation
+detail rather than something to compile against.
+
+Diagnostics are covered too, in the sense that a `DM####` code will not be reused for a different
+meaning. New ones may be added in a minor release, and a new warning can turn a green build red under
+`TreatWarningsAsErrors` — that is the normal cost of a diagnostic arriving, and `NoWarn` takes them
+per-project.
+
+The breaking changes gathered in the release candidates land here rather than after, which is the
+point of doing them now: `DecoratorExpansion.Expand` changed shape, and `[InjectValues]` is
+restricted to parameters. Both are described below.
+
+`net8.0` and `net10.0` are supported. `net8.0` leaves support in November 2026 and will be dropped in
+a later minor release, not a patch.
+
 ## [1.0.0-rc9340] - 2026-08-16
 
 Everything since `1.0.0-rc9230`. The theme is registrations that were silently not happening: an
