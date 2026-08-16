@@ -1,5 +1,6 @@
 namespace DependencyModules.Testing.Attributes
 {
+    [System.AttributeUsage(System.AttributeTargets.Parameter)]
     public class InjectValuesAttribute : System.Attribute, DependencyModules.Testing.Attributes.Interfaces.IInjectValueAttribute
     {
         public InjectValuesAttribute(params object[] value) { }
