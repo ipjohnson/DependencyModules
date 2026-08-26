@@ -105,7 +105,10 @@ namespace TestNamespace
         public global::DependencyModules.Runtime.Interfaces.IDependencyModule GetModule()
         {
             var newModule = new global::TestNamespace.TestModule(someFlagField);
-            newModule.OptionalString = OptionalString;
+            if (OptionalString != null)
+            {
+                newModule.OptionalString = OptionalString;
+            }
             return newModule;
         }
     }

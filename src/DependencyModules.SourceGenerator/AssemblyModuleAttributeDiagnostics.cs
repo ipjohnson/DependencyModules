@@ -32,13 +32,18 @@ internal static class AssemblyModuleAttributeDiagnostics {
     internal sealed class UnitModel : IEquatable<UnitModel> {
 
         public UnitModel(
+            string filePath,
             ImmutableArray<Usage> usages,
             ImmutableArray<string> fileUsings,
             ImmutableArray<string> globalUsings) {
+            FilePath = filePath;
             Usages = usages;
             FileUsings = fileUsings;
             GlobalUsings = globalUsings;
         }
+
+        /// <summary>The file these attributes were written in.</summary>
+        public string FilePath { get; }
 
         public ImmutableArray<Usage> Usages { get; }
 
@@ -50,6 +55,7 @@ internal static class AssemblyModuleAttributeDiagnostics {
 
         public bool Equals(UnitModel? other) =>
             other != null &&
+            FilePath == other.FilePath &&
             Usages.SequenceEqual(other.Usages) &&
             FileUsings.SequenceEqual(other.FileUsings) &&
             GlobalUsings.SequenceEqual(other.GlobalUsings);
@@ -125,7 +131,11 @@ internal static class AssemblyModuleAttributeDiagnostics {
             }
         }
 
-        return new UnitModel(usages.ToImmutable(), fileUsings.ToImmutable(), globalUsings.ToImmutable());
+        return new UnitModel(
+            unit.SyntaxTree.FilePath,
+            usages.ToImmutable(),
+            fileUsings.ToImmutable(),
+            globalUsings.ToImmutable());
     }
 
     internal static void Report(
@@ -156,6 +166,19 @@ internal static class AssemblyModuleAttributeDiagnostics {
             return;
         }
 
+        // The file the generated ApplicationModule was built from, which is the only file whose
+        // assembly-level module attributes are composed into anything. Null when nothing generated
+        // one — a class library, or a test project, where assembly attributes are read at run time
+        // by the test integration instead and are perfectly at home in any file.
+        string? entryPointFile = null;
+
+        foreach (var (module, _) in input.Modules) {
+            if (module.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.AutoGenerateModule)) {
+                entryPointFile = module.FileLocation;
+                break;
+            }
+        }
+
         var globalUsings = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var unit in input.Units) {
@@ -177,16 +200,28 @@ internal static class AssemblyModuleAttributeDiagnostics {
                     continue;
                 }
 
-                if (unit.FileUsings.Contains(moduleNamespace) || globalUsings.Contains(moduleNamespace)) {
+                if (!unit.FileUsings.Contains(moduleNamespace) && !globalUsings.Contains(moduleNamespace)) {
+                    context.ReportDiagnostic(
+                        Diagnostic.Create(
+                            DependencyModuleDiagnostics.ModuleAttributeNamespaceNotImported,
+                            usage.Location,
+                            usage.Name,
+                            moduleNamespace));
+
+                    // It does not compile yet, so which file it belongs in is a later question.
                     continue;
                 }
 
-                context.ReportDiagnostic(
-                    Diagnostic.Create(
-                        DependencyModuleDiagnostics.ModuleAttributeNamespaceNotImported,
-                        usage.Location,
-                        usage.Name,
-                        moduleNamespace));
+                if (entryPointFile != null &&
+                    !string.IsNullOrEmpty(unit.FilePath) &&
+                    !string.Equals(unit.FilePath, entryPointFile, StringComparison.Ordinal)) {
+                    context.ReportDiagnostic(
+                        Diagnostic.Create(
+                            DependencyModuleDiagnostics.AssemblyModuleAttributeNotComposed,
+                            usage.Location,
+                            usage.Name,
+                            System.IO.Path.GetFileName(entryPointFile)));
+                }
             }
         }
     }

@@ -23,13 +23,17 @@ public class ModuleAttributeWriter : BaseAttributeWriter<ModuleEntryPointModel> 
                 continue;
             }
             
-            BaseBlockDefinition block = method;
-
-            if (propertyInfoModel.PropertyType.IsNullable) {
-                block =
-                    method.If(NotEquals(propertyInfoModel.PropertyName, Null()));
-
-            }
+            // Guarded whatever the declared nullability. An attribute property is null until
+            // somebody assigns it, and `?` is an annotation rather than a runtime fact — so gating
+            // the guard on it meant `public string Label { get; set; } = "default";` had its
+            // initialiser overwritten with null by a composition that never mentioned Label, while
+            // the same property written `string?` survived.
+            //
+            // A value-typed property compares as always-true here and is assigned unconditionally,
+            // which is the existing behaviour: `int` is 0 until assigned and 0 is a legitimate
+            // value, so null cannot express "unset" for one either way. CS0472 says as much, and
+            // BaseAttributeWriter already wraps the class in a pragma for it.
+            var block = method.If(NotEquals(propertyInfoModel.PropertyName, Null()));
 
             block.Assign(propertyInfoModel.PropertyName).To(newModule.Property(propertyInfoModel.PropertyName));
         }

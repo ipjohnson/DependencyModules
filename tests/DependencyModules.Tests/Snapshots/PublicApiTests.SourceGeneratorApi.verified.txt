@@ -1067,6 +1067,7 @@ namespace DependencyModules.SourceGenerator.Impl
     {
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor AmbiguousConventionMatch;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor AmbiguousDecoratorOrder;
+        public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor AssemblyModuleAttributeNotComposed;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor CannotIntercept;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ConventionCannotBeRead;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ConventionMatchNotConstructable;

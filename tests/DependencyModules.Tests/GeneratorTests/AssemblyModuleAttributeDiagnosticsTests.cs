@@ -115,10 +115,75 @@ public class AssemblyModuleAttributeDiagnosticsTests {
         Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0016");
     }
 
+    /// <summary>
+    /// DM0019. Assembly-level module attributes are composed into the generated
+    /// <c>ApplicationModule</c>, which is built from one compilation unit. Written anywhere else
+    /// they were read by nobody: a clean build, and an <c>InvalidOperationException</c> at the first
+    /// resolve.
+    /// </summary>
+    [Fact]
+    public void AnAssemblyAttributeOutsideTheEntryPointFile_IsReported() {
+        var result = RunWithEntryPoint(
+            bootstrap:
+            """
+            using MyApp.Composition;
+
+            [assembly: ApplicationModule]
+            """,
+            program: "System.Console.WriteLine();");
+
+        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0019");
+
+        Assert.Contains("ApplicationModule", diagnostic.GetMessage());
+        Assert.Contains("Program.cs", diagnostic.GetMessage());
+    }
+
+    [Fact]
+    public void AnAssemblyAttributeInTheEntryPointFile_IsSilent() {
+        var result = RunWithEntryPoint(
+            bootstrap: "",
+            program:
+            """
+            using MyApp.Composition;
+
+            [assembly: ApplicationModule]
+
+            System.Console.WriteLine();
+            """);
+
+        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0019");
+    }
+
+    /// <summary>
+    /// The case that must stay quiet. A test project has no entry point of its own, so nothing
+    /// generates an ApplicationModule and there is no file for the attribute to be in the wrong one
+    /// relative to — and the test integration reads assembly attributes at run time anyway, which is
+    /// what the testing guide shows.
+    /// </summary>
+    [Fact]
+    public void WithNoGeneratedApplicationModule_IsSilent() {
+        var result = Run(
+            """
+            using MyApp.Composition;
+
+            [assembly: ApplicationModule]
+            """);
+
+        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0019");
+    }
+
     private static GeneratorResult Run(string bootstrap) =>
         GeneratorTestHarness.Run(
             new Dictionary<string, string> {
                 ["Module.cs"] = ModuleInNamespace,
                 ["Bootstrap.cs"] = bootstrap
+            });
+
+    private static GeneratorResult RunWithEntryPoint(string bootstrap, string program) =>
+        GeneratorTestHarness.Run(
+            new Dictionary<string, string> {
+                ["Module.cs"] = ModuleInNamespace,
+                ["Bootstrap.cs"] = bootstrap,
+                ["Program.cs"] = program
             });
 }
