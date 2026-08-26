@@ -131,6 +131,13 @@ intercepted, that stops — it was never asked for.
 
 - `DM0017`, `DM0018` and `DM0019` are documented on the diagnostics reference.
 
+### Packaging
+
+The assembly version stays at `1.0.0.0` and is now pinned there for the whole of 1.x. It is part of
+assembly identity, so moving it every minor release means a library compiled against `1.0.0.0` no
+longer matches what a consuming application resolves. `FileVersion` and `AssemblyInformationalVersion`
+carry the real version, and the package version is what anyone actually depends on.
+
 ### Unversioned
 
 `DependencyModules.SourceGenerator.Impl` ships generator extension points as source and sits outside

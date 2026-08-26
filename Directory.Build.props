@@ -8,11 +8,20 @@
     <PropertyGroup>
         <VersionPrefix>1.1.0</VersionPrefix>
         <!--
-            Empty at 1.0.0. Set it again to cut a prerelease of the next version; assembly and file
-            versions carry no prerelease part, so they stay put until the version they do carry changes.
+            Empty at 1.0.0. Set it again to cut a prerelease of the next version; the file version
+            carries no prerelease part, so it stays put until the version it does carry changes.
         -->
         <VersionSuffix></VersionSuffix>
-        <AssemblyVersion>1.1.0.0</AssemblyVersion>
+        <!--
+            Pinned to the major for the whole of 1.x, deliberately. The assembly version is part of
+            assembly identity: moving it every minor release means a library compiled against 1.0.0.0
+            no longer matches the 1.1.0.0 a consuming application resolves, and the reference only
+            keeps working because the host papers over the difference. Holding it removes that
+            question entirely, and costs nothing — FileVersion below carries the real version for
+            anyone inspecting the binary, and the NuGet package version is what people actually
+            depend on. It moves at 2.0.0.
+        -->
+        <AssemblyVersion>1.0.0.0</AssemblyVersion>
         <FileVersion>1.1.0.0</FileVersion>
     </PropertyGroup>
 
