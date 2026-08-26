@@ -4,10 +4,8 @@ The generator reports what it can work out at build time as `DM####` codes, so a
 shows up in the IDE rather than as a resolution failure at startup. This page says what each one
 means and what to do about it.
 
-These are reported by a source generator rather than by an analyzer, which decides how they are
-tuned. Roslyn applies `.editorconfig` severity mapping to *analyzer* diagnostics, and a generator's
-reach the compilation with the severity already fixed — so `dotnet_diagnostic.DM0005.severity = none`
-has no effect. Use the compilation-level properties instead, which are applied later and do work:
+These are reported by a source generator rather than by an analyzer. **Silencing one works both
+ways** — through the compilation-level properties, and through `.editorconfig`:
 
 ```xml
 <PropertyGroup>
@@ -16,10 +14,22 @@ has no effect. Use the compilation-level properties instead, which are applied l
 </PropertyGroup>
 ```
 
+```ini
+# .editorconfig — silences it, including the Error-severity codes
+[*.cs]
+dotnet_diagnostic.DM0019.severity = none
+```
+
 `#pragma warning disable DM0005` works too, for silencing one site rather than a project.
 
-`DM0010` and `DM0011` are informational and exist to make registration visible at the class, which
-means they appear in the IDE and never in `dotnet build` at any verbosity. The rest are worth reading.
+**Raising a severity is the part `.editorconfig` cannot do.** A generator's diagnostics reach the
+compilation with their severity already fixed, and Roslyn's severity *mapping* applies to analyzer
+diagnostics — so `dotnet_diagnostic.DM0010.severity = warning` will not promote an informational code
+into the build. `WarningsAsErrors` promotes a warning to an error; nothing promotes an `Info`.
+
+`DM0010` and `DM0011` are informational and exist to make a registration visible at the class. They
+appear in the IDE, and in `dotnet build` only at `-v detailed` or higher — not at the default
+verbosity. The rest are worth reading.
 
 | Code | Severity | Meaning |
 |---|---|---|
@@ -39,6 +49,9 @@ means they appear in the IDE and never in `dotnet build` at any verbosity. The r
 | [DM0014](#dm0014) | Warning | A generic type cannot be cross-wired |
 | [DM0015](#dm0015) | Warning | An interceptor does not apply to every member |
 | [DM0016](#dm0016) | Warning | An assembly-level module attribute's namespace is not imported |
+| [DM0017](#dm0017) | Error | A module is declared inside another type |
+| [DM0018](#dm0018) | Warning | A module with parameters relies on generated equality |
+| [DM0019](#dm0019) | Error | An assembly-level module attribute is outside the entry point file |
 
 ## DM0001 {#dm0001}
 
@@ -135,8 +148,10 @@ Informational, reported at the class. See [Environments](/guide/environments).
 
 **An environment condition names nothing to test.**
 
-`[IfEnvironment()]` and `[IfEnvironmentValue("")]` both compile. Written plain they mean the service
-never registers; written as the `IfNot` form they mean the attribute does nothing at all.
+`[IfEnvironment()]` and `[IfEnvironmentValue("")]` both compile, and neither does anything. A
+condition with nothing to test cannot be false, so the generated guard is `if (true)` and the service
+registers unconditionally — written plain or written as the `IfNot` form. The attribute reads as a
+condition and is not one, which is what the diagnostic is for.
 
 ## DM0013 {#dm0013}
 
@@ -248,3 +263,97 @@ for an attribute matching no module in the compilation, a module in the global n
 already written qualified, and a namespace supplied by a `global using` in any file.
 
 See [Testing](/guide/testing#stop-repeating-the-module-list) and [Modules](/guide/modules).
+
+## DM0017 {#dm0017}
+
+**A dependency module cannot be nested inside another type.**
+
+A module must be declared directly in a namespace. The generator completes it with a second partial
+declaration written at namespace level, so a nested one produced a *separate* type of the same name
+while the nested declaration never implemented `IDependencyModule` — a green build that registered
+nothing.
+
+```csharp
+public static class Outer {
+    [DependencyModule]
+    public partial class NestedModule;   // DM0017
+}
+```
+
+`AddModule<Outer.NestedModule>()` would not compile, but `[assembly: NestedModule]` bound to the
+detached type's attribute and did, which is why this is reported rather than left to be discovered.
+Move the module out to the namespace. Services may be nested freely; the restriction is only on
+modules.
+
+See [Modules](/guide/modules) and [Troubleshooting](/guide/troubleshooting).
+
+## DM0018 {#dm0018}
+
+**A module with parameters relies on generated equality.**
+
+Modules de-duplicate by type, which is what stops a module reached twice from registering everything
+twice. A module carrying parameters is the case that rule does not fit: two instances holding
+different values are the same module by it, so the first one reached wins and the other is discarded
+silently.
+
+```csharp
+[DependencyModule]
+public partial class CacheModule : IServiceCollectionConfiguration {
+    public int SizeLimit { get; set; }              // DM0018
+    public void ConfigureServices(IServiceCollection services) =>
+        services.AddSingleton(new CacheSettings(SizeLimit));
+}
+
+[DependencyModule] [CacheModule(SizeLimit = 10)]  public partial class SmallCacheFeature;
+[DependencyModule] [CacheModule(SizeLimit = 999)] public partial class BigCacheFeature;
+```
+
+Load both features and one `CacheSettings` arrives, not two — whichever was reached first, with no
+error and no duplicate to notice.
+
+The generator has to choose an identity for you, and type-only is the choice it makes. Declaring your
+own `Equals` and `GetHashCode` suppresses the generated pair and says which you meant. Both answers
+are legitimate:
+
+```csharp
+// identity is the values: both configurations survive
+public override bool Equals(object? obj) =>
+    obj is CacheModule other && other.SizeLimit == SizeLimit;
+public override int GetHashCode() => SizeLimit;
+
+// identity is the type: one wins, and that is intended
+public override bool Equals(object? obj) => obj is CacheModule;
+public override int GetHashCode() => typeof(CacheModule).GetHashCode();
+```
+
+Only **settable, non-static** properties count. A read-only property is not a parameter — a module
+implementing an interface with `public string Value => "A";` has nothing to configure and is not
+reported.
+
+Silence it per project with `NoWarn` or `.editorconfig` if every parameterised module in the codebase
+is composed once.
+
+See [Modules](/guide/modules#parameters).
+
+## DM0019 {#dm0019}
+
+**An assembly-level module attribute is outside the entry point file.**
+
+Assembly-level module attributes are composed into the generated `ApplicationModule`, and that module
+is built from one compilation unit — the entry point. Written in any other file the attribute was
+read by nobody: a clean build, no diagnostic, and an `InvalidOperationException` at the first resolve.
+
+```csharp
+// Bootstrap.cs — DM0019
+using MyApp.Library;
+
+[assembly: LibraryModule]
+```
+
+Move it to the file holding the entry point, or load the module explicitly with
+`services.AddModule<LibraryModule>()`.
+
+This stays quiet when nothing generated an `ApplicationModule`. A class library has no entry point,
+and neither does a test project — where assembly-level module attributes are read at *run time* by
+the test integration and are perfectly at home in a file of their own, which is the shape
+[Testing](/guide/testing#stop-repeating-the-module-list) shows.

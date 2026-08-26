@@ -20,4 +20,11 @@ public partial class ParameterizedModule : IServiceCollectionConfiguration {
     public void ConfigureServices(IServiceCollection services) {
         services.AddTransient<SomeRuntimeDependency>(_ => new SomeRuntimeDependency(_a, _b, C!));
     }
+
+    // Declared rather than generated, which is what DM0018 asks for: this module carries
+    // configuration, so two instances are the same module only when they carry the same values.
+    public override bool Equals(object? obj) =>
+        obj is ParameterizedModule other && other._a == _a && other._b == _b && other.C == C;
+
+    public override int GetHashCode() => HashCode.Combine(_a, _b, C);
 }

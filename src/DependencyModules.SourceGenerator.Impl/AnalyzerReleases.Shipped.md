@@ -23,3 +23,13 @@ DM0013 | DependencyModules | Warning | A service registered as an open generic c
 DM0014 | DependencyModules | Warning | A generic type cannot be cross-wired.
 DM0015 | DependencyModules | Warning | An interceptor does not apply to every member it was applied to.
 DM0016 | DependencyModules | Warning | An assembly-level module attribute's namespace is not imported.
+
+## Release 1.1.0
+
+### New Rules
+
+Rule ID | Category | Severity | Notes
+--------|----------|----------|-------
+DM0017 | DependencyModules | Error | A dependency module is declared inside another type.
+DM0018 | DependencyModules | Warning | A module with settable properties relies on generated equality.
+DM0019 | DependencyModules | Error | An assembly-level module attribute is outside the entry point file.
