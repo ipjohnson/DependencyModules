@@ -190,6 +190,8 @@ namespace DependencyModules.Runtime.Helpers
         public static void Decorate(Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Type serviceType, System.Func<System.IServiceProvider, object, object> decoratorFactory) { }
         public static void Decorate<TService>(Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Type decoratorIdentity, System.Func<System.IServiceProvider, TService, TService> decoratorFactory)
             where TService :  class { }
+        public static void Decorate<TService>(Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Type decoratorIdentity, System.Func<System.IServiceProvider, TService, TService> decoratorFactory, System.Type? implementationType)
+            where TService :  class { }
         public static void InterceptOpenGeneric(Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Type serviceType, [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors)] System.Type implementationType, [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors)] System.Type wrapperType) { }
     }
     public sealed class DecoratorRegistration

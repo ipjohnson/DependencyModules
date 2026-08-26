@@ -134,6 +134,11 @@ public class InterceptorRegistrationWriter {
                         "provider", "GetRequiredService", new[] { model.Interceptors[i].Type }));
             }
 
+            // The implementation is named so the rewrite lands only on the registration this
+            // wrapper was generated from. Without it a sibling implementation of the same interface
+            // — one carrying no [Intercept] at all — came back wrapped in this class's wrapper, and
+            // two intercepted implementations wrapped each other's registrations so every
+            // interceptor ran twice per call.
             method.AddIndentedStatement(
                 SyntaxHelpers.InvokeGeneric(
                     KnownTypes.DependencyModules.Helpers.DecoratorHelper,
@@ -144,7 +149,8 @@ public class InterceptorRegistrationWriter {
                     new WrapStatement(
                         CodeOutputComponent.Get(" => "),
                         CodeOutputComponent.Get("(provider, inner)"),
-                        New(wrapperType, arguments.ToArray()))));
+                        New(wrapperType, arguments.ToArray())),
+                    TypeOf(model.ImplementationType)));
         }
 
         // A field initializer registers the method, matching how decorator registrations are hooked

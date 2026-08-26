@@ -144,12 +144,53 @@ public static class DecoratorHelper {
         Type decoratorIdentity,
         Func<IServiceProvider, TService, TService> decoratorFactory) where TService : class {
 
+        Decorate(services, decoratorIdentity, decoratorFactory, null);
+    }
+
+    /// <summary>
+    /// Wraps only the registration of <typeparamref name="TService"/> that was built from one
+    /// particular implementation.
+    /// </summary>
+    /// <param name="services">The collection to rewrite.</param>
+    /// <param name="decoratorIdentity">
+    /// The wrapper type, used to refuse a second application of the same wrapper to one registration.
+    /// </param>
+    /// <param name="decoratorFactory">
+    /// Builds the wrapper given the provider and the instance being wrapped.
+    /// </param>
+    /// <param name="implementationType">
+    /// Restricts the rewrite to the registration built from this implementation. Null wraps every
+    /// registration of the service, which is what a decorator declared against an interface should
+    /// do — so decoration keeps calling the three-argument overload.
+    /// </param>
+    /// <remarks>
+    /// <para>
+    /// An interceptor passes one. Its wrapper is generated from a single class and forwards that
+    /// class's members, so applying it to a sibling implementation of the same interface wrapped a
+    /// service that never asked to be intercepted, and reported the sibling's type as the first
+    /// class's wrapper. With both implementations marked, each registration was wrapped once per
+    /// generated wrapper and every interceptor ran twice per call — no exception, just doubled
+    /// metrics, audit rows and retries.
+    /// </para>
+    /// <para>
+    /// A separate overload rather than an optional parameter on the one above: generated code from
+    /// an earlier version is compiled against the three-argument signature, and widening that one
+    /// would leave it unable to bind against a newer runtime.
+    /// </para>
+    /// </remarks>
+    public static void Decorate<TService>(
+        IServiceCollection services,
+        Type decoratorIdentity,
+        Func<IServiceProvider, TService, TService> decoratorFactory,
+        Type? implementationType) where TService : class {
+
         Decorate(
             services,
             typeof(TService),
             (provider, inner) => decoratorFactory(provider, (TService)inner),
             null,
-            decoratorIdentity);
+            decoratorIdentity,
+            implementationType);
     }
 
     /// <summary>
@@ -201,12 +242,41 @@ public static class DecoratorHelper {
         Applied.Add(replacement, applied);
     }
 
+    /// <summary>
+    /// The implementation a descriptor was originally built from, across rewrites.
+    /// </summary>
+    /// <remarks>
+    /// Decoration replaces an implementation-type descriptor with a factory, which erases the
+    /// implementation from the descriptor itself. An interceptor ordered after a decorator would
+    /// then be unable to recognise its own registration, so the origin is carried across the
+    /// replacement the same way <see cref="Applied"/> is.
+    /// </remarks>
+    private static readonly ConditionalWeakTable<ServiceDescriptor, Type> OriginImplementation = new();
+
+    /// <summary>
+    /// The implementation behind a descriptor, or null when it cannot be known — a registration made
+    /// from an instance or a hand-written factory, including the factories
+    /// <c>DependencyModules_GenerateFactories</c> emits.
+    /// </summary>
+    private static Type? OriginImplementationOf(ServiceDescriptor descriptor) =>
+        OriginImplementation.TryGetValue(descriptor, out var origin) ? origin : ImplementationOf(descriptor);
+
+    private static void RecordOrigin(ServiceDescriptor original, ServiceDescriptor replacement) {
+        if (OriginImplementationOf(original) is not { } origin) {
+            return;
+        }
+
+        OriginImplementation.Remove(replacement);
+        OriginImplementation.Add(replacement, origin);
+    }
+
     private static void Decorate(
         IServiceCollection services,
         Type serviceType,
         Func<IServiceProvider, object, object> decoratorFactory,
         Type? decoratorType,
-        Type? decoratorIdentity) {
+        Type? decoratorIdentity,
+        Type? implementationType = null) {
 
         var ordinal = 0;
 
@@ -225,6 +295,17 @@ public static class DecoratorHelper {
 
             // Emitted from two places for the same registration; the first one wins.
             if (AlreadyApplied(descriptor, decoratorIdentity)) {
+                continue;
+            }
+
+            // An interceptor's wrapper belongs to the one implementation it was generated from.
+            // Skipped only when the descriptor's origin is known and is a different type: a
+            // registration made from an instance or a factory cannot be attributed to an
+            // implementation, and refusing to wrap it there would silently stop intercepting a
+            // service that had asked for it — a worse failure than the one this filter prevents.
+            if (implementationType != null &&
+                OriginImplementationOf(descriptor) is { } origin &&
+                origin != implementationType) {
                 continue;
             }
 
@@ -248,6 +329,7 @@ public static class DecoratorHelper {
                     descriptor.Lifetime);
 
             RecordApplied(descriptor, replacement, decoratorIdentity);
+            RecordOrigin(descriptor, replacement);
 
             services[i] = replacement;
         }

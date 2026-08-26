@@ -78,6 +78,33 @@ public static class DependencyModuleDiagnostics {
         isEnabledByDefault: true);
 
     /// <summary>
+    /// Raised for an assembly-level module attribute in a file that is not the entry point.
+    /// </summary>
+    /// <remarks>
+    /// Assembly-level module attributes are composed into the generated <c>ApplicationModule</c>,
+    /// and that module is built from one compilation unit — the entry point. An attribute written
+    /// anywhere else was read by nobody: a clean build, no diagnostic, and an
+    /// <c>InvalidOperationException</c> at the first resolve, which is the failure the library
+    /// exists to prevent.
+    ///
+    /// The testing guide shows the same syntax living in its own file, and it works there, because
+    /// the test integration reads assembly attributes at run time rather than at generation time.
+    /// That asymmetry is what makes the mistake easy to make, and it is also why this stays quiet
+    /// when nothing generated an <c>ApplicationModule</c> — a class library or a test project has
+    /// no entry point to be in the wrong file relative to.
+    /// </remarks>
+    public static readonly DiagnosticDescriptor AssemblyModuleAttributeNotComposed = new(
+        id: "DM0019",
+        title: "Assembly-level module attribute is not composed",
+        messageFormat:
+        "'{0}' is applied at the assembly level in this file, but the generated ApplicationModule is " +
+        "built from '{1}', so this composition is ignored and the module's services are not " +
+        "registered. Move the attribute to '{1}', or load the module explicitly with AddModule.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    /// <summary>
     /// Raised for a module carrying settable properties while relying on the generated
     /// <c>Equals</c>/<c>GetHashCode</c>.
     /// </summary>
