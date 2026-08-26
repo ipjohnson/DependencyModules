@@ -42,7 +42,14 @@ public record DecoratorModel(
     IReadOnlyList<EnvironmentConditionModel>? Conditions = null,
     ConstructorInfoModel? Constructor = null,
     int InnerParameterIndex = -1,
-    bool TypeParametersMatchService = true) {
+    bool TypeParametersMatchService = true,
+
+    /// <summary>
+    /// Where the decorator was declared, so DM0007 and DM0013 can point at it rather than at the
+    /// project. Null for a decorator declared through [Decorate] on a module, which names two types
+    /// and has no declaration of its own to point at.
+    /// </summary>
+    LocationModel? Location = null) {
 
     /// <summary>
     /// Whether the decorator can be constructed by generated code.

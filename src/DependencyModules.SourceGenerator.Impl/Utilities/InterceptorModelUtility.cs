@@ -55,12 +55,14 @@ public static class InterceptorModelUtility {
         var interceptorSymbols = new List<INamedTypeSymbol>();
         var order = 0;
         INamedTypeSymbol? explicitService = null;
+        INamedTypeSymbol? realm = null;
 
         // Every [Intercept], not the first. The attribute is AllowMultiple, so stacking them is a
         // supported way to write what one attribute can also express as a params list — and reading
         // only the first dropped every interceptor after it, with nothing to say so.
         foreach (var attribute in attributes) {
-            ReadAttribute(attribute, context, cancellationToken, interceptorSymbols, ref order, ref explicitService);
+            ReadAttribute(
+                attribute, context, cancellationToken, interceptorSymbols, ref order, ref explicitService, ref realm);
         }
 
         if (interceptorSymbols.Count == 0) {
@@ -70,11 +72,11 @@ public static class InterceptorModelUtility {
         var serviceSymbol = ResolveServiceInterface(implementationSymbol, explicitService, out var unsupported);
 
         if (serviceSymbol == null) {
-            return Refuse(unsupported);
+            return Refuse(unsupported, context);
         }
 
         if (!InterceptedMemberReader.Read(serviceSymbol, out var members, out var declarations, out unsupported)) {
-            return Refuse(unsupported);
+            return Refuse(unsupported, context);
         }
 
         if (members.Count == 0) {
@@ -101,13 +103,15 @@ public static class InterceptorModelUtility {
             members,
             declarations,
             order,
-            TypeParameters: TypeParameterModels(implementationSymbol));
+            TypeParameters: TypeParameterModels(implementationSymbol),
+            Realm: realm?.GetTypeDefinition(),
+            Location: LocationModel.From(context.Node));
     }
 
-    private static InterceptorModel Refuse(string? reason) =>
+    private static InterceptorModel Refuse(string? reason, SyntaxTransformContext context) =>
         reason == null
             ? InterceptorModel.Ignore
-            : InterceptorModel.Refused(reason);
+            : InterceptorModel.Refused(reason, LocationModel.From(context.Node));
 
     /// <summary>
     /// The interfaces an interceptor implements, which decide the members it can be placed around.
@@ -167,7 +171,8 @@ public static class InterceptorModelUtility {
         CancellationToken cancellationToken,
         List<INamedTypeSymbol> interceptors,
         ref int order,
-        ref INamedTypeSymbol? explicitService) {
+        ref INamedTypeSymbol? explicitService,
+        ref INamedTypeSymbol? realm) {
 
         if (attribute.ArgumentList == null) {
             return;
@@ -197,6 +202,11 @@ public static class InterceptorModelUtility {
                 case "Service":
                     if (argument.Expression is TypeOfExpressionSyntax serviceTypeOf) {
                         explicitService = ResolveType(serviceTypeOf, context, cancellationToken);
+                    }
+                    break;
+                case "Realm":
+                    if (argument.Expression is TypeOfExpressionSyntax realmTypeOf) {
+                        realm = ResolveType(realmTypeOf, context, cancellationToken);
                     }
                     break;
             }

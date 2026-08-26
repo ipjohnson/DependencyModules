@@ -79,7 +79,15 @@ public record ServiceModel(
     /// attributes are declared on the class, so every registration it produces shares them and the
     /// writer emits one guard around the lot.
     /// </summary>
-    IReadOnlyList<EnvironmentConditionModel>? Conditions = null) {
+    IReadOnlyList<EnvironmentConditionModel>? Conditions = null,
+
+    /// <summary>
+    /// Where the implementation was declared, so a diagnostic about it can point at the class
+    /// rather than at the project. Deliberately absent from
+    /// <see cref="ServiceModelComparer"/> — it is not part of what makes two models the same
+    /// registration, and including it would miss the incremental cache on an edit above the class.
+    /// </summary>
+    LocationModel? Location = null) {
     public static ServiceModel Ignore = new ServiceModel(
         TypeDefinition.Get("", "Ignore"),
         null,

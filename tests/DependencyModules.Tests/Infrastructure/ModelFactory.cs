@@ -26,6 +26,7 @@ public static class ModelFactory {
         new(
             features,
             fileLocation,
+            LocationModel.None,
             entryPointType ?? TypeDefinition.Get("TestNamespace", "TestModule"),
             registrationType,
             generateAttribute,

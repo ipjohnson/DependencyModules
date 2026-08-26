@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using DependencyModules.Conventions.Models;
 using DependencyModules.SourceGenerator.Impl.Utilities;
 using Microsoft.CodeAnalysis;
+using DependencyModules.SourceGenerator.Impl.Models;
 
 namespace DependencyModules.Conventions.Utilities;
 

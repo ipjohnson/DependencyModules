@@ -57,6 +57,55 @@ public static class DependencyModuleDiagnostics {
         isEnabledByDefault: true);
 
     /// <summary>
+    /// Raised for a module declared inside another type.
+    /// </summary>
+    /// <remarks>
+    /// The generated half is written at namespace level, so a nested declaration produces a second,
+    /// detached type of the same name while the nested one never implements
+    /// <c>IDependencyModule</c>. <c>AddModule&lt;Outer.Nested&gt;()</c> then fails to compile, but
+    /// <c>[assembly: Nested]</c> binds to the detached type's attribute and builds green, registering
+    /// nothing.
+    /// </remarks>
+    public static readonly DiagnosticDescriptor ModuleCannotBeNested = new(
+        id: "DM0017",
+        title: "Dependency module cannot be nested inside another type",
+        messageFormat:
+        "'{0}' is marked with [DependencyModule] but is declared inside another type. " +
+        "The generator completes a module at namespace level, so this would produce a second, " +
+        "unrelated type and register nothing. Move it out to the namespace.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    /// <summary>
+    /// Raised for a module carrying settable properties while relying on the generated
+    /// <c>Equals</c>/<c>GetHashCode</c>.
+    /// </summary>
+    /// <remarks>
+    /// Modules de-duplicate by type, which is what stops a module reached twice from registering
+    /// everything twice. A module with parameters is a different case: two instances carrying
+    /// different values are the same module by that rule, so the first one reached wins and the
+    /// other is silently discarded. Supplying an <c>Equals</c> that accounts for the properties
+    /// suppresses the generated one and makes the intent explicit either way.
+    /// </remarks>
+    public static readonly DiagnosticDescriptor ModuleWithPropertiesShouldImplementEquals = new(
+        id: "DM0018",
+        title: "Module with properties relies on generated equality",
+        messageFormat:
+        "'{0}' has settable properties but does not declare Equals, so the generated equality " +
+        "compares by type alone. Two instances carrying different values count as the same module " +
+        "and the first one reached wins. Declare Equals and GetHashCode on '{0}' to say which " +
+        "instances are the same.",
+        category: Category,
+        // Info, not Warning. Dedupe-by-type is correct for the common case — a parameterised module
+        // composed once — and this repo's own integration tests carry eleven such modules that are
+        // not doing anything wrong. Only a module reached twice with different values is actually
+        // bitten, and that is not decidable here. Promote it per project with
+        // dotnet_diagnostic.DM0018.severity = warning if you want it enforced.
+        defaultSeverity: DiagnosticSeverity.Info,
+        isEnabledByDefault: true);
+
+    /// <summary>
     /// Raised when two conventions in one module register a type as the <i>same</i> service type.
     /// </summary>
     /// <remarks>
@@ -89,10 +138,11 @@ public static class DependencyModuleDiagnostics {
     public static readonly DiagnosticDescriptor ConventionMatchedNothing = new(
         id: "DM0005",
         title: "Convention matched no types",
-        messageFormat:
-        "The convention registering '{0}' in '{1}' matched no types. " +
-        "Conventions match a type that declares the service type, or declares an interface " +
-        "extending it; call IncludeBaseClasses() to also match types that reach it through a base class.",
+        // The advice is a parameter rather than a fixed tail, because the causes need different
+        // fixes. Suggesting IncludeBaseClasses() unconditionally told a reader who had already
+        // called it — or who had named a class, which can never match whatever they call — to go
+        // looking for a typo in their own code.
+        messageFormat: "The convention registering '{0}' in '{1}' matched no types. {2}.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true);

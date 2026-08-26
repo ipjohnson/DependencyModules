@@ -34,4 +34,16 @@ public class InterceptAttribute(params Type[] interceptors) : Attribute {
     /// <see cref="DecoratorAttribute.Order"/>.
     /// </summary>
     public int Order { get; set; }
+
+    /// <summary>
+    /// Restricts the interception to a single module, matching the Realm property on the service
+    /// registration attributes and on <see cref="DecoratorAttribute.Realm"/>.
+    /// </summary>
+    /// <remarks>
+    /// Without a realm the interception belongs to every module that is not realm-only, which is how
+    /// services and decorators already behave. An <c>OnlyRealm</c> module previously received every
+    /// interception in the compilation regardless — including ones naming no realm at all — so a
+    /// module built to be isolated wrapped services it had never heard of.
+    /// </remarks>
+    public Type? Realm { get; set; }
 }

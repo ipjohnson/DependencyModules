@@ -456,7 +456,7 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
             context.ReportDiagnostic(
                 Diagnostic.Create(
                     DependencyModuleDiagnostics.OpenGenericCannotBeDecorated,
-                    Location.None,
+                    decorator.Location?.ToLocationOrNone() ?? Location.None,
                     serviceName,
                     decoratorName));
         }
@@ -483,7 +483,7 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
                 context.ReportDiagnostic(
                     Diagnostic.Create(
                         DependencyModuleDiagnostics.AmbiguousDecoratorOrder,
-                        Location.None,
+                        decorators[i].Location?.ToLocationOrNone() ?? Location.None,
                         decorators[i].DecoratorType.Name,
                         decorators[j].DecoratorType.Name,
                         decorators[i].ServiceType.Name,
@@ -516,7 +516,7 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
 
             context.ReportDiagnostic(Diagnostic.Create(
                 DependencyModuleDiagnostics.ConventionCannotBeRead,
-                Location.None,
+                conventionModule.Location?.ToLocationOrNone() ?? Location.None,
                 "the declaring type is not marked with [DependencyModule], so it registers nothing",
                 name));
         }

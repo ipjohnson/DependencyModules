@@ -73,7 +73,11 @@ public class InterceptorSourceGenerator : BaseAttributeSourceGenerator<Intercept
                 writer.Write(model, wrapperName, model.ImplementationType.Namespace));
         }
 
-        // One registration file per module, so every wrapper is applied wherever its service is.
+        // One registration file per module, carrying the interceptions that belong to that module.
+        // This used to hand every module the whole compilation's worth: an OnlyRealm module emitted
+        // applicators for interceptions that named no realm and had nothing to do with it, which
+        // either wrapped an unrelated service or — when the leaked interceptor needed a dependency
+        // the isolated container did not have — threw while building the provider.
         foreach (var entryPointModel in EntryModelUtil.RegistrationTargets(entryPointList)) {
             var registrationWriter = new InterceptorRegistrationWriter();
 
@@ -83,8 +87,39 @@ public class InterceptorSourceGenerator : BaseAttributeSourceGenerator<Intercept
                 registrationWriter.Write(
                     EntryModelUtil.EnsureNamespace(entryPointModel, configurationModel),
                     configurationModel,
-                    usable));
+                    ForModule(usable, entryPointModel)));
         }
+    }
+
+    /// <summary>
+    /// The interceptions one module is responsible for applying.
+    /// </summary>
+    /// <remarks>
+    /// The same rule services and decorators already follow: a realm-scoped interception belongs
+    /// only to the module it names, and an unscoped one belongs to every module that is not
+    /// realm-only.
+    /// </remarks>
+    private static IReadOnlyList<InterceptorModel> ForModule(
+        IReadOnlyList<InterceptorModel> models, ModuleEntryPointModel entryPointModel) {
+
+        var onlyRealm = entryPointModel.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.OnlyRealm);
+        var selected = new List<InterceptorModel>();
+
+        foreach (var model in models) {
+            if (model.Realm != null) {
+                if (model.Realm.Equals(entryPointModel.EntryPointType)) {
+                    selected.Add(model);
+                }
+
+                continue;
+            }
+
+            if (!onlyRealm) {
+                selected.Add(model);
+            }
+        }
+
+        return selected;
     }
 
     /// <summary>
@@ -103,7 +138,7 @@ public class InterceptorSourceGenerator : BaseAttributeSourceGenerator<Intercept
                 context.ReportDiagnostic(
                     Diagnostic.Create(
                         DependencyModuleDiagnostics.CannotIntercept,
-                        Location.None,
+                        model.Location?.ToLocationOrNone() ?? Location.None,
                         model.Refusal.Message));
 
                 continue;
@@ -172,7 +207,7 @@ public class InterceptorSourceGenerator : BaseAttributeSourceGenerator<Intercept
                 context.ReportDiagnostic(
                     Diagnostic.Create(
                         DependencyModuleDiagnostics.InterceptorCannotServeMembers,
-                        Location.None,
+                        model.Location?.ToLocationOrNone() ?? Location.None,
                         interceptor.Type.Name,
                         InterfaceFor(kind),
                         DescriptionFor(kind),

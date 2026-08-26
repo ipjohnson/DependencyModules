@@ -2,7 +2,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 
-namespace DependencyModules.Conventions.Models;
+namespace DependencyModules.SourceGenerator.Impl.Models;
 
 /// <summary>
 /// Where a declaration sits in source, in a form that can live in an incremental model.

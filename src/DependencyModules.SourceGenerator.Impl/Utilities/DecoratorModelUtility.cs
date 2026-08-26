@@ -83,7 +83,8 @@ public static class DecoratorModelUtility {
             conditions,
             constructor,
             IndexOfInnerParameter(constructor, written),
-            TypeParametersMatchService(typeDeclarationSyntax, written));
+            TypeParametersMatchService(typeDeclarationSyntax, written),
+            LocationModel.From(typeDeclarationSyntax));
     }
 
     /// <summary>
