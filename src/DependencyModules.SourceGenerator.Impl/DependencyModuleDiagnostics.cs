@@ -127,8 +127,13 @@ public static class DependencyModuleDiagnostics {
         // Info, not Warning. Dedupe-by-type is correct for the common case — a parameterised module
         // composed once — and this repo's own integration tests carry eleven such modules that are
         // not doing anything wrong. Only a module reached twice with different values is actually
-        // bitten, and that is not decidable here. Promote it per project with
-        // dotnet_diagnostic.DM0018.severity = warning if you want it enforced.
+        // bitten, and that is not decidable here.
+        //
+        // Note that this cannot be promoted per project. A generator's diagnostics arrive with their
+        // severity already fixed, and Roslyn's .editorconfig severity mapping applies to analyzer
+        // diagnostics — so dotnet_diagnostic.DM0018.severity = warning has no effect, and
+        // WarningsAsErrors only promotes something that is already a warning. Silencing does work,
+        // through NoWarn or .editorconfig; raising does not.
         defaultSeverity: DiagnosticSeverity.Info,
         isEnabledByDefault: true);
 

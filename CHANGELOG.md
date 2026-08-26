@@ -5,6 +5,140 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-08-26
+
+Four registrations that silently were not what they said they were, and three new diagnostics. Every
+fix here came out of building four applications against 1.0.0 — a CLI, a worker daemon, an Avalonia
+desktop app and a Native AOT tool — and each one is the same shape: a clean build, no diagnostic, and
+a program that quietly did the wrong thing.
+
+A minor rather than a patch. Nothing in the public API breaks, but two members are added and three
+diagnostics arrive, and both of those are minor-version events.
+
+**Upgrade note: two of the new codes are errors, on code that compiled before.** `DM0017` and
+`DM0019` report shapes that built green and registered nothing, so no working program breaks — but a
+build carrying one goes red on upgrade. That is the fix arriving rather than a regression. Both can be
+silenced with `NoWarn` or `.editorconfig` if you need to stage the work.
+
+**Also worth reading if you rely on interception:** an interceptor now applies only to the
+implementation it was declared on. If a sibling implementation of the same interface was being
+intercepted, that stops — it was never asked for.
+
+### Fixed
+
+- **A namespace-qualified or aliased service attribute registered with the wrong lifetime.** Every
+  legal spelling of `[SingletonService]` was discovered, but the lifetime was read back from how the
+  attribute was *written* — so only a spelling literally starting with `Singleton` or `Scoped`
+  produced that lifetime, and everything else fell through to `Transient`.
+
+  | Written as | Before | Now |
+  |---|---|---|
+  | `[SingletonService]` | Singleton | Singleton |
+  | `[SingletonServiceAttribute]` | Singleton | Singleton |
+  | `[DependencyModules.Runtime.Attributes.SingletonService]` | **Transient** | Singleton |
+  | `[global::…SingletonServiceAttribute]` | **Transient** | Singleton |
+  | `using Svc = …SingletonServiceAttribute;` → `[Svc]` | **Transient** | Singleton |
+  | `using SingletonAlias = …;` → `[SingletonAlias]` | Singleton | Singleton |
+
+  The last two rows are the same attribute type aliased twice, behaving differently on the spelling of
+  the alias. `As` and `Realm` were honoured throughout; only the lifetime was lost, which is what made
+  it hard to see — a stateful singleton silently becoming per-resolve is a correctness bug rather than
+  a performance one.
+
+  The attribute is resolved through the semantic model to decide it matched at all, so the fix costs
+  nothing extra: the resolved type is now carried to the lifetime rather than discarded.
+
+- **An interceptor was applied to every implementation of the interface.** A wrapper is generated from
+  one class and forwards that class's members, but it was applied to every registration of the service
+  type — because interception reuses the decorator rewrite, and wrapping everything behind an interface
+  is right for a decorator and wrong for this.
+
+  An implementation carrying no `[Intercept]` came back wrapped in another class's wrapper. With both
+  implementations marked, each registration was wrapped once per generated wrapper and every
+  interceptor ran twice per call: doubled metrics, audit rows and retries, with nothing thrown.
+
+  `DecoratorHelper.Decorate` gains an overload naming the implementation, and the generator uses it.
+  Decoration is unchanged — a decorator still wraps every registration of its service.
+
+- **`OnlyRealm = true` did not filter interceptors.** Services and decorators were filtered correctly;
+  the interception pass ignored realms entirely, so a module built to be isolated emitted applicators
+  for every `[Intercept]` in the assembly. Where the leaked interceptor's dependencies did not resolve
+  in that container it threw while building the provider; where they did, it silently wrapped a service
+  the module had never heard of. `[Intercept]` now takes a `Realm`, matching `[Decorator]`.
+
+- **A module's property defaults were overwritten by a composition that did not name them.** The
+  generated attribute assigned every property unconditionally unless it was declared nullable, so
+  `public string Label { get; set; } = "default";` became `null` — surfacing as a
+  `NullReferenceException` inside the module's own `ConfigureServices`. Nullability is an annotation
+  rather than a runtime fact, so the guard is now emitted for every property.
+
+  A value-typed parameter is unchanged and cannot be fixed this way: `int` is `0` until assigned and
+  `0` is a legitimate value, so nothing can tell "not supplied" from the default. `DM0018` covers the
+  case where that matters.
+
+- **Ten diagnostics reported at the project rather than at the declaration.** `DM0002`, `DM0003`,
+  `DM0007`, `DM0008`, `DM0009`, `DM0011`, `DM0012`, `DM0013`, `DM0014` and `DM0015` printed as bare
+  `CSC : warning DM00xx:` with no file, line or column, so the IDE had nowhere to take you and the type
+  name in the message was the only handle. They now report at the declaration. The remaining two
+  location-less sites are the `DM0001` generator-failure handlers, where an exception escaped and there
+  genuinely is no location.
+
+- **`DM0005` recommended a call you had already made.** Its advice was a fixed tail appended whatever
+  the cause, so a convention naming a *class* as the service type — which can never match, since
+  conventions match through declared interfaces — was told to call `IncludeBaseClasses()`. That is the
+  shape `dotnet new avalonia.mvvm` ships, and the shape every MVVM project starts from. The advice is
+  now chosen by cause.
+
+### Added
+
+- **`DM0017`** (Error) reports a module declared inside another type. The generator completes a module
+  at namespace level, so a nested one produced a second, detached type of the same name while the
+  nested declaration never implemented `IDependencyModule` — documented as always wrong in the README
+  and two guides, and reported by none of them.
+
+- **`DM0018`** (Info) reports a module with settable properties relying on the generated
+  `Equals`/`GetHashCode`, which compares by type alone — so two instances carrying different values
+  count as the same module and the first one reached wins. Declaring your own suppresses the generated
+  pair, which has always worked.
+
+  Informational because composing a parameterised module once is both common and correct; this
+  repository's own integration tests carry eleven such modules doing nothing wrong.
+
+- **`DM0019`** (Error) reports an assembly-level module attribute outside the entry point file. Those
+  are composed into the generated `ApplicationModule`, which is built from one compilation unit, so
+  written anywhere else the attribute was read by nobody. It stays quiet when nothing generated an
+  `ApplicationModule` — a class library, or a test project, where the test integration reads assembly
+  attributes at run time and a file of their own is exactly right.
+
+- **`[Intercept].Realm`**, matching `[Decorator].Realm`.
+
+- **`DecoratorHelper.Decorate<TService>(services, decoratorIdentity, decoratorFactory, implementationType)`**,
+  a new overload. The three-argument one is untouched, so generated code from 1.0.0 still binds.
+
+### Documentation
+
+- **The diagnostics reference was wrong about `.editorconfig`.** It said
+  `dotnet_diagnostic.DM0005.severity = none` had no effect. It does work, including for the
+  error-severity codes; what `.editorconfig` cannot do is *raise* a severity, because a generator's
+  diagnostics arrive with theirs already fixed. Both halves are now stated.
+
+- **`DM0010` and `DM0011` were described as never appearing in `dotnet build` at any verbosity.** They
+  appear at `-v detailed`.
+
+- **`DM0012` described the opposite of what the generator emits.** A condition with nothing to test
+  cannot be false, so the guard is `if (true)` and the service registers *unconditionally* — the page
+  said it never registers.
+
+- `DM0017`, `DM0018` and `DM0019` are documented on the diagnostics reference.
+
+### Unversioned
+
+`DependencyModules.SourceGenerator.Impl` ships generator extension points as source and sits outside
+the versioning promise, as [1.0.0](#100---2026-08-16) set out. It changed: `LocationModel` moved from
+`DependencyModules.Conventions.Models` to `DependencyModules.SourceGenerator.Impl.Models` so the
+service, interceptor, decorator and module models can all carry one, and `ModuleEntryPointModel`'s
+constructor takes a `LocationModel` as its third argument. Anything built on `.Impl` will need both.
+
 ## [1.0.0] - 2026-08-16
 
 The first stable release. Identical in content to `1.0.0-rc9340` below — it is the same commit
