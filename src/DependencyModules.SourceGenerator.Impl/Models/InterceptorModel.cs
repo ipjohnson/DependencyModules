@@ -344,7 +344,14 @@ public record InterceptorModel(
     IReadOnlyList<InterceptedDeclarationModel> Declarations,
     int Order,
     InterceptionRefusal? Refusal = null,
-    IReadOnlyList<TypeParameterModel>? TypeParameters = null) {
+    IReadOnlyList<TypeParameterModel>? TypeParameters = null,
+    ITypeDefinition? Realm = null,
+
+    /// <summary>
+    /// Where the intercepted class was declared, so DM0008 and DM0015 can point at it rather than
+    /// at the project.
+    /// </summary>
+    LocationModel? Location = null) {
 
     /// <summary>
     /// Whether the intercepted service is an open generic, and so registers as an implementation type
@@ -368,8 +375,8 @@ public record InterceptorModel(
     /// A model that generates nothing and explains why, so an unsupported shape produces a
     /// diagnostic rather than a wrapper that does not compile.
     /// </summary>
-    public static InterceptorModel Refused(string message) =>
-        Ignore with { Refusal = new InterceptionRefusal(message) };
+    public static InterceptorModel Refused(string message, LocationModel? location = null) =>
+        Ignore with { Refusal = new InterceptionRefusal(message), Location = location };
 
     public bool IsIgnored => ReferenceEquals(this, Ignore);
 }

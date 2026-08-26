@@ -146,7 +146,8 @@ public static class ConventionModelUtility {
             ReadStatement(context, statement, parameterName!, conventions, unreadable);
         }
 
-        return new ConventionModuleModel(typeDeclaration.GetTypeDefinition(), conventions, unreadable);
+        return new ConventionModuleModel(
+            typeDeclaration.GetTypeDefinition(), conventions, unreadable, LocationModel.From(typeDeclaration));
     }
 
     private static void ReadStatement(

@@ -838,7 +838,7 @@ namespace DependencyModules.Conventions.Models
     public class ConventionCandidateModel : System.IEquatable<DependencyModules.Conventions.Models.ConventionCandidateModel>
     {
         public static readonly DependencyModules.Conventions.Models.ConventionCandidateModel Ignore;
-        public ConventionCandidateModel(CSharpAuthor.ITypeDefinition ImplementationType, System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ImplementedInterfaceModel> DeclaredInterfaces, System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ImplementedInterfaceModel> BaseClassInterfaces, DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? Constructor, bool HasAccessibleConstructor, DependencyModules.Conventions.Models.LocationModel Location, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? Conditions = null, System.Collections.Generic.IReadOnlyList<string>? AttributeTypeKeys = null, string? AssemblyName = null) { }
+        public ConventionCandidateModel(CSharpAuthor.ITypeDefinition ImplementationType, System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ImplementedInterfaceModel> DeclaredInterfaces, System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ImplementedInterfaceModel> BaseClassInterfaces, DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? Constructor, bool HasAccessibleConstructor, DependencyModules.SourceGenerator.Impl.Models.LocationModel Location, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? Conditions = null, System.Collections.Generic.IReadOnlyList<string>? AttributeTypeKeys = null, string? AssemblyName = null) { }
         public string? AssemblyName { get; init; }
         public System.Collections.Generic.IReadOnlyList<string>? AttributeTypeKeys { get; init; }
         public System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ImplementedInterfaceModel> BaseClassInterfaces { get; init; }
@@ -848,7 +848,7 @@ namespace DependencyModules.Conventions.Models
         public bool HasAccessibleConstructor { get; init; }
         public CSharpAuthor.ITypeDefinition ImplementationType { get; init; }
         public bool IsIgnored { get; }
-        public DependencyModules.Conventions.Models.LocationModel Location { get; init; }
+        public DependencyModules.SourceGenerator.Impl.Models.LocationModel Location { get; init; }
         public virtual bool Equals(DependencyModules.Conventions.Models.ConventionCandidateModel? other) { }
         public override int GetHashCode() { }
         public System.Collections.Generic.IEnumerable<DependencyModules.Conventions.Models.ImplementedInterfaceModel> InterfacesInReach(bool includeBaseClasses) { }
@@ -861,7 +861,7 @@ namespace DependencyModules.Conventions.Models
                     bool IsOpenGeneric,
                     DependencyModules.SourceGenerator.Impl.Models.ServiceLifestyle? Lifestyle,
                     bool IncludeBaseClasses,
-                    DependencyModules.Conventions.Models.LocationModel Location,
+                    DependencyModules.SourceGenerator.Impl.Models.LocationModel Location,
                     DependencyModules.Conventions.Models.ConventionRegisterAs RegisterAs = 0,
                     System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.NamespaceFilterModel>? NamespaceFilters = null,
                     DependencyModules.SourceGenerator.Impl.Models.RegistrationType? RegistrationType = default,
@@ -883,7 +883,7 @@ namespace DependencyModules.Conventions.Models
         public object? Key { get; init; }
         public System.Collections.Generic.IReadOnlyList<string>? KeyNamespaces { get; init; }
         public DependencyModules.SourceGenerator.Impl.Models.ServiceLifestyle? Lifestyle { get; init; }
-        public DependencyModules.Conventions.Models.LocationModel Location { get; init; }
+        public DependencyModules.SourceGenerator.Impl.Models.LocationModel Location { get; init; }
         public System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.NameFilterModel>? NameFilters { get; init; }
         public System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.NamespaceFilterModel>? NamespaceFilters { get; init; }
         public DependencyModules.Conventions.Models.ConventionRegisterAs RegisterAs { get; init; }
@@ -897,9 +897,10 @@ namespace DependencyModules.Conventions.Models
     public class ConventionModuleModel : System.IEquatable<DependencyModules.Conventions.Models.ConventionModuleModel>
     {
         public static readonly DependencyModules.Conventions.Models.ConventionModuleModel Ignore;
-        public ConventionModuleModel(CSharpAuthor.ITypeDefinition ModuleType, System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ConventionModel> Conventions, System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.UnreadableStatementModel> Unreadable) { }
+        public ConventionModuleModel(CSharpAuthor.ITypeDefinition ModuleType, System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ConventionModel> Conventions, System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.UnreadableStatementModel> Unreadable, DependencyModules.SourceGenerator.Impl.Models.LocationModel? Location = null) { }
         public System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ConventionModel> Conventions { get; init; }
         public bool IsIgnored { get; }
+        public DependencyModules.SourceGenerator.Impl.Models.LocationModel? Location { get; init; }
         public CSharpAuthor.ITypeDefinition ModuleType { get; init; }
         public System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.UnreadableStatementModel> Unreadable { get; init; }
         public virtual bool Equals(DependencyModules.Conventions.Models.ConventionModuleModel? other) { }
@@ -934,21 +935,6 @@ namespace DependencyModules.Conventions.Models
         public CSharpAuthor.ITypeDefinition InterfaceType { get; init; }
         public string? ViaTypeName { get; init; }
     }
-    public class LocationModel : System.IEquatable<DependencyModules.Conventions.Models.LocationModel>
-    {
-        public static readonly DependencyModules.Conventions.Models.LocationModel None;
-        public LocationModel(string FilePath, int SpanStart, int SpanLength, int StartLine, int StartCharacter, int EndLine, int EndCharacter) { }
-        public int EndCharacter { get; init; }
-        public int EndLine { get; init; }
-        public string FilePath { get; init; }
-        public int SpanLength { get; init; }
-        public int SpanStart { get; init; }
-        public int StartCharacter { get; init; }
-        public int StartLine { get; init; }
-        public Microsoft.CodeAnalysis.Location ToLocation() { }
-        public Microsoft.CodeAnalysis.Location ToLocationOrNone() { }
-        public static DependencyModules.Conventions.Models.LocationModel From(Microsoft.CodeAnalysis.SyntaxNode node) { }
-    }
     public class NameFilterModel : System.IEquatable<DependencyModules.Conventions.Models.NameFilterModel>
     {
         public NameFilterModel(string Pattern, bool Exclude) { }
@@ -966,8 +952,8 @@ namespace DependencyModules.Conventions.Models
     }
     public class UnreadableStatementModel : System.IEquatable<DependencyModules.Conventions.Models.UnreadableStatementModel>
     {
-        public UnreadableStatementModel(string Text, string Reason, DependencyModules.Conventions.Models.LocationModel Location) { }
-        public DependencyModules.Conventions.Models.LocationModel Location { get; init; }
+        public UnreadableStatementModel(string Text, string Reason, DependencyModules.SourceGenerator.Impl.Models.LocationModel Location) { }
+        public DependencyModules.SourceGenerator.Impl.Models.LocationModel Location { get; init; }
         public string Reason { get; init; }
         public string Text { get; init; }
     }
@@ -1091,7 +1077,9 @@ namespace DependencyModules.SourceGenerator.Impl
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor GeneratorFailure;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor InterceptorCannotServeMembers;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ModuleAttributeNamespaceNotImported;
+        public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ModuleCannotBeNested;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ModuleMustBePartial;
+        public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ModuleWithPropertiesShouldImplementEquals;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor OpenGenericCannotBeDecorated;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor RegisteredConditionally;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ServiceCannotBeConstructed;
@@ -1262,7 +1250,7 @@ namespace DependencyModules.SourceGenerator.Impl.Models
     public class DecoratorModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.DecoratorModel>
     {
         public static readonly DependencyModules.SourceGenerator.Impl.Models.DecoratorModel Ignore;
-        public DecoratorModel(CSharpAuthor.ITypeDefinition ServiceType, CSharpAuthor.ITypeDefinition DecoratorType, int Order, CSharpAuthor.ITypeDefinition? Realm, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? Conditions = null, DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? Constructor = null, int InnerParameterIndex = -1, bool TypeParametersMatchService = true) { }
+        public DecoratorModel(CSharpAuthor.ITypeDefinition ServiceType, CSharpAuthor.ITypeDefinition DecoratorType, int Order, CSharpAuthor.ITypeDefinition? Realm, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? Conditions = null, DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? Constructor = null, int InnerParameterIndex = -1, bool TypeParametersMatchService = true, DependencyModules.SourceGenerator.Impl.Models.LocationModel? Location = null) { }
         public bool CanMonomorphise { get; }
         public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? Conditions { get; init; }
         public DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? Constructor { get; init; }
@@ -1271,6 +1259,7 @@ namespace DependencyModules.SourceGenerator.Impl.Models
         public int InnerParameterIndex { get; init; }
         public bool IsIgnored { get; }
         public bool IsOpenGeneric { get; }
+        public DependencyModules.SourceGenerator.Impl.Models.LocationModel? Location { get; init; }
         public int Order { get; init; }
         public CSharpAuthor.ITypeDefinition? Realm { get; init; }
         public CSharpAuthor.ITypeDefinition ServiceType { get; init; }
@@ -1374,18 +1363,20 @@ namespace DependencyModules.SourceGenerator.Impl.Models
     public class InterceptorModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.InterceptorModel>
     {
         public static readonly DependencyModules.SourceGenerator.Impl.Models.InterceptorModel Ignore;
-        public InterceptorModel(CSharpAuthor.ITypeDefinition ServiceType, CSharpAuthor.ITypeDefinition ImplementationType, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptorTypeModel> Interceptors, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedMemberModel> Members, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedDeclarationModel> Declarations, int Order, DependencyModules.SourceGenerator.Impl.Models.InterceptionRefusal? Refusal = null, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.TypeParameterModel>? TypeParameters = null) { }
+        public InterceptorModel(CSharpAuthor.ITypeDefinition ServiceType, CSharpAuthor.ITypeDefinition ImplementationType, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptorTypeModel> Interceptors, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedMemberModel> Members, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedDeclarationModel> Declarations, int Order, DependencyModules.SourceGenerator.Impl.Models.InterceptionRefusal? Refusal = null, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.TypeParameterModel>? TypeParameters = null, CSharpAuthor.ITypeDefinition? Realm = null, DependencyModules.SourceGenerator.Impl.Models.LocationModel? Location = null) { }
         public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedDeclarationModel> Declarations { get; init; }
         public CSharpAuthor.ITypeDefinition ImplementationType { get; init; }
         public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptorTypeModel> Interceptors { get; init; }
         public bool IsIgnored { get; }
         public bool IsOpenGeneric { get; }
+        public DependencyModules.SourceGenerator.Impl.Models.LocationModel? Location { get; init; }
         public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedMemberModel> Members { get; init; }
         public int Order { get; init; }
+        public CSharpAuthor.ITypeDefinition? Realm { get; init; }
         public DependencyModules.SourceGenerator.Impl.Models.InterceptionRefusal? Refusal { get; init; }
         public CSharpAuthor.ITypeDefinition ServiceType { get; init; }
         public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.TypeParameterModel>? TypeParameters { get; init; }
-        public static DependencyModules.SourceGenerator.Impl.Models.InterceptorModel Refused(string message) { }
+        public static DependencyModules.SourceGenerator.Impl.Models.InterceptorModel Refused(string message, DependencyModules.SourceGenerator.Impl.Models.LocationModel? location = null) { }
     }
     public class InterceptorModelComparer : System.Collections.Generic.IEqualityComparer<DependencyModules.SourceGenerator.Impl.Models.InterceptorModel>
     {
@@ -1401,6 +1392,21 @@ namespace DependencyModules.SourceGenerator.Impl.Models
         public bool Sync { get; init; }
         public CSharpAuthor.ITypeDefinition Type { get; init; }
         public bool CanServe(DependencyModules.SourceGenerator.Impl.Models.InterceptorKind kind) { }
+    }
+    public class LocationModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.LocationModel>
+    {
+        public static readonly DependencyModules.SourceGenerator.Impl.Models.LocationModel None;
+        public LocationModel(string FilePath, int SpanStart, int SpanLength, int StartLine, int StartCharacter, int EndLine, int EndCharacter) { }
+        public int EndCharacter { get; init; }
+        public int EndLine { get; init; }
+        public string FilePath { get; init; }
+        public int SpanLength { get; init; }
+        public int SpanStart { get; init; }
+        public int StartCharacter { get; init; }
+        public int StartLine { get; init; }
+        public Microsoft.CodeAnalysis.Location ToLocation() { }
+        public Microsoft.CodeAnalysis.Location ToLocationOrNone() { }
+        public static DependencyModules.SourceGenerator.Impl.Models.LocationModel From(Microsoft.CodeAnalysis.SyntaxNode node) { }
     }
     public enum LogOutputLevel
     {
@@ -1428,10 +1434,11 @@ namespace DependencyModules.SourceGenerator.Impl.Models
         ShouldImplementEquals = 4,
         IsRecord = 8,
         NotPartial = 16,
+        NestedInType = 32,
     }
     public class ModuleEntryPointModel : DependencyModules.SourceGenerator.Impl.Models.IClassModel, System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel>
     {
-        public ModuleEntryPointModel(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointFeatures ModuleFeatures, string FileLocation, CSharpAuthor.ITypeDefinition EntryPointType, DependencyModules.SourceGenerator.Impl.Models.RegistrationType? RegistrationType, bool? GenerateAttribute, bool? RegisterJsonSerializers, string? UseMethod, bool? GenerateFactories, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ParameterInfoModel> Parameters, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.PropertyInfoModel> PropertyInfoModels, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.AttributeModel> AttributeModels, System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> AdditionalModules, System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> Features) { }
+        public ModuleEntryPointModel(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointFeatures ModuleFeatures, string FileLocation, DependencyModules.SourceGenerator.Impl.Models.LocationModel Location, CSharpAuthor.ITypeDefinition EntryPointType, DependencyModules.SourceGenerator.Impl.Models.RegistrationType? RegistrationType, bool? GenerateAttribute, bool? RegisterJsonSerializers, string? UseMethod, bool? GenerateFactories, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ParameterInfoModel> Parameters, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.PropertyInfoModel> PropertyInfoModels, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.AttributeModel> AttributeModels, System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> AdditionalModules, System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> Features) { }
         public System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> AdditionalModules { get; init; }
         public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.AttributeModel> AttributeModels { get; init; }
         public CSharpAuthor.ITypeDefinition ClassType { get; }
@@ -1440,6 +1447,7 @@ namespace DependencyModules.SourceGenerator.Impl.Models
         public string FileLocation { get; init; }
         public bool? GenerateAttribute { get; init; }
         public bool? GenerateFactories { get; init; }
+        public DependencyModules.SourceGenerator.Impl.Models.LocationModel Location { get; init; }
         public DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointFeatures ModuleFeatures { get; init; }
         public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ParameterInfoModel> Parameters { get; init; }
         public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.PropertyInfoModel> PropertyInfoModels { get; init; }
@@ -1518,13 +1526,14 @@ namespace DependencyModules.SourceGenerator.Impl.Models
     public class ServiceModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.ServiceModel>
     {
         public static DependencyModules.SourceGenerator.Impl.Models.ServiceModel Ignore;
-        public ServiceModel(CSharpAuthor.ITypeDefinition ImplementationType, DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? Constructor, DependencyModules.SourceGenerator.Impl.Models.ServiceFactoryModel? Factory, DependencyModules.SourceGenerator.Impl.Models.FactoryOutputDelegate? FactoryOutput, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ServiceRegistrationModel> Registrations, DependencyModules.SourceGenerator.Impl.Models.RegistrationFeature Features, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? Conditions = null) { }
+        public ServiceModel(CSharpAuthor.ITypeDefinition ImplementationType, DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? Constructor, DependencyModules.SourceGenerator.Impl.Models.ServiceFactoryModel? Factory, DependencyModules.SourceGenerator.Impl.Models.FactoryOutputDelegate? FactoryOutput, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ServiceRegistrationModel> Registrations, DependencyModules.SourceGenerator.Impl.Models.RegistrationFeature Features, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? Conditions = null, DependencyModules.SourceGenerator.Impl.Models.LocationModel? Location = null) { }
         public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? Conditions { get; init; }
         public DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? Constructor { get; init; }
         public DependencyModules.SourceGenerator.Impl.Models.ServiceFactoryModel? Factory { get; init; }
         public DependencyModules.SourceGenerator.Impl.Models.FactoryOutputDelegate? FactoryOutput { get; init; }
         public DependencyModules.SourceGenerator.Impl.Models.RegistrationFeature Features { get; init; }
         public CSharpAuthor.ITypeDefinition ImplementationType { get; init; }
+        public DependencyModules.SourceGenerator.Impl.Models.LocationModel? Location { get; init; }
         public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ServiceRegistrationModel> Registrations { get; init; }
     }
     public class ServiceModelComparer : System.Collections.Generic.IEqualityComparer<DependencyModules.SourceGenerator.Impl.Models.ServiceModel>

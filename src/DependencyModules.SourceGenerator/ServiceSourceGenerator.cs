@@ -154,7 +154,7 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
             context.ReportDiagnostic(
                 Diagnostic.Create(
                     DependencyModuleDiagnostics.ServiceCannotBeConstructed,
-                    Location.None,
+                    serviceModel.Location?.ToLocationOrNone() ?? Location.None,
                     typeName,
                     reason));
         }
@@ -200,7 +200,7 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
             context.ReportDiagnostic(
                 Diagnostic.Create(
                     DependencyModuleDiagnostics.CrossWireCannotBeGeneric,
-                    Location.None,
+                    serviceModel.Location?.ToLocationOrNone() ?? Location.None,
                     typeName));
         }
 
@@ -246,7 +246,7 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
                 context.ReportDiagnostic(
                     Diagnostic.Create(
                         DependencyModuleDiagnostics.EmptyEnvironmentCondition,
-                        Location.None,
+                        serviceModel.Location?.ToLocationOrNone() ?? Location.None,
                         typeName,
                         kind));
             }
@@ -267,7 +267,7 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
             context.ReportDiagnostic(
                 Diagnostic.Create(
                     DependencyModuleDiagnostics.RegisteredConditionally,
-                    Location.None,
+                    serviceModel.Location?.ToLocationOrNone() ?? Location.None,
                     summary));
         }
     }

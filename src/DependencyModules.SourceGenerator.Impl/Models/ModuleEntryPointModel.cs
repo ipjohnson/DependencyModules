@@ -14,11 +14,22 @@ public enum ModuleEntryPointFeatures {
     /// The module was declared without the partial modifier, so the generator cannot complete it.
     /// </summary>
     NotPartial = 16,
+
+    /// <summary>
+    /// The module was declared inside another type rather than directly in a namespace.
+    /// </summary>
+    /// <remarks>
+    /// Documented as always wrong in the README, the modules guide and the troubleshooting guide,
+    /// and until now reported by none of them: the generator emitted a second, detached type at
+    /// namespace level, the nested declaration never became a module, and the build stayed green.
+    /// </remarks>
+    NestedInType = 32,
 }
 
 public record ModuleEntryPointModel(
     ModuleEntryPointFeatures ModuleFeatures,
     string FileLocation,
+    LocationModel Location,
     ITypeDefinition EntryPointType,
     RegistrationType? RegistrationType,
     bool? GenerateAttribute,
@@ -39,6 +50,12 @@ public class ModuleEntryPointModelComparer : IEqualityComparer<ModuleEntryPointM
         if (x is null && y is null) return true;
         if (x is null || y is null) return false;
 
+        // Location is deliberately absent. It is carried so diagnostics can point at the
+        // declaration, but it shifts whenever anything above the module is edited — including a
+        // comment — and this comparer is the incremental cache key. Including it regenerated every
+        // module on a keystroke that changed nothing (IncrementalGenerationTests covers exactly
+        // that). The cost is that a diagnostic replayed from cache can sit a line or two off until
+        // the next semantic edit, which is the cheaper of the two mistakes.
         return x.FileLocation == y.FileLocation &&
                x.EntryPointType.Equals(y.EntryPointType) &&
                x.ModuleFeatures == y.ModuleFeatures &&

@@ -75,10 +75,33 @@ public class DependencyModuleWriter {
             context.ReportDiagnostic(
                 Diagnostic.Create(
                     DependencyModuleDiagnostics.ModuleMustBePartial,
-                    Location.None,
+                    entryPointModel.Location.ToLocationOrNone(),
                     entryPointModel.EntryPointType.Name));
 
             return;
+        }
+
+        // Generating anyway would emit a same-named type at namespace level, which compiles and
+        // registers nothing — the failure this is here to replace.
+        if (entryPointModel.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.NestedInType)) {
+            context.ReportDiagnostic(
+                Diagnostic.Create(
+                    DependencyModuleDiagnostics.ModuleCannotBeNested,
+                    entryPointModel.Location.ToLocationOrNone(),
+                    entryPointModel.EntryPointType.Name));
+
+            return;
+        }
+
+        // Only when the generator is supplying equality. A module that declares its own Equals has
+        // already answered the question this asks about.
+        if (entryPointModel.PropertyInfoModels.Count > 0 &&
+            entryPointModel.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.ShouldImplementEquals)) {
+            context.ReportDiagnostic(
+                Diagnostic.Create(
+                    DependencyModuleDiagnostics.ModuleWithPropertiesShouldImplementEquals,
+                    entryPointModel.Location.ToLocationOrNone(),
+                    entryPointModel.EntryPointType.Name));
         }
 
         entryPointModel = EntryModelUtil.EnsureNamespace(entryPointModel,configurationModel);

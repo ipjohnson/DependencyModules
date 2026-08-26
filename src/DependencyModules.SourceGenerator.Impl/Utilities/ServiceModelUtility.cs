@@ -70,6 +70,21 @@ public class ServiceModelUtility {
         KnownTypes.DependencyModules.Attributes.TransientServiceAttribute, KnownTypes.DependencyModules.Attributes.ScopedServiceAttribute, KnownTypes.DependencyModules.Attributes.SingletonServiceAttribute,
     };
 
+    /// <summary>
+    /// The lifetime a service attribute type carries.
+    /// </summary>
+    private static ServiceLifestyle LifestyleOf(ITypeDefinition attributeType) {
+        if (attributeType.Name == KnownTypes.DependencyModules.Attributes.SingletonServiceAttribute.Name) {
+            return ServiceLifestyle.Singleton;
+        }
+
+        if (attributeType.Name == KnownTypes.DependencyModules.Attributes.ScopedServiceAttribute.Name) {
+            return ServiceLifestyle.Scoped;
+        }
+
+        return ServiceLifestyle.Transient;
+    }
+
     public static ServiceModel? GetServiceModel(
         SyntaxTransformContext context, CancellationToken cancellationToken) {
         cancellationToken.ThrowIfCancellationRequested();
@@ -111,7 +126,8 @@ public class ServiceModelUtility {
             null,
             factoryModel, null,
             GetRegistrations(context, returnType, models, cancellationToken),
-            RegistrationFeature.None);
+            RegistrationFeature.None,
+            Location: LocationModel.From(context.Node));
     }
 
     private static ServiceFactoryModel? GetFactoryModel(SyntaxTransformContext context, MethodDeclarationSyntax methodDeclarationSyntax, CancellationToken cancellationToken) {
@@ -173,7 +189,8 @@ public class ServiceModelUtility {
                         ServiceLifestyle.Transient
                     )
                 },
-                RegistrationFeature.AutoRegisterSourceGenerator
+                RegistrationFeature.AutoRegisterSourceGenerator,
+                Location: LocationModel.From(context.Node)
             );
         }
 
@@ -190,7 +207,8 @@ public class ServiceModelUtility {
             factoryOutput,
             registrations,
             GetConstructionFeatures(context.Node),
-            EnvironmentConditionUtility.GetConditions(context, context.Node, cancellationToken));
+            EnvironmentConditionUtility.GetConditions(context, context.Node, cancellationToken),
+            LocationModel.From(context.Node));
     }
 
     /// <summary>
@@ -328,7 +346,7 @@ public class ServiceModelUtility {
                 // skipped — leaving the class unregistered with nothing to say so.
                 if (AttributeTypeMatcher.Matches(
                         context.SemanticModel, attributeSyntax, typeDefinition, cancellationToken)) {
-                    list.Add(GetServiceRegistration(context, attributeSyntax, classDefinition));
+                    list.Add(GetServiceRegistration(context, attributeSyntax, classDefinition, typeDefinition));
                 }
             }
 
@@ -418,15 +436,22 @@ public class ServiceModelUtility {
         return ServiceLifestyle.Singleton;
     }
 
-    private static ServiceRegistrationModel GetServiceRegistration(SyntaxTransformContext context, AttributeSyntax attributeSyntax, ITypeDefinition classDefinition) {
-        var lifestyle = ServiceLifestyle.Transient;
+    private static ServiceRegistrationModel GetServiceRegistration(
+        SyntaxTransformContext context,
+        AttributeSyntax attributeSyntax,
+        ITypeDefinition classDefinition,
+        ITypeDefinition attributeType) {
 
-        if (attributeSyntax.Name.ToString().StartsWith("Singleton")) {
-            lifestyle = ServiceLifestyle.Singleton;
-        }
-        else if (attributeSyntax.Name.ToString().StartsWith("Scoped")) {
-            lifestyle = ServiceLifestyle.Scoped;
-        }
+        // The lifetime comes from the attribute type the usage resolved to, not from how the usage
+        // was spelled. Reading it back off `attributeSyntax.Name` meant only a spelling that literally
+        // began with "Singleton" or "Scoped" produced that lifetime: a qualified name, a global::
+        // prefix, and any `using` alias not named after its target all fell through to Transient —
+        // registered, with the wrong lifetime, and nothing said so.
+        //
+        // This costs nothing extra. AttributeTypeMatcher has already resolved the usage through the
+        // semantic model to decide that this attribute matched at all; the caller simply passes on
+        // which one it was rather than discarding the answer.
+        var lifestyle = LifestyleOf(attributeType);
 
         ITypeDefinition? registration = null;
         RegistrationType? registrationType = null;

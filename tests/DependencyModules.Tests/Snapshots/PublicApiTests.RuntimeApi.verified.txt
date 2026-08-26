@@ -86,6 +86,7 @@ namespace DependencyModules.Runtime.Attributes
         public InterceptAttribute(params System.Type[] interceptors) { }
         public System.Type[] Interceptors { get; }
         public int Order { get; set; }
+        public System.Type? Realm { get; set; }
         public System.Type? Service { get; set; }
     }
     public enum RegistrationType

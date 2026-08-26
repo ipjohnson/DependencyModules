@@ -291,7 +291,12 @@ public record UnreadableStatementModel(string Text, string Reason, LocationModel
 public record ConventionModuleModel(
     ITypeDefinition ModuleType,
     IReadOnlyList<ConventionModel> Conventions,
-    IReadOnlyList<UnreadableStatementModel> Unreadable) {
+    IReadOnlyList<UnreadableStatementModel> Unreadable,
+
+    /// <summary>
+    /// Where the declaring type sits, so a diagnostic about the module itself can point at it.
+    /// </summary>
+    LocationModel? Location = null) {
 
     /// <summary>
     /// The sentinel for a declaration this generator does not own, matching how every other model

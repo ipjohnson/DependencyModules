@@ -190,8 +190,38 @@ public static class ConventionMatcher {
                 DependencyModuleDiagnostics.ConventionMatchedNothing,
                 convention.Location.ToLocationOrNone(),
                 serviceName,
-                moduleName));
+                moduleName,
+                AdviceForEmptyMatch(convention, serviceName)));
         }
+    }
+
+    /// <summary>
+    /// What to tell someone whose convention matched nothing, chosen by why it could not match.
+    /// </summary>
+    /// <remarks>
+    /// A class named as the service type is the sharpest case: conventions match a type through the
+    /// interfaces it declares, so no call and no filter change can ever make one match. That is also
+    /// the shape every MVVM project starts from — <c>class FooViewModel : ViewModelBase</c> — so
+    /// saying "call IncludeBaseClasses()" there sent readers looking for a mistake they had not made.
+    /// </remarks>
+    private static string AdviceForEmptyMatch(ConventionModel convention, string serviceName) {
+        if (convention.ServiceType is { TypeDefinitionEnum: TypeDefinitionEnum.ClassDefinition }) {
+            return
+                $"Conventions match the interfaces a type declares, and '{serviceName}' is a class, " +
+                "so no type can match it. Register an interface the types declare — a marker " +
+                "interface on the base class is enough — or register them by attribute instead";
+        }
+
+        if (convention.IncludeBaseClasses) {
+            return
+                "Conventions match a type that declares the service type, or declares an interface " +
+                "extending it. IncludeBaseClasses() is already applied, so check the name, namespace " +
+                "and assembly filters on this convention";
+        }
+
+        return
+            "Conventions match a type that declares the service type, or declares an interface " +
+            "extending it; call IncludeBaseClasses() to also match types that reach it through a base class";
     }
 
     /// <summary>

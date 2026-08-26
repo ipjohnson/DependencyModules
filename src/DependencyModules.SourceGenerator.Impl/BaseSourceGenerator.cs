@@ -230,10 +230,18 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
         if (!typeDeclarationSyntax.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword))) {
             features |= ModuleEntryPointFeatures.NotPartial;
         }
+
+        // A module nested inside another type cannot be completed where it was written: the
+        // generated half is emitted at namespace level, so it becomes a second, unrelated type and
+        // the nested declaration never implements IDependencyModule.
+        if (typeDeclarationSyntax.Parent is TypeDeclarationSyntax) {
+            features |= ModuleEntryPointFeatures.NestedInType;
+        }
         
         return new ModuleEntryPointModel(
             features,
             context.Node.SyntaxTree?.FilePath ?? "",
+            LocationModel.From(context.Node),
             ((TypeDeclarationSyntax)context.Node).GetTypeDefinition(),
             dependencyFlags.RegistrationType,
             dependencyFlags.GenerateAttribute,
@@ -276,6 +284,7 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
         return new ModuleEntryPointModel(
             ModuleEntryPointFeatures.AutoGenerateModule,
             context.Node.SyntaxTree?.FilePath ?? "",
+            LocationModel.From(context.Node),
             TypeDefinition.Get("", "ApplicationModule"),
             null,
             true,
