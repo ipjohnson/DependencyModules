@@ -33,6 +33,12 @@ public partial class DefaultedParameterModule : IServiceCollectionConfiguration 
     public void ConfigureServices(IServiceCollection services) {
         services.AddSingleton(new DefaultedParameterValues(Label, Size));
     }
+
+    // Two composers below carry different values, so identity is the values rather than the type.
+    public override bool Equals(object? obj) =>
+        obj is DefaultedParameterModule other && other.Label == Label && other.Size == Size;
+
+    public override int GetHashCode() => HashCode.Combine(Label, Size);
 }
 
 /// <summary>Composes the module above without naming either parameter.</summary>

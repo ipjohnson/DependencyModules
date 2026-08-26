@@ -124,17 +124,16 @@ public static class DependencyModuleDiagnostics {
         "and the first one reached wins. Declare Equals and GetHashCode on '{0}' to say which " +
         "instances are the same.",
         category: Category,
-        // Info, not Warning. Dedupe-by-type is correct for the common case — a parameterised module
-        // composed once — and this repo's own integration tests carry eleven such modules that are
-        // not doing anything wrong. Only a module reached twice with different values is actually
-        // bitten, and that is not decidable here.
+        // A warning rather than informational. The identity of a module with parameters is genuinely
+        // ambiguous, and the generator picks type-only on the developer's behalf — so the choice is
+        // being made either way, and only one of the two makes it visible. Informational would not:
+        // a generator's diagnostics arrive with their severity already fixed and Roslyn's
+        // .editorconfig mapping applies to analyzer diagnostics, so an Info here could never be
+        // raised into a build by anyone who wanted it enforced.
         //
-        // Note that this cannot be promoted per project. A generator's diagnostics arrive with their
-        // severity already fixed, and Roslyn's .editorconfig severity mapping applies to analyzer
-        // diagnostics — so dotnet_diagnostic.DM0018.severity = warning has no effect, and
-        // WarningsAsErrors only promotes something that is already a warning. Silencing does work,
-        // through NoWarn or .editorconfig; raising does not.
-        defaultSeverity: DiagnosticSeverity.Info,
+        // Silencing still works per project, through NoWarn or .editorconfig, for a codebase whose
+        // parameterised modules are each composed once.
+        defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
     /// <summary>

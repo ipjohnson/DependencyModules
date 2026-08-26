@@ -96,13 +96,21 @@ intercepted, that stops — it was never asked for.
   nested declaration never implemented `IDependencyModule` — documented as always wrong in the README
   and two guides, and reported by none of them.
 
-- **`DM0018`** (Info) reports a module with settable properties relying on the generated
-  `Equals`/`GetHashCode`, which compares by type alone — so two instances carrying different values
-  count as the same module and the first one reached wins. Declaring your own suppresses the generated
+- **`DM0018`** reports a module with parameters relying on the generated `Equals`/`GetHashCode`,
+  which compares by type alone — so two instances carrying different values count as the same module,
+  the first one reached wins, and the other is discarded with nothing said. Load a
+  `[CacheModule(SizeLimit = 10)]` feature and a `[CacheModule(SizeLimit = 999)]` feature together and
+  one `CacheSettings` arrives, not two.
+
+  The generator has to choose an identity either way and picks type-only. This reports that it chose,
+  so the choice becomes the developer's — and both answers are legitimate, whether that is "identity
+  is the values" or "identity is the type, and I meant it". Declaring either suppresses the generated
   pair, which has always worked.
 
-  Informational because composing a parameterised module once is both common and correct; this
-  repository's own integration tests carry eleven such modules doing nothing wrong.
+  Only **settable, non-static** properties count. A read-only property is not a parameter: a module
+  implementing an interface with `public string Value => "A";` has nothing to configure and is not
+  reported. The three parameterised modules in this repository's own integration tests now declare
+  their identity rather than being exempted, one of each kind.
 
 - **`DM0019`** (Error) reports an assembly-level module attribute outside the entry point file. Those
   are composed into the generated `ApplicationModule`, which is built from one compilation unit, so

@@ -24,12 +24,12 @@ dotnet_diagnostic.DM0019.severity = none
 
 **Raising a severity is the part `.editorconfig` cannot do.** A generator's diagnostics reach the
 compilation with their severity already fixed, and Roslyn's severity *mapping* applies to analyzer
-diagnostics — so `dotnet_diagnostic.DM0018.severity = warning` will not promote an informational code
+diagnostics — so `dotnet_diagnostic.DM0010.severity = warning` will not promote an informational code
 into the build. `WarningsAsErrors` promotes a warning to an error; nothing promotes an `Info`.
 
-`DM0010`, `DM0011` and `DM0018` are informational and exist to make a registration or a decision
-visible at the class. They appear in the IDE, and in `dotnet build` only at `-v detailed` or higher —
-not at the default verbosity. The rest are worth reading.
+`DM0010` and `DM0011` are informational and exist to make a registration visible at the class. They
+appear in the IDE, and in `dotnet build` only at `-v detailed` or higher — not at the default
+verbosity. The rest are worth reading.
 
 | Code | Severity | Meaning |
 |---|---|---|
@@ -50,7 +50,7 @@ not at the default verbosity. The rest are worth reading.
 | [DM0015](#dm0015) | Warning | An interceptor does not apply to every member |
 | [DM0016](#dm0016) | Warning | An assembly-level module attribute's namespace is not imported |
 | [DM0017](#dm0017) | Error | A module is declared inside another type |
-| [DM0018](#dm0018) | Info | A module with properties relies on generated equality |
+| [DM0018](#dm0018) | Warning | A module with parameters relies on generated equality |
 | [DM0019](#dm0019) | Error | An assembly-level module attribute is outside the entry point file |
 
 ## DM0001 {#dm0001}
@@ -289,7 +289,7 @@ See [Modules](/guide/modules) and [Troubleshooting](/guide/troubleshooting).
 
 ## DM0018 {#dm0018}
 
-**A module with settable properties relies on generated equality.**
+**A module with parameters relies on generated equality.**
 
 Modules de-duplicate by type, which is what stops a module reached twice from registering everything
 twice. A module carrying parameters is the case that rule does not fit: two instances holding
@@ -298,17 +298,40 @@ silently.
 
 ```csharp
 [DependencyModule]
-public partial class CacheModule {
-    public int SizeLimit { get; set; }   // DM0018
+public partial class CacheModule : IServiceCollectionConfiguration {
+    public int SizeLimit { get; set; }              // DM0018
+    public void ConfigureServices(IServiceCollection services) =>
+        services.AddSingleton(new CacheSettings(SizeLimit));
 }
+
+[DependencyModule] [CacheModule(SizeLimit = 10)]  public partial class SmallCacheFeature;
+[DependencyModule] [CacheModule(SizeLimit = 999)] public partial class BigCacheFeature;
 ```
 
-Declaring your own `Equals` and `GetHashCode` suppresses the generated pair and makes the intent
-explicit — whether that is "these are the same module regardless of parameters" or "they are not".
+Load both features and one `CacheSettings` arrives, not two — whichever was reached first, with no
+error and no duplicate to notice.
 
-Informational rather than a warning, because composing a parameterised module once is both common and
-correct, and only a module reached *twice with differing values* is actually bitten. It cannot be
-promoted through `.editorconfig`; see the note at the top of this page.
+The generator has to choose an identity for you, and type-only is the choice it makes. Declaring your
+own `Equals` and `GetHashCode` suppresses the generated pair and says which you meant. Both answers
+are legitimate:
+
+```csharp
+// identity is the values: both configurations survive
+public override bool Equals(object? obj) =>
+    obj is CacheModule other && other.SizeLimit == SizeLimit;
+public override int GetHashCode() => SizeLimit;
+
+// identity is the type: one wins, and that is intended
+public override bool Equals(object? obj) => obj is CacheModule;
+public override int GetHashCode() => typeof(CacheModule).GetHashCode();
+```
+
+Only **settable, non-static** properties count. A read-only property is not a parameter — a module
+implementing an interface with `public string Value => "A";` has nothing to configure and is not
+reported.
+
+Silence it per project with `NoWarn` or `.editorconfig` if every parameterised module in the codebase
+is composed once.
 
 See [Modules](/guide/modules#parameters).
 
