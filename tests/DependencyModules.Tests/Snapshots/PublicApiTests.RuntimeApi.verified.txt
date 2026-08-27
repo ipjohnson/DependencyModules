@@ -30,6 +30,7 @@ namespace DependencyModules.Runtime.Attributes
     public class DecoratorAttribute : System.Attribute
     {
         public DecoratorAttribute() { }
+        public System.Type? Implementation { get; set; }
         public int Order { get; set; }
         public System.Type? Realm { get; set; }
         public System.Type? Service { get; set; }

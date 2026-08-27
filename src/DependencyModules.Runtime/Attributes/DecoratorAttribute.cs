@@ -40,4 +40,24 @@ public class DecoratorAttribute : Attribute {
     /// registration attributes.
     /// </summary>
     public Type? Realm { get; set; }
+
+    /// <summary>
+    /// Restricts the decorator to one implementation of the service, rather than every registration
+    /// of it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Wrapping every registration is the default and is what separates a decorator from an
+    /// interceptor: the decorator is written against the interface and does not care which class is
+    /// behind it. Naming an implementation is for the case where that is not true — several
+    /// implementations of one interface, and the behaviour belongs to one of them.
+    /// </para>
+    /// <para>
+    /// A registration built from a factory cannot say what implementation it came from, so naming
+    /// one here is not honoured for those — the same limit interception has, and the reason an
+    /// intercepted service keeps its <c>typeof</c> registration under
+    /// <c>DependencyModules_GenerateFactories</c>.
+    /// </para>
+    /// </remarks>
+    public Type? Implementation { get; set; }
 }

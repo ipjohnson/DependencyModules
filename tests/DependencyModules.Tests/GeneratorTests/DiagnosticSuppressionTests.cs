@@ -140,6 +140,25 @@ public class DiagnosticSuppressionTests {
                                            }
                                            """)];
 
+        yield return ["DM0022", """
+                                using DependencyModules.Runtime.Attributes;
+
+                                namespace TestNamespace;
+
+                                public interface IGreeter { string Greet(); }
+
+                                [SingletonService]
+                                public class Loud : IGreeter { public string Greet() => "loud"; }
+
+                                [Decorator(Implementation = typeof(Loud))]
+                                public class Logged(IGreeter inner) : IGreeter {
+                                    public string Greet() => inner.Greet();
+                                }
+
+                                [DependencyModule(GenerateFactories = true)]
+                                public partial class TestModule;
+                                """];
+
         yield return ["DM0021", """
                                 using DependencyModules.Runtime.Attributes;
                                 using DependencyModules.Testing.Attributes;

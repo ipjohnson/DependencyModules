@@ -33,6 +33,7 @@ public static class DecoratorModelUtility {
         var order = 0;
         ITypeDefinition? realm = null;
         ITypeDefinition? explicitService = null;
+        ITypeDefinition? implementation = null;
 
         if (attribute.ArgumentList != null) {
             foreach (var argument in attribute.ArgumentList.Arguments) {
@@ -47,6 +48,9 @@ public static class DecoratorModelUtility {
                         break;
                     case "Realm":
                         realm = GetTypeOfArgument(argument, context);
+                        break;
+                    case "Implementation":
+                        implementation = GetTypeOfArgument(argument, context);
                         break;
                 }
             }
@@ -84,6 +88,7 @@ public static class DecoratorModelUtility {
             constructor,
             IndexOfInnerParameter(constructor, written),
             TypeParametersMatchService(typeDeclarationSyntax, written),
+            implementation,
             LocationModel.From(typeDeclarationSyntax));
     }
 

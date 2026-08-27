@@ -427,6 +427,9 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
 
         ReportOpenGenericDecoration(report, refusedForOpenGenericRegistration, logger);
 
+        ReportImplementationUnderFactories(
+            report, decorators, entryPointModel, configurationModel, logger);
+
         if (expanded.Count == 0 || !emit) {
             return;
         }
@@ -494,6 +497,45 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
         ReportAmbiguousOrdering(report, decorators, logger);
 
         return decorators;
+    }
+
+    /// <summary>
+    /// Reports a decorator naming an implementation in a project that emits factories.
+    /// </summary>
+    /// <remarks>
+    /// The decorator would wrap every registration of the service instead of the one it named,
+    /// because a factory descriptor cannot say what it built. An intercepted service is exempted
+    /// from the property automatically - the interception is declared on the class being registered,
+    /// so the writer emitting that registration sees it. A decorator is declared on the decorator,
+    /// and the registration it targets is written by a pass that never learns about it.
+    /// </remarks>
+    private static void ReportImplementationUnderFactories(
+        DiagnosticReporter report,
+        IReadOnlyList<DecoratorModel> decorators,
+        ModuleEntryPointModel entryPointModel,
+        DependencyModuleConfigurationModel configurationModel,
+        FileLogger logger) {
+
+        if (!entryPointModel.GenerateFactories.GetValueOrDefault(configurationModel.GenerateFactories)) {
+            return;
+        }
+
+        foreach (var decorator in decorators) {
+            if (decorator.Implementation == null) {
+                continue;
+            }
+
+            logger.Error(
+                $"'{decorator.DecoratorType.Name}' names an implementation, which generated " +
+                "factories cannot be told apart by.");
+
+            report.Report(
+                DependencyModuleDiagnostics.DecoratorImplementationNeedsTypeRegistration,
+                decorator.Location,
+                decorator.DecoratorType.Name,
+                decorator.Implementation.Name,
+                decorator.ServiceType.Name);
+        }
     }
 
     /// <summary>

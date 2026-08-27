@@ -139,6 +139,20 @@ public class DecoratorFileWriter {
             CodeOutputComponent.Get($"({ProviderParameterName}, {InnerParameterName})"),
             construct);
 
+        // The four-argument overload when an implementation is named, which is the one interception
+        // already uses: it skips a descriptor whose origin is a different type, so the decorator
+        // reaches one registration rather than every registration of the service.
+        if (decorator.Implementation != null) {
+            return SyntaxHelpers.InvokeGeneric(
+                KnownTypes.DependencyModules.Helpers.DecoratorHelper,
+                "Decorate",
+                new[] { serviceType },
+                CodeOutputComponent.Get(servicesName),
+                TypeOf(decoratorType),
+                lambda,
+                TypeOf(decorator.Implementation));
+        }
+
         return SyntaxHelpers.InvokeGeneric(
             KnownTypes.DependencyModules.Helpers.DecoratorHelper,
             "Decorate",
