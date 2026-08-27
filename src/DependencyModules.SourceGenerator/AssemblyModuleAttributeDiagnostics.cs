@@ -140,12 +140,18 @@ internal static class AssemblyModuleAttributeDiagnostics {
 
     internal static void Report(
         SourceProductionContext context,
-        (ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> Modules,
-            ImmutableArray<UnitModel> Units) input) {
+        ((ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> Modules,
+            ImmutableArray<UnitModel> Units) Left, Compilation Right) data) {
+
+        var input = data.Left;
 
         if (input.Units.IsDefaultOrEmpty || input.Modules.IsDefaultOrEmpty) {
             return;
         }
+
+        // Modules from referenced assemblies are the case both these codes exist for, and neither
+        // could see them: everything below was built from the modules declared here.
+        var referenced = new ReferencedModuleLookup(data.Right);
 
         // A module in the global namespace needs no import, and an auto-generated ApplicationModule
         // is never written by hand at the assembly level, so neither can produce this mistake.
@@ -160,10 +166,6 @@ internal static class AssemblyModuleAttributeDiagnostics {
             }
 
             modulesByName[module.EntryPointType.Name] = moduleNamespace;
-        }
-
-        if (modulesByName.Count == 0) {
-            return;
         }
 
         // The file the generated ApplicationModule was built from, which is the only file whose
@@ -192,11 +194,18 @@ internal static class AssemblyModuleAttributeDiagnostics {
                 context.CancellationToken.ThrowIfCancellationRequested();
 
                 // Written as [assembly: Foo] or [assembly: FooAttribute]; both name module Foo.
-                if (!modulesByName.TryGetValue(usage.Name, out var moduleNamespace) &&
-                    !(usage.Name.EndsWith("Attribute", StringComparison.Ordinal) &&
-                      modulesByName.TryGetValue(
-                          usage.Name.Substring(0, usage.Name.Length - "Attribute".Length),
-                          out moduleNamespace))) {
+                var moduleNamespace = LocalModuleNamespace(modulesByName, usage.Name);
+
+                // Declared here, or shipped by something this project references. The imported
+                // lookup comes first because it is the cheap one and the one a building project
+                // takes; the exhaustive walk is only worth doing for a name that resolved to
+                // nothing, which is a build that is already red.
+                moduleNamespace ??= referenced.FindImported(
+                    usage.Name, unit.FileUsings.Concat(globalUsings));
+
+                moduleNamespace ??= referenced.FindAnywhere(usage.Name);
+
+                if (moduleNamespace == null) {
                     continue;
                 }
 
@@ -224,5 +233,18 @@ internal static class AssemblyModuleAttributeDiagnostics {
                 }
             }
         }
+    }
+
+    /// <summary>The namespace of a module declared in this compilation, or null.</summary>
+    private static string? LocalModuleNamespace(Dictionary<string, string> modulesByName, string name) {
+        if (modulesByName.TryGetValue(name, out var found)) {
+            return found;
+        }
+
+        return name.EndsWith("Attribute", StringComparison.Ordinal) &&
+               modulesByName.TryGetValue(
+                   name.Substring(0, name.Length - "Attribute".Length), out found)
+            ? found
+            : null;
     }
 }

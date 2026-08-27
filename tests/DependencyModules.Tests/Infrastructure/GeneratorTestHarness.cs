@@ -208,14 +208,27 @@ public static class GeneratorTestHarness {
     /// InAssemblyOf exists for. Loading it as well lets a behavioural test resolve the services the
     /// generated code registers.
     /// </remarks>
+    /// <param name="runGenerator">
+    /// Whether to run the generator over the library before emitting it. A package built the normal
+    /// way carries what the generator wrote for it — a module's attribute above all — and a consumer
+    /// sees that in metadata. Off by default because most callers only need plain types to scan.
+    /// </param>
     public static (MetadataReference Reference, System.Reflection.Assembly Assembly) CompileLibrary(
-        string source, string assemblyName) {
+        string source, string assemblyName, bool runGenerator = false) {
 
-        var compilation = CSharpCompilation.Create(
+        Compilation compilation = CSharpCompilation.Create(
             assemblyName,
             new[] { CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(LanguageVersion.Latest)) },
             References.Value,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        if (runGenerator) {
+            CSharpGeneratorDriver.Create(
+                    Generators(),
+                    optionsProvider: new TestAnalyzerConfigOptionsProvider(null),
+                    parseOptions: new CSharpParseOptions(LanguageVersion.Latest))
+                .RunGeneratorsAndUpdateCompilation(compilation, out compilation, out _);
+        }
 
         using var stream = new MemoryStream();
 

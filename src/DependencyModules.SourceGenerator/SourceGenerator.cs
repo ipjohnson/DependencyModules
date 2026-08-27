@@ -31,7 +31,8 @@ public class SourceGenerator : BaseSourceGenerator {
         // DM0016. Registered here rather than on the base class so that a framework generator loaded
         // alongside this one does not report the same usage twice.
         context.RegisterSourceOutput(
-            valuesProvider.Combine(AssemblyModuleAttributeDiagnostics.Collect(context)),
+            valuesProvider.Combine(AssemblyModuleAttributeDiagnostics.Collect(context))
+                .Combine(context.CompilationProvider),
             AssemblyModuleAttributeDiagnostics.Report);
     }
 }
