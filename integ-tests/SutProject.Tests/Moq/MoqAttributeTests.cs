@@ -1,9 +1,6 @@
 using DependencyModules.Moq;
 using DependencyModules.Testing.Attributes;
-using DependencyModules.Testing.Attributes.Interfaces;
-using DependencyModules.Testing.Impl;
 using DependencyModules.xUnit.Attributes;
-using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Xunit;
 
@@ -145,48 +142,21 @@ public class MoqAttributeTests {
     }
 
     /// <summary>
-    /// [Mock] and [TestExport] naming one service is a contradiction, and it used to resolve
-    /// silently in [TestExport]'s favour - for the [Mock] parameter too. The test held the real
-    /// implementation while believing it held a double, and the first arrange line threw a
-    /// mocking-library error naming neither attribute.
+    /// A parameter attribute does not override one on the method, the class or the assembly.
+    /// [Mock] is parameter-only and [TestExport] is not, so naming a real implementation displaces
+    /// the double for the [Mock] parameter too — it holds what the service under test holds, which
+    /// is the point of [Mock] registering rather than merely supplying an argument.
     ///
-    /// Both behaviours are deliberate on their own, so neither moved: [Mock] registers during setup
-    /// so the subject is built against the double, then resolves from the container so the test
-    /// holds the same instance; [TestExport] registers in a later pass and is meant to win. Asking
-    /// for both is the mistake, and it is reported as one.
-    ///
-    /// Declared through the resolver rather than as a [ModuleTest] with the conflicting signature,
-    /// because a test that carries the shape cannot also survive to assert on it.
+    /// Pinned because it reads like a bug and is not. The field report filed it as one: the
+    /// parameter says [Mock] and the object is real. What it is, is two documented rules composing
+    /// — parameter attributes register in the earlier pass, setup attributes in the later one, and
+    /// later wins.
     /// </summary>
-    [Fact]
-    public async Task MockAndTestExportOfOneServiceIsRefused() {
-        var services = new ServiceCollection();
-        var context = new ConflictContext(
-            typeof(ConflictSample).GetMethod(nameof(ConflictSample.Conflicting))!);
-        var resolver = new TestParameterResolver(context);
-
-        resolver.SetupServiceCollection(services);
-
-        // What [TestExport] does: register the named implementation in the pass that runs after the
-        // parameter attributes have had theirs.
-        services.AddSingleton<ISingletonService, ExportedSingletonService>();
-
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => resolver.ResolveArgumentsAsync(services.BuildServiceProvider(), []));
-
-        Assert.Contains("[Mock]", exception.Message);
-        Assert.Contains("[TestExport]", exception.Message);
-        Assert.Contains(nameof(ExportedSingletonService), exception.Message);
-    }
-
-    [MoqSupport]
-    public static class ConflictSample {
-        public static void Conflicting([Mock] ISingletonService service) { }
-    }
-
-    private class ConflictContext(System.Reflection.MethodInfo method) : ITestMethodContext {
-        public System.Reflection.MethodInfo Method { get; } = method;
-        public IReadOnlyList<Attribute> Attributes { get; } = [];
+    [ModuleTest]
+    [SutModule]
+    [TestExport(typeof(ISingletonService), Implementation = typeof(ExportedSingletonService))]
+    public void TestExportDisplacesAMockOnTheParameterToo([Mock] ISingletonService service) {
+        Assert.IsType<ExportedSingletonService>(service);
     }
 
     public class ExportedSingletonService : ISingletonService {
