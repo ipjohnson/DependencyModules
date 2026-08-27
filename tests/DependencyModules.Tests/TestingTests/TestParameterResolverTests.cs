@@ -192,42 +192,44 @@ public class TestParameterResolverTests {
     }
 
     /// <summary>
-    /// A parameter attribute does not override an attribute on the method, the class or the
-    /// assembly, and <c>[Mock]</c> is parameter-only while <c>[TestExport]</c> is not. So naming a
-    /// real implementation displaces the double for the <c>[Mock]</c> parameter too, and the
-    /// parameter holds what everything else in the test holds.
+    /// A [Mock] on a parameter overrides a registration made from a wider scope — a [TestExport] on
+    /// the method, the class or the assembly. A parameter attribute names one argument, which is the
+    /// narrowest thing a test can say, so it is the one that decides.
     ///
-    /// Worth pinning rather than leaving implicit. It is the composition of two rules that are each
-    /// documented separately — parameter attributes register in the earlier pass, setup attributes
-    /// in the later one, and later wins — and read cold it looks like a bug: the parameter says
-    /// [Mock] and the object is real. It is the precedence working.
+    /// The hosts arrange that by running this pass last, after the setup attributes, and this is the
+    /// half of it the resolver owns: whatever was registered before it, the double registered here
+    /// is the one the container ends up with.
     /// </summary>
     [Fact]
-    public async Task ARegistrationFromAWiderScope_DisplacesAMockOnAParameter() {
+    public async Task AMockOnAParameter_BeatsARegistrationMadeBeforeIt() {
         var services = new ServiceCollection();
         var resolver = new TestParameterResolver(ContextFor(nameof(Samples.UnkeyedMock)));
 
+        // What a [TestExport] from any wider scope leaves behind, since the setup-attribute pass
+        // runs first.
         services.AddSingleton<IThing, Thing>();
-        resolver.SetupServiceCollection(services);
-
-        // What a [TestExport] on the method, class or assembly does: register in the pass that runs
-        // after the parameter attributes have had theirs.
         services.AddSingleton<IThing, Other2>();
+
+        resolver.SetupServiceCollection(services);
 
         var arguments = await resolver.ResolveArgumentsAsync(services.BuildServiceProvider(), []);
 
-        Assert.IsType<Other2>(Assert.Single(arguments));
+        Assert.IsType<Other>(Assert.Single(arguments));
     }
 
     /// <summary>
-    /// Control: with nothing from a wider scope naming the service, the parameter gets the double.
+    /// And the service under test sees the same double, which is why [Mock] registers at all rather
+    /// than merely supplying an argument.
     /// </summary>
     [Fact]
-    public async Task AMockNothingDisplaces_GetsTheDouble() {
-        var arguments = await Resolve(
-            nameof(Samples.UnkeyedMock), services => services.AddSingleton<IThing, Thing>());
+    public void AMockOnAParameter_IsWhatTheContainerHandsOut() {
+        var services = new ServiceCollection();
+        var resolver = new TestParameterResolver(ContextFor(nameof(Samples.UnkeyedMock)));
 
-        Assert.IsType<Other>(Assert.Single(arguments));
+        services.AddSingleton<IThing, Other2>();
+        resolver.SetupServiceCollection(services);
+
+        Assert.IsType<Other>(services.BuildServiceProvider().GetRequiredService<IThing>());
     }
 
     [Fact]

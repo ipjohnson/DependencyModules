@@ -94,6 +94,32 @@ public static class DependencyModuleDiagnostics {
     /// no entry point to be in the wrong file relative to.
     /// </remarks>
     /// <summary>
+    /// Raised for a <c>[Mock]</c> parameter and a <c>[TestExport]</c> on the same method, both
+    /// naming one service.
+    /// </summary>
+    /// <remarks>
+    /// A parameter attribute is the narrowest thing a test can say, so <c>[Mock]</c> wins and the
+    /// <c>[TestExport]</c> beside it does nothing. That is worth reporting rather than resolving
+    /// quietly: the two say opposite things about one service, written at the same place, and only
+    /// one of them can have been meant.
+    ///
+    /// Only on the same method. A <c>[TestExport]</c> on the class or the assembly is a default for
+    /// everything under it, and a parameter overriding that for one test is the point of having
+    /// both scopes — nothing to report there.
+    /// </remarks>
+    public static readonly DiagnosticDescriptor MockAndTestExportOnOneMethod = new(
+        id: "DM0021",
+        title: "[Mock] and [TestExport] name one service on the same method",
+        messageFormat:
+        "'{0}' carries [TestExport] for '{1}' and a [Mock] parameter naming the same service. The " +
+        "parameter wins, so the [TestExport] does nothing. Move the [TestExport] to the class or " +
+        "the assembly if it is the default this test is overriding, or drop whichever of the two " +
+        "was not meant.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    /// <summary>
     /// Raised for an interception no module applies, so it can never run.
     /// </summary>
     /// <remarks>

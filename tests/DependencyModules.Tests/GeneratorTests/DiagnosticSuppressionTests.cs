@@ -140,6 +140,22 @@ public class DiagnosticSuppressionTests {
                                            }
                                            """)];
 
+        yield return ["DM0021", """
+                                using DependencyModules.Runtime.Attributes;
+                                using DependencyModules.Testing.Attributes;
+
+                                namespace TestNamespace;
+
+                                public interface IThing;
+
+                                public class RealThing : IThing;
+
+                                public class Fixture {
+                                    [TestExport(typeof(IThing), Implementation = typeof(RealThing))]
+                                    public void Conflicting([Mock] IThing thing) { }
+                                }
+                                """];
+
         yield return ["DM0020", Convention("""
                                            using DependencyModules.Runtime.Interception;
 

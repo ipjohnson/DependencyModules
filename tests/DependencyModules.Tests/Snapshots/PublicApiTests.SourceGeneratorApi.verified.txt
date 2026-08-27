@@ -1083,6 +1083,7 @@ namespace DependencyModules.SourceGenerator.Impl
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor GeneratorFailure;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor InterceptionAppliedByNoModule;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor InterceptorCannotServeMembers;
+        public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor MockAndTestExportOnOneMethod;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ModuleAttributeNamespaceNotImported;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ModuleCannotBeNested;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ModuleMustBePartial;
@@ -1165,6 +1166,12 @@ namespace DependencyModules.SourceGenerator.Impl
                 public static readonly CSharpAuthor.ITypeDefinition IDependencyModule;
                 public static readonly CSharpAuthor.ITypeDefinition IDependencyModuleProvider;
                 public static readonly CSharpAuthor.ITypeDefinition IModuleEnvironment;
+            }
+            public static class Testing
+            {
+                public const string Namespace = "DependencyModules.Testing.Attributes";
+                public static readonly CSharpAuthor.ITypeDefinition MockAttribute;
+                public static readonly CSharpAuthor.ITypeDefinition TestExportAttribute;
             }
         }
         public static class Microsoft

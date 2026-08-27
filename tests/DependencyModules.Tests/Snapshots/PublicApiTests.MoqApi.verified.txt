@@ -5,6 +5,7 @@ namespace DependencyModules.Moq
     {
         public MoqSupportAttribute() { }
         public object ProvideMock(System.Type type) { }
+        public bool RegistersService(DependencyModules.Testing.Attributes.Interfaces.ITestMethodContext testMethod, System.Type serviceType) { }
         public void SetupServiceCollection(DependencyModules.Testing.Attributes.Interfaces.ITestMethodContext testMethod, Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection) { }
     }
 }
