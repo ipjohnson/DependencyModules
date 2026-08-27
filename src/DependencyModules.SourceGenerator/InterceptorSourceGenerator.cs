@@ -196,6 +196,67 @@ public class InterceptorSourceGenerator : BaseAttributeSourceGenerator<Intercept
             // used to make it invisible.
             ReportUnservedMembers(context, model, lookup, logger);
         }
+
+        ReportUnappliedInterceptions(context, data.Left, Usable(data.Right), lookup, logger);
+    }
+
+    /// <summary>
+    /// Reports an interception no module applies, which is a wrapper generated and never used.
+    /// </summary>
+    /// <remarks>
+    /// Placement is per module, and every module individually follows the rule, so an interception
+    /// can be refused by all of them without any one of them doing anything wrong. That is the shape
+    /// worth reporting: not an interception on the wrong module, which is a judgement, but one on no
+    /// module, which cannot be right in any configuration.
+    ///
+    /// The case that reaches here is a realm-only module registering the class by convention. Its
+    /// registrations are stamped with its own realm when they are matched, long after the
+    /// interception model was built, so an interception naming no realm is offered only to the
+    /// modules that are not realm-only - and if that is none of them, it is applied by nobody.
+    /// </remarks>
+    private static void ReportUnappliedInterceptions(
+        SourceProductionContext context,
+        ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> entryPoints,
+        IReadOnlyList<InterceptorModel> usable,
+        SyntaxTreeLookup lookup,
+        FileLogger logger) {
+
+        if (usable.Count == 0) {
+            return;
+        }
+
+        var (entryPointList, _) = EntryModelUtil.ConsolidateEntryPointModels(entryPoints);
+        var targets = EntryModelUtil.RegistrationTargets(entryPointList).ToArray();
+
+        if (targets.Length == 0) {
+            return;
+        }
+
+        var applied = new HashSet<ITypeDefinition>();
+
+        foreach (var entryPointModel in targets) {
+            foreach (var model in ForModule(usable, entryPointModel)) {
+                applied.Add(model.ImplementationType);
+            }
+        }
+
+        foreach (var model in usable) {
+            context.CancellationToken.ThrowIfCancellationRequested();
+
+            if (applied.Contains(model.ImplementationType)) {
+                continue;
+            }
+
+            logger.Error(
+                $"No module applies the interception on '{model.ImplementationType.Name}', " +
+                "so its interceptors never run.");
+
+            context.ReportDiagnostic(
+                Diagnostic.Create(
+                    DependencyModuleDiagnostics.InterceptionAppliedByNoModule,
+                    model.Location?.ToLocationOrNone(lookup) ?? Location.None,
+                    model.ImplementationType.Name));
+        }
     }
 
     /// <summary>

@@ -140,6 +140,26 @@ public class DiagnosticSuppressionTests {
                                            }
                                            """)];
 
+        yield return ["DM0020", Convention("""
+                                           using DependencyModules.Runtime.Interception;
+
+                                           public interface IGreeter { string Greet(); }
+
+                                           public sealed class CountingInterceptor : IInterceptor {
+                                               public TResult Intercept<TResult>(InvocationContext<TResult> context) => context.Proceed();
+                                           }
+
+                                           [Intercept(typeof(CountingInterceptor))]
+                                           public sealed class Greeter : IGreeter { public string Greet() => "hi"; }
+
+                                           [DependencyModule(OnlyRealm = true)]
+                                           public partial class ConventionModule : IConventionModule {
+                                               void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                                                   conventions.RegisterAll<IGreeter>().AsSingleton();
+                                               }
+                                           }
+                                           """)];
+
         yield return ["DM0010", Convention("""
                                            public interface IFoo { }
                                            public class Foo : IFoo { }

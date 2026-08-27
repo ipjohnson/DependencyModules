@@ -104,9 +104,76 @@ public static class InterceptorModelUtility {
             declarations,
             order,
             TypeParameters: TypeParameterModels(implementationSymbol),
-            Realm: realm?.GetTypeDefinition(),
+            Realm: (realm?.GetTypeDefinition() ??
+                    RegistrationRealm(typeDeclarationSyntax, context, cancellationToken)),
             Location: LocationModel.From(context.Node));
     }
+
+    /// <summary>
+    /// The realm this class's own registration names, for an interception that names none.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// An interception is about one implementation - that is what per-implementation interception
+    /// means - so it belongs wherever that implementation's registration belongs. Without this,
+    /// a realm-scoped service with an unrealmed [Intercept] put the registration in the named
+    /// module and the applicator in every module except it: dead in every container that could
+    /// exist, and reported by nothing, because each half was individually following the rule.
+    /// </para>
+    /// <para>
+    /// Only consulted when [Intercept] names no realm of its own. An explicit Realm is the
+    /// developer's answer and stays the answer.
+    /// </para>
+    /// <para>
+    /// Read from the declaration rather than from the service model, because the two are built by
+    /// different providers and this one has only the syntax it was handed. That also bounds what
+    /// this can see: a class registered by a convention carries no service attribute, so its realm
+    /// is decided at match time and is not visible from here.
+    /// </para>
+    /// </remarks>
+    private static ITypeDefinition? RegistrationRealm(
+        TypeDeclarationSyntax typeDeclarationSyntax,
+        SyntaxTransformContext context,
+        CancellationToken cancellationToken) {
+
+        foreach (var attributeList in typeDeclarationSyntax.AttributeLists) {
+            foreach (var attribute in attributeList.Attributes) {
+                if (!IsServiceAttribute(attribute, context, cancellationToken)) {
+                    continue;
+                }
+
+                foreach (var argument in attribute.ArgumentList?.Arguments ??
+                                         default(SeparatedSyntaxList<AttributeArgumentSyntax>)) {
+                    if (argument.NameEquals?.Name.ToString() == "Realm" &&
+                        argument.Expression is TypeOfExpressionSyntax realmTypeOf) {
+                        return ResolveType(realmTypeOf, context, cancellationToken)?.GetTypeDefinition();
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static bool IsServiceAttribute(
+        AttributeSyntax attribute, SyntaxTransformContext context, CancellationToken cancellationToken) {
+
+        foreach (var serviceAttribute in ServiceAttributeTypes) {
+            if (AttributeTypeMatcher.Matches(
+                    context.SemanticModel, attribute, serviceAttribute, cancellationToken)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static readonly ITypeDefinition[] ServiceAttributeTypes = {
+        KnownTypes.DependencyModules.Attributes.SingletonServiceAttribute,
+        KnownTypes.DependencyModules.Attributes.ScopedServiceAttribute,
+        KnownTypes.DependencyModules.Attributes.TransientServiceAttribute,
+        KnownTypes.DependencyModules.Attributes.CrossWireServiceAttribute
+    };
 
     private static InterceptorModel Refuse(string? reason, SyntaxTransformContext context) =>
         reason == null

@@ -245,6 +245,19 @@ public static class GeneratorTestHarness {
         // Assembly.Load(byte[]) puts it in the default context but does not make it discoverable by
         // name, so generated code referencing it fails to bind at run time. The resolver closes that.
         lock (LoadedLibraries) {
+            // Two test classes compiling different libraries under one name is a trap worth being
+            // loud about. The resolver below is keyed by name, so the second registration decides
+            // what every earlier reference binds to at run time - and the tests that break are
+            // whichever ones happened to run second, which is a failure that appears and disappears
+            // with the filter you ran.
+            Xunit.Assert.True(
+                !LibrarySources.TryGetValue(assemblyName, out var previousSource) ||
+                previousSource == source,
+                $"'{assemblyName}' was compiled more than once from different source. The runtime " +
+                "resolver is keyed by assembly name, so one of them would silently stand in for the " +
+                "other. Give each test class its own assembly name.");
+
+            LibrarySources[assemblyName] = source;
             LoadedLibraries[assemblyName] = assembly;
 
             if (!_resolverHooked) {
@@ -264,6 +277,9 @@ public static class GeneratorTestHarness {
     }
 
     private static readonly Dictionary<string, System.Reflection.Assembly> LoadedLibraries = new();
+
+    /// <summary>What each library name was compiled from, so a reused name is caught.</summary>
+    private static readonly Dictionary<string, string> LibrarySources = new();
 
     private static bool _resolverHooked;
 

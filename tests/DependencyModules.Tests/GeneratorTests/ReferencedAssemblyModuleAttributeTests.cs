@@ -114,7 +114,7 @@ public class ReferencedAssemblyModuleAttributeTests {
     /// </summary>
     [Fact]
     public void AClassLibrary_IsSilent() {
-        var library = GeneratorTestHarness.CompileLibrary(LibrarySource, "ThePackage", runGenerator: true);
+        var library = GeneratorTestHarness.CompileLibrary(LibrarySource, "TheModulePackage", runGenerator: true);
 
         var result = GeneratorTestHarness.Run(
             new Dictionary<string, string> {
@@ -147,7 +147,7 @@ public class ReferencedAssemblyModuleAttributeTests {
         string? programExtra = null,
         IReadOnlyDictionary<string, string>? extraFiles = null) {
 
-        var library = GeneratorTestHarness.CompileLibrary(LibrarySource, "ThePackage", runGenerator: true);
+        var library = GeneratorTestHarness.CompileLibrary(LibrarySource, "TheModulePackage", runGenerator: true);
 
         var sources = new Dictionary<string, string> {
             // Top-level statements, so an ApplicationModule is generated and there is an entry

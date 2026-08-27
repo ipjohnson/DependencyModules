@@ -93,6 +93,32 @@ public static class DependencyModuleDiagnostics {
     /// when nothing generated an <c>ApplicationModule</c> — a class library or a test project has
     /// no entry point to be in the wrong file relative to.
     /// </remarks>
+    /// <summary>
+    /// Raised for an interception no module applies, so it can never run.
+    /// </summary>
+    /// <remarks>
+    /// Registrations and interceptions are placed by the same rule — named a realm, it belongs to
+    /// that module; named none, it belongs to every module that is not realm-only — and the two can
+    /// still land in different places. An interception on a class a realm-only module registers by
+    /// convention is the case: the registration is stamped with that module's realm at match time,
+    /// while the interception, naming no realm, is offered only to modules that are not realm-only.
+    ///
+    /// This reports the shape that cannot work in any configuration, rather than the one that
+    /// merely looks odd: no module in the compilation applies this interception, so the wrapper is
+    /// generated and never used. Naming a realm on <c>[Intercept]</c> is the fix.
+    /// </remarks>
+    public static readonly DiagnosticDescriptor InterceptionAppliedByNoModule = new(
+        id: "DM0020",
+        title: "Interception is applied by no module",
+        messageFormat:
+        "'{0}' is marked for interception, but no module in this compilation applies it, so the " +
+        "interceptors never run. This happens when the registration and the interception land in " +
+        "different realms — a realm-only module registering '{0}' by convention, for instance, while " +
+        "the interception names no realm. Name the module on [Intercept(Realm = typeof(...))].",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
     public static readonly DiagnosticDescriptor AssemblyModuleAttributeNotComposed = new(
         id: "DM0019",
         title: "Assembly-level module attribute is not composed",
