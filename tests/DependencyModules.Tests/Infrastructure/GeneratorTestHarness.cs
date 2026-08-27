@@ -1,5 +1,7 @@
 
+using System.Collections;
 using System.Collections.Immutable;
+using System.Runtime.CompilerServices;
 using System.Reflection;
 using DependencyModules.Runtime.Attributes;
 using Microsoft.CodeAnalysis;
@@ -159,15 +161,30 @@ public static class GeneratorTestHarness {
         driver = driver.RunGenerators(Compile(second));
         var secondRun = driver.GetRunResult();
 
-        var reasons = secondRun.Results
+        var outputs = secondRun.Results
             .SelectMany(result => result.TrackedOutputSteps)
             .SelectMany(step => step.Value)
             .SelectMany(step => step.Outputs)
-            .Select(output => output.Reason)
+            .Select(output => (output.Reason, EmittedSource: EmittedSourceCount(output.Value)))
             .ToArray();
 
-        return new IncrementalRunResult(firstOutputs, Outputs(secondRun), reasons);
+        return new IncrementalRunResult(firstOutputs, Outputs(secondRun), outputs);
     }
+
+    /// <summary>
+    /// How many files a tracked source output produced.
+    /// </summary>
+    /// <remarks>
+    /// Each one carries a <c>(sources, diagnostics)</c> pair, which is what tells an output that
+    /// emits from one that only reports. The distinction matters: a diagnostics-only output is
+    /// combined with the compilation on purpose, so it re-runs whenever anything is typed, and
+    /// counting that as a cache miss would say the generator regenerates on every keystroke when it
+    /// does not.
+    ///
+    /// Read through ITuple rather than by casting: the element type is not public.
+    /// </remarks>
+    private static int EmittedSourceCount(object? value) =>
+        value is ITuple { Length: 2 } tuple && tuple[0] is ICollection sources ? sources.Count : 0;
 
     private static IReadOnlyDictionary<string, string> Outputs(GeneratorDriverRunResult runResult) =>
         runResult.Results
@@ -362,22 +379,34 @@ public class GeneratorResult(
 public class IncrementalRunResult(
     IReadOnlyDictionary<string, string> firstRun,
     IReadOnlyDictionary<string, string> secondRun,
-    IReadOnlyList<IncrementalStepRunReason> outputReasons) {
+    IReadOnlyList<(IncrementalStepRunReason Reason, int EmittedSource)> outputs) {
 
     public IReadOnlyDictionary<string, string> FirstRun { get; } = firstRun;
 
     public IReadOnlyDictionary<string, string> SecondRun { get; } = secondRun;
 
-    public IReadOnlyList<IncrementalStepRunReason> OutputReasons { get; } = outputReasons;
+    public IReadOnlyList<IncrementalStepRunReason> OutputReasons { get; } =
+        outputs.Select(output => output.Reason).ToArray();
 
     /// <summary>
-    /// True when the second run reused every cached output, meaning the edit was correctly
-    /// recognised as irrelevant to generation.
+    /// True when the second run reused every output that produced a file, meaning the edit was
+    /// correctly recognised as irrelevant to generation.
     /// </summary>
+    /// <remarks>
+    /// Outputs that emit nothing are excluded, and the exclusion is the point rather than a
+    /// loophole. Diagnostics are reported from their own outputs, combined with the compilation so
+    /// that a location can carry the syntax tree Roslyn needs before .editorconfig or #pragma can
+    /// silence it. The compilation changes on every keystroke, so those outputs re-run on every
+    /// keystroke by design - they write no source, and holding them to a cache that cannot apply
+    /// would report a regression that is not there. What must stay cached is emission, and that is
+    /// what this measures.
+    /// </remarks>
     public bool AllOutputsCached =>
-        OutputReasons.Count > 0 &&
-        OutputReasons.All(reason =>
-            reason is IncrementalStepRunReason.Cached or IncrementalStepRunReason.Unchanged);
+        outputs.Any(output => output.EmittedSource > 0) &&
+        outputs
+            .Where(output => output.EmittedSource > 0)
+            .All(output => output.Reason
+                is IncrementalStepRunReason.Cached or IncrementalStepRunReason.Unchanged);
 }
 
 internal class TestAnalyzerConfigOptionsProvider(IReadOnlyDictionary<string, string>? buildProperties)

@@ -971,7 +971,7 @@ namespace DependencyModules.Conventions.Utilities
     }
     public static class ConventionMatcher
     {
-        public static System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ServiceModel> Match(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel, DependencyModules.Conventions.Models.ConventionModuleModel conventionModule, System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ConventionCandidateModel> candidates, System.Action<Microsoft.CodeAnalysis.Diagnostic> report, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
+        public static System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ServiceModel> Match(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel, DependencyModules.Conventions.Models.ConventionModuleModel conventionModule, System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ConventionCandidateModel> candidates, DependencyModules.SourceGenerator.Impl.Models.DiagnosticReporter report, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
     }
     public static class ConventionModelUtility
     {
@@ -1009,6 +1009,11 @@ namespace DependencyModules.SourceGenerator.Impl
                 "Left",
                 "Right"})] System.ValueTuple<System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>>, System.Collections.Immutable.ImmutableArray<T>> valueTuple, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger);
         protected abstract System.Collections.Generic.IEqualityComparer<T> GetComparer();
+        protected virtual void ReportDiagnostics(Microsoft.CodeAnalysis.SourceProductionContext context, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Left",
+                "Right",
+                "Left",
+                "Right"})] System.ValueTuple<System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>>, System.Collections.Immutable.ImmutableArray<T>> data, DependencyModules.SourceGenerator.Impl.Models.SyntaxTreeLookup lookup, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
         public void SetupGenerator(Microsoft.CodeAnalysis.IncrementalGeneratorInitializationContext context, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
                 "Left",
                 "Right"})] Microsoft.CodeAnalysis.IncrementalValuesProvider<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>> incrementalValueProvider) { }
@@ -1091,6 +1096,9 @@ namespace DependencyModules.SourceGenerator.Impl
         public void GenerateSource(Microsoft.CodeAnalysis.SourceProductionContext context, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
                 "Left",
                 "Right"})] System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>> allEntryPoints) { }
+        public static void Register(Microsoft.CodeAnalysis.IncrementalGeneratorInitializationContext context, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Left",
+                "Right"})] Microsoft.CodeAnalysis.IncrementalValueProvider<System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>>> valuesProvider, bool generateAttribute) { }
     }
     public interface IDependencyModuleSourceGenerator
     {
@@ -1187,6 +1195,17 @@ namespace DependencyModules.SourceGenerator.Impl
     {
         public ModuleAttributeWriter() { }
         protected override void CustomImplementation(CSharpAuthor.IConstructContainer container, CSharpAuthor.ClassDefinition attributeClass, DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel model) { }
+    }
+    public static class ModuleEntryPointDiagnostics
+    {
+        public static bool IsNestedInType(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel model) { }
+        public static bool IsNotPartial(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel model) { }
+        public static bool ReliesOnGeneratedEquality(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel model) { }
+        public static void Report(Microsoft.CodeAnalysis.SourceProductionContext context, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Models",
+                "Compilation",
+                "Left",
+                "Right"})] System.ValueTuple<System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>>, Microsoft.CodeAnalysis.Compilation> input) { }
     }
 }
 namespace DependencyModules.SourceGenerator.Impl.Models
@@ -1290,6 +1309,15 @@ namespace DependencyModules.SourceGenerator.Impl.Models
         public DependencyModuleConfigurationModelComparer() { }
         public bool Equals(DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel? x, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel? y) { }
         public int GetHashCode(DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel obj) { }
+    }
+    public sealed class DiagnosticReporter
+    {
+        public static readonly DependencyModules.SourceGenerator.Impl.Models.DiagnosticReporter Silent;
+        public DiagnosticReporter(System.Action<Microsoft.CodeAnalysis.Diagnostic>? sink, DependencyModules.SourceGenerator.Impl.Models.SyntaxTreeLookup lookup) { }
+        public bool IsSilent { get; }
+        public Microsoft.CodeAnalysis.Location LocationFor(DependencyModules.SourceGenerator.Impl.Models.LocationModel? location) { }
+        public void Report(Microsoft.CodeAnalysis.DiagnosticDescriptor descriptor, DependencyModules.SourceGenerator.Impl.Models.LocationModel? location, params object?[] messageArgs) { }
+        public void Report(Microsoft.CodeAnalysis.DiagnosticDescriptor descriptor, Microsoft.CodeAnalysis.Location location, params object?[] messageArgs) { }
     }
     public enum EnvironmentConditionKind
     {
@@ -1406,7 +1434,9 @@ namespace DependencyModules.SourceGenerator.Impl.Models
         public int StartCharacter { get; init; }
         public int StartLine { get; init; }
         public Microsoft.CodeAnalysis.Location ToLocation() { }
+        public Microsoft.CodeAnalysis.Location ToLocation(DependencyModules.SourceGenerator.Impl.Models.SyntaxTreeLookup lookup) { }
         public Microsoft.CodeAnalysis.Location ToLocationOrNone() { }
+        public Microsoft.CodeAnalysis.Location ToLocationOrNone(DependencyModules.SourceGenerator.Impl.Models.SyntaxTreeLookup lookup) { }
         public static DependencyModules.SourceGenerator.Impl.Models.LocationModel From(Microsoft.CodeAnalysis.SyntaxNode node) { }
     }
     public enum LogOutputLevel
@@ -1555,6 +1585,12 @@ namespace DependencyModules.SourceGenerator.Impl.Models
         public CSharpAuthor.ITypeDefinition? Realm { get; init; }
         public DependencyModules.SourceGenerator.Impl.Models.RegistrationType? RegistrationType { get; init; }
         public CSharpAuthor.ITypeDefinition ServiceType { get; init; }
+    }
+    public sealed class SyntaxTreeLookup
+    {
+        public static readonly DependencyModules.SourceGenerator.Impl.Models.SyntaxTreeLookup None;
+        public SyntaxTreeLookup(Microsoft.CodeAnalysis.Compilation? compilation) { }
+        public Microsoft.CodeAnalysis.SyntaxTree? Find(string filePath) { }
     }
     public class TypeParameterModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.TypeParameterModel>
     {
@@ -1768,6 +1804,11 @@ namespace DependencyModules.SourceGenerator
                 "Left",
                 "Right"})] System.ValueTuple<System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>>, System.Collections.Immutable.ImmutableArray<DependencyModules.SourceGenerator.Impl.Models.InterceptorModel>> inputData, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
         protected override System.Collections.Generic.IEqualityComparer<DependencyModules.SourceGenerator.Impl.Models.InterceptorModel> GetComparer() { }
+        protected override void ReportDiagnostics(Microsoft.CodeAnalysis.SourceProductionContext context, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Left",
+                "Right",
+                "Left",
+                "Right"})] System.ValueTuple<System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>>, System.Collections.Immutable.ImmutableArray<DependencyModules.SourceGenerator.Impl.Models.InterceptorModel>> data, DependencyModules.SourceGenerator.Impl.Models.SyntaxTreeLookup lookup, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
     }
     public class ServiceSourceGenerator : DependencyModules.SourceGenerator.Impl.BaseAttributeSourceGenerator<DependencyModules.SourceGenerator.Impl.Models.ServiceModel>
     {
@@ -1782,6 +1823,11 @@ namespace DependencyModules.SourceGenerator
                 "Right"})] System.ValueTuple<System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>>, System.Collections.Immutable.ImmutableArray<DependencyModules.SourceGenerator.Impl.Models.ServiceModel>> inputData, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
         protected void GenerateSourceOutput(Microsoft.CodeAnalysis.SourceProductionContext context, DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel configurationModel, System.Collections.Immutable.ImmutableArray<DependencyModules.SourceGenerator.Impl.Models.ServiceModel> serviceModels, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
         protected override System.Collections.Generic.IEqualityComparer<DependencyModules.SourceGenerator.Impl.Models.ServiceModel> GetComparer() { }
+        protected override void ReportDiagnostics(Microsoft.CodeAnalysis.SourceProductionContext context, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Left",
+                "Right",
+                "Left",
+                "Right"})] System.ValueTuple<System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>>, System.Collections.Immutable.ImmutableArray<DependencyModules.SourceGenerator.Impl.Models.ServiceModel>> data, DependencyModules.SourceGenerator.Impl.Models.SyntaxTreeLookup lookup, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
     }
     [Microsoft.CodeAnalysis.Generator]
     public class SourceGenerator : DependencyModules.SourceGenerator.Impl.BaseSourceGenerator

@@ -47,7 +47,7 @@ public static class ConventionMatcher {
         ModuleEntryPointModel entryPointModel,
         ConventionModuleModel conventionModule,
         IReadOnlyList<ConventionCandidateModel> candidates,
-        Action<Diagnostic> report,
+        DiagnosticReporter report,
         FileLogger logger) {
 
         var moduleName = entryPointModel.EntryPointType.Name;
@@ -55,11 +55,11 @@ public static class ConventionMatcher {
         foreach (var unreadable in conventionModule.Unreadable) {
             logger.Error($"{moduleName}: refused '{unreadable.Text}' — {unreadable.Reason}.");
 
-            report(Diagnostic.Create(
+            report.Report(
                 DependencyModuleDiagnostics.ConventionCannotBeRead,
-                unreadable.Location.ToLocationOrNone(),
+                unreadable.Location,
                 unreadable.Reason,
-                unreadable.Text));
+                unreadable.Text);
         }
 
         var merged = MergePartialDeclarations(candidates);
@@ -94,7 +94,7 @@ public static class ConventionMatcher {
         IReadOnlyList<ConventionCandidateModel> candidates,
         string moduleName,
         List<ConventionRegistrationMatch> matches,
-        Action<Diagnostic> report,
+        DiagnosticReporter report,
         FileLogger logger) {
 
         var serviceName = convention.DisplayName;
@@ -102,11 +102,11 @@ public static class ConventionMatcher {
         if (convention.Lifestyle == null) {
             logger.Error($"{moduleName}: the convention registering '{serviceName}' declared no lifetime.");
 
-            report(Diagnostic.Create(
+            report.Report(
                 DependencyModuleDiagnostics.ConventionCannotBeRead,
-                convention.Location.ToLocationOrNone(),
+                convention.Location,
                 "no lifetime was declared; call AsSingleton(), AsScoped() or AsTransient()",
-                $"RegisterAll({serviceName})"));
+                $"RegisterAll({serviceName})");
 
             return;
         }
@@ -166,14 +166,12 @@ public static class ConventionMatcher {
                     $"{moduleName}: '{candidate.ImplementationType.Name}' matched '{serviceName}' " +
                     "but has no accessible constructor.");
 
-                report(Diagnostic.Create(
+                report.Report(
                     DependencyModuleDiagnostics.ConventionMatchNotConstructable,
-                    candidate.Location == LocationModel.None
-                        ? convention.Location.ToLocationOrNone()
-                        : candidate.Location.ToLocation(),
+                    candidate.Location == LocationModel.None ? convention.Location : candidate.Location,
                     candidate.ImplementationType.Name,
                     serviceName,
-                    moduleName));
+                    moduleName);
 
                 continue;
             }
@@ -186,12 +184,12 @@ public static class ConventionMatcher {
         if (found == 0) {
             logger.Info($"{moduleName}: the convention registering '{serviceName}' matched nothing.");
 
-            report(Diagnostic.Create(
+            report.Report(
                 DependencyModuleDiagnostics.ConventionMatchedNothing,
-                convention.Location.ToLocationOrNone(),
+                convention.Location,
                 serviceName,
                 moduleName,
-                AdviceForEmptyMatch(convention, serviceName)));
+                AdviceForEmptyMatch(convention, serviceName));
         }
     }
 
@@ -455,7 +453,7 @@ public static class ConventionMatcher {
     private static List<PendingRegistration> RemoveAmbiguous(
         List<PendingRegistration> pending,
         string moduleName,
-        Action<Diagnostic> report,
+        DiagnosticReporter report,
         FileLogger logger) {
 
         // Keyed on what actually reaches the container: this implementation, under this service
@@ -505,13 +503,13 @@ public static class ConventionMatcher {
                 $"{moduleName}: '{key.Implementation.Name}' is registered as " +
                 $"'{serviceName}' by two conventions. {difference}");
 
-            report(Diagnostic.Create(
+            report.Report(
                 DependencyModuleDiagnostics.AmbiguousConventionMatch,
                 LocationOf(first.Match),
                 key.Implementation.Name,
                 moduleName,
                 serviceName,
-                difference));
+                difference);
         }
 
         return usable;
@@ -558,10 +556,10 @@ public static class ConventionMatcher {
     /// match read out of a referenced assembly has no class to squiggle, so it reports at the
     /// convention that asked for it, which is the only place the developer can act on it.
     /// </remarks>
-    private static Location LocationOf(ConventionRegistrationMatch match) =>
+    private static LocationModel LocationOf(ConventionRegistrationMatch match) =>
         match.Candidate.Location == LocationModel.None
-            ? match.Convention.Location.ToLocationOrNone()
-            : match.Candidate.Location.ToLocation();
+            ? match.Convention.Location
+            : match.Candidate.Location;
 
     /// <summary>
     /// Whether an interface is one the BCL declares, and so not something to expand a service into.
@@ -618,7 +616,7 @@ public static class ConventionMatcher {
     /// match was not direct.
     /// </summary>
     private static void ReportExposure(
-        IReadOnlyList<PendingRegistration> usable, string moduleName, Action<Diagnostic> report) {
+        IReadOnlyList<PendingRegistration> usable, string moduleName, DiagnosticReporter report) {
 
         foreach (var entry in usable) {
             var serviceType = entry.Registration.ServiceType;
@@ -631,10 +629,10 @@ public static class ConventionMatcher {
                 ? $" (via {entry.Match.Interface.ViaTypeName})"
                 : "";
 
-            report(Diagnostic.Create(
+            report.Report(
                 DependencyModuleDiagnostics.ExposedByConvention,
                 LocationOf(entry.Match),
-                $"{serviceType.Name} in {moduleName}{via}"));
+                $"{serviceType.Name} in {moduleName}{via}");
         }
     }
 

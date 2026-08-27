@@ -156,15 +156,31 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
                 new EquatableList<ConventionCandidateModel>(
                     MetadataCandidateUtility.Collect(pair.Left, pair.Right, cancellation)));
 
-        context.RegisterSourceOutput(
-            incrementalValueProvider.Collect()
-                .Combine(conventionModules)
-                .Combine(candidates)
-                .Combine(metadataCandidates)
-                .Combine(decorators)
-                .Combine(attributeServices)
-                .Combine(moduleDecorators),
-            GenerateSourceOutput);
+        var everything = incrementalValueProvider.Collect()
+            .Combine(conventionModules)
+            .Combine(candidates)
+            .Combine(metadataCandidates)
+            .Combine(decorators)
+            .Combine(attributeServices)
+            .Combine(moduleDecorators);
+
+        context.RegisterSourceOutput(everything, GenerateSourceOutput);
+
+        // Diagnostics separately, with the compilation combined in, because a location needs the
+        // syntax tree it came from before .editorconfig or #pragma can silence it and only the
+        // compilation can find that tree.
+        //
+        // The compilation ModuleDecorators already carries cannot serve this. It rides inside a
+        // value compared on its resolved decorations alone, precisely so an edit that changes no
+        // declaration propagates nothing - which means that when nothing changed, the compilation
+        // held there is the one from a previous run. Good enough for asking whether a decorator's
+        // constraints admit a type; not good enough to hand Roslyn a tree that is no longer in the
+        // compilation it is filtering against.
+        //
+        // The cost is that matching runs twice, once per output. The emitting pass is silent, so
+        // nothing composes a diagnostic message it is about to discard, and this pass writes no
+        // source.
+        context.RegisterSourceOutput(everything.Combine(context.CompilationProvider), ReportDiagnostics);
     }
 
     private void GenerateSourceOutput(
@@ -202,9 +218,51 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
             configuration,
             logger => Generate(
                 context, entryPoints, conventionModules, candidates, decorators, attributeServices,
-                moduleDecorators, logger),
+                moduleDecorators, DiagnosticReporter.Silent, emit: true, logger),
             // Surfaced as a build error rather than discarded, matching the attribute generators. A
             // generator that fails quietly produces a green build with no registrations.
+            exception => context.ReportDiagnostic(
+                Diagnostic.Create(
+                    DependencyModuleDiagnostics.GeneratorFailure,
+                    Location.None,
+                    $"{exception.GetType().Name}: {exception.Message}")));
+    }
+
+    /// <summary>
+    /// Everything the convention pass has to say, reported against real syntax trees. Emits nothing.
+    /// </summary>
+    private void ReportDiagnostics(
+        SourceProductionContext context,
+        (((((((ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> Left,
+            ImmutableArray<ConventionModuleModel> Right) Left,
+            ImmutableArray<ConventionCandidateModel> Right) Left,
+            EquatableList<ConventionCandidateModel> Right) Left,
+            ImmutableArray<DecoratorModel> Right) Left,
+            ImmutableArray<ServiceModel> Right) Left,
+            ModuleDecorators Right) Left,
+            Compilation Right) data) {
+
+        var models = data.Left;
+        var entryPoints = models.Left.Left.Left.Left.Left.Left;
+
+        if (entryPoints.Length == 0) {
+            return;
+        }
+
+        var candidates = models.Left.Left.Left.Left.Right.Length == 0
+            ? (IReadOnlyList<ConventionCandidateModel>)models.Left.Left.Left.Right
+            : models.Left.Left.Left.Left.Right.Concat(models.Left.Left.Left.Right).ToArray();
+
+        var configuration = entryPoints.First().Right;
+        var report = new DiagnosticReporter(context.ReportDiagnostic, new SyntaxTreeLookup(data.Right));
+
+        FileLogger.Wrap(
+            LoggerName,
+            configuration,
+            logger => Generate(
+                context, entryPoints, models.Left.Left.Left.Left.Left.Right, candidates,
+                models.Left.Left.Right, models.Left.Right, models.Right,
+                report, emit: false, logger),
             exception => context.ReportDiagnostic(
                 Diagnostic.Create(
                     DependencyModuleDiagnostics.GeneratorFailure,
@@ -220,6 +278,8 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
         ImmutableArray<DecoratorModel> decorators,
         ImmutableArray<ServiceModel> attributeServices,
         ModuleDecorators moduleDecorators,
+        DiagnosticReporter report,
+        bool emit,
         FileLogger logger) {
 
         var (entryPointList, configurationModel) = EntryModelUtil.ConsolidateEntryPointModels(entryPoints);
@@ -246,10 +306,10 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
 
             GenerateForModule(
                 context, entryPointModel, configurationModel, conventionModule, candidates, decorators,
-                attributeServices, moduleDecorators, logger);
+                attributeServices, moduleDecorators, report, emit, logger);
         }
 
-        ReportUnclaimedModules(context, conventionModules, claimed, logger);
+        ReportUnclaimedModules(report, conventionModules, claimed, logger);
     }
 
     private void GenerateForModule(
@@ -261,6 +321,8 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
         ImmutableArray<DecoratorModel> decorators,
         ImmutableArray<ServiceModel> attributeServices,
         ModuleDecorators moduleDecorators,
+        DiagnosticReporter report,
+        bool emit,
         FileLogger logger) {
 
         var withNamespace = EntryModelUtil.EnsureNamespace(entryPointModel, configurationModel);
@@ -268,15 +330,16 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
         var serviceModels = conventionModule == null
             ? Array.Empty<ServiceModel>()
             : ConventionMatcher.Match(
-                withNamespace, conventionModule, candidates, context.ReportDiagnostic, logger);
+                withNamespace, conventionModule, candidates, report, logger);
 
         // Every registration this compilation makes, however it was declared. This is the whole
         // point of the single stage: a generic decorator is expanded once, against all of them.
         WriteDecorators(
             context, withNamespace, configurationModel,
-            ServiceTypes(attributeServices, serviceModels), decorators, moduleDecorators, logger);
+            ServiceTypes(attributeServices, serviceModels), decorators, moduleDecorators,
+            report, emit, logger);
 
-        if (serviceModels.Count == 0) {
+        if (serviceModels.Count == 0 || !emit) {
             return;
         }
 
@@ -344,9 +407,11 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
         IReadOnlyList<ITypeDefinition> registeredServiceTypes,
         ImmutableArray<DecoratorModel> declared,
         ModuleDecorators moduleDecorators,
+        DiagnosticReporter report,
+        bool emit,
         FileLogger logger) {
 
-        var decorators = CollectDecorators(context, entryPointModel, declared, moduleDecorators, logger);
+        var decorators = CollectDecorators(report, entryPointModel, declared, moduleDecorators, logger);
 
         if (decorators.Count == 0) {
             return;
@@ -360,9 +425,9 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
                 DecoratorConstraintChecker.CanClose(
                     moduleDecorators.Compilation, decoratorType, closedService));
 
-        ReportOpenGenericDecoration(context, refusedForOpenGenericRegistration, logger);
+        ReportOpenGenericDecoration(report, refusedForOpenGenericRegistration, logger);
 
-        if (expanded.Count == 0) {
+        if (expanded.Count == 0 || !emit) {
             return;
         }
 
@@ -381,7 +446,7 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
     /// those the module declares itself with <c>[Decorate]</c>.
     /// </summary>
     private static IReadOnlyList<DecoratorModel> CollectDecorators(
-        SourceProductionContext context,
+        DiagnosticReporter report,
         ModuleEntryPointModel entryPointModel,
         ImmutableArray<DecoratorModel> declared,
         ModuleDecorators moduleDecorators,
@@ -426,7 +491,7 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
             decorators.Add(resolution.Model);
         }
 
-        ReportAmbiguousOrdering(context, decorators, logger);
+        ReportAmbiguousOrdering(report, decorators, logger);
 
         return decorators;
     }
@@ -441,7 +506,7 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
     /// one reached emission carrying an unbound service type and produced CS7003 in generated code.
     /// </remarks>
     private static void ReportOpenGenericDecoration(
-        SourceProductionContext context,
+        DiagnosticReporter report,
         IReadOnlyList<DecoratorModel> refused,
         FileLogger logger) {
 
@@ -453,12 +518,11 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
                 $"'{decoratorName}' cannot decorate '{serviceName}' because it is registered as an " +
                 "open generic.");
 
-            context.ReportDiagnostic(
-                Diagnostic.Create(
-                    DependencyModuleDiagnostics.OpenGenericCannotBeDecorated,
-                    decorator.Location?.ToLocationOrNone() ?? Location.None,
-                    serviceName,
-                    decoratorName));
+            report.Report(
+                DependencyModuleDiagnostics.OpenGenericCannotBeDecorated,
+                decorator.Location,
+                serviceName,
+                decoratorName);
         }
     }
 
@@ -467,7 +531,7 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
     /// reported rather than resolved arbitrarily.
     /// </summary>
     private static void ReportAmbiguousOrdering(
-        SourceProductionContext context, IReadOnlyList<DecoratorModel> decorators, FileLogger logger) {
+        DiagnosticReporter report, IReadOnlyList<DecoratorModel> decorators, FileLogger logger) {
 
         for (var i = 0; i < decorators.Count; i++) {
             for (var j = i + 1; j < decorators.Count; j++) {
@@ -480,14 +544,13 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
                     $"'{decorators[i].DecoratorType.Name}' and '{decorators[j].DecoratorType.Name}' both " +
                     $"decorate '{decorators[i].ServiceType.Name}' with order {decorators[i].Order}.");
 
-                context.ReportDiagnostic(
-                    Diagnostic.Create(
-                        DependencyModuleDiagnostics.AmbiguousDecoratorOrder,
-                        decorators[i].Location?.ToLocationOrNone() ?? Location.None,
-                        decorators[i].DecoratorType.Name,
-                        decorators[j].DecoratorType.Name,
-                        decorators[i].ServiceType.Name,
-                        decorators[i].Order));
+                report.Report(
+                    DependencyModuleDiagnostics.AmbiguousDecoratorOrder,
+                    decorators[i].Location,
+                    decorators[i].DecoratorType.Name,
+                    decorators[j].DecoratorType.Name,
+                    decorators[i].ServiceType.Name,
+                    decorators[i].Order);
             }
         }
     }
@@ -500,7 +563,7 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
     /// explanation — exactly the silent failure the rest of this generator is built to avoid.
     /// </remarks>
     private static void ReportUnclaimedModules(
-        SourceProductionContext context,
+        DiagnosticReporter report,
         ImmutableArray<ConventionModuleModel> conventionModules,
         HashSet<ConventionModuleModel> claimed,
         FileLogger logger) {
@@ -514,11 +577,11 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
 
             logger.Error($"'{name}' implements IConventionModule but is not a [DependencyModule].");
 
-            context.ReportDiagnostic(Diagnostic.Create(
+            report.Report(
                 DependencyModuleDiagnostics.ConventionCannotBeRead,
-                conventionModule.Location?.ToLocationOrNone() ?? Location.None,
+                conventionModule.Location,
                 "the declaring type is not marked with [DependencyModule], so it registers nothing",
-                name));
+                name);
         }
     }
 }

@@ -38,15 +38,14 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
 
         LogDiscovery(inputData, logger);
 
-        var serviceModels = ReportUnconstructableServices(context, inputData.Right, logger);
-
-        serviceModels = ReportCrossWiredGenerics(context, serviceModels, logger);
+        // Filtering only. What each of these removes is reported by ReportDiagnostics, which shares
+        // the predicates rather than repeating them - a service that cannot be constructed, or a
+        // generic that cannot be cross-wired, is dropped here and explained there.
+        var serviceModels = Registerable(inputData.Right);
 
         if (serviceModels.Length == 0) {
             return;
         }
-
-        ReportEnvironmentConditions(context, serviceModels, logger);
 
         var (entryPointList, configurationModel) =
             EntryModelUtil.ConsolidateEntryPointModels(inputData.Left);
@@ -124,43 +123,35 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
     }
 
     /// <summary>
-    /// Reports the services the container could never construct and removes them from generation.
-    /// Emitting a registration for an abstract or static type produces code that throws when the
-    /// provider is built, a long way from the declaration responsible.
+    /// The services worth emitting a registration for.
     /// </summary>
-    private static ImmutableArray<ServiceModel> ReportUnconstructableServices(
-        SourceProductionContext context, ImmutableArray<ServiceModel> serviceModels, FileLogger logger) {
-
-        if (!serviceModels.Any(IsUnconstructable)) {
+    /// <remarks>
+    /// Drops what the container could never construct and what cannot be cross-wired. Emitting
+    /// either produces code that fails a long way from the declaration responsible — at provider
+    /// build for an abstract or static type, and at compile time for a cross-wired generic. Each is
+    /// explained by a diagnostic; this only decides what not to write.
+    /// </remarks>
+    private static ImmutableArray<ServiceModel> Registerable(ImmutableArray<ServiceModel> serviceModels) {
+        if (!serviceModels.Any(m => IsUnconstructable(m) || IsCrossWiredGeneric(m))) {
             return serviceModels;
         }
 
         var builder = ImmutableArray.CreateBuilder<ServiceModel>(serviceModels.Length);
 
         foreach (var serviceModel in serviceModels) {
-            if (!IsUnconstructable(serviceModel)) {
+            if (!IsUnconstructable(serviceModel) && !IsCrossWiredGeneric(serviceModel)) {
                 builder.Add(serviceModel);
-                continue;
             }
-
-            var reason = serviceModel.Features.HasFlag(RegistrationFeature.StaticImplementation)
-                ? "a static class"
-                : "abstract";
-
-            var typeName = serviceModel.ImplementationType.Name;
-
-            logger.Error($"Skipping '{typeName}' because it is {reason}.");
-
-            context.ReportDiagnostic(
-                Diagnostic.Create(
-                    DependencyModuleDiagnostics.ServiceCannotBeConstructed,
-                    serviceModel.Location?.ToLocationOrNone() ?? Location.None,
-                    typeName,
-                    reason));
         }
 
         return builder.ToImmutable();
     }
+
+    /// <summary>Why a service cannot be constructed, phrased for the message.</summary>
+    private static string UnconstructableReason(ServiceModel serviceModel) =>
+        serviceModel.Features.HasFlag(RegistrationFeature.StaticImplementation)
+            ? "a static class"
+            : "abstract";
 
     /// <summary>
     /// Reports cross-wired generic types and removes them from generation.
@@ -177,19 +168,56 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
     /// longer be reachable through any of its interfaces, which is the entire reason the attribute
     /// was written.
     /// </remarks>
-    private static ImmutableArray<ServiceModel> ReportCrossWiredGenerics(
-        SourceProductionContext context, ImmutableArray<ServiceModel> serviceModels, FileLogger logger) {
+    /// <summary>
+    /// A cross-wired registration on an implementation that is itself generic.
+    /// </summary>
+    private static bool IsCrossWiredGeneric(ServiceModel serviceModel) =>
+        serviceModel.ImplementationType is GenericTypeDefinition { TypeArguments.Count: > 0 } &&
+        serviceModel.Registrations.Any(registration => registration.CrossWire == true);
 
-        if (!serviceModels.Any(IsCrossWiredGeneric)) {
-            return serviceModels;
+    /// <summary>
+    /// Everything this generator has to say about the services it found.
+    /// </summary>
+    /// <remarks>
+    /// Runs apart from emission so that the locations can carry their syntax tree, which is what
+    /// lets a developer silence one of these where it is written rather than only across the whole
+    /// project. The two halves share their predicates: what <see cref="Registerable"/> drops is
+    /// exactly what the first two loops here explain.
+    /// </remarks>
+    protected override void ReportDiagnostics(SourceProductionContext context,
+        (ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> Left,
+            ImmutableArray<ServiceModel> Right) data,
+        SyntaxTreeLookup lookup,
+        FileLogger logger) {
+
+        if (data.Left.Length == 0 || data.Right.Length == 0) {
+            return;
         }
 
-        var builder = ImmutableArray.CreateBuilder<ServiceModel>(serviceModels.Length);
+        foreach (var serviceModel in data.Right) {
+            context.CancellationToken.ThrowIfCancellationRequested();
 
-        foreach (var serviceModel in serviceModels) {
+            if (!IsUnconstructable(serviceModel)) {
+                continue;
+            }
+
+            var reason = UnconstructableReason(serviceModel);
+            var typeName = serviceModel.ImplementationType.Name;
+
+            logger.Error($"Skipping '{typeName}' because it is {reason}.");
+
+            context.ReportDiagnostic(
+                Diagnostic.Create(
+                    DependencyModuleDiagnostics.ServiceCannotBeConstructed,
+                    serviceModel.Location?.ToLocationOrNone(lookup) ?? Location.None,
+                    typeName,
+                    reason));
+        }
+
+        foreach (var serviceModel in data.Right) {
+            context.CancellationToken.ThrowIfCancellationRequested();
+
             if (!IsCrossWiredGeneric(serviceModel)) {
-                builder.Add(serviceModel);
-
                 continue;
             }
 
@@ -200,19 +228,16 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
             context.ReportDiagnostic(
                 Diagnostic.Create(
                     DependencyModuleDiagnostics.CrossWireCannotBeGeneric,
-                    serviceModel.Location?.ToLocationOrNone() ?? Location.None,
+                    serviceModel.Location?.ToLocationOrNone(lookup) ?? Location.None,
                     typeName));
         }
 
-        return builder.ToImmutable();
-    }
+        var registerable = Registerable(data.Right);
 
-    /// <summary>
-    /// A cross-wired registration on an implementation that is itself generic.
-    /// </summary>
-    private static bool IsCrossWiredGeneric(ServiceModel serviceModel) =>
-        serviceModel.ImplementationType is GenericTypeDefinition { TypeArguments.Count: > 0 } &&
-        serviceModel.Registrations.Any(registration => registration.CrossWire == true);
+        if (registerable.Length > 0) {
+            ReportEnvironmentConditions(context, registerable, lookup, logger);
+        }
+    }
 
     /// <summary>
     /// Reports what each conditional registration depends on, and refuses conditions that name
@@ -225,7 +250,8 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
     /// meant to say.
     /// </remarks>
     private static void ReportEnvironmentConditions(
-        SourceProductionContext context, ImmutableArray<ServiceModel> serviceModels, FileLogger logger) {
+        SourceProductionContext context, ImmutableArray<ServiceModel> serviceModels,
+        SyntaxTreeLookup lookup, FileLogger logger) {
 
         foreach (var serviceModel in serviceModels) {
             if (serviceModel.Conditions is not { Count: > 0 } conditions) {
@@ -246,7 +272,7 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
                 context.ReportDiagnostic(
                     Diagnostic.Create(
                         DependencyModuleDiagnostics.EmptyEnvironmentCondition,
-                        serviceModel.Location?.ToLocationOrNone() ?? Location.None,
+                        serviceModel.Location?.ToLocationOrNone(lookup) ?? Location.None,
                         typeName,
                         kind));
             }
@@ -267,7 +293,7 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
             context.ReportDiagnostic(
                 Diagnostic.Create(
                     DependencyModuleDiagnostics.RegisteredConditionally,
-                    serviceModel.Location?.ToLocationOrNone() ?? Location.None,
+                    serviceModel.Location?.ToLocationOrNone(lookup) ?? Location.None,
                     summary));
         }
     }

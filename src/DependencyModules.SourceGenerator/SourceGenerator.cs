@@ -26,7 +26,7 @@ public class SourceGenerator : BaseSourceGenerator {
     protected override void SetupRootGenerator(IncrementalGeneratorInitializationContext context,
         IncrementalValueProvider<ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)>> valuesProvider) {
 
-        context.RegisterSourceOutput(valuesProvider, new DependencyModuleWriter(true).GenerateSource);
+        DependencyModuleWriter.Register(context, valuesProvider, generateAttribute: true);
 
         // DM0016. Registered here rather than on the base class so that a framework generator loaded
         // alongside this one does not report the same usage twice.

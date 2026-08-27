@@ -53,7 +53,9 @@ public class InterceptorSourceGenerator : BaseAttributeSourceGenerator<Intercept
 
         var (entryPointList, configurationModel) = EntryModelUtil.ConsolidateEntryPointModels(inputData.Left);
 
-        var usable = ReportUnsupported(context, inputData.Right, logger);
+        // Filtering only; ReportUnsupported's explanations live in ReportDiagnostics, which shares
+        // the same predicate.
+        var usable = Usable(inputData.Right);
 
         if (usable.Count == 0) {
             return;
@@ -123,22 +125,63 @@ public class InterceptorSourceGenerator : BaseAttributeSourceGenerator<Intercept
     }
 
     /// <summary>
-    /// Reports declarations that cannot be intercepted and drops them, so an unsupported shape
-    /// produces an explanation rather than a wrapper that does not compile.
+    /// The interceptions a wrapper is worth generating for.
     /// </summary>
-    private static IReadOnlyList<InterceptorModel> ReportUnsupported(
-        SourceProductionContext context, ImmutableArray<InterceptorModel> models, FileLogger logger) {
-
+    /// <remarks>
+    /// Drops a declaration that cannot be intercepted at all, and one where no member has an
+    /// interceptor able to serve it — a wrapper for the second would forward every call untouched.
+    /// Both are explained by <see cref="ReportDiagnostics"/>; this only decides what to write.
+    /// </remarks>
+    private static IReadOnlyList<InterceptorModel> Usable(ImmutableArray<InterceptorModel> models) {
         var usable = new List<InterceptorModel>();
 
         foreach (var model in models) {
+            if (model.Refusal != null || model.IsIgnored || model.Members.Count == 0) {
+                continue;
+            }
+
+            if (!ServesAnyMember(model)) {
+                continue;
+            }
+
+            usable.Add(model);
+        }
+
+        return usable;
+    }
+
+    /// <summary>Whether any member has an interceptor that can serve it.</summary>
+    private static bool ServesAnyMember(InterceptorModel model) =>
+        model.Members.Any(member =>
+            model.Interceptors.Any(interceptor => interceptor.CanServe(member.Kind)));
+
+    /// <summary>
+    /// Why an interception was refused, or is quietly absent from members it was applied to.
+    /// </summary>
+    /// <remarks>
+    /// Reported apart from emission so the locations carry their syntax tree, which is what lets
+    /// one of these be silenced where it is written rather than only across the whole project.
+    /// </remarks>
+    protected override void ReportDiagnostics(SourceProductionContext context,
+        (ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> Left,
+            ImmutableArray<InterceptorModel> Right) data,
+        SyntaxTreeLookup lookup,
+        FileLogger logger) {
+
+        if (data.Left.Length == 0 || data.Right.Length == 0) {
+            return;
+        }
+
+        foreach (var model in data.Right) {
+            context.CancellationToken.ThrowIfCancellationRequested();
+
             if (model.Refusal != null) {
                 logger.Error($"Cannot intercept: {model.Refusal.Message}");
 
                 context.ReportDiagnostic(
                     Diagnostic.Create(
                         DependencyModuleDiagnostics.CannotIntercept,
-                        model.Location?.ToLocationOrNone() ?? Location.None,
+                        model.Location?.ToLocationOrNone(lookup) ?? Location.None,
                         model.Refusal.Message));
 
                 continue;
@@ -148,21 +191,11 @@ public class InterceptorSourceGenerator : BaseAttributeSourceGenerator<Intercept
                 continue;
             }
 
-            ReportUnservedMembers(context, model, logger);
-
-            // No member has an interceptor that can serve it, so a wrapper would forward every call
-            // untouched. Dropped after reporting rather than before, which is what makes the case
-            // visible at all.
-            if (!model.Members.Any(member =>
-                    model.Interceptors.Any(interceptor => interceptor.CanServe(member.Kind)))) {
-
-                continue;
-            }
-
-            usable.Add(model);
+            // Reported whether or not the model survives Usable: an interception that serves no
+            // member at all is exactly the case worth explaining, and dropping it first is what
+            // used to make it invisible.
+            ReportUnservedMembers(context, model, lookup, logger);
         }
-
-        return usable;
     }
 
     /// <summary>
@@ -178,7 +211,8 @@ public class InterceptorSourceGenerator : BaseAttributeSourceGenerator<Intercept
     /// than one per member.
     /// </remarks>
     private static void ReportUnservedMembers(
-        SourceProductionContext context, InterceptorModel model, FileLogger logger) {
+        SourceProductionContext context, InterceptorModel model, SyntaxTreeLookup lookup,
+        FileLogger logger) {
 
         foreach (var interceptor in model.Interceptors) {
             foreach (var kind in new[] {
@@ -207,7 +241,7 @@ public class InterceptorSourceGenerator : BaseAttributeSourceGenerator<Intercept
                 context.ReportDiagnostic(
                     Diagnostic.Create(
                         DependencyModuleDiagnostics.InterceptorCannotServeMembers,
-                        model.Location?.ToLocationOrNone() ?? Location.None,
+                        model.Location?.ToLocationOrNone(lookup) ?? Location.None,
                         interceptor.Type.Name,
                         InterfaceFor(kind),
                         DescriptionFor(kind),

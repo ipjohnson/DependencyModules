@@ -143,7 +143,7 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
             return;
         }
 
-        context.RegisterSourceOutput(valuesProvider, new DependencyModuleWriter(true).GenerateSource);
+        DependencyModuleWriter.Register(context, valuesProvider, generateAttribute: true);
     }
 
     /// <summary>

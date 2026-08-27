@@ -26,6 +26,13 @@ public record LocationModel(
     /// <summary>
     /// Rebuilds a reportable location. Safe to call only outside the incremental pipeline.
     /// </summary>
+    /// <remarks>
+    /// This is the external-file overload of <see cref="Location.Create(string, TextSpan, LinePositionSpan)"/>,
+    /// so the result reports the right file, line and column but has no <c>SourceTree</c>. Roslyn
+    /// keys <c>.editorconfig</c> severity and <c>#pragma warning</c> off the tree, so a diagnostic
+    /// reported here can only be silenced with <c>NoWarn</c>. Prefer
+    /// <see cref="ToLocation(SyntaxTreeLookup)"/>, which attaches the tree when it can find it.
+    /// </remarks>
     public Location ToLocation() =>
         Location.Create(
             FilePath,
@@ -33,6 +40,30 @@ public record LocationModel(
             new LinePositionSpan(
                 new LinePosition(StartLine, StartCharacter),
                 new LinePosition(EndLine, EndCharacter)));
+
+    /// <summary>
+    /// Rebuilds a reportable location against the syntax tree it came from, so that
+    /// <c>.editorconfig</c> and <c>#pragma warning disable</c> can reach the diagnostic.
+    /// </summary>
+    /// <remarks>
+    /// Falls back to the tree-less form when the file is not in the compilation, or when the span
+    /// no longer fits inside it. The second case is real rather than defensive: a model's location
+    /// is deliberately left out of the incremental comparers — it moves whenever anything above the
+    /// declaration is edited, and including it regenerated every model on a comment keystroke — so
+    /// a replayed model can carry a span from a previous version of the file. Out of bounds,
+    /// <c>Location.Create</c> throws, and a generator that throws reports nothing at all.
+    /// </remarks>
+    public Location ToLocation(SyntaxTreeLookup lookup) {
+        var tree = lookup.Find(FilePath);
+
+        if (tree == null) {
+            return ToLocation();
+        }
+
+        var span = new TextSpan(SpanStart, SpanLength);
+
+        return span.End <= tree.Length ? Location.Create(tree, span) : ToLocation();
+    }
 
     public static LocationModel From(SyntaxNode node) => From(NarrowToName(node));
 
@@ -79,4 +110,8 @@ public record LocationModel(
     public static readonly LocationModel None = new("", 0, 0, 0, 0, 0, 0);
 
     public Location ToLocationOrNone() => this == None ? Location.None : ToLocation();
+
+    /// <inheritdoc cref="ToLocationOrNone()"/>
+    public Location ToLocationOrNone(SyntaxTreeLookup lookup) =>
+        this == None ? Location.None : ToLocation(lookup);
 }
