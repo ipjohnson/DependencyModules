@@ -656,14 +656,45 @@ public class DependencyFileWriter {
             var byStrategy = ActsOnExistingRegistration(x, configurationModel)
                 .CompareTo(ActsOnExistingRegistration(y, configurationModel));
 
+            if (byStrategy != 0) {
+                return byStrategy;
+            }
+
+            // Order last of the deciding keys, so naming one cannot move a registration ahead of a
+            // condition or ahead of the Replace it depends on - both of which are about whether a
+            // registration works at all, where Order is only about where it lands among its peers.
+            var byOrder = OrderOf(x).CompareTo(OrderOf(y));
+
             // Name is the tie-break rather than the only key, so the order stays total and the
             // output stays deterministic under List.Sort, which is not stable.
-            return byStrategy != 0
-                ? byStrategy
+            return byOrder != 0
+                ? byOrder
                 : string.Compare(x.ImplementationType.Name, y.ImplementationType.Name, StringComparison.Ordinal);
         });
 
         return list;
+    }
+
+    /// <summary>
+    /// The order a service registers at: the lowest any of its registrations names.
+    /// </summary>
+    /// <remarks>
+    /// A class can carry several service attributes and so produce several registrations, each free
+    /// to name its own order. They are emitted together, so the model needs one number, and the
+    /// lowest is the one that matches what naming an order means — "put this early".
+    /// </remarks>
+    private static int OrderOf(ServiceModel serviceModel) {
+        var order = 0;
+        var first = true;
+
+        foreach (var registration in serviceModel.Registrations) {
+            if (first || registration.Order < order) {
+                order = registration.Order;
+                first = false;
+            }
+        }
+
+        return order;
     }
 
     private static bool IsConditional(ServiceModel serviceModel) =>

@@ -1589,11 +1589,12 @@ namespace DependencyModules.SourceGenerator.Impl.Models
     }
     public class ServiceRegistrationModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.ServiceRegistrationModel>
     {
-        public ServiceRegistrationModel(CSharpAuthor.ITypeDefinition ServiceType, DependencyModules.SourceGenerator.Impl.Models.ServiceLifestyle Lifestyle, DependencyModules.SourceGenerator.Impl.Models.RegistrationType? RegistrationType = default, CSharpAuthor.ITypeDefinition? Realm = null, object? Key = null, bool? CrossWire = false, System.Collections.Generic.IReadOnlyList<string>? Namespaces = null) { }
+        public ServiceRegistrationModel(CSharpAuthor.ITypeDefinition ServiceType, DependencyModules.SourceGenerator.Impl.Models.ServiceLifestyle Lifestyle, DependencyModules.SourceGenerator.Impl.Models.RegistrationType? RegistrationType = default, CSharpAuthor.ITypeDefinition? Realm = null, object? Key = null, bool? CrossWire = false, System.Collections.Generic.IReadOnlyList<string>? Namespaces = null, int Order = 0) { }
         public bool? CrossWire { get; init; }
         public object? Key { get; init; }
         public DependencyModules.SourceGenerator.Impl.Models.ServiceLifestyle Lifestyle { get; init; }
         public System.Collections.Generic.IReadOnlyList<string>? Namespaces { get; init; }
+        public int Order { get; init; }
         public CSharpAuthor.ITypeDefinition? Realm { get; init; }
         public DependencyModules.SourceGenerator.Impl.Models.RegistrationType? RegistrationType { get; init; }
         public CSharpAuthor.ITypeDefinition ServiceType { get; init; }

@@ -6,6 +6,7 @@ namespace DependencyModules.Runtime.Attributes
         public System.Type? As { get; set; }
         public object? Key { get; set; }
         protected abstract Microsoft.Extensions.DependencyInjection.ServiceLifetime Lifetime { get; }
+        public int Order { get; set; }
         public System.Type? Realm { get; set; }
         public DependencyModules.Runtime.Attributes.RegistrationType Using { get; set; }
     }

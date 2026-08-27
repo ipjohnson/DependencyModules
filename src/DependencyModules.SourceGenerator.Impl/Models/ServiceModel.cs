@@ -80,7 +80,14 @@ public record ServiceRegistrationModel(
     ITypeDefinition? Realm = null,
     object? Key = null,
     bool? CrossWire = false,
-    IReadOnlyList<string>? Namespaces = null);
+    IReadOnlyList<string>? Namespaces = null,
+
+    /// <summary>
+    /// Where this registration sits among the others for the same service, lowest first. Decides the
+    /// sequence an <c>IEnumerable&lt;T&gt;</c> dependency sees, and therefore which one a single
+    /// resolve returns.
+    /// </summary>
+    int Order = 0);
 
 public delegate IOutputComponent? FactoryOutputDelegate(
     ServiceModel serviceModel, ServiceRegistrationModel registrationModel);

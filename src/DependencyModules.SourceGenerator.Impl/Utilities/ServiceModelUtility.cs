@@ -400,6 +400,7 @@ public class ServiceModelUtility {
         ITypeDefinition? realm = null;
         object? key = null;
         ServiceLifestyle lifestyle = ServiceLifestyle.Singleton;
+        var order = 0;
         var namespaces = new List<string>();
 
         if (attributeSyntax.ArgumentList != null) {
@@ -430,6 +431,12 @@ public class ServiceModelUtility {
                                 realm = realmType.Type.GetTypeDefinition(context);
                             }
                             break;
+
+                        case "Order":
+                            if (int.TryParse(argumentSyntax.Expression.ToString(), out var parsedOrder)) {
+                                order = parsedOrder;
+                            }
+                            break;
                     }
                 }
             }
@@ -447,7 +454,8 @@ public class ServiceModelUtility {
                         realm,
                         key,
                         true,
-                        namespaces
+                        namespaces,
+                        order
                     );
                 }
             }
@@ -487,6 +495,7 @@ public class ServiceModelUtility {
         // semantic model to decide that this attribute matched at all; the caller simply passes on
         // which one it was rather than discarding the answer.
         var lifestyle = LifestyleOf(attributeType);
+        var order = 0;
 
         ITypeDefinition? registration = null;
         RegistrationType? registrationType = null;
@@ -528,6 +537,12 @@ public class ServiceModelUtility {
                                 realm = realmType.Type.GetTypeDefinition(context);
                             }
                             break;
+
+                        case "Order":
+                            if (int.TryParse(argumentSyntax.Expression.ToString(), out var parsedOrder)) {
+                                order = parsedOrder;
+                            }
+                            break;
                     }
                 }
             }
@@ -540,7 +555,8 @@ public class ServiceModelUtility {
             realm,
             key,
             false,
-            namespaces
+            namespaces,
+            order
         );
     }
 
