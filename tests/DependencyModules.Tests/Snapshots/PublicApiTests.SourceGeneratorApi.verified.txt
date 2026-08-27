@@ -1478,9 +1478,11 @@ namespace DependencyModules.SourceGenerator.Impl.Models
     }
     public class PropertyInfoModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.PropertyInfoModel>
     {
-        public PropertyInfoModel(CSharpAuthor.ITypeDefinition PropertyType, string PropertyName, bool IsReadOnly, bool IsStatic) { }
+        public PropertyInfoModel(CSharpAuthor.ITypeDefinition PropertyType, string PropertyName, bool IsReadOnly, bool IsStatic, bool IsVisibleToAttribute) { }
+        public bool IsModuleParameter { get; }
         public bool IsReadOnly { get; init; }
         public bool IsStatic { get; init; }
+        public bool IsVisibleToAttribute { get; init; }
         public string PropertyName { get; init; }
         public CSharpAuthor.ITypeDefinition PropertyType { get; init; }
     }

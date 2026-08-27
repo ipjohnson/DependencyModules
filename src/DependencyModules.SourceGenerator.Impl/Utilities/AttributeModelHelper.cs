@@ -56,16 +56,46 @@ public static class AttributeModelHelper {
                     propertyList.Add(new PropertyInfoModel(propertyType,
                         propertyDeclarationSyntax.Identifier.ToString(),
                         setter == null,
-                        propertyDeclarationSyntax.Modifiers.Any(m => m.IsKind(SyntaxKind.StaticKeyword))
+                        propertyDeclarationSyntax.Modifiers.Any(m => m.IsKind(SyntaxKind.StaticKeyword)),
+                        IsVisibleToAttribute(propertyDeclarationSyntax.Modifiers)
                     ));
                 }
             }
         }
 
         return new AttributeClassInfo(
-            ServiceModelUtility.GetConstructorInfo(context, context.Node, cancellationToken) ?? 
+            ServiceModelUtility.GetConstructorInfo(context, context.Node, cancellationToken) ??
             new ConstructorInfoModel(Array.Empty<ParameterInfoModel>()),
             propertyList);
+    }
+
+    /// <summary>
+    /// Whether a property with these modifiers can be read and written from another type in the
+    /// same assembly — which is what the generated attribute is.
+    /// </summary>
+    /// <remarks>
+    /// Read from syntax rather than from the symbol, because everything else in this transform is
+    /// and because the modifiers say it outright. The cases that matter:
+    /// <c>protected internal</c> means protected *or* internal, so it is reachable;
+    /// <c>private protected</c> means protected *and* internal, so it is not. A property with no
+    /// access modifier at all is private by default, which is the case most likely to be written by
+    /// accident and was the one that produced generated code that would not compile.
+    /// </remarks>
+    private static bool IsVisibleToAttribute(SyntaxTokenList modifiers) {
+        var isPrivate = modifiers.Any(m => m.IsKind(SyntaxKind.PrivateKeyword));
+        var isProtected = modifiers.Any(m => m.IsKind(SyntaxKind.ProtectedKeyword));
+        var isInternal = modifiers.Any(m => m.IsKind(SyntaxKind.InternalKeyword));
+        var isPublic = modifiers.Any(m => m.IsKind(SyntaxKind.PublicKeyword));
+
+        if (isPrivate) {
+            return false;
+        }
+
+        if (isProtected) {
+            return isInternal;
+        }
+
+        return isPublic || isInternal;
     }
 
     public static IEnumerable<AttributeModel> GetAttributes(

@@ -93,14 +93,16 @@ public class DependencyModuleWriter {
             return;
         }
 
-        // Settable and non-static, matching exactly what ModuleAttributeWriter carries across from
-        // the generated attribute. A read-only property is not a parameter — a module implementing
-        // an interface with `public string Value => "A";` has nothing anyone can configure, and
-        // asking it to declare Equals would be noise about a decision it never faces.
+        // Exactly what ModuleAttributeWriter carries across to the generated attribute, which is
+        // what IsModuleParameter is for — the test used to be written out here as well and drifted
+        // from the other two. A read-only property is not a parameter — a module implementing an
+        // interface with `public string Value => "A";` has nothing anyone can configure, and asking
+        // it to declare Equals would be noise about a decision it never faces. Neither is one the
+        // attribute cannot reach.
         //
         // Only when the generator is supplying equality, too: a module that declares its own Equals
         // has already answered the question this asks about.
-        if (entryPointModel.PropertyInfoModels.Any(p => !p.IsReadOnly && !p.IsStatic) &&
+        if (entryPointModel.PropertyInfoModels.Any(p => p.IsModuleParameter) &&
             entryPointModel.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.ShouldImplementEquals)) {
             context.ReportDiagnostic(
                 Diagnostic.Create(

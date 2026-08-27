@@ -195,7 +195,7 @@ public class ModelComparerTests {
         new(name, TypeDefinition.Get("Ns", "SomeType"), null, []);
 
     private static PropertyInfoModel Property(string name) =>
-        new(TypeDefinition.Get("Ns", "SomeType"), name, false, false);
+        new(TypeDefinition.Get("Ns", "SomeType"), name, false, false, true);
 
     private static AttributeModel Attribute(string name) =>
         new(TypeDefinition.Get("Ns", name), [], [], []);

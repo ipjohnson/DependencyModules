@@ -19,7 +19,7 @@ public class ModuleAttributeWriter : BaseAttributeWriter<ModuleEntryPointModel> 
                     attributeClass.Fields.Select(f => f.Instance).OfType<object>().ToArray())).ToVar("newModule");
 
         foreach (var propertyInfoModel in model.PropertyInfoModels) {
-            if (propertyInfoModel.IsReadOnly || propertyInfoModel.IsStatic) {
+            if (!propertyInfoModel.IsModuleParameter) {
                 continue;
             }
             

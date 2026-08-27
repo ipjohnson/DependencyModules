@@ -299,30 +299,6 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
         );
     }
 
-    private List<PropertyInfoModel> GetProperties(GeneratorSyntaxContext context) {
-        var propertyList = new List<PropertyInfoModel>();
-
-        foreach (var propertyDeclarationSyntax in
-                 context.Node.DescendantNodes().OfType<PropertyDeclarationSyntax>().ToList()) {
-            var setter =
-                propertyDeclarationSyntax.AccessorList?.Accessors.FirstOrDefault(
-                    x => x.IsKind(SyntaxKind.SetAccessorDeclaration));
-
-            var propertyType =
-                propertyDeclarationSyntax.Type.GetTypeDefinition(context);
-
-            if (propertyType != null) {
-                propertyList.Add(new PropertyInfoModel(propertyType,
-                    propertyDeclarationSyntax.Identifier.ToString(),
-                    setter == null,
-                    propertyDeclarationSyntax.Modifiers.Any(m => m.IsKind(SyntaxKind.StaticKeyword))
-                ));
-            }
-        }
-
-        return propertyList;
-    }
-
     private bool GetEqualsFlag(GeneratorSyntaxContext context) {
         return context.Node.DescendantNodes().OfType<MethodDeclarationSyntax>().Any(m => m.Identifier.ToString().Equals("Equals"));
     }
