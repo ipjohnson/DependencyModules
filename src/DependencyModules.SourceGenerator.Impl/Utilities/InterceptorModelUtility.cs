@@ -52,7 +52,7 @@ public static class InterceptorModelUtility {
         // Constraints come along with the parameters. The wrapper is declared over the same ones and
         // repeats their constraints, without which it could not reference what it wraps.
 
-        var interceptorSymbols = new List<INamedTypeSymbol>();
+        var interceptorSymbols = new List<(INamedTypeSymbol Symbol, ServiceLifestyle Lifestyle)>();
         var order = 0;
         INamedTypeSymbol? explicitService = null;
         INamedTypeSymbol? realm = null;
@@ -86,8 +86,8 @@ public static class InterceptorModelUtility {
 
         var interceptors = new List<InterceptorTypeModel>();
 
-        foreach (var interceptorSymbol in interceptorSymbols) {
-            interceptors.Add(ReadInterceptorType(interceptorSymbol));
+        foreach (var (interceptorSymbol, lifestyle) in interceptorSymbols) {
+            interceptors.Add(ReadInterceptorType(interceptorSymbol, lifestyle));
         }
 
         // Nothing here can be placed around anything, so the wrapper would forward every call
@@ -183,7 +183,8 @@ public static class InterceptorModelUtility {
     /// <summary>
     /// The interfaces an interceptor implements, which decide the members it can be placed around.
     /// </summary>
-    private static InterceptorTypeModel ReadInterceptorType(INamedTypeSymbol symbol) {
+    private static InterceptorTypeModel ReadInterceptorType(
+        INamedTypeSymbol symbol, ServiceLifestyle lifestyle) {
         var sync = false;
         var async = false;
         var stream = false;
@@ -206,7 +207,7 @@ public static class InterceptorModelUtility {
             }
         }
 
-        return new InterceptorTypeModel(symbol.GetTypeDefinition(), sync, async, stream);
+        return new InterceptorTypeModel(symbol.GetTypeDefinition(), sync, async, stream, lifestyle);
     }
 
     /// <summary>
@@ -236,7 +237,7 @@ public static class InterceptorModelUtility {
         AttributeSyntax attribute,
         SyntaxTransformContext context,
         CancellationToken cancellationToken,
-        List<INamedTypeSymbol> interceptors,
+        List<(INamedTypeSymbol Symbol, ServiceLifestyle Lifestyle)> interceptors,
         ref int order,
         ref INamedTypeSymbol? explicitService,
         ref INamedTypeSymbol? realm) {
@@ -244,6 +245,11 @@ public static class InterceptorModelUtility {
         if (attribute.ArgumentList == null) {
             return;
         }
+
+        // Read first, applied below. Lifetime is a named argument and may be written after the
+        // interceptors it applies to, so collecting them in one pass would attach whatever the
+        // lifetime happened to be at that point in the argument list.
+        var lifestyle = ReadLifetime(attribute);
 
         foreach (var argument in attribute.ArgumentList.Arguments) {
             var name = argument.NameEquals?.Name.ToString();
@@ -253,7 +259,7 @@ public static class InterceptorModelUtility {
                     var symbol = ResolveType(typeOf, context, cancellationToken);
 
                     if (symbol != null) {
-                        interceptors.Add(symbol);
+                        interceptors.Add((symbol, lifestyle));
                     }
                 }
 
@@ -278,6 +284,39 @@ public static class InterceptorModelUtility {
                     break;
             }
         }
+    }
+
+    /// <summary>
+    /// The lifetime one [Intercept] names for the interceptors it lists, Singleton when it names
+    /// none.
+    /// </summary>
+    /// <remarks>
+    /// Read from the written name rather than resolved, because the alternative is a constant of an
+    /// enum this generator does not reference. Every legal spelling ends in the member name, so the
+    /// last segment is the answer for `Scoped`, `ServiceLifetime.Scoped` and any qualification of
+    /// it alike.
+    /// </remarks>
+    private static ServiceLifestyle ReadLifetime(AttributeSyntax attribute) {
+        foreach (var argument in attribute.ArgumentList?.Arguments ??
+                                 default(SeparatedSyntaxList<AttributeArgumentSyntax>)) {
+            if (argument.NameEquals?.Name.ToString() != "Lifetime") {
+                continue;
+            }
+
+            var written = argument.Expression.ToString();
+            var member = written.Substring(written.LastIndexOf('.') + 1).Trim();
+
+            switch (member) {
+                case "Scoped":
+                    return ServiceLifestyle.Scoped;
+                case "Transient":
+                    return ServiceLifestyle.Transient;
+                case "Singleton":
+                    return ServiceLifestyle.Singleton;
+            }
+        }
+
+        return ServiceLifestyle.Singleton;
     }
 
     private static INamedTypeSymbol? ResolveType(

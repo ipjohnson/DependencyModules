@@ -149,7 +149,15 @@ public record TypeParameterModel(
 /// itself would defeat the incremental cache. Which interfaces a type implements is what decides
 /// whether it can serve a given member, and that decision is made once here rather than per member.
 /// </remarks>
-public record InterceptorTypeModel(ITypeDefinition Type, bool Sync, bool Async, bool Stream) {
+public record InterceptorTypeModel(
+    ITypeDefinition Type,
+    bool Sync,
+    bool Async,
+    bool Stream,
+    /// <summary>
+    /// The lifetime this interceptor is registered with, from the [Intercept] that named it.
+    /// </summary>
+    ServiceLifestyle Lifestyle = ServiceLifestyle.Singleton) {
 
     /// <summary>
     /// Whether this interceptor can be placed around a member of the given kind.

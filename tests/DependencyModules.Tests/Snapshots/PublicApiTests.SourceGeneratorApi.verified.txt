@@ -1416,8 +1416,9 @@ namespace DependencyModules.SourceGenerator.Impl.Models
     }
     public class InterceptorTypeModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.InterceptorTypeModel>
     {
-        public InterceptorTypeModel(CSharpAuthor.ITypeDefinition Type, bool Sync, bool Async, bool Stream) { }
+        public InterceptorTypeModel(CSharpAuthor.ITypeDefinition Type, bool Sync, bool Async, bool Stream, DependencyModules.SourceGenerator.Impl.Models.ServiceLifestyle Lifestyle = 2) { }
         public bool Async { get; init; }
+        public DependencyModules.SourceGenerator.Impl.Models.ServiceLifestyle Lifestyle { get; init; }
         public bool Stream { get; init; }
         public bool Sync { get; init; }
         public CSharpAuthor.ITypeDefinition Type { get; init; }

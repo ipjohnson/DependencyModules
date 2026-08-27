@@ -90,7 +90,7 @@ public class InterceptorRegistrationWriter {
             method.AddIndentedStatement(
                 new StaticInvokeStatement(
                     KnownTypes.Microsoft.DependencyInjection.ServiceCollectionDescriptorExtensions,
-                    "TryAddSingleton",
+                    TryAddMethodFor(interceptor.Lifestyle),
                     new List<IOutputComponent> {
                         CodeOutputComponent.Get(services.Name),
                         TypeOf(interceptor.Type)
@@ -177,4 +177,19 @@ public class InterceptorRegistrationWriter {
             Indented = false
         };
     }
+
+    /// <summary>
+    /// The TryAdd overload for an interceptor's declared lifetime.
+    /// </summary>
+    /// <remarks>
+    /// Still TryAdd whichever it is, so an interceptor carrying its own service attribute keeps the
+    /// lifetime that attribute gave it - services are applied before decorators, so that
+    /// registration is already in the collection by the time this runs.
+    /// </remarks>
+    private static string TryAddMethodFor(ServiceLifestyle lifestyle) =>
+        lifestyle switch {
+            ServiceLifestyle.Scoped => "TryAddScoped",
+            ServiceLifestyle.Transient => "TryAddTransient",
+            _ => "TryAddSingleton"
+        };
 }

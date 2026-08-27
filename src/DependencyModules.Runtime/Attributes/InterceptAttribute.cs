@@ -1,3 +1,5 @@
+using Microsoft.Extensions.DependencyInjection;
+
 namespace DependencyModules.Runtime.Attributes;
 
 /// <summary>
@@ -46,4 +48,18 @@ public class InterceptAttribute(params Type[] interceptors) : Attribute {
     /// module built to be isolated wrapped services it had never heard of.
     /// </remarks>
     public Type? Realm { get; set; }
+
+    /// <summary>
+    /// The lifetime the interceptors named here are registered with. Singleton by default.
+    /// </summary>
+    /// <remarks>
+    /// The generator registers each interceptor as itself, and until now always as a singleton — so
+    /// an interceptor taking a scoped dependency became a captive dependency, holding it for the
+    /// life of the container. Nothing said so unless <c>ValidateScopes</c> was on, and
+    /// <c>DependencyModules_GenerateFactories</c> turns that off for the whole project.
+    ///
+    /// The registration is still <c>TryAdd</c>, so an interceptor carrying its own service
+    /// attribute keeps that lifetime and this is ignored for it.
+    /// </remarks>
+    public ServiceLifetime Lifetime { get; set; } = ServiceLifetime.Singleton;
 }
