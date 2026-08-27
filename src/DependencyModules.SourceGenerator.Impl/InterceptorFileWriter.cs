@@ -696,6 +696,11 @@ public class InterceptorFileWriter {
     /// Whether any of the service's interceptors can be placed around this member.
     /// </summary>
     private static bool IsIntercepted(InterceptorModel model, InterceptedMemberModel member) {
+        // Left out by [Intercept].Members. Still forwarded below, just not through the chain.
+        if (member.Excluded) {
+            return false;
+        }
+
         foreach (var interceptor in model.Interceptors) {
             if (interceptor.CanServe(member.Kind)) {
                 return true;

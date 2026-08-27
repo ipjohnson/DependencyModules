@@ -88,9 +88,19 @@ namespace DependencyModules.Runtime.Attributes
         public InterceptAttribute(params System.Type[] interceptors) { }
         public System.Type[] Interceptors { get; }
         public Microsoft.Extensions.DependencyInjection.ServiceLifetime Lifetime { get; set; }
+        public DependencyModules.Runtime.Attributes.InterceptedMembers Members { get; set; }
         public int Order { get; set; }
         public System.Type? Realm { get; set; }
         public System.Type? Service { get; set; }
+    }
+    [System.Flags]
+    public enum InterceptedMembers
+    {
+        Methods = 1,
+        Properties = 2,
+        Indexers = 4,
+        Events = 8,
+        All = 15,
     }
     public enum RegistrationType
     {

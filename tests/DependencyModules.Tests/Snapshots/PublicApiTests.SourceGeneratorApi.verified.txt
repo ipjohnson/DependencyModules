@@ -1364,9 +1364,20 @@ namespace DependencyModules.SourceGenerator.Impl.Models
         public virtual bool Equals(DependencyModules.SourceGenerator.Impl.Models.InterceptedDeclarationModel? other) { }
         public override int GetHashCode() { }
     }
+    [System.Flags]
+    public enum InterceptedMemberKinds
+    {
+        None = 0,
+        Methods = 1,
+        Properties = 2,
+        Indexers = 4,
+        Events = 8,
+        All = 15,
+    }
     public class InterceptedMemberModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.InterceptedMemberModel>
     {
-        public InterceptedMemberModel(string Name, string Identifier, DependencyModules.SourceGenerator.Impl.Models.AccessorForm Form, CSharpAuthor.ITypeDefinition? ReturnType, CSharpAuthor.ITypeDefinition ResultType, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedParameterModel> Parameters, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.TypeParameterModel> TypeParameters, DependencyModules.SourceGenerator.Impl.Models.ReturnShape ReturnShape) { }
+        public InterceptedMemberModel(string Name, string Identifier, DependencyModules.SourceGenerator.Impl.Models.AccessorForm Form, CSharpAuthor.ITypeDefinition? ReturnType, CSharpAuthor.ITypeDefinition ResultType, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.InterceptedParameterModel> Parameters, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.TypeParameterModel> TypeParameters, DependencyModules.SourceGenerator.Impl.Models.ReturnShape ReturnShape, bool Excluded = false) { }
+        public bool Excluded { get; init; }
         public DependencyModules.SourceGenerator.Impl.Models.AccessorForm Form { get; init; }
         public string Identifier { get; init; }
         public DependencyModules.SourceGenerator.Impl.Models.InterceptorKind Kind { get; }

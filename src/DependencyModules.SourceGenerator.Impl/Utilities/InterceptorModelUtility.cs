@@ -56,6 +56,7 @@ public static class InterceptorModelUtility {
         var order = 0;
         INamedTypeSymbol? explicitService = null;
         INamedTypeSymbol? realm = null;
+        var memberKinds = InterceptedMemberKinds.All;
 
         // Every [Intercept], not the first. The attribute is AllowMultiple, so stacking them is a
         // supported way to write what one attribute can also express as a params list — and reading
@@ -63,6 +64,8 @@ public static class InterceptorModelUtility {
         foreach (var attribute in attributes) {
             ReadAttribute(
                 attribute, context, cancellationToken, interceptorSymbols, ref order, ref explicitService, ref realm);
+
+            memberKinds &= ReadMemberKinds(attribute);
         }
 
         if (interceptorSymbols.Count == 0) {
@@ -83,6 +86,8 @@ public static class InterceptorModelUtility {
             return InterceptorModel.Refused(
                 $"'{serviceSymbol.Name}' declares nothing to intercept");
         }
+
+        members = ApplyMemberKinds(members, declarations, memberKinds);
 
         var interceptors = new List<InterceptorTypeModel>();
 
@@ -174,6 +179,96 @@ public static class InterceptorModelUtility {
         KnownTypes.DependencyModules.Attributes.TransientServiceAttribute,
         KnownTypes.DependencyModules.Attributes.CrossWireServiceAttribute
     };
+
+    /// <summary>
+    /// The kinds of member <c>[Intercept]</c> names, as flags. Everything when it names none.
+    /// </summary>
+    /// <remarks>
+    /// Read as written rather than resolved, for the reason the lifetime is: the alternative is
+    /// referencing an enum this generator does not. Splitting on the or-operator and taking the last
+    /// segment of each part handles `Methods`, `InterceptedMembers.Methods` and any qualification of
+    /// either.
+    /// </remarks>
+    private static InterceptedMemberKinds ReadMemberKinds(AttributeSyntax attribute) {
+        foreach (var argument in attribute.ArgumentList?.Arguments ??
+                                 default(SeparatedSyntaxList<AttributeArgumentSyntax>)) {
+            if (argument.NameEquals?.Name.ToString() != "Members") {
+                continue;
+            }
+
+            var kinds = InterceptedMemberKinds.None;
+
+            foreach (var part in argument.Expression.ToString().Split('|')) {
+                var member = part.Substring(part.LastIndexOf('.') + 1).Trim();
+
+                switch (member) {
+                    case "Methods": kinds |= InterceptedMemberKinds.Methods; break;
+                    case "Properties": kinds |= InterceptedMemberKinds.Properties; break;
+                    case "Indexers": kinds |= InterceptedMemberKinds.Indexers; break;
+                    case "Events": kinds |= InterceptedMemberKinds.Events; break;
+                    case "All": kinds |= InterceptedMemberKinds.All; break;
+                }
+            }
+
+            return kinds == InterceptedMemberKinds.None ? InterceptedMemberKinds.All : kinds;
+        }
+
+        return InterceptedMemberKinds.All;
+    }
+
+    /// <summary>
+    /// Marks the members whose declaration kind was left out.
+    /// </summary>
+    /// <remarks>
+    /// Applied after reading rather than while reading, because the kind belongs to the declaration
+    /// and the reader produces members and declarations side by side - a property contributes one
+    /// declaration and up to two members. Marking rather than removing keeps every index the
+    /// declarations hold pointing at the same member.
+    /// </remarks>
+    private static IReadOnlyList<InterceptedMemberModel> ApplyMemberKinds(
+        IReadOnlyList<InterceptedMemberModel> members,
+        IReadOnlyList<InterceptedDeclarationModel> declarations,
+        InterceptedMemberKinds kinds) {
+
+        if (kinds == InterceptedMemberKinds.All) {
+            return members;
+        }
+
+        var excluded = new HashSet<int>();
+
+        foreach (var declaration in declarations) {
+            if (KindOf(declaration.Kind) is var kind && (kinds & kind) != 0) {
+                continue;
+            }
+
+            excluded.Add(declaration.First);
+
+            if (declaration.Second >= 0) {
+                excluded.Add(declaration.Second);
+            }
+        }
+
+        if (excluded.Count == 0) {
+            return members;
+        }
+
+        var result = new List<InterceptedMemberModel>(members.Count);
+
+        for (var index = 0; index < members.Count; index++) {
+            result.Add(excluded.Contains(index) ? members[index] with { Excluded = true } : members[index]);
+        }
+
+        return result;
+    }
+
+    private static InterceptedMemberKinds KindOf(DeclarationKind kind) =>
+        kind switch {
+            DeclarationKind.Method => InterceptedMemberKinds.Methods,
+            DeclarationKind.Property => InterceptedMemberKinds.Properties,
+            DeclarationKind.Indexer => InterceptedMemberKinds.Indexers,
+            DeclarationKind.Event => InterceptedMemberKinds.Events,
+            _ => InterceptedMemberKinds.All
+        };
 
     private static InterceptorModel Refuse(string? reason, SyntaxTransformContext context) =>
         reason == null

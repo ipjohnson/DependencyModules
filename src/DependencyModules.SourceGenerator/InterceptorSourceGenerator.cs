@@ -153,6 +153,7 @@ public class InterceptorSourceGenerator : BaseAttributeSourceGenerator<Intercept
     /// <summary>Whether any member has an interceptor that can serve it.</summary>
     private static bool ServesAnyMember(InterceptorModel model) =>
         model.Members.Any(member =>
+            !member.Excluded &&
             model.Interceptors.Any(interceptor => interceptor.CanServe(member.Kind)));
 
     /// <summary>
@@ -285,7 +286,9 @@ public class InterceptorSourceGenerator : BaseAttributeSourceGenerator<Intercept
                 }
 
                 var unserved = model.Members
-                    .Where(member => member.Kind == kind)
+                    // An excluded member was never meant to be served, so an interceptor not
+                    // covering it is not the omission DM0015 is about.
+                    .Where(member => !member.Excluded && member.Kind == kind)
                     .Select(member => member.Name)
                     .Distinct()
                     .OrderBy(name => name, StringComparer.Ordinal)

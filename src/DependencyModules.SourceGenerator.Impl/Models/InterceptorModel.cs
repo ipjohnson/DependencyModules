@@ -203,7 +203,13 @@ public record InterceptedMemberModel(
     ITypeDefinition ResultType,
     IReadOnlyList<InterceptedParameterModel> Parameters,
     IReadOnlyList<TypeParameterModel> TypeParameters,
-    ReturnShape ReturnShape) {
+    ReturnShape ReturnShape,
+
+    /// <summary>
+    /// The declaration left out by <c>[Intercept].Members</c>. Still forwarded — the wrapper
+    /// implements the whole interface — but not through the interceptor chain.
+    /// </summary>
+    bool Excluded = false) {
 
     /// <summary>
     /// The interceptor interface this member has to be routed through.

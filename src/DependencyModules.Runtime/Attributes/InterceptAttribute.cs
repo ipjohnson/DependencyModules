@@ -62,4 +62,14 @@ public class InterceptAttribute(params Type[] interceptors) : Attribute {
     /// attribute keeps that lifetime and this is ignored for it.
     /// </remarks>
     public ServiceLifetime Lifetime { get; set; } = ServiceLifetime.Singleton;
+
+    /// <summary>
+    /// Which kinds of member the interceptors are placed around. Everything by default.
+    /// </summary>
+    /// <remarks>
+    /// A member left out is still forwarded — the wrapper implements the whole interface either way
+    /// — it simply does not run through the interceptor chain. See
+    /// <see cref="InterceptedMembers"/> for why the default is everything and when it is wrong.
+    /// </remarks>
+    public InterceptedMembers Members { get; set; } = InterceptedMembers.All;
 }
