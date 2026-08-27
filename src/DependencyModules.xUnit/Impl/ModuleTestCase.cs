@@ -190,7 +190,40 @@ public class ModuleTestCase : XunitTestCase {
         if (dataAttributes.Length == 0) {
             return await UnitTestWithNoDataAttributes();
         }
+
+        SupplyReflectedType(dataAttributes);
+
         return await UnitTestFromDataAttributes(dataAttributes);
+    }
+
+    /// <summary>
+    /// Tells every type-aware data attribute which type it was found on.
+    /// </summary>
+    /// <remarks>
+    /// xUnit does this in <c>ExtensibilityPointFactory.GetMethodDataAttributes</c>, and
+    /// <see cref="ITypeAwareDataAttribute"/>'s own documentation makes it the obligation of any
+    /// framework that discovers data attributes some other way — which this one does, because it
+    /// also sweeps the assembly and the declaring type for the attributes that compose the module.
+    ///
+    /// Skipping it was silent in the worst way. <c>[MemberData]</c> resolves its member against
+    /// <see cref="ITypeAwareDataAttribute.MemberType"/>, and left null it returns an *empty* row
+    /// collection rather than throwing — so every row vanished, the test case produced no tests,
+    /// and the run reported a pass. Only <c>[MemberData(…, MemberType = typeof(X))]</c>, which
+    /// needs no back-fill, kept working.
+    ///
+    /// Conditional, as the interface requires: an explicit MemberType is the author's answer and is
+    /// never overwritten.
+    /// </remarks>
+    private void SupplyReflectedType(IDataAttribute[] dataAttributes) {
+        var reflectedType = TestMethod.Method.ReflectedType;
+
+        if (reflectedType == null) {
+            return;
+        }
+
+        foreach (var typeAware in dataAttributes.OfType<ITypeAwareDataAttribute>()) {
+            typeAware.MemberType ??= reflectedType;
+        }
     }
 
     private async Task<IReadOnlyCollection<IXunitTest>> UnitTestFromDataAttributes(IDataAttribute[] dataAttributes) {
@@ -231,8 +264,37 @@ public class ModuleTestCase : XunitTestCase {
             }
         }
 
+        if (unitTests.Count == 0) {
+            // Failing rather than returning nothing, which is what xUnit's own delay-enumerated
+            // theory does for a theory without data. Returning an empty collection here is reported
+            // as a pass, so a row source that stopped producing rows — for any reason, not only the
+            // MemberType one above — took its coverage with it and left a green suite behind. The
+            // NUnit half of this integration already refuses the equivalent case as NotRunnable.
+            //
+            // Exceptions thrown from CreateTests are caught and converted into a test case failure,
+            // which is the documented way to surface this.
+            throw new InvalidOperationException(
+                $"No data was found for '{TestMethod.TestClass.TestClassName}.{TestMethod.MethodName}'. " +
+                $"It carries {DescribeAttributes(dataAttributes)}, and every one of them returned no rows. " +
+                "A data-driven test with no rows runs nothing, so it is reported as a failure rather " +
+                "than as a pass.");
+        }
+
         return unitTests;
     }
+
+    private static string DescribeAttributes(IDataAttribute[] dataAttributes) {
+        var names = dataAttributes
+            .Select(attribute => "[" + TrimAttributeSuffix(attribute.GetType().Name) + "]")
+            .ToArray();
+
+        return names.Length == 1 ? names[0] : string.Join(", ", names);
+    }
+
+    private static string TrimAttributeSuffix(string name) =>
+        name.EndsWith("Attribute", StringComparison.Ordinal)
+            ? name.Substring(0, name.Length - "Attribute".Length)
+            : name;
 
     /// <summary>
     /// Names a data row after its own arguments, the way [Theory] does. Without this every row of

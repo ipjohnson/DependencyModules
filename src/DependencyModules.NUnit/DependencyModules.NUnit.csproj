@@ -25,8 +25,14 @@
           so unlike the xUnit integration there is no narrower reference to take. The types used
           here — ITestBuilder, IWrapSetUpTearDown, TestCommand — are NUnit's documented extension
           points and live in NUnit.Framework.Interfaces and NUnit.Framework.Internal.
+
+          Upper-bounded for the same reason the xUnit integration is: these are extension points, a
+          major version is where they are free to change shape, and an unbounded reference lets NuGet
+          unify a consumer's newer major into a compiled memberref that no longer exists. That failed
+          silently for xUnit 4.0.0 with a MissingMethodException naming an xUnit internal. No NUnit
+          major has done it yet; the bound is so that one cannot.
         -->
-        <PackageReference Include="NUnit" Version="4.2.2"/>
+        <PackageReference Include="NUnit" Version="[4.2.2,5.0.0)"/>
     </ItemGroup>
 
     <ItemGroup>
