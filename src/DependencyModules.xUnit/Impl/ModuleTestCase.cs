@@ -86,9 +86,14 @@ public class ModuleTestCase : XunitTestCase {
 
         SetupModules(serviceCollection, knownAttributes);
 
-        resolver.SetupServiceCollection(serviceCollection);
-
         SetupServiceSetupAttributes(context, serviceCollection, knownAttributes);
+
+        // Last, so a [Mock] on a parameter beats a [TestExport] naming the same service. A
+        // parameter attribute is the narrowest thing a test can say and the only one that names a
+        // single argument, so it decides for that argument - the class or assembly sets the default
+        // and this is the one test opting out of it. A [Mock] stands aside where the mock library
+        // registers the type itself, which is what keeps [Mock] IFoo and Mock<IFoo> one pair.
+        resolver.SetupServiceCollection(serviceCollection);
 
         var provider = BuildServiceProvider(context, serviceCollection, knownAttributes);
 
@@ -131,13 +136,18 @@ public class ModuleTestCase : XunitTestCase {
     }
 
     /// <remarks>
-    /// The whole pass runs after the parameter value providers, so a <c>[TestExport]</c> overrides a
-    /// <c>[Mock]</c> of the same service rather than the other way round.
+    /// The whole pass runs <em>before</em> the parameter value providers, so a <c>[Mock]</c> on a
+    /// parameter overrides a <c>[TestExport]</c> naming the same service. These attributes apply to
+    /// a method, a class or an assembly; a parameter attribute names one argument, and that is the
+    /// narrowest thing a test can say, so it is the one that decides.
     ///
     /// Mock support goes first within the pass, everything else keeping its declared order behind it.
     /// A mock is the stand-in a test falls back to, so naming a real implementation has to beat it —
     /// and has to beat it whether <c>[MoqSupport]</c> sits on the assembly, the class or the method,
-    /// which relying on attribute order alone would not guarantee.
+    /// which relying on attribute order alone would not guarantee. A <c>Mock&lt;T&gt;</c> parameter
+    /// goes through this pass rather than the parameter one, so it does <em>not</em> override a
+    /// <c>[TestExport]</c>: asking for the mock object is not the same as declaring the service
+    /// mocked, which is what <c>[Mock]</c> is for.
     /// </remarks>
     private void SetupServiceSetupAttributes(
         ITestMethodContext context, ServiceCollection serviceCollection, Attribute[] knownAttributes) {
@@ -190,7 +200,40 @@ public class ModuleTestCase : XunitTestCase {
         if (dataAttributes.Length == 0) {
             return await UnitTestWithNoDataAttributes();
         }
+
+        SupplyReflectedType(dataAttributes);
+
         return await UnitTestFromDataAttributes(dataAttributes);
+    }
+
+    /// <summary>
+    /// Tells every type-aware data attribute which type it was found on.
+    /// </summary>
+    /// <remarks>
+    /// xUnit does this in <c>ExtensibilityPointFactory.GetMethodDataAttributes</c>, and
+    /// <see cref="ITypeAwareDataAttribute"/>'s own documentation makes it the obligation of any
+    /// framework that discovers data attributes some other way — which this one does, because it
+    /// also sweeps the assembly and the declaring type for the attributes that compose the module.
+    ///
+    /// Skipping it was silent in the worst way. <c>[MemberData]</c> resolves its member against
+    /// <see cref="ITypeAwareDataAttribute.MemberType"/>, and left null it returns an *empty* row
+    /// collection rather than throwing — so every row vanished, the test case produced no tests,
+    /// and the run reported a pass. Only <c>[MemberData(…, MemberType = typeof(X))]</c>, which
+    /// needs no back-fill, kept working.
+    ///
+    /// Conditional, as the interface requires: an explicit MemberType is the author's answer and is
+    /// never overwritten.
+    /// </remarks>
+    private void SupplyReflectedType(IDataAttribute[] dataAttributes) {
+        var reflectedType = TestMethod.Method.ReflectedType;
+
+        if (reflectedType == null) {
+            return;
+        }
+
+        foreach (var typeAware in dataAttributes.OfType<ITypeAwareDataAttribute>()) {
+            typeAware.MemberType ??= reflectedType;
+        }
     }
 
     private async Task<IReadOnlyCollection<IXunitTest>> UnitTestFromDataAttributes(IDataAttribute[] dataAttributes) {
@@ -231,8 +274,37 @@ public class ModuleTestCase : XunitTestCase {
             }
         }
 
+        if (unitTests.Count == 0) {
+            // Failing rather than returning nothing, which is what xUnit's own delay-enumerated
+            // theory does for a theory without data. Returning an empty collection here is reported
+            // as a pass, so a row source that stopped producing rows — for any reason, not only the
+            // MemberType one above — took its coverage with it and left a green suite behind. The
+            // NUnit half of this integration already refuses the equivalent case as NotRunnable.
+            //
+            // Exceptions thrown from CreateTests are caught and converted into a test case failure,
+            // which is the documented way to surface this.
+            throw new InvalidOperationException(
+                $"No data was found for '{TestMethod.TestClass.TestClassName}.{TestMethod.MethodName}'. " +
+                $"It carries {DescribeAttributes(dataAttributes)}, and every one of them returned no rows. " +
+                "A data-driven test with no rows runs nothing, so it is reported as a failure rather " +
+                "than as a pass.");
+        }
+
         return unitTests;
     }
+
+    private static string DescribeAttributes(IDataAttribute[] dataAttributes) {
+        var names = dataAttributes
+            .Select(attribute => "[" + TrimAttributeSuffix(attribute.GetType().Name) + "]")
+            .ToArray();
+
+        return names.Length == 1 ? names[0] : string.Join(", ", names);
+    }
+
+    private static string TrimAttributeSuffix(string name) =>
+        name.EndsWith("Attribute", StringComparison.Ordinal)
+            ? name.Substring(0, name.Length - "Attribute".Length)
+            : name;
 
     /// <summary>
     /// Names a data row after its own arguments, the way [Theory] does. Without this every row of

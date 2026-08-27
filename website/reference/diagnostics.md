@@ -4,8 +4,8 @@ The generator reports what it can work out at build time as `DM####` codes, so a
 shows up in the IDE rather than as a resolution failure at startup. This page says what each one
 means and what to do about it.
 
-These are reported by a source generator rather than by an analyzer. **Silencing one works both
-ways** — through the compilation-level properties, and through `.editorconfig`:
+These are reported by a source generator rather than by an analyzer, and every way of silencing one
+works. Across a project:
 
 ```xml
 <PropertyGroup>
@@ -15,12 +15,29 @@ ways** — through the compilation-level properties, and through `.editorconfig`
 ```
 
 ```ini
-# .editorconfig — silences it, including the Error-severity codes
+# .editorconfig — including the Error-severity codes
 [*.cs]
 dotnet_diagnostic.DM0019.severity = none
 ```
 
-`#pragma warning disable DM0005` works too, for silencing one site rather than a project.
+Or at one site, which is usually what you want:
+
+```csharp
+#pragma warning disable DM0018
+[DependencyModule]
+public partial class CacheModule { public int SizeLimit { get; set; } }
+#pragma warning restore DM0018
+```
+
+::: warning `.editorconfig` and `#pragma` did not work before 1.2.0
+For most codes, in 1.0.0 and 1.1.0, only `NoWarn` and `WarningsAsErrors` had any effect. A diagnostic
+carried its file and line but was not attached to the syntax tree, and Roslyn decides both
+`.editorconfig` severity and `#pragma` filtering from the tree.
+
+The 1.1.0 release notes said `.editorconfig` worked. It worked for `DM0016` and `DM0019` and nothing
+else — and that release is what broke it, by moving ten diagnostics from the project onto the
+declaration they are about. Both mechanisms reach every code from 1.2.0.
+:::
 
 **Raising a severity is the part `.editorconfig` cannot do.** A generator's diagnostics reach the
 compilation with their severity already fixed, and Roslyn's severity *mapping* applies to analyzer
@@ -52,6 +69,9 @@ verbosity. The rest are worth reading.
 | [DM0017](#dm0017) | Error | A module is declared inside another type |
 | [DM0018](#dm0018) | Warning | A module with parameters relies on generated equality |
 | [DM0019](#dm0019) | Error | An assembly-level module attribute is outside the entry point file |
+| [DM0020](#dm0020) | Warning | An interception is applied by no module |
+| [DM0021](#dm0021) | Warning | `[Mock]` and `[TestExport]` name one service on the same method |
+| [DM0022](#dm0022) | Warning | A decorator names an implementation while factories are generated |
 
 ## DM0001 {#dm0001}
 
@@ -255,6 +275,10 @@ that message points away from the fix, which is one line:
 using MyApp.Composition;          // or write it as [assembly: MyApp.Composition.ApplicationModule]
 ```
 
+A module in a referenced package is covered too: its attribute is already in metadata by the time
+this runs, so it can be found there. What cannot be resolved is a module in *this* compilation —
+its attribute is written by the generator that is running, so nothing about it exists yet to look up.
+
 Unlike the other diagnostics here this one is read from syntax rather than from the compiler's view
 of your code, and it has to be: the attribute is written by the generator that is running, so it does
 not exist in the compilation being examined and nothing about it can be resolved. The check is
@@ -353,7 +377,100 @@ using MyApp.Library;
 Move it to the file holding the entry point, or load the module explicitly with
 `services.AddModule<LibraryModule>()`.
 
+The module can live anywhere — this compilation or a referenced package. Before 1.2.0 only a module
+declared in the same project was checked, so the shape above, which is the one worth catching,
+reported nothing.
+
 This stays quiet when nothing generated an `ApplicationModule`. A class library has no entry point,
 and neither does a test project — where assembly-level module attributes are read at *run time* by
 the test integration and are perfectly at home in a file of their own, which is the shape
 [Testing](/guide/testing#stop-repeating-the-module-list) shows.
+
+## DM0020 {#dm0020}
+
+**An interception is applied by no module, so it never runs.**
+
+Registrations and interceptions are placed by the same rule — named a realm, it belongs to that
+module; named none, it belongs to every module that is not `OnlyRealm`. The wrapper is generated
+either way, so an interception no module applies is a class nothing ever routes through.
+
+The case that reaches here is a realm-only module registering the class *by convention*:
+
+```csharp
+[Intercept(typeof(AuditInterceptor))]           // DM0020 — no realm named
+public class Greeter : IGreeter { … }
+
+[DependencyModule(OnlyRealm = true)]
+public partial class GreetingModule : IConventionModule {
+    void IConventionModule.Conventions(IConventionDefinitions conventions) =>
+        conventions.RegisterAll<IGreeter>().AsSingleton();
+}
+```
+
+A convention registration is stamped with its declaring module's realm when the convention is
+matched, which is long after the interception was read. So the registration lands in
+`GreetingModule` and the interception is offered only to modules that are *not* realm-only — of
+which there are none here.
+
+Name the module and the two meet:
+
+```csharp
+[Intercept(typeof(AuditInterceptor), Realm = typeof(GreetingModule))]
+```
+
+An interception on a class registered by a *service attribute* needs none of this: it takes the realm
+from that attribute automatically, so `[SingletonService(Realm = typeof(X))]` and a plain
+`[Intercept]` agree without being told to. See [Interception](/guide/interception#realms).
+
+## DM0021 {#dm0021}
+
+**`[Mock]` and `[TestExport]` name one service on the same test method.**
+
+A parameter attribute names one argument, which is the narrowest thing a test can say, so `[Mock]`
+wins and the `[TestExport]` beside it does nothing:
+
+```csharp
+[ModuleTest]
+[TestExport(typeof(IClock), Implementation = typeof(SystemClock))]
+public void Expires([Mock] IClock clock) { }        // DM0021 — the export does nothing
+```
+
+Only on the same method. `[TestExport]` on the class or the assembly is a default for everything
+under it, and one test overriding that for one argument is what having both scopes is for:
+
+```csharp
+[TestExport(typeof(IClock), Implementation = typeof(SystemClock))]   // the fixture default
+public class ExpiryTests {
+
+    [ModuleTest]
+    public void UsesTheRealClock(IClock clock) { }                   // SystemClock
+
+    [ModuleTest]
+    public void Expires([Mock] IClock clock) { }                     // the mock — no diagnostic
+}
+```
+
+See [Mocking frameworks](/guide/testing-mocking#precedence).
+
+## DM0022 {#dm0022}
+
+**A decorator names an implementation while factories are generated.**
+
+Reaching one registration of a service means asking each descriptor what implementation it was built
+from, and a factory registration cannot say. `DependencyModules_GenerateFactories` makes every
+registration factory-built, so the decorator would wrap *all* of them — the opposite of what naming
+one asked for.
+
+```csharp
+[Decorator(Implementation = typeof(SmtpSender))]   // DM0022 when factories are on
+public class RetryingSender(IEmailSender inner) : IEmailSender { … }
+```
+
+Turn the property off for this project, or drop `Implementation` and decorate them all.
+
+An *intercepted* service escapes the property automatically — the interception is declared on the
+class being registered, so the code emitting that registration can see it and keeps a `typeof`
+registration for it. A decorator is declared on the decorator, so the registration it targets is
+written by a pass that never learns about it. See
+[MSBuild properties](/reference/msbuild#generatefactories-and-container-validation).
+

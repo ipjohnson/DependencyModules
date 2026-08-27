@@ -123,6 +123,29 @@ public abstract class BaseServiceAttribute : Attribute, IServiceRegistrationAttr
     /// or runtime modules.
     /// </summary>
     public Type? Realm { get; set; }
+
+    /// <summary>
+    /// Where this registration sits among the others for the same service, lowest first. Zero by
+    /// default.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Decides the sequence a dependency on <c>IEnumerable&lt;T&gt;</c> arrives in, which matters
+    /// for anything read as a pipeline — validators, handlers, filters. Without it the sequence was
+    /// the order the generator emitted, sorted by class name, so renaming a class reordered a
+    /// pipeline and nothing said so.
+    /// </para>
+    /// <para>
+    /// It decides a single resolve too: the container returns the last registration of a service, so
+    /// the highest order wins a plain <c>GetService&lt;T&gt;()</c>.
+    /// </para>
+    /// <para>
+    /// Sorting is stable within one order and everything is zero by default, so a project that names
+    /// no orders is unaffected. Negative values sort ahead of that majority, which is what
+    /// "before everything else" looks like in a codebase that has never used this.
+    /// </para>
+    /// </remarks>
+    public int Order { get; set; }
     
     /// <inheritdoc />
     [Browsable(false)]

@@ -17,7 +17,8 @@ In both cases you are writing forwarding code by hand, and the actual logic is f
 ## How DependencyModules helps
 
 Write the behaviour once, as an interceptor. The generator emits a type implementing the service
-interface and routes **every member** through it:
+interface and routes its members through it — every member by default, and
+[the kinds you name](#covering-some-members-and-not-others) when that is too much:
 
 ```csharp
 public class TimingInterceptor(ILogger log) : IInterceptor {
@@ -131,6 +132,83 @@ public class Repository : IRepository { }
 
 They nest in declaration order. Each is resolved from the container, so an interceptor can take
 dependencies of its own — as `TimingInterceptor` does with its `ILogger`.
+
+## How an interceptor is registered
+
+You do not register interceptors. The generated code registers each one **as its own type**, with
+`TryAdd`, so it is resolvable by the wrapper without being visible as an `IInterceptor` to anything
+else.
+
+`TryAdd` means a registration you made yourself wins. An interceptor carrying its own
+`[SingletonService]` or `[ScopedService]` keeps that lifetime, because services are applied before
+decorators and yours is already there by the time this runs.
+
+The default is singleton, and it is the wrong default for an interceptor that takes a scoped
+dependency — a singleton holding a scoped service is a captive dependency, and nothing says so unless
+`ValidateScopes` is on. Name the lifetime instead:
+
+```csharp
+[Intercept(typeof(AuditInterceptor), Lifetime = ServiceLifetime.Scoped)]
+public class Repository : IRepository { }
+```
+
+## An interception belongs to one implementation
+
+`[Intercept]` applies to **the class it is written on**, not to every implementation of the interface:
+
+```csharp
+[SingletonService] [Intercept(typeof(TimingInterceptor))]
+public class SqlRepository : IRepository { }
+
+[SingletonService]
+public class InMemoryRepository : IRepository { }   // not wrapped
+```
+
+This is the opposite of a [decorator](/guide/decorators), which is declared against the interface and
+wraps everything behind it — and the difference is the point. A decorator says "this behaviour
+belongs to the interface"; an interceptor says "this behaviour belongs to this class".
+
+Decorators can name one implementation too, with `[Decorator(Implementation = typeof(X))]`, when that
+turns out to be what you meant.
+
+## Realms
+
+An interception with no `Realm` takes the one its own class's service attribute names, so these agree
+without being told to:
+
+```csharp
+[SingletonService(Realm = typeof(DiagnosticsModule))]
+[Intercept(typeof(AuditInterceptor))]
+public class Profiler : IProfiler { }
+```
+
+The interception lands in `DiagnosticsModule`, where the registration is. Name a realm explicitly to
+override that:
+
+```csharp
+[Intercept(typeof(AuditInterceptor), Realm = typeof(DiagnosticsModule))]
+```
+
+A class registered by a **convention** takes its realm at match time, which is too late for an
+interception to inherit — so a realm-only convention module needs the realm named on `[Intercept]`.
+[DM0020](/reference/diagnostics#dm0020) reports an interception no module ends up applying.
+
+## Covering some members and not others
+
+Every member is covered by default, which is right for auditing or retry — an interceptor has no way
+to know which members matter, and leaving one out silently is worse than covering too much.
+
+It is the wrong default for an interface with properties, where a timing interceptor records a call
+per read. Name the kinds instead:
+
+```csharp
+[Intercept(typeof(TimingInterceptor), Members = InterceptedMembers.Methods)]
+public class Repository : IRepository { }
+```
+
+`InterceptedMembers` has `Methods`, `Properties`, `Indexers` and `Events`, combinable with `|`. A
+member left out is still forwarded — the wrapper implements the whole interface either way — it just
+does not run through the chain.
 
 ## What cannot be intercepted
 

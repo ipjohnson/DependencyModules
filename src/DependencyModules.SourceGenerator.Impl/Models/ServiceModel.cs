@@ -30,6 +30,25 @@ public enum RegistrationFeature {
     /// The implementation is a static class, which likewise cannot be constructed.
     /// </summary>
     StaticImplementation = 4,
+
+    /// <summary>
+    /// The implementation carries <c>[Intercept]</c>, so its registration has to stay identifiable
+    /// as its own.
+    /// </summary>
+    /// <remarks>
+    /// Interception is applied by rewriting the one registration the wrapper was generated from,
+    /// and finding it means asking a descriptor which implementation it was built from. A factory
+    /// descriptor cannot answer, so under <c>DependencyModules_GenerateFactories</c> the filter
+    /// matched nothing and interception went back to wrapping every registration of the service
+    /// type - the exact behaviour 1.1.0 shipped to fix, restored by the property the AOT guidance
+    /// recommends turning on.
+    ///
+    /// So an intercepted implementation keeps its <c>typeof</c> registration whatever the property
+    /// says. It costs that one service the property's benefit and nothing else: the wrapper around
+    /// it is still emitted as a literal <c>new</c>, and a <c>typeof</c> registration is the default
+    /// shape everywhere else, trimmer-annotated and already proven under Native AOT.
+    /// </remarks>
+    Intercepted = 8,
 }
 
 public record ServiceFactoryModel(
@@ -61,7 +80,14 @@ public record ServiceRegistrationModel(
     ITypeDefinition? Realm = null,
     object? Key = null,
     bool? CrossWire = false,
-    IReadOnlyList<string>? Namespaces = null);
+    IReadOnlyList<string>? Namespaces = null,
+
+    /// <summary>
+    /// Where this registration sits among the others for the same service, lowest first. Decides the
+    /// sequence an <c>IEnumerable&lt;T&gt;</c> dependency sees, and therefore which one a single
+    /// resolve returns.
+    /// </summary>
+    int Order = 0);
 
 public delegate IOutputComponent? FactoryOutputDelegate(
     ServiceModel serviceModel, ServiceRegistrationModel registrationModel);

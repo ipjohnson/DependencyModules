@@ -54,6 +54,13 @@ public class MockAttribute : Attribute, ITestParameterValueProvider {
             throw new Exception("Mock library not found, please ensure the Type or Assembly is attributed correctly.");
         }
 
+        // The mock library owns this type for this test - a Moq test naming both Mock<IFoo> and
+        // [Mock] IFoo wants one mock seen two ways, and registering a second one here would leave
+        // the test configuring one while the container handed out another.
+        if (mockAttribute.RegistersService(testMethod, parameter.ParameterType)) {
+            return;
+        }
+
         var mockedValue = mockAttribute.ProvideMock(parameter.ParameterType);
         var key = ServiceKeyOf(parameter);
 

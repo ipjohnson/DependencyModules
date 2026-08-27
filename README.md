@@ -107,6 +107,10 @@ declare your own:
 public partial class ApplicationModule;
 ```
 
+Declaring one in a project that already gets a generated `ApplicationModule` merges with it rather
+than colliding — and to add a `ConfigureServices` to the generated one, declare the partial
+*without* `[DependencyModule]` and implement `IServiceCollectionConfiguration`.
+
 A module must be `partial`, and must be declared directly in a namespace rather than nested
 inside another type. Services marked with `[SingletonService]` and friends may be nested freely.
 
@@ -232,6 +236,7 @@ publishing. See the [AOT guide](https://ipjohnson.github.io/DependencyModules/gu
 | `Key = "primary"` | Keyed registration |
 | `Using = RegistrationType.Try` | `Add`, `Try`, `TryEnumerable` or `Replace` |
 | `Realm = typeof(SomeModule)` | Restrict a registration to one module |
+| `Order = 10` | Where a registration sits in `IEnumerable<T>` |
 | `[IfEnvironment("Development")]` | Register only in named environments |
 | `[Decorator]` `[Decorate]` `[Intercept]` | Wrap a service, or one you do not own |
 | A `static` method carrying a service attribute | Factory, for types the container cannot build |

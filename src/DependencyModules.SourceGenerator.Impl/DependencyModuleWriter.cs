@@ -16,6 +16,29 @@ public class DependencyModuleWriter {
         _generateAttribute = generateAttribute;
     }
 
+    /// <summary>
+    /// Registers the module writer and the diagnostics about a module's declaration.
+    /// </summary>
+    /// <remarks>
+    /// Together, because they are two halves of one thing and only the second can see the
+    /// compilation. Emission stays on the models alone so it is not re-run per keystroke;
+    /// the diagnostics combine the compilation, which they need in order to report against a syntax
+    /// tree rather than a bare file path — without one, neither <c>.editorconfig</c> nor
+    /// <c>#pragma warning disable</c> can silence them.
+    /// </remarks>
+    public static void Register(
+        IncrementalGeneratorInitializationContext context,
+        IncrementalValueProvider<ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)>> valuesProvider,
+        bool generateAttribute) {
+
+        context.RegisterSourceOutput(
+            valuesProvider, new DependencyModuleWriter(generateAttribute).GenerateSource);
+
+        context.RegisterSourceOutput(
+            valuesProvider.Combine(context.CompilationProvider),
+            ModuleEntryPointDiagnostics.Report);
+    }
+
     public void GenerateSource(SourceProductionContext context, 
         ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> allEntryPoints) {
 
@@ -68,45 +91,14 @@ public class DependencyModuleWriter {
         ModuleEntryPointModel entryPointModel, 
         DependencyModuleConfigurationModel configurationModel) {
 
-        // Generating into a non-partial type produces CS0260 against the developer's own
-        // declaration, which describes the symptom rather than the fix. Report it directly and
-        // generate nothing, so the only error they see is the actionable one.
-        if (entryPointModel.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.NotPartial)) {
-            context.ReportDiagnostic(
-                Diagnostic.Create(
-                    DependencyModuleDiagnostics.ModuleMustBePartial,
-                    entryPointModel.Location.ToLocationOrNone(),
-                    entryPointModel.EntryPointType.Name));
-
+        // Both of these are reported by ModuleEntryPointDiagnostics, which owns the conditions.
+        // Generating anyway is what makes them worth stopping for: a non-partial module produces
+        // CS0260 against the developer's own declaration, and a nested one emits a same-named type
+        // at namespace level that compiles and registers nothing. Either way the actionable message
+        // would arrive buried under errors describing the symptom.
+        if (ModuleEntryPointDiagnostics.IsNotPartial(entryPointModel) ||
+            ModuleEntryPointDiagnostics.IsNestedInType(entryPointModel)) {
             return;
-        }
-
-        // Generating anyway would emit a same-named type at namespace level, which compiles and
-        // registers nothing — the failure this is here to replace.
-        if (entryPointModel.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.NestedInType)) {
-            context.ReportDiagnostic(
-                Diagnostic.Create(
-                    DependencyModuleDiagnostics.ModuleCannotBeNested,
-                    entryPointModel.Location.ToLocationOrNone(),
-                    entryPointModel.EntryPointType.Name));
-
-            return;
-        }
-
-        // Settable and non-static, matching exactly what ModuleAttributeWriter carries across from
-        // the generated attribute. A read-only property is not a parameter — a module implementing
-        // an interface with `public string Value => "A";` has nothing anyone can configure, and
-        // asking it to declare Equals would be noise about a decision it never faces.
-        //
-        // Only when the generator is supplying equality, too: a module that declares its own Equals
-        // has already answered the question this asks about.
-        if (entryPointModel.PropertyInfoModels.Any(p => !p.IsReadOnly && !p.IsStatic) &&
-            entryPointModel.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.ShouldImplementEquals)) {
-            context.ReportDiagnostic(
-                Diagnostic.Create(
-                    DependencyModuleDiagnostics.ModuleWithPropertiesShouldImplementEquals,
-                    entryPointModel.Location.ToLocationOrNone(),
-                    entryPointModel.EntryPointType.Name));
         }
 
         entryPointModel = EntryModelUtil.EnsureNamespace(entryPointModel,configurationModel);

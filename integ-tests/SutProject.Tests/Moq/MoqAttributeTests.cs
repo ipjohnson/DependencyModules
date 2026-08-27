@@ -141,7 +141,63 @@ public class MoqAttributeTests {
         Assert.NotSame(mock.Object, instance);
     }
 
+    /// <summary>
+    /// A [Mock] on a parameter overrides a [TestExport] naming the same service. [TestExport]
+    /// applies to a method, a class or an assembly; [Mock] names one argument, and that is the
+    /// narrowest thing a test can say — the wider scope sets the default and this one test opts out.
+    ///
+    /// On the same method the pair is contradictory rather than useful, and DM0021 says so at build
+    /// time. It still resolves this way, so the diagnostic is a warning about a pointless
+    /// declaration rather than an error about an ambiguous one.
+    /// </summary>
+#pragma warning disable DM0021
+    [ModuleTest]
+    [SutModule]
+    [TestExport(typeof(ISingletonService), Implementation = typeof(ExportedSingletonService))]
+    public void AMockOnAParameterBeatsATestExportOnTheMethod([Mock] ISingletonService service) {
+        Assert.IsNotType<ExportedSingletonService>(service);
+
+        global::Moq.Mock.Get(service).Setup(x => x.GetName()).Returns("mocked");
+
+        Assert.Equal("mocked", service.GetName());
+    }
+#pragma warning restore DM0021
+
     public class ExportedSingletonService : ISingletonService {
         public string GetName() => "exported";
     }
+}
+
+/// <summary>
+/// The shape a parameter-level override exists for: the class names a real implementation as the
+/// default for every test in it, and one test mocks it anyway.
+///
+/// Its own fixture on purpose — a class-level [TestExport] is a default for the whole class, so
+/// putting it on the fixture above would have changed every test there, which is the point of it.
+/// </summary>
+[MoqSupport]
+[TestExport(typeof(IScopedService), Implementation = typeof(ClassLevelTestExportTests.ExportedScopedService))]
+public class ClassLevelTestExportTests {
+
+    /// <summary>The default, taken by any test that does not say otherwise.</summary>
+    [ModuleTest]
+    [SutModule]
+    public void WithoutAMockTheClassDefaultApplies(IScopedService service) {
+        Assert.IsType<ExportedScopedService>(service);
+    }
+
+    /// <summary>
+    /// And the one test that says otherwise. No diagnostic: naming a default and overriding it for
+    /// one case is what the two scopes are for, unlike declaring both on the same method.
+    /// </summary>
+    [ModuleTest]
+    [SutModule]
+    public void AMockOnAParameterBeatsIt([Mock] IScopedService service) {
+        Assert.IsNotType<ExportedScopedService>(service);
+
+        // Reachable as a mock, which is the point - the parameter is the double, not the export.
+        Assert.NotNull(global::Moq.Mock.Get(service));
+    }
+
+    public class ExportedScopedService : IScopedService { }
 }

@@ -93,6 +93,84 @@ public static class DependencyModuleDiagnostics {
     /// when nothing generated an <c>ApplicationModule</c> — a class library or a test project has
     /// no entry point to be in the wrong file relative to.
     /// </remarks>
+    /// <summary>
+    /// Raised for a decorator naming an implementation in a project emitting factories.
+    /// </summary>
+    /// <remarks>
+    /// Reaching one registration of a service means asking each descriptor what implementation it
+    /// was built from, and a factory descriptor cannot answer.
+    /// <c>DependencyModules_GenerateFactories</c> makes every registration factory-built, so the
+    /// decorator would wrap all of them — which is the opposite of what naming one asked for.
+    ///
+    /// An intercepted service is exempted from the property automatically, because the interception
+    /// is declared on the class being registered and the writer emitting that registration can see
+    /// it. A decorator is declared on the decorator, so the registration it targets is written by a
+    /// pass that never learns about it. Reported rather than silently doing the wrong thing.
+    /// </remarks>
+    public static readonly DiagnosticDescriptor DecoratorImplementationNeedsTypeRegistration = new(
+        id: "DM0022",
+        title: "Decorator names an implementation while factories are generated",
+        messageFormat:
+        "'{0}' decorates only '{1}', but DependencyModules_GenerateFactories is on for this project " +
+        "and a factory registration cannot say what implementation it built — so the decorator would " +
+        "wrap every registration of '{2}' instead of one. Turn the property off for this project, or " +
+        "drop Implementation and decorate them all.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    /// <summary>
+    /// Raised for a <c>[Mock]</c> parameter and a <c>[TestExport]</c> on the same method, both
+    /// naming one service.
+    /// </summary>
+    /// <remarks>
+    /// A parameter attribute is the narrowest thing a test can say, so <c>[Mock]</c> wins and the
+    /// <c>[TestExport]</c> beside it does nothing. That is worth reporting rather than resolving
+    /// quietly: the two say opposite things about one service, written at the same place, and only
+    /// one of them can have been meant.
+    ///
+    /// Only on the same method. A <c>[TestExport]</c> on the class or the assembly is a default for
+    /// everything under it, and a parameter overriding that for one test is the point of having
+    /// both scopes — nothing to report there.
+    /// </remarks>
+    public static readonly DiagnosticDescriptor MockAndTestExportOnOneMethod = new(
+        id: "DM0021",
+        title: "[Mock] and [TestExport] name one service on the same method",
+        messageFormat:
+        "'{0}' carries [TestExport] for '{1}' and a [Mock] parameter naming the same service. The " +
+        "parameter wins, so the [TestExport] does nothing. Move the [TestExport] to the class or " +
+        "the assembly if it is the default this test is overriding, or drop whichever of the two " +
+        "was not meant.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    /// <summary>
+    /// Raised for an interception no module applies, so it can never run.
+    /// </summary>
+    /// <remarks>
+    /// Registrations and interceptions are placed by the same rule — named a realm, it belongs to
+    /// that module; named none, it belongs to every module that is not realm-only — and the two can
+    /// still land in different places. An interception on a class a realm-only module registers by
+    /// convention is the case: the registration is stamped with that module's realm at match time,
+    /// while the interception, naming no realm, is offered only to modules that are not realm-only.
+    ///
+    /// This reports the shape that cannot work in any configuration, rather than the one that
+    /// merely looks odd: no module in the compilation applies this interception, so the wrapper is
+    /// generated and never used. Naming a realm on <c>[Intercept]</c> is the fix.
+    /// </remarks>
+    public static readonly DiagnosticDescriptor InterceptionAppliedByNoModule = new(
+        id: "DM0020",
+        title: "Interception is applied by no module",
+        messageFormat:
+        "'{0}' is marked for interception, but no module in this compilation applies it, so the " +
+        "interceptors never run. This happens when the registration and the interception land in " +
+        "different realms — a realm-only module registering '{0}' by convention, for instance, while " +
+        "the interception names no realm. Name the module on [Intercept(Realm = typeof(...))].",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
     public static readonly DiagnosticDescriptor AssemblyModuleAttributeNotComposed = new(
         id: "DM0019",
         title: "Assembly-level module attribute is not composed",

@@ -32,6 +32,7 @@ namespace DependencyModules.Testing.Attributes.Interfaces
     public interface IMockSupportAttribute
     {
         object ProvideMock(System.Type type);
+        bool RegistersService(DependencyModules.Testing.Attributes.Interfaces.ITestMethodContext testMethod, System.Type serviceType);
     }
     public interface IModuleTestAttribute
     {

@@ -43,9 +43,11 @@ public class ModuleTestCommand(TestCommand innerCommand) : DelegatingTestCommand
 
         SetupModules(serviceCollection, method, knownAttributes);
 
-        resolver.SetupServiceCollection(serviceCollection);
-
         SetupServiceSetupAttributes(moduleContext, serviceCollection, knownAttributes);
+
+        // Last, for the reason the xUnit host records at the same point: a [Mock] on a parameter
+        // beats a [TestExport] naming the same service.
+        resolver.SetupServiceCollection(serviceCollection);
 
         var serviceProvider = BuildServiceProvider(moduleContext, serviceCollection, knownAttributes);
 

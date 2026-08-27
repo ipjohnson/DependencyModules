@@ -148,8 +148,10 @@ public class ServiceModelUtility {
     /// Flags describing why the container could never construct this type, so the generator can
     /// report it instead of emitting a registration that fails when the provider is built.
     /// </summary>
-    private static RegistrationFeature GetConstructionFeatures(SyntaxNode node) {
-        if (node is not TypeDeclarationSyntax typeDeclarationSyntax) {
+    private static RegistrationFeature GetConstructionFeatures(
+        SyntaxTransformContext context, CancellationToken cancellationToken) {
+
+        if (context.Node is not TypeDeclarationSyntax typeDeclarationSyntax) {
             return RegistrationFeature.None;
         }
 
@@ -162,7 +164,40 @@ public class ServiceModelUtility {
             features |= RegistrationFeature.AbstractImplementation;
         }
 
+        if (IsIntercepted(typeDeclarationSyntax, context, cancellationToken)) {
+            features |= RegistrationFeature.Intercepted;
+        }
+
         return features;
+    }
+
+    /// <summary>
+    /// Whether the declaration carries <c>[Intercept]</c>.
+    /// </summary>
+    /// <remarks>
+    /// Read here rather than taken from the interceptor models, because the two are built by
+    /// separate providers that cannot see each other — the same reason the interception reads its
+    /// realm from the service attribute rather than the other way round. Both facts are written on
+    /// one declaration, which is the only place either transform can find the other.
+    /// </remarks>
+    private static bool IsIntercepted(
+        TypeDeclarationSyntax typeDeclarationSyntax,
+        SyntaxTransformContext context,
+        CancellationToken cancellationToken) {
+
+        foreach (var attributeList in typeDeclarationSyntax.AttributeLists) {
+            foreach (var attribute in attributeList.Attributes) {
+                if (AttributeTypeMatcher.Matches(
+                        context.SemanticModel,
+                        attribute,
+                        KnownTypes.DependencyModules.Attributes.InterceptAttribute,
+                        cancellationToken)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private static ServiceModel? GetClassDeclarationServiceModel(SyntaxTransformContext context, CancellationToken cancellationToken) {
@@ -206,7 +241,7 @@ public class ServiceModelUtility {
             null,
             factoryOutput,
             registrations,
-            GetConstructionFeatures(context.Node),
+            GetConstructionFeatures(context, cancellationToken),
             EnvironmentConditionUtility.GetConditions(context, context.Node, cancellationToken),
             LocationModel.From(context.Node));
     }
@@ -365,6 +400,7 @@ public class ServiceModelUtility {
         ITypeDefinition? realm = null;
         object? key = null;
         ServiceLifestyle lifestyle = ServiceLifestyle.Singleton;
+        var order = 0;
         var namespaces = new List<string>();
 
         if (attributeSyntax.ArgumentList != null) {
@@ -395,6 +431,12 @@ public class ServiceModelUtility {
                                 realm = realmType.Type.GetTypeDefinition(context);
                             }
                             break;
+
+                        case "Order":
+                            if (int.TryParse(argumentSyntax.Expression.ToString(), out var parsedOrder)) {
+                                order = parsedOrder;
+                            }
+                            break;
                     }
                 }
             }
@@ -412,7 +454,8 @@ public class ServiceModelUtility {
                         realm,
                         key,
                         true,
-                        namespaces
+                        namespaces,
+                        order
                     );
                 }
             }
@@ -452,6 +495,7 @@ public class ServiceModelUtility {
         // semantic model to decide that this attribute matched at all; the caller simply passes on
         // which one it was rather than discarding the answer.
         var lifestyle = LifestyleOf(attributeType);
+        var order = 0;
 
         ITypeDefinition? registration = null;
         RegistrationType? registrationType = null;
@@ -493,6 +537,12 @@ public class ServiceModelUtility {
                                 realm = realmType.Type.GetTypeDefinition(context);
                             }
                             break;
+
+                        case "Order":
+                            if (int.TryParse(argumentSyntax.Expression.ToString(), out var parsedOrder)) {
+                                order = parsedOrder;
+                            }
+                            break;
                     }
                 }
             }
@@ -505,7 +555,8 @@ public class ServiceModelUtility {
             realm,
             key,
             false,
-            namespaces
+            namespaces,
+            order
         );
     }
 

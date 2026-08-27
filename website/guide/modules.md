@@ -35,9 +35,10 @@ body stays empty unless you want something from the rest of this page.
 A module **must** be `partial`, or the generator has nothing to complete —
 [DM0003](/reference/diagnostics#dm0003).
 
-A module must be declared **directly in a namespace**, never nested inside another type. A nested
-module quietly generates a separate, detached class instead of completing your partial, so its
-registrations never run. Services can be nested freely; the restriction is only on modules.
+A module must be declared **directly in a namespace**, never nested inside another type —
+[DM0017](/reference/diagnostics#dm0017). A nested module quietly generates a separate, detached class
+instead of completing your partial, so its registrations never run. Services can be nested freely;
+the restriction is only on modules.
 :::
 
 ## Composing modules
@@ -46,9 +47,13 @@ Every module generates **an attribute with the same name**. Applying that attrib
 makes it a dependency:
 
 ```csharp
+// MyApp.Data — its own project
 [DependencyModule]
 public partial class DataModule;
+```
 
+```csharp
+// MyApp — references MyApp.Data
 [DependencyModule]
 [DataModule]                       // everything DataModule registers comes along
 public partial class ApplicationModule;
@@ -61,6 +66,22 @@ attribute rather than a call somebody has to remember.
 ```csharp
 services.AddModule<ApplicationModule>();   // DataModule comes too
 ```
+
+::: warning The two modules are in two projects, and that matters
+A module collects every attributed service **in its own project** — so two modules declared in one
+project each hold that project's whole registration list, and composing one into the other does not
+change what either holds. Loading `ApplicationModule` would then apply the same registrations twice.
+
+```csharp
+// one project, both modules — every service registers twice
+[DependencyModule] public partial class DataModule;
+[DependencyModule] [DataModule] public partial class ApplicationModule;
+```
+
+Composing across projects is the shape above and is what this is for. Two modules that genuinely
+belong in one project want [realms](#realms-keeping-a-registration-out-of-the-default-module)
+instead: a realm is how you say which registrations belong to which module.
+:::
 
 Dependencies are expanded **before** the module that declares them, so a module's own registrations
 are applied last and win wherever the container is last-wins. An application can therefore override
@@ -143,9 +164,12 @@ call runs it twice:
 services.AddModules(new AppModule(), new DataModule());   // every service registered twice
 ```
 
-Declaring two modules is fine; loading both is what doubles up. If they are meant to be composed
-together, give one a realm, or have one compose the other with its
-[generated attribute](#composing-modules) instead of naming both at the call site.
+Declaring two modules is fine; loading both is what doubles up. **Give one a realm** — that is what
+says which registrations belong to which module, and the only thing that removes the doubling.
+
+Composing one into the other does *not*, however it reads: both still hold the whole list, so
+loading the outer one applies it twice. Composition is for modules in [separate
+projects](#composing-modules), where each holds only its own.
 :::
 
 ## Parameters
@@ -164,6 +188,27 @@ public partial class ApplicationModule {
 [ApplicationModule(ConnectionString = "Server=…")]
 public partial class TestModule;
 ```
+
+::: warning A module with parameters needs an identity
+Modules de-duplicate **by type**, which is what stops a module reached twice from registering
+everything twice. A module carrying parameters is the case that rule does not fit: two instances
+holding different values are the same module by it, so the first one reached wins and the other is
+discarded with nothing said.
+
+```csharp
+[DependencyModule] [ApplicationModule(ConnectionString = "primary")]  public partial class A;
+[DependencyModule] [ApplicationModule(ConnectionString = "reporting")] public partial class B;
+```
+
+Load both and one connection string arrives. [DM0018](/reference/diagnostics#dm0018) reports it, and
+declaring your own `Equals` and `GetHashCode` says which answer you meant — identity by value, so
+both survive, or identity by type, so one wins deliberately.
+:::
+
+A **value-typed** parameter cannot carry a default. `public int Retries { get; set; } = 3;` is reset
+to `0` by a composition that does not name it, because `0` and "not set" are the same value and the
+generated attribute cannot tell them apart. A nullable or reference-typed parameter keeps its
+default. Name value-typed parameters at every composition, or make them nullable.
 
 ## When attributes are not enough
 

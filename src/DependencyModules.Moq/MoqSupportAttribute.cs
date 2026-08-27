@@ -43,11 +43,14 @@ public class MoqSupportAttribute : Attribute, IMockSupportAttribute, ITestServic
     /// resolves the <c>T</c> and gets that same mock's object. Neither has to know about the other,
     /// and the test wires nothing together itself.
     ///
-    /// Runs after the value providers behind <c>[Mock]</c> and before any other setup attribute, and
-    /// registrations are last-one-wins. So this settles any disagreement with <c>[Mock]</c> — which
-    /// is what lets <c>[Mock] IFoo</c> and <c>Mock&lt;IFoo&gt;</c> sit on one test and resolve to a
-    /// matched pair rather than to two unrelated mocks — while a <c>[TestExport]</c> naming a real
-    /// implementation of the same service still overrides both.
+    /// Runs before any other setup attribute, so a <c>[TestExport]</c> naming a real implementation
+    /// of the same service still overrides what is registered here — asking for a mock object is not
+    /// the same as declaring the service mocked.
+    ///
+    /// The value providers behind <c>[Mock]</c> run after this whole pass, so that <c>[Mock]</c>
+    /// does beat a <c>[TestExport]</c>. They stand aside for a type named here, which is what lets
+    /// <c>[Mock] IFoo</c> and <c>Mock&lt;IFoo&gt;</c> sit on one test and resolve to a matched pair
+    /// rather than to two unrelated mocks.
     /// </remarks>
     /// <param name="testMethod">The test the container is being built for.</param>
     /// <param name="serviceCollection">The collection backing the test's container.</param>
@@ -92,6 +95,30 @@ public class MoqSupportAttribute : Attribute, IMockSupportAttribute, ITestServic
         }
 
         return CreateMock(type).Object;
+    }
+
+    /// <summary>
+    /// True for a type this attribute registers itself: a <c>Mock&lt;T&gt;</c> the test asked for,
+    /// or the <c>T</c> behind it.
+    /// </summary>
+    /// <remarks>
+    /// Which is what keeps <c>[Mock] IFoo</c> and <c>Mock&lt;IFoo&gt;</c> on one test resolving to a
+    /// matched pair. [Mock] registers after the setup attributes now, so that it beats a
+    /// [TestExport] naming the same service — and without this it would also beat the pairing here,
+    /// leaving the test configuring one mock while the container handed out another.
+    /// </remarks>
+    public bool RegistersService(ITestMethodContext testMethod, Type serviceType) {
+        foreach (var parameter in testMethod.Method.GetParameters()) {
+            if (!TryGetMockedType(parameter.ParameterType, out var mockedType)) {
+                continue;
+            }
+
+            if (parameter.ParameterType == serviceType || mockedType == serviceType) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static MoqLib.Mock CreateMock(Type type) =>

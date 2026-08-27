@@ -72,6 +72,21 @@ public static class KnownTypes {
 
         }
 
+        /// <summary>
+        /// The testing attributes. Not needed to generate anything — the test integrations read
+        /// these at run time — but DM0021 is about two of them written together, and that is a
+        /// question only a compiler can answer before the test runs.
+        /// </summary>
+        public static class Testing {
+            public const string Namespace = "DependencyModules.Testing.Attributes";
+
+            public static readonly ITypeDefinition MockAttribute =
+                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "MockAttribute");
+
+            public static readonly ITypeDefinition TestExportAttribute =
+                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "TestExportAttribute");
+        }
+
         public static class Interfaces {
             public const string Namespace = "DependencyModules.Runtime.Interfaces";
 

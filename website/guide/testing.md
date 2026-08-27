@@ -112,6 +112,13 @@ namespace, and an assembly-level attribute has no namespace context to inherit �
 build fails with `CS0246: The type or namespace name 'ApplicationModuleAttribute' could not be
 found`, naming a type you never wrote. Importing the namespace or writing the attribute qualified,
 `[assembly: MyApp.Tests.ApplicationModule]`, both work.
+[DM0016](/reference/diagnostics#dm0016) reports it and names the namespace to import, for a module
+declared here or one from a referenced package.
+
+A test project has no entry point, so [DM0019](/reference/diagnostics#dm0019) — which reports an
+assembly-level module attribute in the wrong file — stays quiet here. That is deliberate: assembly
+attributes are read at run time by the test integration, and a file of their own is exactly where
+they belong.
 
 Every test in the project now gets `ApplicationModule` without saying so:
 

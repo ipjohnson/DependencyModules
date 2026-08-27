@@ -112,6 +112,7 @@ export default defineConfig({
           items: [
             { text: 'Diagnostics', link: '/reference/diagnostics' },
             { text: 'Attributes', link: '/reference/attributes' },
+            { text: 'Runtime interfaces', link: '/reference/interfaces' },
             { text: 'Convention API', link: '/reference/conventions-api' },
             { text: 'MSBuild properties', link: '/reference/msbuild' },
           ],

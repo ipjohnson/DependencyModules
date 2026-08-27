@@ -47,7 +47,7 @@ public abstract class BaseAttributeWriter<T> where T : IClassModel {
 
     protected virtual void CreateProperties(IConstructContainer container, ClassDefinition attributeClass, T model) {
         foreach (var propertyInfoModel in model.PropertyInfoModels) {
-            if (propertyInfoModel.IsReadOnly || propertyInfoModel.IsStatic) {
+            if (!propertyInfoModel.IsModuleParameter) {
                 continue;
             }
 

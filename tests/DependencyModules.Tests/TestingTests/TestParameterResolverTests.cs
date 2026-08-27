@@ -23,6 +23,9 @@ public class TestParameterResolverTests {
 
     private class Other : IThing;
 
+    /// <summary>A second real implementation, for the displacement case.</summary>
+    private class Other2 : IThing;
+
     /// <summary>
     /// Takes a dependency the container has and a value it cannot possibly know, which is what
     /// [InjectValues] is for.
@@ -186,6 +189,47 @@ public class TestParameterResolverTests {
             nameof(Samples.UnkeyedMock), services => services.AddSingleton<IThing, Thing>());
 
         Assert.IsType<Other>(Assert.Single(arguments));
+    }
+
+    /// <summary>
+    /// A [Mock] on a parameter overrides a registration made from a wider scope — a [TestExport] on
+    /// the method, the class or the assembly. A parameter attribute names one argument, which is the
+    /// narrowest thing a test can say, so it is the one that decides.
+    ///
+    /// The hosts arrange that by running this pass last, after the setup attributes, and this is the
+    /// half of it the resolver owns: whatever was registered before it, the double registered here
+    /// is the one the container ends up with.
+    /// </summary>
+    [Fact]
+    public async Task AMockOnAParameter_BeatsARegistrationMadeBeforeIt() {
+        var services = new ServiceCollection();
+        var resolver = new TestParameterResolver(ContextFor(nameof(Samples.UnkeyedMock)));
+
+        // What a [TestExport] from any wider scope leaves behind, since the setup-attribute pass
+        // runs first.
+        services.AddSingleton<IThing, Thing>();
+        services.AddSingleton<IThing, Other2>();
+
+        resolver.SetupServiceCollection(services);
+
+        var arguments = await resolver.ResolveArgumentsAsync(services.BuildServiceProvider(), []);
+
+        Assert.IsType<Other>(Assert.Single(arguments));
+    }
+
+    /// <summary>
+    /// And the service under test sees the same double, which is why [Mock] registers at all rather
+    /// than merely supplying an argument.
+    /// </summary>
+    [Fact]
+    public void AMockOnAParameter_IsWhatTheContainerHandsOut() {
+        var services = new ServiceCollection();
+        var resolver = new TestParameterResolver(ContextFor(nameof(Samples.UnkeyedMock)));
+
+        services.AddSingleton<IThing, Other2>();
+        resolver.SetupServiceCollection(services);
+
+        Assert.IsType<Other>(services.BuildServiceProvider().GetRequiredService<IThing>());
     }
 
     [Fact]

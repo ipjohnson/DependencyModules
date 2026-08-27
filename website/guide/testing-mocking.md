@@ -218,21 +218,56 @@ registers it, so the service under test gets the real implementation and your se
 nobody can see.
 :::
 
-## What wins when two things register the same service
+## What wins when two things register the same service {#precedence}
 
-The order is fixed, so it does not depend on how you declare the attributes:
+**The narrowest declaration decides.** `[Mock]` sits on a parameter and names one argument;
+`[TestExport]` applies to a method, a class or an assembly. So a `[Mock]` parameter overrides a
+`[TestExport]` naming the same service, and that is the shape having both is for — the class sets the
+default and one test opts out:
 
-1. **`[Mock]` parameters** register their doubles first.
-2. **Mock support** registers the `Mock<T>` pairs, settling any disagreement with step 1 — which is
-   what lets `[Mock] IFoo` and `Mock<IFoo>` resolve to a matched pair rather than two unrelated
-   mocks.
-3. **`[TestExport]`** and other setup attributes run last, so a
-   [`[TestExport]`](/guide/testing#when-you-want-a-real-object-not-a-mock) naming a real
-   implementation of the same service overrides both.
+```csharp
+[TestExport(typeof(IClock), Implementation = typeof(SystemClock))]   // the fixture default
+public class ExpiryTests {
 
-Registrations are last-one-wins, so that ordering is the whole rule. If you want a real object rather
-than a mock for one service in one test, `[TestExport]` gets it regardless of what is mocked around
-it.
+    [ModuleTest]
+    public void UsesTheRealClock(IClock clock) { }                   // SystemClock
+
+    [ModuleTest]
+    public void Expires([Mock] IClock clock) { }                     // the mock
+}
+```
+
+Written on the **same method** the two are contradictory rather than useful — the parameter wins and
+the `[TestExport]` beside it does nothing — so that is
+[DM0021](/reference/diagnostics#dm0021).
+
+`Mock<T>` deliberately does not get this. Asking for the mock object is not the same as declaring the
+service mocked, so a `[TestExport]` still beats it:
+
+```csharp
+[ModuleTest]
+[TestExport(typeof(IClock), Implementation = typeof(SystemClock))]
+public void RealClock(IClock clock, Mock<IClock> mock) {
+    Assert.IsType<SystemClock>(clock);      // the export won
+}
+```
+
+Underneath, registrations are last-one-wins and the order is fixed:
+
+1. **Mock support** registers the `Mock<T>` pairs.
+2. **`[TestExport]`** and other setup attributes.
+3. **`[Mock]` parameters**, last — which is what makes them win.
+
+A `[Mock]` stands aside for a type the mock library registers itself, which is what keeps
+`[Mock] IFoo` and `Mock<IFoo>` on one test resolving to a matched pair rather than two unrelated
+mocks.
+
+::: warning This changed in 1.2.0
+Before 1.2.0 `[TestExport]` won everywhere, including for a `[Mock]`-decorated parameter — so a test
+declaring `[Mock] IFoo` alongside a `[TestExport]` for `IFoo` silently held the real implementation,
+and the first arrange line threw a mocking-library error naming neither attribute. If you were
+relying on that, drop the `[Mock]`.
+:::
 
 ## When not to mock
 

@@ -25,8 +25,16 @@
           hard-error unless the project is an executable test project — this ships [ModuleTest] for
           other people's test projects and is not one. That error names this package as the
           supported answer, which replaces the previous ExcludeAssets workaround.
+
+          Upper-bounded deliberately. A bare Version="3.2.2" packs as [3.2.2, ), so
+          `dotnet add package xunit.v3` resolving 4.0.0 unified this reference up to 4.0.0 and every
+          [ModuleTest] failed at discovery: 4.0.0 removed the seven-parameter
+          TestIntrospectionHelper.GetTestCaseDetails overload the compiled discoverer holds a
+          memberref to. Source-compatible, binary-incompatible, and nothing warned at restore or
+          build — the message named an xUnit internal rather than this package. The range turns that
+          into a NuGet resolution error, which says where the problem is.
         -->
-        <PackageReference Include="xunit.v3.extensibility.core" Version="3.2.2"/>
+        <PackageReference Include="xunit.v3.extensibility.core" Version="[3.2.2,4.0.0)"/>
 
         <!--
           Referenced explicitly because xunit.v3.extensibility.core does not carry it the way

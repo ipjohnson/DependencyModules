@@ -57,3 +57,20 @@ checked at build either, so it throws on first resolve instead.
 The property exists for startup cost and for Native AOT, which is exactly the setting a team turns on
 late and everywhere. If you rely on `ValidateScopes` and `ValidateOnBuild` in development — and the
 standard advice is to — keep this off there and turn it on for the published build.
+
+## `GenerateFactories` and per-implementation wrapping
+
+A factory registration cannot say what implementation it built, and that is how
+[interception](/guide/interception) finds the one registration to wrap. In 1.1.0 the filter therefore
+matched nothing under this property and interception went back to wrapping every registration of the
+service type — an unmarked sibling came back inside another class's wrapper, and interceptors ran
+once per registration.
+
+From 1.2.0 a service any implementation intercepts keeps its `typeof` registration whatever this
+property says. It costs those services the property's benefit and nothing else — the wrapper around
+them is still emitted as a literal `new`, and `typeof` is the shape every registration has with the
+property off, which is what Native AOT already runs. Nothing to configure.
+
+The same limit reaches `[Decorator(Implementation = …)]`, and there it cannot be worked around the
+same way: the decorator is declared on the decorator, so the pass writing the registration it targets
+never learns about it. That combination is [DM0022](/reference/diagnostics#dm0022).

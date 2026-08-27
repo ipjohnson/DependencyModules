@@ -24,6 +24,19 @@ public class WeatherTests {
 Requires **xUnit v3**. `[ModuleTest]` derives from `FactAttribute` and is discovered through xUnit's
 own test case discoverer, so it is a fact as far as the rest of xUnit is concerned.
 
+::: warning `dotnet new xunit` gives you v2
+The template still creates an xUnit **v2** project — package `xunit`, not `xunit.v3` — and this
+integration cannot use it at all. Start from `dotnet new xunit3`, or replace the reference:
+
+```xml
+<PackageReference Include="xunit.v3" Version="3.2.2" />
+```
+
+Supported range is `[3.2.2, 4.0.0)`. xUnit 4.0.0 changed a discovery API this package binds to, so
+combining them fails at test discovery with a `MissingMethodException` naming an xUnit internal
+rather than this package. From 1.2.0 the dependency is bounded, so NuGet says so at restore instead.
+:::
+
 ## `[ModuleTest]` replaces `[Fact]`
 
 It replaces `[Theory]` as well. A module test with data attributes on it produces one test case per
@@ -87,6 +100,21 @@ point of it. The rest are resolved from the container.
 
 Each row is a separate test case with its own container, so state cannot carry from one row to the
 next.
+
+::: warning xUnit's analyzer objects to the shape
+`xUnit1037` counts a row's arguments against the method's parameters and finds them short, because to
+xUnit a row is meant to supply all of them. Under `[ModuleTest]` the shortfall is the feature. Silence
+it where you use it:
+
+```csharp
+#pragma warning disable xUnit1037
+```
+
+Also worth knowing: before 1.2.0, `[MemberData]` under `[ModuleTest]` produced **zero** test cases and
+the run reported a pass. `[MemberData(nameof(Cases), MemberType = typeof(MyTests))]` was the shape
+that worked. Both work now, and a row source that yields nothing is a failure rather than a silent
+green.
+:::
 
 `TheoryDataRow`'s own metadata is honoured per row, so a single row can skip or carry its own traits:
 

@@ -149,7 +149,15 @@ public record TypeParameterModel(
 /// itself would defeat the incremental cache. Which interfaces a type implements is what decides
 /// whether it can serve a given member, and that decision is made once here rather than per member.
 /// </remarks>
-public record InterceptorTypeModel(ITypeDefinition Type, bool Sync, bool Async, bool Stream) {
+public record InterceptorTypeModel(
+    ITypeDefinition Type,
+    bool Sync,
+    bool Async,
+    bool Stream,
+    /// <summary>
+    /// The lifetime this interceptor is registered with, from the [Intercept] that named it.
+    /// </summary>
+    ServiceLifestyle Lifestyle = ServiceLifestyle.Singleton) {
 
     /// <summary>
     /// Whether this interceptor can be placed around a member of the given kind.
@@ -195,7 +203,13 @@ public record InterceptedMemberModel(
     ITypeDefinition ResultType,
     IReadOnlyList<InterceptedParameterModel> Parameters,
     IReadOnlyList<TypeParameterModel> TypeParameters,
-    ReturnShape ReturnShape) {
+    ReturnShape ReturnShape,
+
+    /// <summary>
+    /// The declaration left out by <c>[Intercept].Members</c>. Still forwarded — the wrapper
+    /// implements the whole interface — but not through the interceptor chain.
+    /// </summary>
+    bool Excluded = false) {
 
     /// <summary>
     /// The interceptor interface this member has to be routed through.
@@ -398,6 +412,11 @@ public class InterceptorModelComparer : IEqualityComparer<InterceptorModel> {
         return x.Order == y.Order &&
                x.ServiceType.Equals(y.ServiceType) &&
                x.ImplementationType.Equals(y.ImplementationType) &&
+               // Realm decides which module emits the applicator, so leaving it out meant editing
+               // only `Realm = typeof(X)` compared equal to the model before the edit, hit the
+               // cache and re-emitted nothing. DecoratorModelComparer and ServiceModelComparer both
+               // compare theirs; this was the odd one out.
+               Equals(x.Realm, y.Realm) &&
                Equals(x.Refusal, y.Refusal) &&
                ModelEquality.ListEquals(x.Interceptors, y.Interceptors) &&
                ModelEquality.ListEquals(x.Members, y.Members) &&
@@ -411,6 +430,7 @@ public class InterceptorModelComparer : IEqualityComparer<InterceptorModel> {
 
             hash = hash * 31 + obj.ImplementationType.GetHashCode();
             hash = hash * 31 + obj.Order;
+            hash = hash * 31 + (obj.Realm?.GetHashCode() ?? 0);
             hash = hash * 31 + (obj.Refusal?.GetHashCode() ?? 0);
             hash = hash * 31 + ModelEquality.ListHashCode(obj.Interceptors);
             hash = hash * 31 + ModelEquality.ListHashCode(obj.Members);

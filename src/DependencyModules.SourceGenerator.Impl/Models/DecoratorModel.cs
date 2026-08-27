@@ -45,6 +45,12 @@ public record DecoratorModel(
     bool TypeParametersMatchService = true,
 
     /// <summary>
+    /// The one implementation this decorator wraps, or null to wrap every registration of the
+    /// service — which is the default and what a decorator declared against an interface means.
+    /// </summary>
+    ITypeDefinition? Implementation = null,
+
+    /// <summary>
     /// Where the decorator was declared, so DM0007 and DM0013 can point at it rather than at the
     /// project. Null for a decorator declared through [Decorate] on a module, which names two types
     /// and has no declaration of its own to point at.
@@ -116,6 +122,9 @@ public class DecoratorModelComparer : IEqualityComparer<DecoratorModel> {
                x.ServiceType.Equals(y.ServiceType) &&
                x.DecoratorType.Equals(y.DecoratorType) &&
                Equals(x.Realm, y.Realm) &&
+               // Decides which registration is wrapped, so leaving it out would serve the previous
+               // emission when only Implementation changed.
+               Equals(x.Implementation, y.Implementation) &&
                x.InnerParameterIndex == y.InnerParameterIndex &&
                x.TypeParametersMatchService == y.TypeParametersMatchService &&
                Equals(x.Constructor, y.Constructor) &&
@@ -135,6 +144,7 @@ public class DecoratorModelComparer : IEqualityComparer<DecoratorModel> {
             hash = hash * 31 + obj.DecoratorType.GetHashCode();
             hash = hash * 31 + obj.Order;
             hash = hash * 31 + (obj.Realm?.GetHashCode() ?? 0);
+            hash = hash * 31 + (obj.Implementation?.GetHashCode() ?? 0);
             hash = hash * 31 + obj.InnerParameterIndex;
             hash = hash * 31 + (obj.Constructor?.GetHashCode() ?? 0);
             hash = hash * 31 + ModelEquality.ListHashCode(obj.Conditions);
