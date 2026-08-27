@@ -57,6 +57,8 @@ public class MockAttribute : Attribute, ITestParameterValueProvider {
         var mockedValue = mockAttribute.ProvideMock(parameter.ParameterType);
         var key = ServiceKeyOf(parameter);
 
+        _double = mockedValue;
+
         // Registered under the parameter's key when it has one. Registering unkeyed regardless left
         // the keyed registration — the one the consumer actually injects — untouched, so the service
         // under test kept the real implementation while the test held a double it believed was wired
@@ -88,11 +90,58 @@ public class MockAttribute : Attribute, ITestParameterValueProvider {
         ITestMethodContext testMethod, IServiceProvider serviceProvider, ParameterInfo parameter) {
         var key = ServiceKeyOf(parameter);
 
-        if (key != null && serviceProvider is IKeyedServiceProvider keyedServiceProvider) {
-            return Task.FromResult(keyedServiceProvider.GetKeyedService(parameter.ParameterType, key));
+        var resolved = key != null && serviceProvider is IKeyedServiceProvider keyedServiceProvider
+            ? keyedServiceProvider.GetKeyedService(parameter.ParameterType, key)
+            : serviceProvider.GetService(parameter.ParameterType);
+
+        return Task.FromResult(Verified(resolved, parameter));
+    }
+
+    /// <summary>
+    /// The double this attribute registered, kept so the value resolved afterwards can be checked
+    /// against it.
+    /// </summary>
+    private object? _double;
+
+    /// <summary>
+    /// Confirms the container still holds the double this attribute put there.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The parameter is resolved from the container rather than handed the stashed double
+    /// deliberately: it guarantees the test holds the same instance the service under test was
+    /// built against, which is the whole point of registering during setup rather than merely
+    /// supplying an argument.
+    /// </para>
+    /// <para>
+    /// That leaves one way to be wrong. Something registered later for the same service - a
+    /// <c>[TestExport]</c> naming it, which runs in a pass after this one and is meant to win -
+    /// displaces the double, and the parameter comes back holding the real implementation while the
+    /// test believes it holds a mock. The arrangement then throws a mocking-library error naming
+    /// neither attribute.
+    /// </para>
+    /// <para>
+    /// Both behaviours are intended on their own, so neither moves. Asking for both is the
+    /// contradiction, and it is now reported as one.
+    /// </para>
+    /// </remarks>
+    private object? Verified(object? resolved, ParameterInfo parameter) {
+        // Compared by type rather than by instance. The mocking-support attribute registers its own
+        // view of the same double in the later pass - which is how a [Mock] parameter and a
+        // Mock<T> parameter come back as one pair - so the instance legitimately differs while the
+        // double does not. What cannot happen is a different *kind* of object arriving, which is
+        // what a real implementation displacing the mock looks like.
+        if (_double == null || resolved == null || resolved.GetType() == _double.GetType()) {
+            return resolved;
         }
 
-        return Task.FromResult(serviceProvider.GetService(parameter.ParameterType));
+        throw new InvalidOperationException(
+            $"[Mock] on '{parameter.Name}' registered a double for " +
+            $"'{parameter.ParameterType.Name}', but the container resolved a " +
+            $"'{resolved.GetType().Name}' instead - something registered later replaced it. " +
+            "[TestExport] naming the same service is the usual cause, and it is meant to win, so " +
+            "the two cannot both apply to one service. Drop whichever of [Mock] and [TestExport] " +
+            "is not the one you want.");
     }
 
     /// <summary>

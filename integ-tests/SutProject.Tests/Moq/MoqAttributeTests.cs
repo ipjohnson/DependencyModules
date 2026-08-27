@@ -1,6 +1,9 @@
 using DependencyModules.Moq;
 using DependencyModules.Testing.Attributes;
+using DependencyModules.Testing.Attributes.Interfaces;
+using DependencyModules.Testing.Impl;
 using DependencyModules.xUnit.Attributes;
+using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Xunit;
 
@@ -139,6 +142,51 @@ public class MoqAttributeTests {
         ISingletonService instance, Mock<ISingletonService> mock) {
         Assert.IsType<ExportedSingletonService>(instance);
         Assert.NotSame(mock.Object, instance);
+    }
+
+    /// <summary>
+    /// [Mock] and [TestExport] naming one service is a contradiction, and it used to resolve
+    /// silently in [TestExport]'s favour - for the [Mock] parameter too. The test held the real
+    /// implementation while believing it held a double, and the first arrange line threw a
+    /// mocking-library error naming neither attribute.
+    ///
+    /// Both behaviours are deliberate on their own, so neither moved: [Mock] registers during setup
+    /// so the subject is built against the double, then resolves from the container so the test
+    /// holds the same instance; [TestExport] registers in a later pass and is meant to win. Asking
+    /// for both is the mistake, and it is reported as one.
+    ///
+    /// Declared through the resolver rather than as a [ModuleTest] with the conflicting signature,
+    /// because a test that carries the shape cannot also survive to assert on it.
+    /// </summary>
+    [Fact]
+    public async Task MockAndTestExportOfOneServiceIsRefused() {
+        var services = new ServiceCollection();
+        var context = new ConflictContext(
+            typeof(ConflictSample).GetMethod(nameof(ConflictSample.Conflicting))!);
+        var resolver = new TestParameterResolver(context);
+
+        resolver.SetupServiceCollection(services);
+
+        // What [TestExport] does: register the named implementation in the pass that runs after the
+        // parameter attributes have had theirs.
+        services.AddSingleton<ISingletonService, ExportedSingletonService>();
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => resolver.ResolveArgumentsAsync(services.BuildServiceProvider(), []));
+
+        Assert.Contains("[Mock]", exception.Message);
+        Assert.Contains("[TestExport]", exception.Message);
+        Assert.Contains(nameof(ExportedSingletonService), exception.Message);
+    }
+
+    [MoqSupport]
+    public static class ConflictSample {
+        public static void Conflicting([Mock] ISingletonService service) { }
+    }
+
+    private class ConflictContext(System.Reflection.MethodInfo method) : ITestMethodContext {
+        public System.Reflection.MethodInfo Method { get; } = method;
+        public IReadOnlyList<Attribute> Attributes { get; } = [];
     }
 
     public class ExportedSingletonService : ISingletonService {

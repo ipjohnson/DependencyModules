@@ -23,6 +23,9 @@ public class TestParameterResolverTests {
 
     private class Other : IThing;
 
+    /// <summary>A second real implementation, for the displacement case.</summary>
+    private class Other2 : IThing;
+
     /// <summary>
     /// Takes a dependency the container has and a value it cannot possibly know, which is what
     /// [InjectValues] is for.
@@ -182,6 +185,52 @@ public class TestParameterResolverTests {
     /// <summary>Control: an unkeyed mock still replaces the unkeyed registration.</summary>
     [Fact]
     public async Task UnkeyedMockReplacesTheUnkeyedRegistration() {
+        var arguments = await Resolve(
+            nameof(Samples.UnkeyedMock), services => services.AddSingleton<IThing, Thing>());
+
+        Assert.IsType<Other>(Assert.Single(arguments));
+    }
+
+    /// <summary>
+    /// [Mock] and [TestExport] naming one service is a contradiction, and it used to resolve
+    /// silently in [TestExport]'s favour - for the [Mock] parameter too.
+    ///
+    /// Both halves are deliberate. [Mock] registers its double during setup so the service under
+    /// test is built against it, then resolves the parameter back out of the container so the test
+    /// holds the same instance the subject got. [TestExport] registers in a later pass, so its
+    /// registration is last and wins - which is pinned by two tests and is the documented
+    /// precedence. Put together they hand the test the real implementation while it believes it
+    /// holds a double, and the first arrange line throws a mocking-library error naming neither
+    /// attribute.
+    ///
+    /// So neither half moves. The contradiction is reported instead, naming both attributes and the
+    /// service they disagree about.
+    /// </summary>
+    [Fact]
+    public async Task AMockDisplacedByAnotherRegistration_IsReported() {
+        var services = new ServiceCollection();
+        var resolver = new TestParameterResolver(ContextFor(nameof(Samples.UnkeyedMock)));
+
+        services.AddSingleton<IThing, Thing>();
+        resolver.SetupServiceCollection(services);
+
+        // Stands in for [TestExport]: a registration of the same service made in the later pass,
+        // which is where the setup attributes run and why theirs is the one that wins.
+        services.AddSingleton<IThing, Other2>();
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => resolver.ResolveArgumentsAsync(services.BuildServiceProvider(), []));
+
+        Assert.Contains("[Mock]", exception.Message);
+        Assert.Contains(nameof(IThing), exception.Message);
+        Assert.Contains(nameof(Other2), exception.Message);
+    }
+
+    /// <summary>
+    /// Control: with nothing displacing it, the parameter still gets the double and says nothing.
+    /// </summary>
+    [Fact]
+    public async Task AMockNothingDisplaces_IsNotReported() {
         var arguments = await Resolve(
             nameof(Samples.UnkeyedMock), services => services.AddSingleton<IThing, Thing>());
 
