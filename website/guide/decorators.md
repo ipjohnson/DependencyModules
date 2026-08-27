@@ -184,10 +184,15 @@ closed registrations — the example further up — works, and is the common cas
 
 |  | Decorator | [Interception](/guide/interception) |
 |---|---|---|
-| Who writes the wrapper | you | the generator, for every member |
-| Applies to | one interface | many unrelated services |
+| Who writes the wrapper | you | the generator |
+| Declared on | the decorator, against an interface | the implementation being wrapped |
+| Covers by default | every registration of that service | the one class it is written on |
 | Member access | real signatures and parameter names | uniform, `TResult` and `IArguments` |
 | Reach for it when | caching *this* method, validating *that* one | logging, timing, retry, tracing |
+
+Either can be narrowed to the other's default. `[Decorator(Implementation = typeof(X))]` decorates one
+implementation instead of all of them; `[Intercept(Realm = …)]` and `[Intercept(Members = …)]` narrow
+an interception further still.
 
 If you need to do something specific to one member, write a decorator. If you need to do the same
 thing to every member of thirty services, read on.

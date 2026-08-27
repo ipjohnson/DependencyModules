@@ -97,9 +97,12 @@ used, defaulting to `"Production"`. See
 **An assertion on the concrete type fails.** An [intercepted](/guide/interception) or
 [decorated](/guide/decorators) service resolves as the wrapper, not your class.
 
-**`AddModule` called more than once.** Modules compose through
-[attributes](/guide/modules#composing-modules); calling `AddModule` inside a module, or several times
-at the root, duplicates registrations.
+**`AddModule` called more than once.** Calling it inside a module, or several times at the root,
+duplicates registrations.
+
+**Two modules declared in one project, both loaded.** Each holds that project's whole registration
+list, so loading both applies it twice — and composing one into the other does not help, since both
+still hold everything. Give one a [realm](/guide/modules#realms-keeping-a-registration-out-of-the-default-module).
 
 ## Reporting a problem
 

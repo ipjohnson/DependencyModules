@@ -5,6 +5,181 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-08-27
+
+Four applications built against the published 1.1.0 packages, by four agents who did not read each
+other's work. Every fix 1.1.0 shipped held up under runtime assertion. What did not hold up was
+everything around them — a test integration that reported a pass having run nothing, a package that
+could not resolve against the xUnit a new user installs, and three statements this project published
+that were wrong.
+
+**Upgrade note: one behaviour changes.** A `[Mock]` parameter now overrides a `[TestExport]` naming
+the same service. A test declaring both silently held the real implementation before; it holds the
+mock now. On the same method that pair is contradictory and reports `DM0021`; from a class or an
+assembly it is the default being overridden for one test, which is what having both scopes is for.
+See [Mocking frameworks](https://ipjohnson.github.io/DependencyModules/guide/testing-mocking#precedence).
+
+Three new diagnostics arrive, all warnings, so `TreatWarningsAsErrors` may turn a green build red on
+code that was quietly doing nothing. Every one of them can be silenced where it is written — which
+is itself new, and the subject of the first entry below.
+
+### Fixed
+
+- **`.editorconfig` and `#pragma warning disable` did not silence most diagnostics, and 1.1.0 said
+  they did.** A diagnostic carried its file and line but was not attached to the syntax tree, and
+  Roslyn decides both `.editorconfig` severity and `#pragma` filtering from the tree. Only `NoWarn`
+  and `WarningsAsErrors` worked.
+
+  1.1.0 shipped a *documentation correction* claiming `.editorconfig` worked, "including for the
+  error-severity codes". It worked for `DM0016` and `DM0019` and nothing else — and 1.1.0 is what
+  broke it, by relocating ten diagnostics from the project onto the declaration they are about. The
+  relocation is what put them on a location with no tree.
+
+  All three mechanisms now reach every code. Diagnostics are reported from their own source outputs,
+  which is what lets them see the compilation without re-emitting every file on every keystroke.
+
+  There was no `.editorconfig` anywhere in this repository and no test exercised any of the three
+  mechanisms, which is how a documented behaviour shipped wrong in opposite directions across two
+  releases. There is now one test per code.
+
+- **`DependencyModules.xUnit` could not resolve against the `xunit.v3` a new user installs.** The
+  dependency was declared with no upper bound, `dotnet add package xunit.v3` resolves 4.0.0, and
+  4.0.0 removed the discovery API the compiled discoverer binds to. Every test failed at discovery
+  with a `MissingMethodException` naming an xUnit internal rather than this package, and nothing
+  warned at restore or build.
+
+  Bounded to `[3.2.2, 4.0.0)`, so NuGet reports it at restore instead. `DependencyModules.NUnit` is
+  bounded to its major for the same reason, before it can do the same thing.
+
+- **`[MemberData]` under `[ModuleTest]` produced zero test cases and the run reported a pass.**
+  `[MemberData]` resolves its member against `MemberType`, which xUnit back-fills on a path this
+  integration does not take — and left null, it returns an *empty* row collection rather than
+  throwing. A project moving a row set from `[InlineData]` to `[MemberData]` lost that coverage
+  silently. `[MemberData(…, MemberType = typeof(X))]` was the shape that worked.
+
+  Returning no tests is now a failure rather than a pass, which is what xUnit's own delay-enumerated
+  theory does and what the NUnit half of this integration already did.
+
+- **`DependencyModules_GenerateFactories` undid the 1.1.0 interception fixes.** Applying an
+  interception means finding the one registration its wrapper was generated from, and a factory
+  registration cannot say what implementation it built. Under the property the filter matched
+  nothing and interception went back to wrapping every registration of the service type — an
+  unmarked sibling came back inside another class's wrapper, and interceptors ran once per
+  registration. The property the AOT guidance recommends turning on restored the bug the release
+  shipped to fix.
+
+  A service any implementation intercepts now keeps its `typeof` registration whatever the property
+  says. By service type rather than by implementation: an *unmarked* sibling built by a factory
+  cannot identify itself either, so exempting only the marked class left exactly that case broken.
+
+- **A realm-scoped service with an unrealmed `[Intercept]` was never intercepted.** The registration
+  landed only in the named module and the applicator landed everywhere except it — dead in every
+  container that could exist, reported by nothing, because each half individually followed the rule.
+  An interception naming no realm now takes the one its own class's service attribute names.
+
+  Filed twice, by different agents against different applications, as two separate defects. It is
+  one bug.
+
+- **`DM0016` and `DM0019` never fired for a module from a referenced package**, which is the case
+  both exist for. They were built only from the modules declared in the same compilation, so a
+  module arriving from a NuGet package was invisible to them — and with no local module at all, the
+  pass returned before `DM0019` was considered. The reference page printed exactly the shape that
+  did not reproduce.
+
+- **`[Intercept]` was matched by its written name**, so a namespace-qualified, `global::`-qualified
+  or aliased usage found nothing — no wrapper, no diagnostic, and a cross-cutting concern that had
+  simply stopped running. This is the defect 1.1.0 fixed for the service attributes and did not
+  carry across. Nobody filed it; it was found reading the code beside the ones that were.
+
+- **A private property on a module produced generated code that would not compile.** Module
+  parameters were chosen by "settable and not static" without ever looking at accessibility, so a
+  private property was copied onto the generated `public` attribute — `CS0122`, twice, with no
+  diagnostic explaining it. A property the attribute cannot reach is no longer a parameter, and
+  `DM0018` no longer reports one.
+
+- **Declaring `[DependencyModule] partial class ApplicationModule` in a project that already gets one
+  generated produced `CS8785` and then `CS0311` against the developer's own type.** The two models
+  had different namespaces at the point they were grouped, so consolidation never saw them as one
+  module and both were emitted under the same file name. Getting Started tells the reader to use that
+  name. They merge now.
+
+- **`InterceptorModelComparer` omitted `Realm`**, so editing only `Realm = typeof(X)` hit the
+  incremental cache and left the applicator on whichever module had it before.
+
+### Added
+
+- **`[Intercept(Lifetime = …)]`.** Interceptors were always registered as singletons, so one taking a
+  scoped dependency became a captive dependency — silent unless `ValidateScopes` is on, and
+  `GenerateFactories` switches that off. Still `TryAdd`, so an interceptor carrying its own service
+  attribute keeps that lifetime.
+
+- **`[Intercept(Members = …)]`.** Covering every member is right for auditing or retry and wrong for
+  an interface with properties, where a timing interceptor records a call per read. Takes `Methods`,
+  `Properties`, `Indexers`, `Events` or any combination. A member left out is still forwarded; it
+  just does not run through the chain.
+
+- **`[Decorator(Implementation = …)]`.** The inverse of the change 1.1.0 made to interception. A
+  decorator wraps every registration of its service by default — that is what separates it from an
+  interceptor — but a project with several implementations of one interface had no way to say "wrap
+  this one".
+
+- **`Order` on the service attributes.** Decorators and interceptors have had one since they existed.
+  Registrations did not, so several implementations of one interface arrived in the order the
+  generator emitted them, sorted by class name — renaming a class reordered a pipeline. Everything
+  defaults to `0` and the sort is stable within one order.
+
+- **`DM0020`** reports an interception no module applies, so it can never run. The case it catches is
+  a realm-only module registering the class by convention, where the realm is decided at match time
+  and an interception cannot inherit it.
+
+- **`DM0021`** reports `[Mock]` and `[TestExport]` naming one service on the same method, where the
+  parameter wins and the `[TestExport]` beside it does nothing.
+
+- **`DM0022`** reports a decorator naming an implementation in a project emitting factories, where it
+  would wrap all of them instead of one.
+
+### Documentation
+
+- **The *Composing modules* example doubled if you copied it into one project.** It declared both
+  modules together while the prose meant two assemblies, and the warning explaining the doubling sat
+  ninety lines lower under another heading. The example shows two projects now, the warning sits
+  beside it, and the remedy that did not work — "have one compose the other" — is corrected: only a
+  realm removes the doubling.
+
+- **`[Intercept]`'s `Realm` existed only in the 1.1.0 changelog.** It, per-implementation
+  interception, interceptor registration and lifetime, and the new `Members` are all on
+  [Interception](https://ipjohnson.github.io/DependencyModules/guide/interception) now. The
+  decorator-versus-interceptor table read as the opposite of the truth and has been corrected.
+
+- **A new [runtime interfaces](https://ipjohnson.github.io/DependencyModules/reference/interfaces)
+  page.** `DependencyModules.Runtime.Interfaces` appeared in samples and in the `CS0311` a colliding
+  `ApplicationModule` produces, and was named on no page.
+
+- **`IEnumerable<T>` injection and `[FromKeyedServices]` are documented**, along with the limit that
+  keyed registrations are not in the enumeration.
+
+- **`DM0016`–`DM0019` are cross-referenced from the guide pages that teach their shapes**, and the
+  Parameters section carries the module-identity paragraph `DM0018` links into.
+
+- **xUnit v3 is stated concretely**: `dotnet new xunit` gives v2, which cannot be used at all; the
+  supported range is `[3.2.2, 4.0.0)`; and the guide's own data-driven example trips `xUnit1037`.
+
+- **The `EmitCompilerGeneratedFiles` hazard is written out**, including the
+  `<Compile Remove="generated/**" />` that the redirected-output form needs.
+
+### Unversioned
+
+Two design notes record what was deliberately not built: `docs/design/dispatch-by-name.md` and
+`docs/design/runtime-module-graph.md`. Both are public surface that cannot be taken back inside 1.x,
+and both need a decision rather than a guess. Dispatch-by-name is the strongest signal the round
+produced — two applications hand-built the same per-request dictionary, neither author knowing about
+the other.
+
+Two of the round's findings were **withdrawn as correct-by-design** after review, and both came from
+behaviour the documentation did not state. Four readers of one documentation set are not four
+independent observers: where the text is silent they infer the same wrong thing. Both gaps are now
+written down.
+
 ## [1.1.0] - 2026-08-26
 
 Four registrations that silently were not what they said they were, and three new diagnostics. Every

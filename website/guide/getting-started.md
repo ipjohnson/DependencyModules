@@ -95,6 +95,24 @@ public partial class ApplicationModule;
 `partial` is required. The generator completes the class you declared; without `partial` there is
 nothing to complete, and you get [DM0003](/reference/diagnostics#dm0003).
 
+::: tip You may already have one
+A project whose entry point is a top-level `Program.cs` gets an `ApplicationModule` generated for it,
+in the project's `RootNamespace` — so in that project the declaration above is redundant, and
+declaring it merges with the generated one rather than fighting it.
+
+If you want to add a `ConfigureServices` to that generated module, declare the partial **without**
+`[DependencyModule]` and implement `IServiceCollectionConfiguration`:
+
+```csharp
+public partial class ApplicationModule : IServiceCollectionConfiguration {
+    public void ConfigureServices(IServiceCollection services) =>
+        services.AddHttpClient();
+}
+```
+
+See [Modules](/guide/modules#you-may-not-need-to-declare-one).
+:::
+
 Now load it at your composition root:
 
 ```csharp
@@ -138,10 +156,25 @@ private static void ModuleDependencies(IServiceCollection services) {
 One line, and it is the line you would have written by hand. No reflection, no startup scan, and a
 literal `typeof()` the trimmer can follow.
 
-::: warning If you redirect the output, clear it between builds
-`CompilerGeneratedFilesOutputPath` pointing at a folder inside your project means stale files from a
-previous build compile alongside fresh ones, producing a wall of `CS0111`/`CS0579`. Delete the folder
-when you rename a module.
+::: warning If you redirect the output, exclude it from the build
+`EmitCompilerGeneratedFiles` alone writes under `obj/`, which is already excluded and is fine.
+`CompilerGeneratedFilesOutputPath` pointing at a folder **inside your project** is the trap: those
+files are then compiled as ordinary source *as well as* being generated, so every type exists twice
+and you get a wall of `CS0111`/`CS0579`.
+
+```xml
+<PropertyGroup>
+  <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+  <CompilerGeneratedFilesOutputPath>generated</CompilerGeneratedFilesOutputPath>
+</PropertyGroup>
+
+<ItemGroup>
+  <Compile Remove="generated/**" />   <!-- read them, do not compile them -->
+</ItemGroup>
+```
+
+Stale files are the other half: delete the folder when you rename a module, or the old name compiles
+alongside the new one.
 :::
 
 ## Where to go next

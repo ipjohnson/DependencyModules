@@ -33,3 +33,13 @@ Rule ID | Category | Severity | Notes
 DM0017 | DependencyModules | Error | A dependency module is declared inside another type.
 DM0018 | DependencyModules | Warning | A module with settable properties relies on generated equality.
 DM0019 | DependencyModules | Error | An assembly-level module attribute is outside the entry point file.
+
+## Release 1.2.0
+
+### New Rules
+
+Rule ID | Category | Severity | Notes
+--------|----------|----------|-------
+DM0020 | DependencyModules | Warning | An interception is applied by no module, so it never runs.
+DM0021 | DependencyModules | Warning | [Mock] and [TestExport] name one service on the same test method.
+DM0022 | DependencyModules | Warning | A decorator names an implementation while factories are generated.

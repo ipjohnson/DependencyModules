@@ -106,6 +106,51 @@ provider.GetRequiredKeyedService<IConnection>("primary");
 The key is written into the registration exactly as you wrote it, so a string literal, a `const` or
 an enum member all work.
 
+A constructor asks for one with `[FromKeyedServices]`, which is the container's own attribute:
+
+```csharp
+[ScopedService]
+public class ReportBuilder(
+    [FromKeyedServices("reporting")] IConnection connection) { }
+```
+
+## Taking all of them
+
+Depend on `IEnumerable<T>` and the container hands over every **unkeyed** registration of that
+service — which is how a pipeline of validators or handlers is written:
+
+```csharp
+[SingletonService(As = typeof(IValidator), Order = 10)]
+public class RequiredFields : IValidator { }
+
+[SingletonService(As = typeof(IValidator), Order = 20)]
+public class BusinessRules : IValidator { }
+```
+
+```csharp
+[ScopedService]
+public class OrderService(IEnumerable<IValidator> validators) {
+    public void Place(Order order) {
+        foreach (var validator in validators) {   // RequiredFields, then BusinessRules
+            validator.Validate(order);
+        }
+    }
+}
+```
+
+`Order` decides the sequence, lowest first. Without it the sequence is the order the generator emits,
+which is sorted by class name — so renaming a class reorders the pipeline. Everything is `0` by
+default and the sort is stable within one order, so naming an order for some services leaves the rest
+where they are.
+
+::: warning Keyed registrations are not in the enumeration
+`GetServices<T>()` and an `IEnumerable<T>` dependency both return the unkeyed registrations only. A
+set of handlers you want to both *route to by name* and *list* therefore cannot use keys for the
+first and the enumeration for the second — register them unkeyed and carry the name on each handler.
+There is a [design note](https://github.com/ipjohnson/DependencyModules/blob/main/docs/design/dispatch-by-name.md)
+on making this first-class.
+:::
+
 ## How the registration is added
 
 By default every attribute adds unconditionally, so registering the same service type twice leaves
@@ -177,7 +222,12 @@ services.AddSingleton(
 
 Every constructor dependency becomes an explicit `GetRequiredService` call, so the container never
 reflects over the constructor. Worth it when you are chasing startup time or targeting Native AOT
-aggressively. See [MSBuild properties](/reference/msbuild) for the rest.
+aggressively.
+
+It has two costs worth reading before you turn it on project-wide: the container cannot see inside a
+factory, so `ValidateScopes` and `ValidateOnBuild` stop catching anything; and a factory registration
+cannot say what implementation it built, which is what per-implementation wrapping needs. Both are in
+[MSBuild properties](/reference/msbuild#generatefactories-and-container-validation).
 
 ## Next
 
