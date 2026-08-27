@@ -191,6 +191,61 @@ public class ModelComparerTests {
             { nameof(DependencyModuleConfigurationModel.ExcludeGeneratedCodeFromCoverage), ModelFactory.Configuration(excludeGeneratedCodeFromCoverage: false) }
         };
 
+    private readonly InterceptorModelComparer _interceptorComparer = new();
+
+    /// <summary>
+    /// Realm decides which module emits an interception's applicator, and it was the one field this
+    /// comparer left out — so changing only `Realm = typeof(X)` served the previous run's output and
+    /// the interception stayed on whichever module had it before. Both sibling comparers already
+    /// compared theirs.
+    /// </summary>
+    [Fact]
+    public void Interceptors_DifferingByRealm_AreNotEqual() {
+        Assert.False(_interceptorComparer.Equals(
+            Interceptor(realm: TypeDefinition.Get("Ns", "OneRealm")),
+            Interceptor(realm: TypeDefinition.Get("Ns", "OtherRealm"))));
+    }
+
+    [Fact]
+    public void Interceptors_GainingARealm_AreNotEqual() {
+        Assert.False(_interceptorComparer.Equals(
+            Interceptor(),
+            Interceptor(realm: TypeDefinition.Get("Ns", "OneRealm"))));
+    }
+
+    [Fact]
+    public void Interceptors_BuiltFromTheSameValues_AreEqual() {
+        Assert.True(_interceptorComparer.Equals(Interceptor(), Interceptor()));
+    }
+
+    [Fact]
+    public void EqualInterceptors_ShareAHashCode() {
+        Assert.Equal(
+            _interceptorComparer.GetHashCode(Interceptor()),
+            _interceptorComparer.GetHashCode(Interceptor()));
+    }
+
+    [Fact]
+    public void Interceptors_DifferingByRealm_DoNotShareAHashCode() {
+        Assert.NotEqual(
+            _interceptorComparer.GetHashCode(Interceptor()),
+            _interceptorComparer.GetHashCode(Interceptor(realm: TypeDefinition.Get("Ns", "OneRealm"))));
+    }
+
+    [Fact]
+    public void Interceptors_DifferingByOrder_AreNotEqual() {
+        Assert.False(_interceptorComparer.Equals(Interceptor(order: 1), Interceptor(order: 2)));
+    }
+
+    private static InterceptorModel Interceptor(ITypeDefinition? realm = null, int order = 0) =>
+        new(TypeDefinition.Get("Ns", "IService"),
+            TypeDefinition.Get("Ns", "Service"),
+            [],
+            [],
+            [],
+            order,
+            Realm: realm);
+
     private static ParameterInfoModel Parameter(string name) =>
         new(name, TypeDefinition.Get("Ns", "SomeType"), null, []);
 

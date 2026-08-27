@@ -398,6 +398,11 @@ public class InterceptorModelComparer : IEqualityComparer<InterceptorModel> {
         return x.Order == y.Order &&
                x.ServiceType.Equals(y.ServiceType) &&
                x.ImplementationType.Equals(y.ImplementationType) &&
+               // Realm decides which module emits the applicator, so leaving it out meant editing
+               // only `Realm = typeof(X)` compared equal to the model before the edit, hit the
+               // cache and re-emitted nothing. DecoratorModelComparer and ServiceModelComparer both
+               // compare theirs; this was the odd one out.
+               Equals(x.Realm, y.Realm) &&
                Equals(x.Refusal, y.Refusal) &&
                ModelEquality.ListEquals(x.Interceptors, y.Interceptors) &&
                ModelEquality.ListEquals(x.Members, y.Members) &&
@@ -411,6 +416,7 @@ public class InterceptorModelComparer : IEqualityComparer<InterceptorModel> {
 
             hash = hash * 31 + obj.ImplementationType.GetHashCode();
             hash = hash * 31 + obj.Order;
+            hash = hash * 31 + (obj.Realm?.GetHashCode() ?? 0);
             hash = hash * 31 + (obj.Refusal?.GetHashCode() ?? 0);
             hash = hash * 31 + ModelEquality.ListHashCode(obj.Interceptors);
             hash = hash * 31 + ModelEquality.ListHashCode(obj.Members);

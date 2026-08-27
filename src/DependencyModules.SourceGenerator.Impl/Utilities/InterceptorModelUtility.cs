@@ -31,7 +31,7 @@ public static class InterceptorModelUtility {
             return InterceptorModel.Ignore;
         }
 
-        var attributes = FindAttributes(typeDeclarationSyntax);
+        var attributes = FindAttributes(typeDeclarationSyntax, context.SemanticModel, cancellationToken);
 
         if (attributes.Count == 0) {
             return InterceptorModel.Ignore;
@@ -310,14 +310,33 @@ public static class InterceptorModelUtility {
         return TypeDefinition.Get(namespaceName, name);
     }
 
-    private static List<AttributeSyntax> FindAttributes(TypeDeclarationSyntax typeDeclarationSyntax) {
+    /// <summary>
+    /// The <c>[Intercept]</c> usages on a declaration, resolved rather than string-matched.
+    /// </summary>
+    /// <remarks>
+    /// This used to compare <c>attribute.Name.ToString()</c> against "Intercept" and
+    /// "InterceptAttribute", so a qualified name, a <c>global::</c> prefix or a using alias found
+    /// nothing — no wrapper, no diagnostic, and a cross-cutting concern that stopped running on a
+    /// green build. It is the same mistake the service attributes carried until 1.1.0, and the same
+    /// fix: ask the semantic model what the usage binds to.
+    ///
+    /// The declaration is reached through <c>ForAttributeWithMetadataName</c>, which resolves the
+    /// attribute properly, so only this second pass ever lost it — the node was always found.
+    /// </remarks>
+    private static List<AttributeSyntax> FindAttributes(
+        TypeDeclarationSyntax typeDeclarationSyntax,
+        SemanticModel semanticModel,
+        CancellationToken cancellationToken) {
+
         var attributes = new List<AttributeSyntax>();
 
         foreach (var attributeList in typeDeclarationSyntax.AttributeLists) {
             foreach (var attribute in attributeList.Attributes) {
-                var name = attribute.Name.ToString();
-
-                if (name is "Intercept" or "InterceptAttribute") {
+                if (AttributeTypeMatcher.Matches(
+                        semanticModel,
+                        attribute,
+                        KnownTypes.DependencyModules.Attributes.InterceptAttribute,
+                        cancellationToken)) {
                     attributes.Add(attribute);
                 }
             }
