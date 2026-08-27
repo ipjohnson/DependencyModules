@@ -141,8 +141,18 @@ public class EntryModelUtil {
         if (!configurationModel.AutoGenerateEntry) {
             entryPointModels = entryPointModels.Where(m => !m.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.AutoGenerateModule));
         }
-        
-        var groupingEnumerable = 
+
+        // Before grouping, not after. A generated module is created with no namespace and given the
+        // RootNamespace later, so grouping it as written put ".ApplicationModule" and
+        // "TheRootNamespace.ApplicationModule" in separate groups — two models of the same module,
+        // each believing it was the only one. Both were emitted, and by then their file names had
+        // converged (GetFileNameHint strips the RootNamespace), so the second AddSource threw
+        // inside the generator: CS8785, a warning, followed by CS0311 against the developer's own
+        // type. Naming them the same way the file name does is what lets the grouping below see
+        // they are one module and keep the declared one.
+        entryPointModels = entryPointModels.Select(m => EnsureNamespace(m, configurationModel));
+
+        var groupingEnumerable =
             entryPointModels.GroupBy(m => m.EntryPointType.Namespace + "." + m.EntryPointType.GetShortName());
 
         foreach (var grouping in groupingEnumerable) {
