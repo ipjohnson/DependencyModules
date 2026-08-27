@@ -39,6 +39,8 @@ public class DependencyFileWriter {
             };
         }
 
+        _interceptedServiceTypes = InterceptedServiceTypes(serviceModels);
+
         _logger.Info($"Generating Dependencies for {entryPointModel.EntryPointType.Namespace}.{entryPointModel.EntryPointType.Namespace}");
 
         var csharpFile = new CSharpFileDefinition(entryPointModel.EntryPointType.Namespace);
@@ -279,8 +281,7 @@ public class DependencyFileWriter {
                 parameters.Add(serviceModel.FactoryOutput);
             }
             else if (serviceModel is { Constructor: not null, ImplementationType: not GenericTypeDefinition } &&
-                     entryPointModel.GenerateFactories.GetValueOrDefault(
-                         configurationModel.GenerateFactories)) {
+                     ShouldGenerateFactory(serviceModel, entryPointModel, configurationModel)) {
                 parameters.Add(GenerateNewFactory(serviceModel, registrationModel));
             }
             else {
@@ -316,6 +317,61 @@ public class DependencyFileWriter {
                 serviceDescriptor
             ));
     }
+
+    /// <summary>
+    /// Whether this registration is emitted as a factory rather than as <c>typeof(Impl)</c>.
+    /// </summary>
+    /// <remarks>
+    /// An intercepted implementation is always emitted as <c>typeof</c>, whatever
+    /// <c>DependencyModules_GenerateFactories</c> says. Interception rewrites the one registration
+    /// its wrapper was generated from, and it finds that registration by asking each descriptor
+    /// which implementation it was built from - which a factory descriptor cannot answer. Under the
+    /// property every descriptor was factory-built, the filter matched nothing, and interception
+    /// reverted to wrapping every registration of the service type: an unmarked sibling coming back
+    /// inside another class's wrapper, and interceptors running once per registration.
+    ///
+    /// The exemption costs that one service the property's benefit. It costs nothing else: the
+    /// wrapper is still emitted as a literal <c>new</c>, and <c>typeof</c> is what every
+    /// registration looks like with the property off, which is the shape Native AOT already runs.
+    /// </remarks>
+    private bool ShouldGenerateFactory(
+        ServiceModel serviceModel,
+        ModuleEntryPointModel entryPointModel,
+        DependencyModuleConfigurationModel configurationModel) =>
+        !IsInterceptedServiceType(serviceModel) &&
+        entryPointModel.GenerateFactories.GetValueOrDefault(configurationModel.GenerateFactories);
+
+    /// <summary>
+    /// Whether any registration of this service is one interception has to be able to pick out.
+    /// </summary>
+    /// <remarks>
+    /// The exemption is by service type rather than by implementation, and it has to be. Applying
+    /// interception means walking every descriptor of the service type and rewriting the one whose
+    /// implementation matches - so an *unmarked* sibling built by a factory is as much of a problem
+    /// as the marked one: it cannot say what it was built from either, so it cannot be told apart
+    /// from the registration being wrapped, and it came back wearing another class's wrapper.
+    /// </remarks>
+    private bool IsInterceptedServiceType(ServiceModel serviceModel) =>
+        serviceModel.Registrations.Any(
+            registration => _interceptedServiceTypes.Contains(registration.ServiceType));
+
+    private static HashSet<ITypeDefinition> InterceptedServiceTypes(IEnumerable<ServiceModel> serviceModels) {
+        var types = new HashSet<ITypeDefinition>();
+
+        foreach (var serviceModel in serviceModels) {
+            if (!serviceModel.Features.HasFlag(RegistrationFeature.Intercepted)) {
+                continue;
+            }
+
+            foreach (var registration in serviceModel.Registrations) {
+                types.Add(registration.ServiceType);
+            }
+        }
+
+        return types;
+    }
+
+    private HashSet<ITypeDefinition> _interceptedServiceTypes = new();
 
     private static object GenerateNewFactory(ServiceModel serviceModel, ServiceRegistrationModel registrationModel) {
         var parameter =
@@ -358,8 +414,7 @@ public class DependencyFileWriter {
                 parameters.Add(factoryOutput ?? TypeOf(serviceModel.ImplementationType));
             }
             else if (serviceModel is { Constructor: not null, ImplementationType: not GenericTypeDefinition } &&
-                     entryPointModel.GenerateFactories.GetValueOrDefault(
-                         configurationModel.GenerateFactories)) {
+                     ShouldGenerateFactory(serviceModel, entryPointModel, configurationModel)) {
                 parameters.Add(GenerateNewFactory(serviceModel, registrationModel));
             }
             else {
@@ -396,7 +451,7 @@ public class DependencyFileWriter {
             ));
     }
 
-    private static void HandleTryAndAddRegistrationTypes(DependencyModuleConfigurationModel configurationModel, ModuleEntryPointModel entryPointModel, ClassDefinition classDefinition, StringBuilder stringBuilder,
+    private void HandleTryAndAddRegistrationTypes(DependencyModuleConfigurationModel configurationModel, ModuleEntryPointModel entryPointModel, ClassDefinition classDefinition, StringBuilder stringBuilder,
         RegistrationType registrationType,
         ServiceRegistrationModel registrationModel,
         ServiceModel serviceModel,
@@ -446,8 +501,7 @@ public class DependencyFileWriter {
                 parameters.Add(factoryOutput ?? TypeOf(serviceModel.ImplementationType));
             }
             else if (serviceModel is { Constructor: not null, ImplementationType: not GenericTypeDefinition } &&
-                     entryPointModel.GenerateFactories.GetValueOrDefault(
-                         configurationModel.GenerateFactories)) {
+                     ShouldGenerateFactory(serviceModel, entryPointModel, configurationModel)) {
                 parameters.Add(GenerateNewFactory(serviceModel, registrationModel));
             }
             else {

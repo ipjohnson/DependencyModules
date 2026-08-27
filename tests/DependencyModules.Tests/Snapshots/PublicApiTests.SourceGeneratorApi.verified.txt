@@ -1524,6 +1524,7 @@ namespace DependencyModules.SourceGenerator.Impl.Models
         AutoRegisterSourceGenerator = 1,
         AbstractImplementation = 2,
         StaticImplementation = 4,
+        Intercepted = 8,
     }
     public enum RegistrationType
     {

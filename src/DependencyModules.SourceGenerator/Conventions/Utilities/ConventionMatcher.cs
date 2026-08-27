@@ -682,12 +682,33 @@ public static class ConventionMatcher {
                 null,
                 null,
                 registrations,
-                RegistrationFeature.None,
+                // Carried across for the same reason the attribute path sets it: interception picks
+                // its registration out by asking each descriptor what implementation it was built
+                // from, and a factory descriptor cannot say. A convention-registered class carrying
+                // [Intercept] needs the exemption as much as an attribute-registered one, and
+                // reaches this writer by a different route.
+                InterceptionFeature(group.Match.Candidate),
                 group.Conditions));
         }
 
         return models;
     }
+
+    /// <summary>
+    /// Whether a convention candidate carries <c>[Intercept]</c>.
+    /// </summary>
+    /// <remarks>
+    /// Read from the attribute keys the candidate already carries, which are resolved rather than
+    /// taken as written — so a qualified or aliased usage counts, matching how the attribute path
+    /// reads the same thing.
+    /// </remarks>
+    private static RegistrationFeature InterceptionFeature(ConventionCandidateModel candidate) =>
+        candidate.AttributeTypeKeys?.Contains(InterceptAttributeKey) == true
+            ? RegistrationFeature.Intercepted
+            : RegistrationFeature.None;
+
+    private static readonly string InterceptAttributeKey =
+        ConventionTypeKey.For(KnownTypes.DependencyModules.Attributes.InterceptAttribute);
 
     /// <summary>
     /// One ServiceModel's worth of matches: the same implementation under the same conditions.
