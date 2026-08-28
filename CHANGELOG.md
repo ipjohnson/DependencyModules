@@ -5,6 +5,27 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- A `GeneratedCodeStyle` MSBuild property choosing the brace style of every generated file:
+  `Allman` (the default, and what every prior version emitted) or `KAndR`. The name carries no
+  `DependencyModules_` prefix on purpose — it is shared with other source generators, so one csproj
+  line styles all of them. An unrecognized value falls back to `Allman`.
+
+### Changed
+
+- CSharpAuthor 1.1.1010 → 2.0.0-preview1004. Generated files change in two mechanical ways:
+  attributes are now written `global::`-qualified, so a type a consumer adds later can never
+  collide with them, and the `using` directives 1.x derived from already-qualified type references
+  are gone. Method bodies are unchanged. The upgrade also surfaced — and this release fixes — a
+  double-quoting bug in string-array attribute arguments, which 1.x rendered as `""a""`: not valid
+  C#, and never caught because nothing compiled that path.
+- `InterceptorFileWriter.Write` (in the source-shipped `DependencyModules.SourceGenerator.Impl`
+  seam) takes the configuration model as a fourth parameter, so the wrapper file honors
+  `GeneratedCodeStyle`. A framework calling it directly passes its configuration through.
+
 ## [1.2.0] - 2026-08-27
 
 Four applications built against the published 1.1.0 packages, by four agents who did not read each

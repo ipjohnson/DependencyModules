@@ -49,7 +49,8 @@ public class DependencyFileWriter {
 
         var output = new OutputContext(
             new OutputContextOptions {
-                TypeOutputMode = TypeOutputMode.Global
+                TypeOutputMode = TypeOutputMode.Global,
+                BraceStyle = configurationModel.GeneratedCodeStyle
             });
 
         csharpFile.WriteOutput(output);
@@ -68,6 +69,12 @@ public class DependencyFileWriter {
         string uniqueId) {
 
         var classDefinition = csharpFile.AddClass(entryPointModel.EntryPointType.Name);
+
+        // Asked for by name because qualification cannot replace it: the registrations call
+        // extension methods (AddSingleton, GetRequiredService) that only a using directive can
+        // bring into scope, and the ServiceLifetime fragments are written as raw text. The types
+        // this file writes no longer leave a derived using behind in Global mode.
+        classDefinition.AddUsingNamespace("Microsoft.Extensions.DependencyInjection");
 
         classDefinition.Modifiers |= ComponentModifier.Partial;
 

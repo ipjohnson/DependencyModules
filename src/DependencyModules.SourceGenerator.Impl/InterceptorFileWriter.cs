@@ -27,7 +27,8 @@ public class InterceptorFileWriter {
 
     private const string InnerField = "_dmInner";
 
-    public string Write(InterceptorModel model, string wrapperName, string namespaceName) {
+    public string Write(InterceptorModel model, string wrapperName, string namespaceName,
+        DependencyModuleConfigurationModel configurationModel) {
         var csharpFile = new CSharpFileDefinition(namespaceName);
 
         var wrapper = csharpFile.AddClass(wrapperName);
@@ -67,7 +68,8 @@ public class InterceptorFileWriter {
 
         var output = new OutputContext(
             new OutputContextOptions {
-                TypeOutputMode = TypeOutputMode.Global
+                TypeOutputMode = TypeOutputMode.Global,
+                BraceStyle = configurationModel.GeneratedCodeStyle
             });
 
         csharpFile.WriteOutput(output);

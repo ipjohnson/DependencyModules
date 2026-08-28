@@ -31,6 +31,10 @@ public class DecoratorFileWriter {
         var classDefinition = csharpFile.AddClass(entryPointModel.EntryPointType.Name);
         classDefinition.Modifiers |= ComponentModifier.Partial;
 
+        // Extension methods (AddSingleton, GetRequiredService) resolve through a using and nothing
+        // else, so the namespace is asked for by name; Global mode derives no usings on its own.
+        classDefinition.AddUsingNamespace("Microsoft.Extensions.DependencyInjection");
+
         // Applied per method rather than to the class. ExcludeFromCodeCoverage is not AllowMultiple,
         // and the same partial class also carries it from the registrations file.
         // Anything that cannot be constructed by generated code has already been reported and
@@ -41,7 +45,8 @@ public class DecoratorFileWriter {
         }
 
         var outputContext = new OutputContext(new OutputContextOptions {
-            TypeOutputMode = TypeOutputMode.Global
+            TypeOutputMode = TypeOutputMode.Global,
+            BraceStyle = configurationModel.GeneratedCodeStyle
         });
 
         csharpFile.WriteOutput(outputContext);

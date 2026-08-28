@@ -48,7 +48,8 @@ public static class ModelFactory {
         string logOutputFolder = "",
         LogOutputLevel logOutputLevel = LogOutputLevel.Debug,
         bool generateFactories = false,
-        bool excludeGeneratedCodeFromCoverage = true) =>
+        bool excludeGeneratedCodeFromCoverage = true,
+        BraceStyle generatedCodeStyle = BraceStyle.Allman) =>
         new(
             registrationType,
             registerSourceGenerator,
@@ -58,5 +59,6 @@ public static class ModelFactory {
             logOutputFolder,
             logOutputLevel,
             generateFactories,
-            excludeGeneratedCodeFromCoverage);
+            excludeGeneratedCodeFromCoverage,
+            generatedCodeStyle);
 }

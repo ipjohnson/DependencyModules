@@ -11,6 +11,7 @@ when the packages are installed from NuGet.
 | `DependencyModules_AutoGenerateModule` | `true` | generate `ApplicationModule` for a top-level `Program.cs` |
 | `DependencyModules_RegisterGenerator` | `false` | register discovered `JsonSerializerContext` types |
 | `ExcludeGeneratedCodeFromCoverage` | `true` | apply `[ExcludeFromCodeCoverage]` to generated members — note this one carries no `DependencyModules_` prefix |
+| `GeneratedCodeStyle` | `Allman` | brace style for the generated files: `Allman` or `KAndR`. Unprefixed on purpose — the name is shared with other source generators, so one line styles all of them. An unrecognized value falls back to `Allman` |
 | `DependencyModules_LogOutputDirectory` | *(none)* | write a generator log here — see [Troubleshooting](/guide/troubleshooting) |
 
 ```xml

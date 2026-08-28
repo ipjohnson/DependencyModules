@@ -1,3 +1,5 @@
+using CSharpAuthor;
+
 namespace DependencyModules.SourceGenerator.Impl.Models;
 
 public enum LogOutputLevel {
@@ -21,7 +23,8 @@ public record DependencyModuleConfigurationModel(
     string LogOutputFolder,
     LogOutputLevel LogOutputLevel,
     bool GenerateFactories,
-    bool ExcludeGeneratedCodeFromCoverage = true
+    bool ExcludeGeneratedCodeFromCoverage = true,
+    BraceStyle GeneratedCodeStyle = BraceStyle.Allman
 );
 
 public class DependencyModuleConfigurationModelComparer :
@@ -40,7 +43,8 @@ public class DependencyModuleConfigurationModelComparer :
                x.AutoGenerateEntry == y.AutoGenerateEntry &&
                x.LogOutputLevel == y.LogOutputLevel &&
                x.GenerateFactories == y.GenerateFactories &&
-               x.ExcludeGeneratedCodeFromCoverage == y.ExcludeGeneratedCodeFromCoverage;
+               x.ExcludeGeneratedCodeFromCoverage == y.ExcludeGeneratedCodeFromCoverage &&
+               x.GeneratedCodeStyle == y.GeneratedCodeStyle;
     }
 
     public int GetHashCode(DependencyModuleConfigurationModel obj) {

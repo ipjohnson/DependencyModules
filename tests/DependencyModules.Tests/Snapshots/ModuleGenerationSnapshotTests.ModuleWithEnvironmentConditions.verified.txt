@@ -1,16 +1,14 @@
 // ---- TestModule.Dependencies.g.cs ----
-using DependencyModules.Runtime.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using System.Diagnostics.CodeAnalysis;
 
 namespace TestNamespace
 {
     #nullable enable
-    [ExcludeFromCodeCoverage]
+    [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
     public partial class TestModule
     {
-        [DynamicDependency(nameof(ModuleDependencies))]
+        [global::System.Diagnostics.CodeAnalysis.DynamicDependency(nameof(ModuleDependencies))]
         private static int moduleField = global::DependencyModules.Runtime.Helpers.DependencyRegistry<global::TestNamespace.TestModule>.Add(ModuleDependencies);
 
         private static void ModuleDependencies(global::Microsoft.Extensions.DependencyInjection.IServiceCollection services, global::DependencyModules.Runtime.Interfaces.IModuleEnvironment environment)
@@ -43,10 +41,6 @@ namespace TestNamespace
 }
 
 // ---- TestModule.Module.g.cs ----
-using DependencyModules.Runtime.Helpers;
-using DependencyModules.Runtime.Interfaces;
-using Microsoft.Extensions.DependencyInjection;
-using System.Collections.Generic;
 using System.ComponentModel;
 
 namespace TestNamespace
