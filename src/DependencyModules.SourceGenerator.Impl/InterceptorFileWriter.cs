@@ -59,7 +59,7 @@ public class InterceptorFileWriter {
 
         for (var index = 0; index < model.Members.Count; index++) {
             if (IsIntercepted(model, model.Members[index])) {
-                WriteState(wrapper, model, model.Members[index], index, wrapperName);
+                WriteState(wrapper, model, model.Members[index], index, wrapperName, namespaceName);
             }
         }
 
@@ -102,7 +102,9 @@ public class InterceptorFileWriter {
         var arguments = new ITypeDefinition[typeParameters.Count];
 
         for (var i = 0; i < arguments.Length; i++) {
-            arguments[i] = TypeDefinition.Get("", typeParameters[i].Name);
+            // A TypeParameterDefinition, not TypeDefinition.Get("", name): an empty namespace now
+            // means the global namespace, which Global mode qualifies - and global::T is not a type.
+            arguments[i] = new TypeParameterDefinition(typeParameters[i].Name);
         }
 
         return new GenericTypeDefinition(
@@ -117,10 +119,10 @@ public class InterceptorFileWriter {
     /// <c>Repository_Intercepted&lt;T&gt;</c> the name is <c>Repository_Intercepted&lt;T&gt;</c>, and
     /// the bare name is CS0305.
     /// </remarks>
-    private static ITypeDefinition SelfType(InterceptorModel model, string wrapperName) =>
+    private static ITypeDefinition SelfType(InterceptorModel model, string wrapperName, string namespaceName) =>
         model.IsOpenGeneric
-            ? Closed(TypeDefinition.Get("", wrapperName), model.TypeParameters!)
-            : TypeDefinition.Get("", wrapperName);
+            ? Closed(TypeDefinition.Get(namespaceName, wrapperName), model.TypeParameters!)
+            : TypeDefinition.Get(namespaceName, wrapperName);
 
     /// <summary>
     /// The constraints a member declares, which both the forwarding member and its state class have
@@ -421,7 +423,8 @@ public class InterceptorFileWriter {
         InterceptorModel model,
         InterceptedMemberModel member,
         int index,
-        string wrapperName) {
+        string wrapperName,
+        string namespaceName) {
 
         var baseType = member.Kind switch {
             InterceptorKind.Async => Interception.AsyncInvocationState(member.ResultType),
@@ -440,7 +443,7 @@ public class InterceptorFileWriter {
 
         WriteConstraints(member, state.AddConstraint);
 
-        var selfType = SelfType(model, wrapperName);
+        var selfType = SelfType(model, wrapperName, namespaceName);
 
         WriteStateFields(state, member, selfType);
         WriteStateConstructor(state, member, index, selfType);

@@ -25,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `InterceptorFileWriter.Write` (in the source-shipped `DependencyModules.SourceGenerator.Impl`
   seam) takes the configuration model as a fourth parameter, so the wrapper file honors
   `GeneratedCodeStyle`. A framework calling it directly passes its configuration through.
+- The interceptor wrapper's self-reference is built with its real namespace, and its closed-over
+  type parameters as `TypeParameterDefinition`, instead of empty-namespace `TypeDefinition`s that
+  leaned on CSharpAuthor rendering them bare. Under the published package the only visible change
+  is a fully qualified self-reference in wrapper files; under the upcoming CSharpAuthor fix that
+  qualifies global-namespace types in `Global` mode (its migration note B13), the old spelling
+  would have rendered `global::Worker_Intercepted` for a type that lives in the module's
+  namespace.
 
 ## [1.2.0] - 2026-08-27
 
