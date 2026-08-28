@@ -27,7 +27,7 @@ You mark a class:
 public class SmtpEmailSender : IEmailSender;
 ```
 
-At build time the generator writes the registration you would have written yourself:
+At build time the generator writes the registration into your assembly:
 
 ```csharp
 // ApplicationModule.Dependencies.g.cs
@@ -40,25 +40,6 @@ services.AddSingleton(
 That is the entire mechanism. The output is ordinary C# that you can read, grep, set a
 breakpoint in, and check into a review. Nothing inspects your assembly at run time, so
 there is no startup scan to pay for and nothing for the trimmer to guess about.
-
-## Why not a runtime scanner?
-
-If you have used Scrutor, Autofac modules, or hand-written `AddScoped` lists, this is what
-changes:
-
-| | Runtime scanning | DependencyModules |
-|---|---|---|
-| When registration is decided | First request to the container | `dotnet build` |
-| A convention that matches nothing | Silent | [`DM0005`](https://ipjohnson.github.io/DependencyModules/reference/diagnostics) at build |
-| A service that cannot be constructed | `InvalidOperationException`, eventually | [`DM0002`](https://ipjohnson.github.io/DependencyModules/reference/diagnostics) at build |
-| Trimming / Native AOT | Types disappear; scanner finds nothing | Literal `typeof()`, so the trimmer keeps them |
-| Startup cost | Proportional to assembly size | None |
-| What actually got registered | Debugger, at run time | A file you can open |
-
-The interesting half is the third row. A trimmer removes `CreateOrderHandler` because
-nothing statically references it — a scanner that would have found it by reflection does
-not count. Emitting `typeof(CreateOrderHandler)` into your assembly is a static reference,
-which is why this approach and Native AOT get along.
 
 ## Install
 
@@ -116,9 +97,9 @@ than colliding — and to add a `ConfigureServices` to the generated one, declar
 A module must be `partial`, and must be declared directly in a namespace rather than nested
 inside another type. Services marked with `[SingletonService]` and friends may be nested freely.
 
-> **Coming from top-level statements?** The generated module takes your project's
-> `RootNamespace`, and top-level statements sit in the global namespace — so `Program.cs`
-> needs `using YourRootNamespace;` before it can name `ApplicationModule`.
+> The generated module takes the project's `RootNamespace`, and top-level statements sit
+> in the global namespace — so a top-level `Program.cs` needs `using YourRootNamespace;`
+> before it can name `ApplicationModule`.
 
 ## Registering forty things without writing forty attributes
 
@@ -228,6 +209,24 @@ over a value type without dynamic code, so `IRepository<Order>` resolves and `IR
 throws. Setting `PublishAot` makes that fail in an ordinary `dotnet run` rather than only after
 publishing. See the [AOT guide](https://ipjohnson.github.io/DependencyModules/guide/aot).
 
+## Compared with runtime scanning
+
+The registration work that Scrutor, container modules, or a hand-written `AddScoped` list
+do when the application starts happens here at `dotnet build`:
+
+| | Runtime scanning | DependencyModules |
+|---|---|---|
+| When registration is decided | First request to the container | `dotnet build` |
+| A convention that matches nothing | Silent | [`DM0005`](https://ipjohnson.github.io/DependencyModules/reference/diagnostics) at build |
+| A service that cannot be constructed | `InvalidOperationException`, eventually | [`DM0002`](https://ipjohnson.github.io/DependencyModules/reference/diagnostics) at build |
+| Trimming / Native AOT | Types disappear; scanner finds nothing | Literal `typeof()`, so the trimmer keeps them |
+| Startup cost | Proportional to assembly size | None |
+| What actually got registered | Debugger, at run time | A file you can open |
+
+The third row is the mechanism behind the AOT results above: a trimmer keeps what is
+statically referenced, a type found only by reflection is not referenced, and an emitted
+`typeof(CreateOrderHandler)` is.
+
 ## Feature reference
 
 | | |
@@ -260,8 +259,8 @@ directory is a working sample gallery, built and tested on every commit:
 
 ## Reporting a problem
 
-If services are not registered as you expect, these three steps produce almost everything
-needed to diagnose it:
+When a registration is missing or wrong, three steps produce almost everything needed to
+diagnose it:
 
 1. **Read the generated code.** Set `<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>`
    and look under `obj/`. The registrations the generator produced are the ground truth.
