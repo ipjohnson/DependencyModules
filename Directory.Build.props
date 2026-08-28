@@ -44,6 +44,7 @@
         <RepositoryType>git</RepositoryType>
         <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
         <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageIcon>icon.png</PackageIcon>
         <PackageTags>dependency-injection;di;ioc;source-generator;roslyn;servicecollection;modules</PackageTags>
         <PackageReleaseNotes>https://github.com/ipjohnson/DependencyModules/releases</PackageReleaseNotes>
     </PropertyGroup>
