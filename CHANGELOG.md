@@ -5,35 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-### Added
-
-- A `GeneratedCodeStyle` MSBuild property choosing the brace style of every generated file:
-  `Allman` (the default, and what every prior version emitted) or `KAndR`. The name carries no
-  `DependencyModules_` prefix on purpose — it is shared with other source generators, so one csproj
-  line styles all of them. An unrecognized value falls back to `Allman`.
-
-### Changed
-
-- CSharpAuthor 1.1.1010 → 2.0.0-preview1004. Generated files change in two mechanical ways:
-  attributes are now written `global::`-qualified, so a type a consumer adds later can never
-  collide with them, and the `using` directives 1.x derived from already-qualified type references
-  are gone. Method bodies are unchanged. The upgrade also surfaced — and this release fixes — a
-  double-quoting bug in string-array attribute arguments, which 1.x rendered as `""a""`: not valid
-  C#, and never caught because nothing compiled that path.
-- `InterceptorFileWriter.Write` (in the source-shipped `DependencyModules.SourceGenerator.Impl`
-  seam) takes the configuration model as a fourth parameter, so the wrapper file honors
-  `GeneratedCodeStyle`. A framework calling it directly passes its configuration through.
-- The interceptor wrapper's self-reference is built with its real namespace, and its closed-over
-  type parameters as `TypeParameterDefinition`, instead of empty-namespace `TypeDefinition`s that
-  leaned on CSharpAuthor rendering them bare. Under the published package the only visible change
-  is a fully qualified self-reference in wrapper files; under the upcoming CSharpAuthor fix that
-  qualifies global-namespace types in `Global` mode (its migration note B13), the old spelling
-  would have rendered `global::Worker_Intercepted` for a type that lives in the module's
-  namespace.
-
-## [1.2.0] - 2026-08-27
+## [1.2.0] - 2026-08-28
 
 Four applications built against the published 1.1.0 packages, by four agents who did not read each
 other's work. Every fix 1.1.0 shipped held up under runtime assertion. What did not hold up was
@@ -50,6 +22,10 @@ See [Mocking frameworks](https://ipjohnson.github.io/DependencyModules/guide/tes
 Three new diagnostics arrive, all warnings, so `TreatWarningsAsErrors` may turn a green build red on
 code that was quietly doing nothing. Every one of them can be silenced where it is written — which
 is itself new, and the subject of the first entry below.
+
+Separately from the round, generation moves to CSharpAuthor 2.0 and gains a `GeneratedCodeStyle`
+property choosing the brace style of generated files. Generated code changes in mechanical ways —
+no method body is different — and the *Changed* entries carry the details.
 
 ### Fixed
 
@@ -156,6 +132,11 @@ is itself new, and the subject of the first entry below.
   generator emitted them, sorted by class name — renaming a class reordered a pipeline. Everything
   defaults to `0` and the sort is stable within one order.
 
+- **A `GeneratedCodeStyle` MSBuild property** choosing the brace style of every generated file:
+  `Allman` (the default, and what every prior version emitted) or `KAndR`. The name carries no
+  `DependencyModules_` prefix on purpose — it is shared with other source generators, so one csproj
+  line styles all of them. An unrecognized value falls back to `Allman`.
+
 - **`DM0020`** reports an interception no module applies, so it can never run. The case it catches is
   a realm-only module registering the class by convention, where the realm is decided at match time
   and an interception cannot inherit it.
@@ -165,6 +146,27 @@ is itself new, and the subject of the first entry below.
 
 - **`DM0022`** reports a decorator naming an implementation in a project emitting factories, where it
   would wrap all of them instead of one.
+
+### Changed
+
+- **CSharpAuthor 1.1.1010 → 2.0.0-preview1004.** Generated files change in two mechanical ways:
+  attributes are now written `global::`-qualified, so a type a consumer adds later can never
+  collide with them, and the `using` directives 1.x derived from already-qualified type references
+  are gone. Method bodies are unchanged. The upgrade also surfaced — and this release fixes — a
+  double-quoting bug in string-array attribute arguments, which 1.x rendered as `""a""`: not valid
+  C#, and never caught because nothing compiled that path.
+
+- **`InterceptorFileWriter.Write` takes the configuration model as a fourth parameter** (in the
+  source-shipped `DependencyModules.SourceGenerator.Impl` seam), so the wrapper file honors
+  `GeneratedCodeStyle`. A framework calling it directly passes its configuration through.
+
+- **The interceptor wrapper's self-reference is built with its real namespace**, and its closed-over
+  type parameters as `TypeParameterDefinition`, instead of empty-namespace `TypeDefinition`s that
+  leaned on CSharpAuthor rendering them bare. Under the published package the only visible change
+  is a fully qualified self-reference in wrapper files; under the upcoming CSharpAuthor fix that
+  qualifies global-namespace types in `Global` mode (its migration note B13), the old spelling
+  would have rendered `global::Worker_Intercepted` for a type that lives in the module's
+  namespace.
 
 ### Documentation
 
