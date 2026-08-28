@@ -6,7 +6,7 @@
         local and CI builds fall back to the values below.
     -->
     <PropertyGroup>
-        <VersionPrefix>1.2.0</VersionPrefix>
+        <VersionPrefix>1.2.1</VersionPrefix>
         <!--
             Empty at 1.0.0. Set it again to cut a prerelease of the next version; the file version
             carries no prerelease part, so it stays put until the version it does carry changes.
@@ -22,7 +22,7 @@
             depend on. It moves at 2.0.0.
         -->
         <AssemblyVersion>1.0.0.0</AssemblyVersion>
-        <FileVersion>1.2.0.0</FileVersion>
+        <FileVersion>1.2.1.0</FileVersion>
     </PropertyGroup>
 
     <!--
