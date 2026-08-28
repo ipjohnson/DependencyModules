@@ -14,9 +14,35 @@ namespace CSharpAuthor
     {
         public AttributeDefinition(CSharpAuthor.ITypeDefinition attributeType) { }
         public System.Collections.Generic.IList<CSharpAuthor.IOutputComponent>? Arguments { get; set; }
+        public System.Collections.Generic.IList<System.Collections.Generic.KeyValuePair<string, CSharpAuthor.IOutputComponent>>? NamedArguments { get; set; }
         public string? Target { get; set; }
+        public CSharpAuthor.AttributeDefinition AddNamedArgument(string name, CSharpAuthor.IOutputComponent value) { }
         protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
         public void WriteInline(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public sealed class AttributeTypeReference : CSharpAuthor.ITypeDefinition, System.IComparable<CSharpAuthor.ITypeDefinition>
+    {
+        public AttributeTypeReference(CSharpAuthor.ITypeDefinition attributeType) { }
+        public System.Collections.Generic.IReadOnlyList<int> ArrayRanks { get; }
+        public CSharpAuthor.ITypeDefinition AttributeType { get; }
+        public CSharpAuthor.ITypeDefinition? ContainingType { get; }
+        public bool IsArray { get; }
+        public bool IsNullable { get; }
+        public System.Collections.Generic.IEnumerable<string> KnownNamespaces { get; }
+        public string Name { get; }
+        public string Namespace { get; }
+        public System.Collections.Generic.IReadOnlyList<bool> NullableAnnotations { get; }
+        public System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> TypeArguments { get; }
+        public CSharpAuthor.TypeDefinitionEnum TypeDefinitionEnum { get; }
+        public string WrittenName { get; }
+        public int CompareTo(CSharpAuthor.ITypeDefinition other) { }
+        public override bool Equals(object obj) { }
+        public override int GetHashCode() { }
+        public CSharpAuthor.ITypeDefinition MakeArray() { }
+        public CSharpAuthor.ITypeDefinition MakeArray(int rank) { }
+        public CSharpAuthor.ITypeDefinition MakeNullable(bool nullable = true) { }
+        public override string ToString() { }
+        public void WriteTypeName(System.Text.StringBuilder builder, CSharpAuthor.TypeOutputMode typeOutputMode = 2) { }
     }
     public abstract class BaseBlockDefinition : CSharpAuthor.BaseOutputComponent
     {
@@ -29,10 +55,16 @@ namespace CSharpAuthor
         public virtual object AddIndentedStatement(object component) { }
         public CSharpAuthor.BaseBlockDefinition.ToClass Assign(CSharpAuthor.IOutputComponent value) { }
         public CSharpAuthor.BaseBlockDefinition.ToClass Assign(string value) { }
+        public CSharpAuthor.BlockDefinition Block(string header) { }
         public void Break() { }
+        public void Continue() { }
+        public CSharpAuthor.ForDefinition For(CSharpAuthor.IOutputComponent? initializer, CSharpAuthor.IOutputComponent? condition, CSharpAuthor.IOutputComponent? increment) { }
+        public CSharpAuthor.ForDefinition For(string variable, object startValue, object exclusiveLimit) { }
         public CSharpAuthor.ForEachDefinition ForEach(string variable, CSharpAuthor.IOutputComponent enumerableComponent) { }
         public CSharpAuthor.IfElseLogicBlockDefinition If(CSharpAuthor.IOutputComponent outputComponent) { }
         public CSharpAuthor.IfElseLogicBlockDefinition If(string ifStatement) { }
+        public CSharpAuthor.LockDefinition Lock(CSharpAuthor.IOutputComponent lockObject) { }
+        public CSharpAuthor.LockDefinition Lock(string lockObject) { }
         public virtual void NewLine() { }
         public void Return(object? returnValue = null) { }
         public CSharpAuthor.SwitchBlockDefinition Switch(object switchValue) { }
@@ -82,29 +114,48 @@ namespace CSharpAuthor
     public abstract class BaseTypeDefinition : CSharpAuthor.ITypeDefinition, System.IComparable<CSharpAuthor.ITypeDefinition>
     {
         protected BaseTypeDefinition(CSharpAuthor.TypeDefinitionEnum typeDefinitionEnum, string ns, string name, bool isArray, bool isNullable) { }
+        public System.Collections.Generic.IReadOnlyList<int> ArrayRanks { get; }
+        public CSharpAuthor.ITypeDefinition? ContainingType { get; }
         public bool IsArray { get; }
+        public bool IsElementNullable { get; }
         public bool IsNullable { get; }
         public abstract System.Collections.Generic.IEnumerable<string> KnownNamespaces { get; }
         public string Name { get; }
         public string Namespace { get; }
+        public System.Collections.Generic.IReadOnlyList<bool> NullableAnnotations { get; }
         public abstract System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> TypeArguments { get; }
         public CSharpAuthor.TypeDefinitionEnum TypeDefinitionEnum { get; }
         protected int BaseCompareTo(CSharpAuthor.ITypeDefinition other) { }
         public abstract int CompareTo(CSharpAuthor.ITypeDefinition other);
-        public abstract CSharpAuthor.ITypeDefinition MakeArray();
+        public override bool Equals(object? obj) { }
+        public override int GetHashCode() { }
+        public CSharpAuthor.ITypeDefinition MakeArray() { }
+        public abstract CSharpAuthor.ITypeDefinition MakeArray(int rank);
         public abstract CSharpAuthor.ITypeDefinition MakeNullable(bool nullable = true);
         public abstract void WriteTypeName(System.Text.StringBuilder builder, CSharpAuthor.TypeOutputMode typeOutputMode = 2);
+    }
+    public class BlockDefinition : CSharpAuthor.BaseBlockDefinition
+    {
+        public BlockDefinition(string header) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public enum BraceStyle
+    {
+        Allman = 0,
+        KAndR = 1,
     }
     public class CSharpFileDefinition : CSharpAuthor.BaseOutputComponent, CSharpAuthor.IConstructContainer
     {
         public CSharpFileDefinition(string ns = "") { }
         public bool FileScopedNamespace { get; set; }
+        public string Namespace { get; }
         public CSharpAuthor.ClassDefinition AddClass(string name) { }
         public void AddComponent(CSharpAuthor.IOutputComponent component) { }
         public CSharpAuthor.EnumDefinition AddEnum(string name) { }
         public CSharpAuthor.InterfaceDefinition AddInterface(string interfaceName) { }
         public CSharpAuthor.ClassDefinition AddRecord(string name) { }
         public System.Collections.Generic.IEnumerable<CSharpAuthor.IOutputComponent> GetAllNamedComponents() { }
+        protected override void WriteComment(CSharpAuthor.IOutputContext outputContext) { }
         protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
     }
     public class CaseBlockDefinition : CSharpAuthor.BaseBlockDefinition
@@ -120,6 +171,7 @@ namespace CSharpAuthor
         public int FieldCount { get; }
         public System.Collections.Generic.IReadOnlyList<CSharpAuthor.FieldDefinition> Fields { get; }
         public System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> GenericParameters { get; }
+        public bool IsRefStruct { get; set; }
         public System.Collections.Generic.IReadOnlyList<CSharpAuthor.MethodDefinition> Methods { get; }
         public string Name { get; }
         public System.Collections.Generic.IReadOnlyList<CSharpAuthor.PropertyDefinition> Properties { get; }
@@ -143,6 +195,7 @@ namespace CSharpAuthor
         public CSharpAuthor.MethodDefinition AddMethod(string method) { }
         public CSharpAuthor.PropertyDefinition AddProperty(CSharpAuthor.ITypeDefinition type, string fieldName) { }
         public CSharpAuthor.PropertyDefinition AddProperty(System.Type type, string fieldName) { }
+        public CSharpAuthor.ClassDefinition AddUnionCase(CSharpAuthor.ITypeDefinition caseType) { }
         public System.Collections.Generic.IEnumerable<CSharpAuthor.IOutputComponent> GetAllNamedComponents() { }
         protected override void WriteComment(CSharpAuthor.IOutputContext outputContext) { }
         protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
@@ -153,6 +206,7 @@ namespace CSharpAuthor
         Record = 1,
         Struct = 2,
         RecordStruct = 3,
+        Union = 4,
     }
     public class CloseScopeComponent : CSharpAuthor.BaseOutputComponent
     {
@@ -162,10 +216,13 @@ namespace CSharpAuthor
     public class CodeOutputComponent : CSharpAuthor.BaseOutputComponent
     {
         public CodeOutputComponent(string statement) { }
+        public CodeOutputComponent(CSharpAuthor.ITypeDefinition typeDefinition, string? memberName = null) { }
         public void AddType(CSharpAuthor.ITypeDefinition typeDefinition) { }
         public void AddTypes(System.Collections.Generic.IEnumerable<CSharpAuthor.ITypeDefinition> typeDefinitions) { }
         protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+        public static CSharpAuthor.CodeOutputComponent FromParts(System.Collections.Generic.IReadOnlyList<object> parts) { }
         public static CSharpAuthor.IOutputComponent Get(object? value, bool indented = false) { }
+        public static CSharpAuthor.IOutputComponent Get(CSharpAuthor.ITypeDefinition typeDefinition, string memberName, bool indented = false) { }
         public static System.Collections.Generic.IEnumerable<CSharpAuthor.IOutputComponent> GetAll(System.Collections.Generic.IEnumerable<object> values, bool indented = false) { }
         public static CSharpAuthor.CodeOutputComponent op_Implicit(string statement) { }
     }
@@ -191,6 +248,28 @@ namespace CSharpAuthor
         Internal = 1024,
         NoAccessibility = 2048,
         Sealed = 4096,
+        ProtectedInternal = 1026,
+        PrivateProtected = 6,
+        New = 8192,
+        Const = 16384,
+        File = 32768,
+        Volatile = 65536,
+    }
+    public class ConditionalDirectiveComponent : CSharpAuthor.BaseOutputComponent
+    {
+        public ConditionalDirectiveComponent(string condition) { }
+        public CSharpAuthor.ConditionalDirectiveComponent.Branch If { get; }
+        public CSharpAuthor.ConditionalDirectiveComponent.Branch Else() { }
+        public CSharpAuthor.ConditionalDirectiveComponent.Branch ElseIf(string condition) { }
+        protected override void ProcessLeadingTraits(CSharpAuthor.IOutputContext outputContext) { }
+        protected override void ProcessTrailingTraits(CSharpAuthor.IOutputContext outputContext) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+        public class Branch
+        {
+            public string? Condition { get; }
+            public T Add<T>(T component)
+                where T : CSharpAuthor.IOutputComponent { }
+        }
     }
     public class ConstraintDefinition
     {
@@ -265,9 +344,20 @@ namespace CSharpAuthor
         protected override void WriteComment(CSharpAuthor.IOutputContext outputContext) { }
         protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
     }
+    public class FieldKeywordComponent : CSharpAuthor.BaseOutputComponent
+    {
+        public FieldKeywordComponent(string backingFieldName, string? context = null) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
     public class ForDefinition : CSharpAuthor.BaseBlockDefinition
     {
         public ForDefinition() { }
+        public ForDefinition(CSharpAuthor.IOutputComponent? initializer, CSharpAuthor.IOutputComponent? condition, CSharpAuthor.IOutputComponent? increment) { }
+        public ForDefinition(string variableName, object startValue, object exclusiveLimit) { }
+        public CSharpAuthor.IOutputComponent? Condition { get; set; }
+        public CSharpAuthor.IOutputComponent? Increment { get; set; }
+        public CSharpAuthor.IOutputComponent? Initializer { get; set; }
+        public CSharpAuthor.InstanceDefinition? Variable { get; }
         protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
     }
     public class ForEachDefinition : CSharpAuthor.BaseBlockDefinition
@@ -280,12 +370,12 @@ namespace CSharpAuthor
     {
         public GenericTypeDefinition(System.Type type, System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> closeTypes, bool isArray = false, bool isNullable = false) { }
         public GenericTypeDefinition(CSharpAuthor.TypeDefinitionEnum classType, string ns, string name, System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> closingTypes, bool isArray = false, bool isNullable = false) { }
+        public GenericTypeDefinition(CSharpAuthor.TypeDefinitionEnum classType, string ns, string name, System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> closingTypes, System.Collections.Generic.IReadOnlyList<int>? arrayRanks, System.Collections.Generic.IReadOnlyList<bool>? nullableAnnotations, CSharpAuthor.ITypeDefinition? containingType) { }
+        public GenericTypeDefinition(CSharpAuthor.TypeDefinitionEnum classType, string ns, string name, System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> closingTypes, System.Collections.Generic.IReadOnlyList<int>? arrayRanks, bool isNullable = false, CSharpAuthor.ITypeDefinition? containingType = null) { }
         public override System.Collections.Generic.IEnumerable<string> KnownNamespaces { get; }
         public override System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> TypeArguments { get; }
         public override int CompareTo(CSharpAuthor.ITypeDefinition other) { }
-        public override bool Equals(object obj) { }
-        public override int GetHashCode() { }
-        public override CSharpAuthor.ITypeDefinition MakeArray() { }
+        public override CSharpAuthor.ITypeDefinition MakeArray(int rank) { }
         public override CSharpAuthor.ITypeDefinition MakeNullable(bool nullable = true) { }
         public CSharpAuthor.ITypeDefinition MakeOpenType() { }
         public override string ToString() { }
@@ -325,9 +415,7 @@ namespace CSharpAuthor
         char? LastCharacter { get; }
         CSharpAuthor.OutputContextOptions Options { get; }
         string SingleIndent { get; }
-        void AddImportNamespace(CSharpAuthor.ITypeDefinition typeDefinition);
         void AddImportNamespace(string ns);
-        void AddImportNamespaces(System.Collections.Generic.IEnumerable<CSharpAuthor.ITypeDefinition> typeDefinition);
         void AddImportNamespaces(System.Collections.Generic.IEnumerable<string> namespaces);
         void CloseScope();
         void DecrementIndent();
@@ -345,20 +433,25 @@ namespace CSharpAuthor
     }
     public interface ITypeDefinition : System.IComparable<CSharpAuthor.ITypeDefinition>
     {
+        System.Collections.Generic.IReadOnlyList<int> ArrayRanks { get; }
+        CSharpAuthor.ITypeDefinition? ContainingType { get; }
         bool IsArray { get; }
         bool IsNullable { get; }
         System.Collections.Generic.IEnumerable<string> KnownNamespaces { get; }
         string Name { get; }
         string Namespace { get; }
+        System.Collections.Generic.IReadOnlyList<bool> NullableAnnotations { get; }
         System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> TypeArguments { get; }
         CSharpAuthor.TypeDefinitionEnum TypeDefinitionEnum { get; }
         CSharpAuthor.ITypeDefinition MakeArray();
+        CSharpAuthor.ITypeDefinition MakeArray(int rank);
         CSharpAuthor.ITypeDefinition MakeNullable(bool nullable = true);
         void WriteTypeName(System.Text.StringBuilder builder, CSharpAuthor.TypeOutputMode typeOutputMode = 2);
     }
     public static class ITypeDefinitionExtensions
     {
         public static string GetShortName(this CSharpAuthor.ITypeDefinition typeDefinition) { }
+        public static CSharpAuthor.ITypeDefinition MakeArrayOfNullable(this CSharpAuthor.ITypeDefinition typeDefinition, int rank = 1) { }
     }
     public class IfElseLogicBlockDefinition : CSharpAuthor.BaseBlockDefinition
     {
@@ -404,7 +497,9 @@ namespace CSharpAuthor
     public class InterfaceMethodDefinition : CSharpAuthor.MethodDefinition
     {
         public InterfaceMethodDefinition(string name) { }
+        public bool IsStaticAbstract { get; set; }
         protected override void WriteAccessModifier(CSharpAuthor.IOutputContext outputContext) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
         protected override void WriteEndOfMethodSignature(CSharpAuthor.IOutputContext outputContext) { }
         protected override void WriteMethodBody(CSharpAuthor.IOutputContext outputContext) { }
     }
@@ -433,9 +528,13 @@ namespace CSharpAuthor
         public static string Async { get; }
         public static string Await { get; }
         public static string Class { get; }
+        public static string Const { get; }
+        public static string Field { get; }
+        public static string File { get; }
         public static string In { get; }
         public static string Interface { get; }
         public static string Internal { get; }
+        public static string New { get; }
         public static string Out { get; }
         public static string Override { get; }
         public static string Params { get; }
@@ -451,9 +550,28 @@ namespace CSharpAuthor
         public static string This { get; }
         public static string Virtual { get; }
     }
+    public class LineCommentComponent : CSharpAuthor.BaseOutputComponent
+    {
+        public LineCommentComponent(string? comment) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class LineDirectiveComponent : CSharpAuthor.BaseOutputComponent
+    {
+        protected override void ProcessLeadingTraits(CSharpAuthor.IOutputContext outputContext) { }
+        protected override void ProcessTrailingTraits(CSharpAuthor.IOutputContext outputContext) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+        public static CSharpAuthor.LineDirectiveComponent At(int lineNumber, string? fileName = null) { }
+        public static CSharpAuthor.LineDirectiveComponent Default() { }
+        public static CSharpAuthor.LineDirectiveComponent Hidden() { }
+    }
     public class ListOutputComponent : CSharpAuthor.BaseOutputComponent
     {
         public ListOutputComponent(System.Collections.Generic.IReadOnlyList<CSharpAuthor.IOutputComponent> components) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class LockDefinition : CSharpAuthor.BaseBlockDefinition
+    {
+        public LockDefinition(CSharpAuthor.IOutputComponent lockObject) { }
         protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
     }
     public class LogicStatement : CSharpAuthor.BaseOutputComponent
@@ -471,7 +589,9 @@ namespace CSharpAuthor
         public System.Collections.Generic.IReadOnlyList<CSharpAuthor.ConstraintDefinition> Constraints { get; }
         public System.Collections.Generic.List<CSharpAuthor.ITypeDefinition> GenericParameters { get; }
         public CSharpAuthor.ITypeDefinition? InterfaceImplementation { get; set; }
+        public bool LambdaSyntax { get; set; }
         public string Name { get; }
+        public bool OmitBody { get; set; }
         public System.Collections.Generic.IReadOnlyList<CSharpAuthor.ParameterDefinition> Parameters { get; }
         public string? ReturnComment { get; set; }
         public CSharpAuthor.ITypeDefinition? ReturnType { get; }
@@ -487,6 +607,7 @@ namespace CSharpAuthor
         protected virtual void WriteAccessModifier(CSharpAuthor.IOutputContext outputContext) { }
         protected override void WriteComment(CSharpAuthor.IOutputContext outputContext) { }
         protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
+        protected void WriteConstraints(CSharpAuthor.IOutputContext outputContext) { }
         protected virtual void WriteEndOfMethodSignature(CSharpAuthor.IOutputContext outputContext) { }
         protected virtual void WriteMethodBody(CSharpAuthor.IOutputContext outputContext) { }
         protected virtual void WriteMethodSignature(CSharpAuthor.IOutputContext outputContext) { }
@@ -504,6 +625,7 @@ namespace CSharpAuthor
         public CSharpAuthor.NamespaceDefinition AddNamespace(string @namespace) { }
         public CSharpAuthor.ClassDefinition AddRecord(string name) { }
         public System.Collections.Generic.IEnumerable<CSharpAuthor.IOutputComponent> GetAllNamedComponents() { }
+        protected override void WriteComment(CSharpAuthor.IOutputContext outputContext) { }
         protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
     }
     public class NewArrayStatement : CSharpAuthor.BaseOutputComponent
@@ -533,6 +655,7 @@ namespace CSharpAuthor
     public class OutputContext : CSharpAuthor.IOutputContext
     {
         public OutputContext(CSharpAuthor.OutputContextOptions? options = null) { }
+        public int IndentDepth { get; }
         public string IndentString { get; }
         public char? LastCharacter { get; }
         public CSharpAuthor.OutputContextOptions Options { get; }
@@ -542,9 +665,11 @@ namespace CSharpAuthor
         public void AddImportNamespaces(System.Collections.Generic.IEnumerable<CSharpAuthor.ITypeDefinition> typeDefinitions) { }
         public void AddImportNamespaces(System.Collections.Generic.IEnumerable<string> namespaces) { }
         public void CloseScope() { }
+        public void DeclareContainingNamespace(string ns) { }
         public void DecrementIndent() { }
         public void GenerateUsingStatements() { }
         public void IncrementIndent() { }
+        public void MarkEndOfFileHeader() { }
         public void OpenScope() { }
         public string Output() { }
         public void Write(CSharpAuthor.ITypeDefinition typeDefinition) { }
@@ -558,7 +683,11 @@ namespace CSharpAuthor
     public class OutputContextOptions
     {
         public OutputContextOptions() { }
+        public bool AliasCollisions { get; set; }
+        public CSharpAuthor.BraceStyle BraceStyle { get; set; }
         public bool BreakInvokeLines { get; set; }
+        public string? ContainingNamespace { get; set; }
+        public bool EmitExplicitUsings { get; set; }
         public bool GenerateDocumentation { get; set; }
         public char IndentChar { get; set; }
         public int IndentCharCount { get; set; }
@@ -612,6 +741,7 @@ namespace CSharpAuthor
         public System.Collections.Generic.List<CSharpAuthor.ParameterDefinition> IndexParameters { get; }
         public CSharpAuthor.ITypeDefinition? IndexType { get; set; }
         public CSharpAuthor.InstanceDefinition Instance { get; }
+        public bool IsRequired { get; set; }
         public string Name { get; }
         public CSharpAuthor.PropertyMethodDefinition? Set { get; set; }
         public CSharpAuthor.ITypeDefinition Type { get; }
@@ -624,9 +754,18 @@ namespace CSharpAuthor
     {
         public PropertyMethodDefinition() { }
         public bool IsInit { get; set; }
-        public bool LambdaSyntax { get; set; }
         protected override void WriteMethodBody(CSharpAuthor.IOutputContext outputContext) { }
         protected override void WriteMethodSignature(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public class RegionComponent : CSharpAuthor.BaseOutputComponent
+    {
+        public RegionComponent(string name = "") { }
+        public string Name { get; }
+        public T Add<T>(T component)
+            where T : CSharpAuthor.IOutputComponent { }
+        protected override void ProcessLeadingTraits(CSharpAuthor.IOutputContext outputContext) { }
+        protected override void ProcessTrailingTraits(CSharpAuthor.IOutputContext outputContext) { }
+        protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
     }
     public class StaticCastComponent : CSharpAuthor.BaseOutputComponent
     {
@@ -658,6 +797,9 @@ namespace CSharpAuthor
     public static class SyntaxHelpers
     {
         public static CSharpAuthor.LogicStatement Add(params object[] andStatements) { }
+        public static void AddAutoGeneratedHeader(this CSharpAuthor.BaseOutputComponent baseOutputComponent) { }
+        public static void AddHeaderComment(this CSharpAuthor.BaseOutputComponent baseOutputComponent, string comment) { }
+        public static CSharpAuthor.LineCommentComponent AddLineComment(this CSharpAuthor.BaseBlockDefinition blockDefinition, string comment) { }
         public static CSharpAuthor.LogicStatement And(System.Collections.Generic.IReadOnlyList<CSharpAuthor.IOutputComponent> andStatements) { }
         public static CSharpAuthor.LogicStatement And(params object[] andStatements) { }
         public static CSharpAuthor.IOutputComponent Await(object outputComponent) { }
@@ -668,6 +810,7 @@ namespace CSharpAuthor
         public static CSharpAuthor.LogicStatement Divide(params object[] andStatements) { }
         public static void EnableNullable(this CSharpAuthor.BaseOutputComponent baseOutputComponent) { }
         public static CSharpAuthor.LogicStatement EqualsStatement(object leftHandSide, object rightHandSide) { }
+        public static CSharpAuthor.IOutputComponent Field(string backingFieldName, string? context = null) { }
         public static CSharpAuthor.LogicStatement GreaterThan(object leftHandSide, object rightHandSide) { }
         public static CSharpAuthor.LogicStatement GreaterThanOrEquals(object leftHandSide, object rightHandSide) { }
         public static CSharpAuthor.IOutputComponent Increment(object outputComponent) { }
@@ -721,12 +864,12 @@ namespace CSharpAuthor
     public class TypeDefinition : CSharpAuthor.BaseTypeDefinition
     {
         public TypeDefinition(CSharpAuthor.TypeDefinitionEnum typeDefinitionEnum, string ns, string name, bool isArray, bool isNullable = false) { }
+        public TypeDefinition(CSharpAuthor.TypeDefinitionEnum typeDefinitionEnum, string ns, string name, System.Collections.Generic.IReadOnlyList<int>? arrayRanks, System.Collections.Generic.IReadOnlyList<bool>? nullableAnnotations, CSharpAuthor.ITypeDefinition? containingType) { }
+        public TypeDefinition(CSharpAuthor.TypeDefinitionEnum typeDefinitionEnum, string ns, string name, System.Collections.Generic.IReadOnlyList<int>? arrayRanks, bool isNullable = false, CSharpAuthor.ITypeDefinition? containingType = null) { }
         public override System.Collections.Generic.IEnumerable<string> KnownNamespaces { get; }
         public override System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> TypeArguments { get; }
         public override int CompareTo(CSharpAuthor.ITypeDefinition other) { }
-        public override bool Equals(object obj) { }
-        public override int GetHashCode() { }
-        public override CSharpAuthor.ITypeDefinition MakeArray() { }
+        public override CSharpAuthor.ITypeDefinition MakeArray(int rank) { }
         public override CSharpAuthor.ITypeDefinition MakeNullable(bool nullable = true) { }
         public override string ToString() { }
         public override void WriteTypeName(System.Text.StringBuilder builder, CSharpAuthor.TypeOutputMode typeOutputMode = 2) { }
@@ -735,6 +878,9 @@ namespace CSharpAuthor
         public static CSharpAuthor.ITypeDefinition Get(System.Type type) { }
         public static CSharpAuthor.TypeDefinition Get(string ns, string name, bool isArray = false, bool isNullable = false) { }
         public static CSharpAuthor.TypeDefinition Get(CSharpAuthor.TypeDefinitionEnum definitionEnum, string ns, string name, bool isArray = false, bool isNullable = false) { }
+        public static CSharpAuthor.TypeDefinition Get(CSharpAuthor.TypeDefinitionEnum definitionEnum, string ns, string name, System.Collections.Generic.IReadOnlyList<int>? arrayRanks, System.Collections.Generic.IReadOnlyList<bool>? nullableAnnotations, CSharpAuthor.ITypeDefinition? containingType) { }
+        public static CSharpAuthor.TypeDefinition Get(CSharpAuthor.TypeDefinitionEnum definitionEnum, string ns, string name, System.Collections.Generic.IReadOnlyList<int>? arrayRanks, bool isNullable = false, CSharpAuthor.ITypeDefinition? containingType = null) { }
+        public static CSharpAuthor.TypeDefinition GetNested(CSharpAuthor.ITypeDefinition containingType, string name, CSharpAuthor.TypeDefinitionEnum definitionEnum = 0) { }
         public static CSharpAuthor.ITypeDefinition IEnumerable(object typeObject) { }
         public static CSharpAuthor.ITypeDefinition IOptions(object typeObject) { }
         public static CSharpAuthor.ITypeDefinition List(object typeObject) { }
@@ -745,6 +891,12 @@ namespace CSharpAuthor
         ClassDefinition = 0,
         EnumDefinition = 1,
         InterfaceDefinition = 2,
+    }
+    public static class TypeDefinitionIdentity
+    {
+        public static int KeyCompare(string key, CSharpAuthor.ITypeDefinition? other) { }
+        public static bool KeyEquals(string key, object? other) { }
+        public static string KeyOf(CSharpAuthor.ITypeDefinition type) { }
     }
     public static class TypeExtensions
     {
@@ -759,17 +911,21 @@ namespace CSharpAuthor
     public class TypeParameterDefinition : CSharpAuthor.ITypeDefinition, System.IComparable<CSharpAuthor.ITypeDefinition>
     {
         public TypeParameterDefinition(string name, bool isNullable = false, bool isArray = false) { }
+        public System.Collections.Generic.IReadOnlyList<int> ArrayRanks { get; }
+        public CSharpAuthor.ITypeDefinition? ContainingType { get; }
         public bool IsArray { get; }
         public bool IsNullable { get; }
         public System.Collections.Generic.IEnumerable<string> KnownNamespaces { get; }
         public string Name { get; }
         public string Namespace { get; }
+        public System.Collections.Generic.IReadOnlyList<bool> NullableAnnotations { get; }
         public System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> TypeArguments { get; }
         public CSharpAuthor.TypeDefinitionEnum TypeDefinitionEnum { get; }
         public int CompareTo(CSharpAuthor.ITypeDefinition other) { }
         public override bool Equals(object obj) { }
         public override int GetHashCode() { }
         public CSharpAuthor.ITypeDefinition MakeArray() { }
+        public CSharpAuthor.ITypeDefinition MakeArray(int rank) { }
         public CSharpAuthor.ITypeDefinition MakeNullable(bool nullable = true) { }
         public override string ToString() { }
         public void WriteTypeName(System.Text.StringBuilder builder, CSharpAuthor.TypeOutputMode typeOutputMode = 2) { }
@@ -795,6 +951,10 @@ namespace CSharpAuthor
         public WrapStatement(CSharpAuthor.IOutputComponent? outputComponent, CSharpAuthor.IOutputComponent? prefixString, CSharpAuthor.IOutputComponent? postfixString) { }
         protected override void WriteComponentOutput(CSharpAuthor.IOutputContext outputContext) { }
     }
+}
+namespace CSharpAuthor.Profiles
+{
+    public delegate bool EditorConfigOptionLookup(string key, out string? value);
 }
 namespace DependencyModules.Conventions
 {
@@ -1048,6 +1208,7 @@ namespace DependencyModules.SourceGenerator.Impl
         protected virtual void SetupRootGenerator(Microsoft.CodeAnalysis.IncrementalGeneratorInitializationContext context, [System.Runtime.CompilerServices.TupleElementNames(new string[] {
                 "Left",
                 "Right"})] Microsoft.CodeAnalysis.IncrementalValueProvider<System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>>> valuesProvider) { }
+        public static CSharpAuthor.BraceStyle GetCodeStyle(string value) { }
         public static DependencyModules.SourceGenerator.Impl.Models.RegistrationType GetRegistrationType(string toString) { }
     }
     public class CollectionSyntaxDeclaration : CSharpAuthor.BaseOutputComponent
@@ -1112,7 +1273,7 @@ namespace DependencyModules.SourceGenerator.Impl
     public class InterceptorFileWriter
     {
         public InterceptorFileWriter() { }
-        public string Write(DependencyModules.SourceGenerator.Impl.Models.InterceptorModel model, string wrapperName, string namespaceName) { }
+        public string Write(DependencyModules.SourceGenerator.Impl.Models.InterceptorModel model, string wrapperName, string namespaceName, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel configurationModel) { }
     }
     public class InterceptorRegistrationWriter
     {
@@ -1303,10 +1464,11 @@ namespace DependencyModules.SourceGenerator.Impl.Models
     }
     public class DependencyModuleConfigurationModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>
     {
-        public DependencyModuleConfigurationModel(DependencyModules.SourceGenerator.Impl.Models.RegistrationType RegistrationType, bool RegisterSourceGenerator, string RootNamespace, string ProjectDir, bool AutoGenerateEntry, string LogOutputFolder, DependencyModules.SourceGenerator.Impl.Models.LogOutputLevel LogOutputLevel, bool GenerateFactories, bool ExcludeGeneratedCodeFromCoverage = true) { }
+        public DependencyModuleConfigurationModel(DependencyModules.SourceGenerator.Impl.Models.RegistrationType RegistrationType, bool RegisterSourceGenerator, string RootNamespace, string ProjectDir, bool AutoGenerateEntry, string LogOutputFolder, DependencyModules.SourceGenerator.Impl.Models.LogOutputLevel LogOutputLevel, bool GenerateFactories, bool ExcludeGeneratedCodeFromCoverage = true, CSharpAuthor.BraceStyle GeneratedCodeStyle = 0) { }
         public bool AutoGenerateEntry { get; init; }
         public bool ExcludeGeneratedCodeFromCoverage { get; init; }
         public bool GenerateFactories { get; init; }
+        public CSharpAuthor.BraceStyle GeneratedCodeStyle { get; init; }
         public string LogOutputFolder { get; init; }
         public DependencyModules.SourceGenerator.Impl.Models.LogOutputLevel LogOutputLevel { get; init; }
         public string ProjectDir { get; init; }

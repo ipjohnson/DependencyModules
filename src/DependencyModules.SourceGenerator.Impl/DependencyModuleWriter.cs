@@ -112,7 +112,8 @@ public class DependencyModuleWriter {
         GenerateAttribute(entryPointModel, csharpFile);
 
         var outputContext = new OutputContext(new OutputContextOptions {
-            TypeOutputMode = TypeOutputMode.Global
+            TypeOutputMode = TypeOutputMode.Global,
+            BraceStyle = configurationModel.GeneratedCodeStyle
         });
 
         csharpFile.WriteOutput(outputContext);

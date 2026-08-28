@@ -72,7 +72,7 @@ public class InterceptorSourceGenerator : BaseAttributeSourceGenerator<Intercept
 
             context.AddSource(
                 $"{wrapperName}.g.cs",
-                writer.Write(model, wrapperName, model.ImplementationType.Namespace));
+                writer.Write(model, wrapperName, model.ImplementationType.Namespace, configurationModel));
         }
 
         // One registration file per module, carrying the interceptions that belong to that module.

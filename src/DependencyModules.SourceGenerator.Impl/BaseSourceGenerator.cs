@@ -79,6 +79,11 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
                 excludeGeneratedCodeFromCoverage = excludeCoverageValue;
             }
 
+            var codeStyle = BraceStyle.Allman;
+            if (options.GlobalOptions.TryGetValue("build_property.GeneratedCodeStyle", out var codeStyleValue)) {
+                codeStyle = GetCodeStyle(codeStyleValue);
+            }
+
             return new DependencyModuleConfigurationModel(
                 defaultRegistrationType,
                 registerSourceGenerator,
@@ -88,7 +93,8 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
                 logOutputFolder,
                 LogOutputLevel.Debug,
                 generateFactories,
-                excludeGeneratedCodeFromCoverage);
+                excludeGeneratedCodeFromCoverage,
+                codeStyle);
         }).WithComparer(new DependencyModuleConfigurationModelComparer());
     }
 
@@ -354,6 +360,20 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator {
             useMethod);
     }
     
+    /// <summary>
+    /// Parses the GeneratedCodeStyle build property. The name carries no framework prefix on
+    /// purpose: it is shared with other source generators, so one csproj line styles all of them.
+    /// </summary>
+    public static BraceStyle GetCodeStyle(string value) {
+        switch (value.Trim().ToLowerInvariant()) {
+            case "kandr":
+            case "k&r":
+                return BraceStyle.KAndR;
+            default:
+                return BraceStyle.Allman;
+        }
+    }
+
     public static RegistrationType GetRegistrationType(string toString) {
         var typeString = toString.Replace("RegistrationType.", "");
 

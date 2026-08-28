@@ -188,7 +188,8 @@ public class ModelComparerTests {
             { nameof(DependencyModuleConfigurationModel.LogOutputFolder), ModelFactory.Configuration(logOutputFolder: "/logs") },
             { nameof(DependencyModuleConfigurationModel.LogOutputLevel), ModelFactory.Configuration(logOutputLevel: LogOutputLevel.Error) },
             { nameof(DependencyModuleConfigurationModel.GenerateFactories), ModelFactory.Configuration(generateFactories: true) },
-            { nameof(DependencyModuleConfigurationModel.ExcludeGeneratedCodeFromCoverage), ModelFactory.Configuration(excludeGeneratedCodeFromCoverage: false) }
+            { nameof(DependencyModuleConfigurationModel.ExcludeGeneratedCodeFromCoverage), ModelFactory.Configuration(excludeGeneratedCodeFromCoverage: false) },
+            { nameof(DependencyModuleConfigurationModel.GeneratedCodeStyle), ModelFactory.Configuration(generatedCodeStyle: BraceStyle.KAndR) }
         };
 
     private readonly InterceptorModelComparer _interceptorComparer = new();

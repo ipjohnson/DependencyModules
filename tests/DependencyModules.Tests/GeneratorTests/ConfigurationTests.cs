@@ -123,6 +123,49 @@ public class ConfigurationTests {
         Assert.Contains("TryAdd", result.SourceContaining("Dependencies"));
     }
 
+    [Fact]
+    public void GeneratedCodeStyle_DefaultsToAllman() {
+        var result = GeneratorTestHarness.Run(ModuleWithService);
+
+        result.AssertNoErrors();
+        Assert.Contains("services)\n        {", result.SourceContaining("Dependencies"));
+    }
+
+    [Fact]
+    public void GeneratedCodeStyle_KAndR_PutsTheBraceOnTheOpeningLine() {
+        var result = GeneratorTestHarness.Run(
+            ModuleWithService,
+            new Dictionary<string, string> { ["GeneratedCodeStyle"] = "KAndR" });
+
+        result.AssertNoErrors();
+        Assert.Contains("services) {", result.SourceContaining("Dependencies"));
+        Assert.Contains("public partial class TestModule {", result.SourceContaining("Dependencies"));
+    }
+
+    [Fact]
+    public void GeneratedCodeStyle_IsCaseInsensitive() {
+        var result = GeneratorTestHarness.Run(
+            ModuleWithService,
+            new Dictionary<string, string> { ["GeneratedCodeStyle"] = "kandr" });
+
+        result.AssertNoErrors();
+        Assert.Contains("services) {", result.SourceContaining("Dependencies"));
+    }
+
+    /// <summary>
+    /// An unrecognized value falls back to the default rather than failing the build, the same
+    /// stance DependencyModules_RegistrationType takes.
+    /// </summary>
+    [Fact]
+    public void GeneratedCodeStyle_UnknownValue_FallsBackToAllman() {
+        var result = GeneratorTestHarness.Run(
+            ModuleWithService,
+            new Dictionary<string, string> { ["GeneratedCodeStyle"] = "whitesmiths" });
+
+        result.AssertNoErrors();
+        Assert.Contains("services)\n        {", result.SourceContaining("Dependencies"));
+    }
+
     private const string ModuleWithService =
         """
         using DependencyModules.Runtime.Attributes;

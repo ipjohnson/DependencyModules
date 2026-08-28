@@ -15,5 +15,7 @@
         <CompilerVisibleProperty Include="DependencyModules_AutoGenerateModule"/>
         <CompilerVisibleProperty Include="DependencyModules_GenerateFactories"/>
         <CompilerVisibleProperty Include="ExcludeGeneratedCodeFromCoverage"/>
+        <!-- Unprefixed on purpose: shared across source generators, so one csproj line styles all of them. -->
+        <CompilerVisibleProperty Include="GeneratedCodeStyle"/>
     </ItemGroup>
 </Project>

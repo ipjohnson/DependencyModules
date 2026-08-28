@@ -57,7 +57,10 @@ public record AttributeModel(
 
                 foreach (var objectValue in arrayValue) {
                     if (objectValue is string stringValue) {
-                        collectionSyntax.Add(SyntaxHelpers.QuoteString(stringValue));
+                        // Raw: CollectionSyntaxDeclaration quotes strings itself. Quoting here too
+                        // produced ""a"" under 1.x's naive QuoteString and "\"a\"" under 2.0's
+                        // escaping one - both wrong, only the second visibly so.
+                        collectionSyntax.Add(stringValue);
                     }
                     else if (argument.Value is ITypeDefinition typeDefinition) {
                         outputComponent = SyntaxHelpers.TypeOf(typeDefinition);
