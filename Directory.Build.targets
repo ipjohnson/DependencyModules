@@ -9,10 +9,11 @@
         <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All"/>
     </ItemGroup>
 
-    <!-- README/LICENSE live at the repo root; reference them by absolute path so every package picks them up. -->
+    <!-- README/LICENSE/icon live at the repo root; reference them by absolute path so every package picks them up. -->
     <ItemGroup Condition="'$(IsPackable)' == 'true'">
         <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="" Visible="false"/>
         <None Include="$(MSBuildThisFileDirectory)LICENSE.txt" Pack="true" PackagePath="" Visible="false"/>
+        <None Include="$(MSBuildThisFileDirectory)assets/icon.png" Pack="true" PackagePath="" Visible="false"/>
     </ItemGroup>
 
     <!--

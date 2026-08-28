@@ -5,6 +5,15 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- A logo: a D assembled from four modules, one carrying the accent. It replaces the placeholder
+  favicon on the docs site, appears in the site nav (light and dark cuts), heads the README, and
+  ships as the `PackageIcon` on every package from the next release on. The violet is `#6d5bd5`,
+  the color the docs site already declared.
+
 ## [1.2.0] - 2026-08-28
 
 Four applications built against the published 1.1.0 packages, by four agents who did not read each
