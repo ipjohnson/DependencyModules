@@ -1,6 +1,4 @@
-# DependencyModules
-
-<img align="right" width="110" src="https://raw.githubusercontent.com/ipjohnson/DependencyModules/main/assets/icon.png" alt="DependencyModules logo: a letter D assembled from four modules">
+# <img src="https://raw.githubusercontent.com/ipjohnson/DependencyModules/main/assets/icon.png" alt="" width="48"> DependencyModules
 
 [![NuGet](https://img.shields.io/nuget/v/DependencyModules.Runtime.svg)](https://www.nuget.org/packages/DependencyModules.Runtime/)
 [![build](https://github.com/ipjohnson/DependencyModules/actions/workflows/build-package.yaml/badge.svg)](https://github.com/ipjohnson/DependencyModules/actions/workflows/build-package.yaml)
