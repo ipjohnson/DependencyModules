@@ -1,10 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="DependencyModules — a D assembled from four modules">
-  <!-- Quadrant D: one letter built from four modules with seams between them.
-       The top-right module carries the accent — structure in ink, the module in violet. -->
+  <!-- Quadrant D: one letter built from four solid modules — two stem blocks, two
+       quarter-round bowl pieces — with seams between them. The top-right module
+       carries the accent: structure in ink, the module in violet. -->
   <g fill="#221D2E">
-    <path d="M26,8 H46 V28 H44 V46 H26 Z"/>
-    <path d="M26,50 H44 V68 H46 V88 H26 Z"/>
-    <path d="M50,68 A20,20 0 0 0 69.9,50 L89.95,50 A40,40 0 0 1 50,88 Z"/>
+    <path d="M26,8 H46 V46 H26 Z"/>
+    <path d="M26,50 H46 V88 H26 Z"/>
+    <path d="M50,50 L89.95,50 A40,40 0 0 1 50,88 Z"/>
   </g>
-  <path d="M50,8 A40,40 0 0 1 89.95,46 L69.9,46 A20,20 0 0 0 50,28 Z" fill="#6D5BD5"/>
+  <path d="M50,8 A40,40 0 0 1 89.95,46 L50,46 Z" fill="#6D5BD5"/>
 </svg>
