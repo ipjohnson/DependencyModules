@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="DependencyModules">
+  <!-- README-header cut, used only in the h1 with align="middle". GitHub strips CSS, and
+       the legacy align="middle" anchor sits a few px below the title's visual center — so
+       this cut carries the compensation: the glyph sits 6 units above true center
+       (translate y 6 instead of 12). Verified against GitHub's own renderer + CSS. -->
+  <rect width="96" height="96" rx="21" fill="#FFFFFF"/>
+  <g transform="translate(4.52,6) scale(0.75)">
+    <g fill="#221D2E">
+      <path d="M26,8 H46 V46 H26 Z"/>
+      <path d="M26,50 H46 V88 H26 Z"/>
+      <path d="M50,50 L89.95,50 A40,40 0 0 1 50,88 Z"/>
+    </g>
+    <path d="M50,8 A40,40 0 0 1 89.95,46 L50,46 Z" fill="#6D5BD5"/>
+  </g>
+</svg>
