@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="DependencyModules">
+  <!-- README-header cut, used in the h1 with align="middle" width=64. GitHub strips CSS;
+       the align="middle" anchor sits well below the title's visual center, so this canvas
+       carries the compensation: the glyph is pinned to the canvas top (-5.2 = 0 - 8*0.65),
+       putting its center 22 units above canvas center. Verified against github.com's
+       rendered README pixel geometry. Do not recenter. -->
+  <g transform="translate(10.3,-5.2) scale(0.65)">
+    <g fill="#F0EDF8">
+      <path d="M26,8 H46 V46 H26 Z"/>
+      <path d="M26,50 H46 V88 H26 Z"/>
+      <path d="M50,50 L89.95,50 A40,40 0 0 1 50,88 Z"/>
+    </g>
+    <path d="M50,8 A40,40 0 0 1 89.95,46 L50,46 Z" fill="#907FEB"/>
+  </g>
+</svg>
