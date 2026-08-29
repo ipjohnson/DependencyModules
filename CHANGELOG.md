@@ -5,6 +5,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- The README header now survives nuget.org. The `<picture>` markup 1.2.2 shipped rendered
+  there as escaped text inside the title — nuget.org renders CommonMark only — and its
+  relative image paths could never resolve outside the repository. The mark is now one
+  self-sized SVG (the icon artwork at an intrinsic 40px, its white tile serving light and
+  dark themes alike) referenced with plain markdown from raw.githubusercontent.com, a
+  domain nuget.org allowlists. The license badge links absolutely for the same reason.
+  The package pages pick this up with the next published version.
+
 ## [1.2.2] - 2026-08-28
 
 ### Fixed
