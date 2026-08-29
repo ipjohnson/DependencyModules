@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 96 96" role="img" aria-label="DependencyModules">
+  <!-- README-header mark: the icon artwork with an intrinsic 40px size, so plain markdown
+       renders it at the right size with no width attribute. nuget.org renders CommonMark
+       only - raw HTML is escaped into visible text and relative paths never resolve - so
+       the README must reference this file by absolute raw.githubusercontent.com URL (an
+       allowlisted domain) and cannot size or theme-switch it. The white tile carries its
+       own background, which is what lets a single file serve light and dark themes: the
+       tile disappears into light pages leaving the bare glyph, and reads as the package
+       icon on dark ones. -->
+  <rect width="96" height="96" rx="21" fill="#FFFFFF"/>
+  <g transform="translate(4.52,12) scale(0.75)">
+    <g fill="#221D2E">
+      <path d="M26,8 H46 V46 H26 Z"/>
+      <path d="M26,50 H46 V88 H26 Z"/>
+      <path d="M50,50 L89.95,50 A40,40 0 0 1 50,88 Z"/>
+    </g>
+    <path d="M50,8 A40,40 0 0 1 89.95,46 L50,46 Z" fill="#6D5BD5"/>
+  </g>
+</svg>

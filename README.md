@@ -1,9 +1,9 @@
-# <picture><source media="(prefers-color-scheme: dark)" srcset="assets/logo-readme-dark.svg"><img src="assets/logo-readme-light.svg" alt="" width="64" align="middle"></picture> DependencyModules
+# ![](https://raw.githubusercontent.com/ipjohnson/DependencyModules/main/assets/logo-readme.svg) DependencyModules
 
 [![NuGet](https://img.shields.io/nuget/v/DependencyModules.Runtime.svg)](https://www.nuget.org/packages/DependencyModules.Runtime/)
 [![build](https://github.com/ipjohnson/DependencyModules/actions/workflows/build-package.yaml/badge.svg)](https://github.com/ipjohnson/DependencyModules/actions/workflows/build-package.yaml)
 [![coverage](https://raw.githubusercontent.com/ipjohnson/DependencyModules/badges/coverage.svg)](https://github.com/ipjohnson/DependencyModules/actions/workflows/build-package.yaml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE.txt)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/ipjohnson/DependencyModules/blob/main/LICENSE.txt)
 
 **Your DI registrations, written as attributes and compiled into your assembly.**
 No reflection, no assembly scanning, no startup cost — and Native AOT works, because
