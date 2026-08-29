@@ -1,4 +1,4 @@
-# ![](https://raw.githubusercontent.com/ipjohnson/DependencyModules/main/assets/logo-readme.svg) DependencyModules
+# ![logo](https://raw.githubusercontent.com/ipjohnson/DependencyModules/main/assets/logo-readme.svg) DependencyModules
 
 [![NuGet](https://img.shields.io/nuget/v/DependencyModules.Runtime.svg)](https://www.nuget.org/packages/DependencyModules.Runtime/)
 [![build](https://github.com/ipjohnson/DependencyModules/actions/workflows/build-package.yaml/badge.svg)](https://github.com/ipjohnson/DependencyModules/actions/workflows/build-package.yaml)
