@@ -5,13 +5,19 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.2.2] - 2026-08-28
 
 ### Fixed
 
-- The package icon is now the logo as chosen: ink structure with the violet module on white.
-  1.2.1 shipped a white-on-violet tile cut that was never the agreed colorway. The icon on
-  nuget.org updates with the next published version; the README picks the fix up on merge.
+- The package icon is now the logo as chosen: a solid D of four modules — ink structure, the
+  violet module — on white, with the glyph properly centered in the tile. 1.2.1 shipped a
+  white-on-violet tile cut that was never the agreed colorway.
+
+### Documentation
+
+- The README header carries the mark beside the title: theme-aware via `<picture>`, referenced
+  by relative path so branch views render it, and aligned against GitHub's actual rendering
+  geometry rather than a local approximation.
 
 ## [1.2.1] - 2026-08-28
 
