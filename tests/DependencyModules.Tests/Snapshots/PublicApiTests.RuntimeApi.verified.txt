@@ -350,6 +350,10 @@ namespace DependencyModules.Runtime.Interfaces
         string EnvironmentName { get; }
         string? Value(string name);
     }
+    public interface IModuleEnvironmentProvider
+    {
+        DependencyModules.Runtime.Interfaces.IModuleEnvironment? ProvideEnvironment(System.Reflection.MethodInfo testMethod);
+    }
     public interface IServiceCollectionConfiguration
     {
         void ConfigureDecorators(Microsoft.Extensions.DependencyInjection.IServiceCollection services);
