@@ -5,6 +5,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-09-01
+
+### Added
+
+- `IModuleEnvironmentProvider`, the hook a test framework integration uses to put a test under
+  the environment it declares. Module conditions - `[IfEnvironment]` and its siblings - are
+  evaluated as registrations are applied, and both runners load modules before the service-setup
+  pass by design, so an environment registered there arrived after every condition had been
+  decided against the process default. The runners now consult the new interface before any
+  module is applied, widest scope first, narrowest answer deciding. A minor version, because the
+  Runtime package gains public API.
+
 ## [1.2.3] - 2026-08-29
 
 ### Fixed
