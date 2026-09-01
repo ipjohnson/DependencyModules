@@ -41,6 +41,8 @@ public class ModuleTestCommand(TestCommand innerCommand) : DelegatingTestCommand
 
         SetupTestCaseInfo(serviceCollection, testMethod, knownAttributes);
 
+        SeedEnvironment(serviceCollection, method, knownAttributes);
+
         SetupModules(serviceCollection, method, knownAttributes);
 
         SetupServiceSetupAttributes(moduleContext, serviceCollection, knownAttributes);
@@ -140,6 +142,25 @@ public class ModuleTestCommand(TestCommand innerCommand) : DelegatingTestCommand
 
         foreach (var setupAttribute in setupAttributes) {
             setupAttribute.SetupServiceCollection(context, serviceCollection);
+        }
+    }
+
+    /// <summary>
+    /// Registers the environment the test's attributes declare, ahead of the modules - the same
+    /// seeding the xUnit integration does, for the reason recorded there: conditions are answered
+    /// from the environment already in the collection as each module is applied, and the
+    /// service-setup pass runs too late to supply it.
+    /// </summary>
+    private static void SeedEnvironment(
+        IServiceCollection serviceCollection, MethodInfo method, Attribute[] knownAttributes) {
+        IModuleEnvironment? environment = null;
+
+        foreach (var provider in knownAttributes.OfType<IModuleEnvironmentProvider>()) {
+            environment = provider.ProvideEnvironment(method) ?? environment;
+        }
+
+        if (environment != null) {
+            serviceCollection.Add(new ServiceDescriptor(typeof(IModuleEnvironment), environment));
         }
     }
 

@@ -84,6 +84,8 @@ public class ModuleTestCase : XunitTestCase {
 
         SetupTestCaseInfo(serviceCollection, knownAttributes);
 
+        SeedEnvironment(serviceCollection, knownAttributes);
+
         SetupModules(serviceCollection, knownAttributes);
 
         SetupServiceSetupAttributes(context, serviceCollection, knownAttributes);
@@ -157,6 +159,30 @@ public class ModuleTestCase : XunitTestCase {
 
         foreach (var setupAttribute in setupAttributes) {
             setupAttribute.SetupServiceCollection(context, serviceCollection);
+        }
+    }
+
+    /// <summary>
+    /// Registers the environment the test's attributes declare, ahead of the modules.
+    /// </summary>
+    /// <remarks>
+    /// Before <see cref="SetupModules"/>, because module registrations are conditioned as they are
+    /// applied: <c>LoadModules</c> answers <c>[IfEnvironment]</c> from the
+    /// <see cref="IModuleEnvironment"/> already in the collection, or a process default when there
+    /// is none. The service-setup pass runs after the modules by design - a test registration
+    /// beats an application one - so an environment registered there arrived after every condition
+    /// had been decided against the default. Widest scope first, so the narrowest attribute that
+    /// answers decides, matching how every other attribute here resolves.
+    /// </remarks>
+    private void SeedEnvironment(IServiceCollection serviceCollection, Attribute[] knownAttributes) {
+        IModuleEnvironment? environment = null;
+
+        foreach (var provider in knownAttributes.OfType<IModuleEnvironmentProvider>()) {
+            environment = provider.ProvideEnvironment(TestMethod.Method) ?? environment;
+        }
+
+        if (environment != null) {
+            serviceCollection.Add(new ServiceDescriptor(typeof(IModuleEnvironment), environment));
         }
     }
 
