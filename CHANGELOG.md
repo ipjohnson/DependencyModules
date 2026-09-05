@@ -5,6 +5,17 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-09-05
+
+### Fixed
+
+- Under xUnit, a test's container is disposed when its case has run. `ModuleTestCase` handed
+  the provider to the case's `DisposalTracker`, and xUnit disposes a test case only once every
+  case in the assembly has run, so every container a run built stayed alive, with every
+  singleton in it, until the run ended. The case now executes itself and disposes what it built
+  in a `finally` once its run returns; NUnit's `ModuleTestCommand` has always done this in its
+  own `finally`. Per case, which for every test but a data-driven one is per test.
+
 ## [1.3.0] - 2026-09-01
 
 ### Added
