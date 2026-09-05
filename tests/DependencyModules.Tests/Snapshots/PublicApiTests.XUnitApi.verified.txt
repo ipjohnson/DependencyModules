@@ -22,12 +22,13 @@ namespace DependencyModules.xUnit.Impl
     {
         Xunit.v3.IXunitTestMethod XunitTestMethod { get; }
     }
-    public class ModuleTestCase : Xunit.v3.XunitTestCase
+    public class ModuleTestCase : Xunit.v3.XunitTestCase, Xunit.Sdk.ITestCase, Xunit.Sdk.ITestCaseMetadata, Xunit.v3.ISelfExecutingXunitTestCase, Xunit.v3.IXunitTestCase
     {
         public ModuleTestCase() { }
         public ModuleTestCase(Xunit.v3.IXunitTestMethod testMethod, string testCaseDisplayName, string uniqueID, bool @explicit, System.Type[]? skipExceptions = null, string? skipReason = null, System.Type? skipType = null, string? skipUnless = null, string? skipWhen = null, System.Collections.Generic.Dictionary<string, System.Collections.Generic.HashSet<string>>? traits = null, object?[]? testMethodArguments = null, string? sourceFilePath = null, int? sourceLineNumber = default, int? timeout = default) { }
         public override System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyCollection<Xunit.v3.IXunitTest>> CreateTests() { }
         public override void PreInvoke() { }
+        public System.Threading.Tasks.ValueTask<Xunit.v3.RunSummary> Run(Xunit.Sdk.ExplicitOption explicitOption, Xunit.v3.IMessageBus messageBus, object?[] constructorArguments, Xunit.v3.ExceptionAggregator aggregator, System.Threading.CancellationTokenSource cancellationTokenSource) { }
     }
     public class ModuleTestDiscoverer : Xunit.v3.IXunitTestCaseDiscoverer
     {

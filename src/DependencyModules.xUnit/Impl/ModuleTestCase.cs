@@ -13,7 +13,22 @@ namespace DependencyModules.xUnit.Impl;
 /// Represents a specialized implementation of <see cref="XunitTestCase"/>
 /// tailored for module-based test scenarios within the xUnit framework.
 /// </summary>
-public class ModuleTestCase : XunitTestCase {
+/// <remarks>
+/// Self-executing, so that the container a test ran against is disposed when the test case has
+/// run. The provider used to go into the case's <see cref="XunitTestCase.DisposalTracker"/>, and
+/// xUnit disposes a test case only once every case in the assembly has run - in
+/// <c>InProcessFrontController.FindAndRun</c>, after <c>Run</c> returns - so every container a run
+/// built stayed alive, with every singleton in it, until the run ended. NUnit's
+/// <c>ModuleTestCommand</c> has always disposed in a <c>finally</c> around the test; this is the
+/// same lifetime for xUnit.
+/// </remarks>
+public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase {
+
+    /// <summary>
+    /// One per container this case built: one for a plain test, one per row for a data-driven
+    /// one. Runtime state only, never serialized with the case.
+    /// </summary>
+    private readonly List<IServiceProvider> _providers = [];
 
 #pragma warning disable CS0618 // Type or member is obsolete
     /// <summary>
@@ -99,7 +114,9 @@ public class ModuleTestCase : XunitTestCase {
 
         var provider = BuildServiceProvider(context, serviceCollection, knownAttributes);
 
-        DisposalTracker.Add(provider);
+        // Kept here rather than handed to DisposalTracker, which xUnit empties at the end of the
+        // run; see the remarks on the class.
+        _providers.Add(provider);
 
         foreach (var startupAttribute in knownAttributes.OfType<ITestStartupAttribute>()) {
             await startupAttribute.StartupAsync(context, provider);
@@ -211,6 +228,50 @@ public class ModuleTestCase : XunitTestCase {
         modules.Reverse();
         
         DependencyRegistry<object>.LoadModules(serviceCollection, modules.ToArray());
+    }
+
+    /// <summary>
+    /// Runs the case the way xUnit would have, and disposes every container it built once the
+    /// run has returned - the tests passed, failed, were skipped or were cancelled alike.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="XunitRunnerHelper.RunXunitTestCase"/> is what the method runner calls for a
+    /// case that does not execute itself: it creates the tests, turns a failure or a dynamic skip
+    /// during creation into the case's result, and hands the tests to
+    /// <see cref="XunitTestCaseRunner"/>. Wrapping that call is the whole of the difference.
+    /// Disposal is per case, which for every test but a data-driven one is per test; the rows of
+    /// a data-driven test share the case and are released together when the last has run.
+    /// </remarks>
+    public async ValueTask<RunSummary> Run(
+        ExplicitOption explicitOption,
+        IMessageBus messageBus,
+        object?[] constructorArguments,
+        ExceptionAggregator aggregator,
+        CancellationTokenSource cancellationTokenSource) {
+        try {
+            return await XunitRunnerHelper.RunXunitTestCase(
+                this, messageBus, cancellationTokenSource, aggregator, explicitOption, constructorArguments);
+        }
+        finally {
+            await DisposeProviders();
+        }
+    }
+
+    private async ValueTask DisposeProviders() {
+        var providers = _providers.ToArray();
+
+        _providers.Clear();
+
+        foreach (var provider in providers) {
+            switch (provider) {
+                case IAsyncDisposable asyncDisposable:
+                    await asyncDisposable.DisposeAsync();
+                    break;
+                case IDisposable disposable:
+                    disposable.Dispose();
+                    break;
+            }
+        }
     }
 
     /// <remarks>
