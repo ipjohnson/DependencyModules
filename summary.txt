@@ -1,0 +1,170 @@
+Summary - DependencyModules
+  Generated on: 09/05/2026 - 14:46:01
+  Coverage date: 09/05/2026 - 14:45:20 - 09/05/2026 - 14:45:58
+  Parser: MultiReport (8x Cobertura)
+  Assemblies: 8
+  Classes: 134
+  Files: 112
+  Line coverage: 90.5%
+  Covered lines: 5515
+  Uncovered lines: 573
+  Coverable lines: 6088
+  Total lines: 18951
+  Branch coverage: 82.1% (2973 of 3617)
+  Covered branches: 2973
+  Total branches: 3617
+  Method coverage: 90.9% (657 of 722)
+  Full method coverage: 73.9% (534 of 722)
+  Covered methods: 657
+  Fully covered methods: 534
+  Total methods: 722
+
+DependencyModules.FakeItEasy                                                                  100%
+  DependencyModules.FakeItEasy.FakeItEasySupportAttribute                                     100%
+
+DependencyModules.Moq                                                                        95.6%
+  DependencyModules.Moq.MoqSupportAttribute                                                  95.6%
+
+DependencyModules.NSubstitute                                                                 100%
+  DependencyModules.NSubstitute.NSubstituteSupportAttribute                                   100%
+
+DependencyModules.NUnit                                                                      94.1%
+  DependencyModules.NUnit.Attributes.ModuleTestAttribute                                     87.5%
+  DependencyModules.NUnit.Attributes.ModuleTestCaseAttribute                                  100%
+  DependencyModules.NUnit.Impl.ModuleTestCommand                                             95.5%
+  DependencyModules.NUnit.Impl.NUnitTestMethodContext                                         100%
+
+DependencyModules.Runtime                                                                    90.3%
+  DependencyModules.Runtime.Attributes.BaseServiceAttribute                                   100%
+  DependencyModules.Runtime.Attributes.DecorateAttribute                                      100%
+  DependencyModules.Runtime.Attributes.IfEnvironmentAttribute                                   0%
+  DependencyModules.Runtime.Attributes.IfEnvironmentValueAttribute                              0%
+  DependencyModules.Runtime.Attributes.IfNotEnvironmentAttribute                                0%
+  DependencyModules.Runtime.Attributes.IfNotEnvironmentValueAttribute                           0%
+  DependencyModules.Runtime.Attributes.InterceptAttribute                                       0%
+  DependencyModules.Runtime.Attributes.IServiceRegistrationAttribute                            0%
+  DependencyModules.Runtime.Attributes.ScopedServiceAttribute                                 100%
+  DependencyModules.Runtime.Attributes.SingletonServiceAttribute                              100%
+  DependencyModules.Runtime.Attributes.TransientServiceAttribute                              100%
+  DependencyModules.Runtime.Features.FeatureApplicator<T>                                     100%
+  DependencyModules.Runtime.Features.IDependencyModuleApplicatorProvider                        0%
+  DependencyModules.Runtime.Features.IDependencyModuleFeature<T>                              100%
+  DependencyModules.Runtime.Helpers.DecoratorHelper                                          87.5%
+  DependencyModules.Runtime.Helpers.DecoratorRegistration                                     100%
+  DependencyModules.Runtime.Helpers.DependencyRegistry<T>                                    99.4%
+  DependencyModules.Runtime.Helpers.EnvironmentConditions                                     100%
+  DependencyModules.Runtime.Interception.AsyncInvocationContext<T>                            100%
+  DependencyModules.Runtime.Interception.CallerInfo                                           100%
+  DependencyModules.Runtime.Interception.InvocationContext<T>                                 100%
+  DependencyModules.Runtime.Interception.NoResult                                             100%
+  DependencyModules.Runtime.Interception.StreamInvocationContext<T>                           100%
+  DependencyModules.Runtime.Interfaces.IDependencyModule                                      100%
+  DependencyModules.Runtime.Interfaces.IServiceCollectionConfiguration                        100%
+  DependencyModules.Runtime.ModuleEnvironment                                                95.1%
+  DependencyModules.Runtime.ServiceCollectionExtensions                                       100%
+
+DependencyModules.SourceGenerator                                                            90.2%
+  DependencyModules.Conventions.ConventionGenerator                                           100%
+  DependencyModules.Conventions.Models.ConventionCandidateModel                              83.8%
+  DependencyModules.Conventions.Models.ConventionModel                                        100%
+  DependencyModules.Conventions.Models.ConventionModuleModel                                  100%
+  DependencyModules.Conventions.Models.ConventionTypeKey                                      100%
+  DependencyModules.Conventions.Models.EquatableList<T>                                      62.5%
+  DependencyModules.Conventions.Models.NameFilterModel                                        100%
+  DependencyModules.Conventions.Models.NamespaceFilterModel                                   100%
+  DependencyModules.Conventions.ModuleDecorators                                               50%
+  DependencyModules.Conventions.Utilities.ConventionCandidateCache                           88.8%
+  DependencyModules.Conventions.Utilities.ConventionCandidateUtility                         92.8%
+  DependencyModules.Conventions.Utilities.ConventionMatcher                                  93.2%
+  DependencyModules.Conventions.Utilities.ConventionModelUtility                             83.6%
+  DependencyModules.Conventions.Utilities.DeclarationStamp                                   94.8%
+  DependencyModules.Conventions.Utilities.MetadataCandidateUtility                             78%
+  DependencyModules.SourceGenerator.AssemblyModuleAttributeDiagnostics                       94.4%
+  DependencyModules.SourceGenerator.Impl.BaseAttributeSourceGenerator<T>                     94.7%
+  DependencyModules.SourceGenerator.Impl.BaseAttributeWithConfigSourceGenerator<T1, T2>         0%
+  DependencyModules.SourceGenerator.Impl.BaseSourceGenerator                                 98.5%
+  DependencyModules.SourceGenerator.Impl.CollectionSyntaxDeclaration                           92%
+  DependencyModules.SourceGenerator.Impl.DecoratorFileWriter                                  100%
+  DependencyModules.SourceGenerator.Impl.DependencyFileWriter                                87.6%
+  DependencyModules.SourceGenerator.Impl.DependencyModuleDiagnostics                          100%
+  DependencyModules.SourceGenerator.Impl.DependencyModuleWriter                              99.5%
+  DependencyModules.SourceGenerator.Impl.InterceptorFileWriter                               97.6%
+  DependencyModules.SourceGenerator.Impl.InterceptorRegistrationWriter                        100%
+  DependencyModules.SourceGenerator.Impl.KnownTypes                                           100%
+  DependencyModules.SourceGenerator.Impl.Models.AttributeArgumentValue                        100%
+  DependencyModules.SourceGenerator.Impl.Models.AttributeModel                                 75%
+  DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel                          100%
+  DependencyModules.SourceGenerator.Impl.Models.DecoratorModel                                100%
+  DependencyModules.SourceGenerator.Impl.Models.DecoratorModelComparer                          0%
+  DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModelComparer    100%
+  DependencyModules.SourceGenerator.Impl.Models.DiagnosticReporter                           73.3%
+  DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel                     100%
+  DependencyModules.SourceGenerator.Impl.Models.InterceptedDeclarationModel                     0%
+  DependencyModules.SourceGenerator.Impl.Models.InterceptedMemberModel                       22.2%
+  DependencyModules.SourceGenerator.Impl.Models.InterceptorModel                              100%
+  DependencyModules.SourceGenerator.Impl.Models.InterceptorModelComparer                     92.5%
+  DependencyModules.SourceGenerator.Impl.Models.InterceptorTypeModel                         83.3%
+  DependencyModules.SourceGenerator.Impl.Models.LocationModel                                72.4%
+  DependencyModules.SourceGenerator.Impl.Models.ModelEquality                                  95%
+  DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel                         100%
+  DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModelComparer                91.4%
+  DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModelExtensions               100%
+  DependencyModules.SourceGenerator.Impl.Models.ParameterInfoModel                            100%
+  DependencyModules.SourceGenerator.Impl.Models.PropertyInfoModel                             100%
+  DependencyModules.SourceGenerator.Impl.Models.ServiceFactoryModel                           100%
+  DependencyModules.SourceGenerator.Impl.Models.ServiceModel                                  100%
+  DependencyModules.SourceGenerator.Impl.Models.ServiceModelComparer                         79.5%
+  DependencyModules.SourceGenerator.Impl.Models.SyntaxTreeLookup                             90.9%
+  DependencyModules.SourceGenerator.Impl.Models.TypeParameterModel                              0%
+  DependencyModules.SourceGenerator.Impl.ModuleAttributeWriter                                100%
+  DependencyModules.SourceGenerator.Impl.ModuleEntryPointDiagnostics                          100%
+  DependencyModules.SourceGenerator.Impl.Utilities.AttributeModelCollector                   96.7%
+  DependencyModules.SourceGenerator.Impl.Utilities.AttributeModelHelper                      84.2%
+  DependencyModules.SourceGenerator.Impl.Utilities.AttributeTypeMatcher                      47.3%
+  DependencyModules.SourceGenerator.Impl.Utilities.BaseAttributeWriter<T>                    97.6%
+  DependencyModules.SourceGenerator.Impl.Utilities.BaseMethodHelper                          92.8%
+  DependencyModules.SourceGenerator.Impl.Utilities.BaseSyntaxSelector                        91.4%
+  DependencyModules.SourceGenerator.Impl.Utilities.ConstructorArgumentWriter                  100%
+  DependencyModules.SourceGenerator.Impl.Utilities.DecoratorConstraintChecker                80.4%
+  DependencyModules.SourceGenerator.Impl.Utilities.DecoratorExpansion                        97.6%
+  DependencyModules.SourceGenerator.Impl.Utilities.DecoratorModelUtility                     92.3%
+  DependencyModules.SourceGenerator.Impl.Utilities.DecoratorTypeUtility                      90.2%
+  DependencyModules.SourceGenerator.Impl.Utilities.EntryModelUtil                            96.7%
+  DependencyModules.SourceGenerator.Impl.Utilities.EnvironmentConditionUtility               95.9%
+  DependencyModules.SourceGenerator.Impl.Utilities.EnvironmentConditionWriter                 100%
+  DependencyModules.SourceGenerator.Impl.Utilities.FileLogger                                94.8%
+  DependencyModules.SourceGenerator.Impl.Utilities.InterceptedMemberReader                     85%
+  DependencyModules.SourceGenerator.Impl.Utilities.InterceptorModelUtility                   84.8%
+  DependencyModules.SourceGenerator.Impl.Utilities.ITypeDefinitionExtensions                  100%
+  DependencyModules.SourceGenerator.Impl.Utilities.ModuleDecoratorResolver                   77.4%
+  DependencyModules.SourceGenerator.Impl.Utilities.ServiceModelUtility                       88.3%
+  DependencyModules.SourceGenerator.Impl.Utilities.SymbolConstructorReader                   94.1%
+  DependencyModules.SourceGenerator.Impl.Utilities.SyntaxNodeExtensions                      35.5%
+  DependencyModules.SourceGenerator.Impl.Utilities.SyntaxSelector<T>                            0%
+  DependencyModules.SourceGenerator.Impl.Utilities.SyntaxSelector<T1, T2>                       0%
+  DependencyModules.SourceGenerator.Impl.Utilities.SyntaxSelector<T1, T2, T3>                 100%
+  DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext                     100%
+  DependencyModules.SourceGenerator.Impl.Utilities.TypeParameterReader                       88.2%
+  DependencyModules.SourceGenerator.Impl.Utilities.TypeSyntaxExtensions                      82.5%
+  DependencyModules.SourceGenerator.Impl.Utilities.UsageAttributeComponent                    100%
+  DependencyModules.SourceGenerator.InterceptorSourceGenerator                               99.2%
+  DependencyModules.SourceGenerator.ReferencedModuleLookup                                   94.1%
+  DependencyModules.SourceGenerator.ServiceSourceGenerator                                   99.2%
+  DependencyModules.SourceGenerator.SourceGenerator                                           100%
+  DependencyModules.SourceGenerator.TestAttributeDiagnostics                                  100%
+
+DependencyModules.Testing                                                                    95.9%
+  DependencyModules.Testing.Attributes.InjectValuesAttribute                                  100%
+  DependencyModules.Testing.Attributes.Interfaces.IMockSupportAttribute                       100%
+  DependencyModules.Testing.Attributes.Interfaces.IOrderedAttribute                             0%
+  DependencyModules.Testing.Attributes.MockAttribute                                         93.7%
+  DependencyModules.Testing.Attributes.TestExportAttribute                                    100%
+  DependencyModules.Testing.Impl.AttributeUtility                                            95.9%
+  DependencyModules.Testing.Impl.TestParameterResolver                                        100%
+
+DependencyModules.xUnit                                                                      99.1%
+  DependencyModules.xUnit.Attributes.ModuleTestAttribute                                      100%
+  DependencyModules.xUnit.Impl.ModuleTestCase                                                98.7%
+  DependencyModules.xUnit.Impl.ModuleTestDiscoverer                                           100%
+  DependencyModules.xUnit.Impl.TraitDictionaryExtensions                                      100%
+  DependencyModules.xUnit.Impl.XunitTestMethodContext                                         100%
