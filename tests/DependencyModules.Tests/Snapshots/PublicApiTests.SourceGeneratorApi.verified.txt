@@ -35,8 +35,8 @@ namespace CSharpAuthor
         public System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> TypeArguments { get; }
         public CSharpAuthor.TypeDefinitionEnum TypeDefinitionEnum { get; }
         public string WrittenName { get; }
-        public int CompareTo(CSharpAuthor.ITypeDefinition other) { }
-        public override bool Equals(object obj) { }
+        public int CompareTo(CSharpAuthor.ITypeDefinition? other) { }
+        public override bool Equals(object? obj) { }
         public override int GetHashCode() { }
         public CSharpAuthor.ITypeDefinition MakeArray() { }
         public CSharpAuthor.ITypeDefinition MakeArray(int rank) { }
@@ -125,8 +125,8 @@ namespace CSharpAuthor
         public System.Collections.Generic.IReadOnlyList<bool> NullableAnnotations { get; }
         public abstract System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> TypeArguments { get; }
         public CSharpAuthor.TypeDefinitionEnum TypeDefinitionEnum { get; }
-        protected int BaseCompareTo(CSharpAuthor.ITypeDefinition other) { }
-        public abstract int CompareTo(CSharpAuthor.ITypeDefinition other);
+        protected int BaseCompareTo(CSharpAuthor.ITypeDefinition? other) { }
+        public abstract int CompareTo(CSharpAuthor.ITypeDefinition? other);
         public override bool Equals(object? obj) { }
         public override int GetHashCode() { }
         public CSharpAuthor.ITypeDefinition MakeArray() { }
@@ -184,6 +184,7 @@ namespace CSharpAuthor
         public void AddComponent(CSharpAuthor.IOutputComponent outputComponent) { }
         public CSharpAuthor.ConstraintDefinition AddConstraint(string typeParameter) { }
         public CSharpAuthor.ConstructorDefinition AddConstructor(CSharpAuthor.IOutputComponent? baseComponent = null) { }
+        public CSharpAuthor.ConversionOperatorDefinition AddConversionOperator(CSharpAuthor.ConversionOperatorKind kind, CSharpAuthor.ITypeDefinition targetType, CSharpAuthor.ITypeDefinition sourceType, string parameterName = "value") { }
         public CSharpAuthor.EnumDefinition AddEnum(string name) { }
         public CSharpAuthor.EventDefinition AddEvent(CSharpAuthor.ITypeDefinition handlerType, string name) { }
         public CSharpAuthor.EventDefinition AddEvent(System.Type handlerType, string name) { }
@@ -294,6 +295,18 @@ namespace CSharpAuthor
         protected override void WriteEndOfMethodSignature(CSharpAuthor.IOutputContext outputContext) { }
         protected override void WriteReturnType(CSharpAuthor.IOutputContext outputContext) { }
     }
+    public class ConversionOperatorDefinition : CSharpAuthor.MethodDefinition
+    {
+        public ConversionOperatorDefinition(CSharpAuthor.ConversionOperatorKind kind, CSharpAuthor.ITypeDefinition targetType) { }
+        public CSharpAuthor.ConversionOperatorKind Kind { get; }
+        public CSharpAuthor.ITypeDefinition TargetType { get; }
+        protected override void WriteMethodSignature(CSharpAuthor.IOutputContext outputContext) { }
+    }
+    public enum ConversionOperatorKind
+    {
+        Implicit = 0,
+        Explicit = 1,
+    }
     public class DeclarationStatement : CSharpAuthor.BaseOutputComponent
     {
         public DeclarationStatement(CSharpAuthor.ITypeDefinition typeDefinition, CSharpAuthor.IOutputComponent outputComponent) { }
@@ -374,7 +387,7 @@ namespace CSharpAuthor
         public GenericTypeDefinition(CSharpAuthor.TypeDefinitionEnum classType, string ns, string name, System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> closingTypes, System.Collections.Generic.IReadOnlyList<int>? arrayRanks, bool isNullable = false, CSharpAuthor.ITypeDefinition? containingType = null) { }
         public override System.Collections.Generic.IEnumerable<string> KnownNamespaces { get; }
         public override System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> TypeArguments { get; }
-        public override int CompareTo(CSharpAuthor.ITypeDefinition other) { }
+        public override int CompareTo(CSharpAuthor.ITypeDefinition? other) { }
         public override CSharpAuthor.ITypeDefinition MakeArray(int rank) { }
         public override CSharpAuthor.ITypeDefinition MakeNullable(bool nullable = true) { }
         public CSharpAuthor.ITypeDefinition MakeOpenType() { }
@@ -868,7 +881,7 @@ namespace CSharpAuthor
         public TypeDefinition(CSharpAuthor.TypeDefinitionEnum typeDefinitionEnum, string ns, string name, System.Collections.Generic.IReadOnlyList<int>? arrayRanks, bool isNullable = false, CSharpAuthor.ITypeDefinition? containingType = null) { }
         public override System.Collections.Generic.IEnumerable<string> KnownNamespaces { get; }
         public override System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> TypeArguments { get; }
-        public override int CompareTo(CSharpAuthor.ITypeDefinition other) { }
+        public override int CompareTo(CSharpAuthor.ITypeDefinition? other) { }
         public override CSharpAuthor.ITypeDefinition MakeArray(int rank) { }
         public override CSharpAuthor.ITypeDefinition MakeNullable(bool nullable = true) { }
         public override string ToString() { }
@@ -921,8 +934,8 @@ namespace CSharpAuthor
         public System.Collections.Generic.IReadOnlyList<bool> NullableAnnotations { get; }
         public System.Collections.Generic.IReadOnlyList<CSharpAuthor.ITypeDefinition> TypeArguments { get; }
         public CSharpAuthor.TypeDefinitionEnum TypeDefinitionEnum { get; }
-        public int CompareTo(CSharpAuthor.ITypeDefinition other) { }
-        public override bool Equals(object obj) { }
+        public int CompareTo(CSharpAuthor.ITypeDefinition? other) { }
+        public override bool Equals(object? obj) { }
         public override int GetHashCode() { }
         public CSharpAuthor.ITypeDefinition MakeArray() { }
         public CSharpAuthor.ITypeDefinition MakeArray(int rank) { }
