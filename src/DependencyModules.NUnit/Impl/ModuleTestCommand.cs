@@ -41,6 +41,13 @@ public class ModuleTestCommand(TestCommand innerCommand) : DelegatingTestCommand
 
         SetupTestCaseInfo(serviceCollection, testMethod, knownAttributes);
 
+        // Before the modules, so anything driving the application can take one through ordinary
+        // constructor injection. It answers nothing until the container below exists to take pinned
+        // instances from, which is why it is handed its composition rather than given it here.
+        var containerSource = new TestContainerSource();
+
+        serviceCollection.AddSingleton<ITestContainerSource>(containerSource);
+
         SeedEnvironment(serviceCollection, method, knownAttributes);
 
         SetupModules(serviceCollection, method, knownAttributes);
@@ -53,12 +60,26 @@ public class ModuleTestCommand(TestCommand innerCommand) : DelegatingTestCommand
 
         var serviceProvider = BuildServiceProvider(moduleContext, serviceCollection, knownAttributes);
 
+        // Every container the case built, the first and any the source was asked for, disposed
+        // together in the finally below.
+        var providers = new List<IServiceProvider> { serviceProvider };
+
         try {
-            foreach (var startupAttribute in knownAttributes.OfType<ITestStartupAttribute>()) {
-                // NUnit's command chain is synchronous — TestCommand.Execute has no async form — so
-                // an async hook is awaited here rather than up the stack.
-                startupAttribute.StartupAsync(moduleContext, serviceProvider).GetAwaiter().GetResult();
-            }
+            Start(moduleContext, knownAttributes, serviceProvider);
+
+            // Named throughout: three of these are delegates of shapes that would happily bind to
+            // one another.
+            containerSource.Initialize(
+                services: serviceCollection,
+                pinned: serviceProvider,
+                pinnedServices: SharedRegistrations.Collect(method, knownAttributes),
+                build: services => BuildServiceProvider(moduleContext, services, knownAttributes),
+                start: built => {
+                    Start(moduleContext, knownAttributes, built);
+
+                    return ValueTask.CompletedTask;
+                },
+                track: providers.Add);
 
             var arguments = resolver
                 .ResolveArgumentsAsync(serviceProvider, RowArguments(testMethod))
@@ -68,7 +89,28 @@ public class ModuleTestCommand(TestCommand innerCommand) : DelegatingTestCommand
 
             return innerCommand.Execute(context);
         } finally {
-            DisposeProvider(serviceProvider);
+            // Backwards, so a container the source built goes before the one holding the instances
+            // it was handed.
+            for (var i = providers.Count - 1; i >= 0; i--) {
+                DisposeProvider(providers[i]);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Runs the test's startup attributes against one container.
+    /// </summary>
+    /// <remarks>
+    /// Every container, not only the first. A framework whose startup installs middleware or a filter
+    /// provider would otherwise answer through a chain that was never assembled.
+    ///
+    /// NUnit's command chain is synchronous - TestCommand.Execute has no async form - so an async
+    /// hook is awaited here rather than up the stack.
+    /// </remarks>
+    private static void Start(
+        ITestMethodContext context, Attribute[] knownAttributes, IServiceProvider provider) {
+        foreach (var startupAttribute in knownAttributes.OfType<ITestStartupAttribute>()) {
+            startupAttribute.StartupAsync(context, provider).GetAwaiter().GetResult();
         }
     }
 
