@@ -33,7 +33,7 @@ namespace DependencyModules.Testing.Attributes;
     AttributeTargets.Class |
     AttributeTargets.Method,
     AllowMultiple = true)]
-public class TestExportAttribute : Attribute, ITestServiceSetupAttribute {
+public class TestExportAttribute : Attribute, ITestServiceSetupAttribute, ISharedTestRegistration {
     /// <summary>
     /// An attribute that configures and exports services to the dependency injection container
     /// for test scenarios. This supports customized service registrations with specific lifetimes
@@ -78,6 +78,47 @@ public class TestExportAttribute : Attribute, ITestServiceSetupAttribute {
         get;
         set;
     } = ServiceLifetime.Transient;
+
+    /// <summary>
+    /// Whether this export is kept across every container the test builds, rather than registered
+    /// again in each. Off unless the test asks.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Isolated by default because it reads perfectly well isolated: a fresh fake per container is a
+    /// coherent test, and often the one wanted. That is the line for pinning something without the
+    /// use site saying so - not that isolating it would be unusual, but that it would be broken.
+    /// <see cref="MockAttribute"/> is over that line and this is not, so this asks:
+    /// </para>
+    /// <code>
+    /// [TestExport(typeof(IOrderStore), Implementation = typeof(InMemoryOrderStore), Shared = true)]
+    /// </code>
+    /// <para>
+    /// Which also keeps the default strict the whole way down. An application's services are per
+    /// container, an export is per container, and the only things kept without anyone writing a word
+    /// are the ones isolation has no reading for.
+    /// </para>
+    /// <para>
+    /// <b>This wins over <see cref="Lifetime"/>, and deliberately.</b> Keeping one object across
+    /// containers is an instance registration, so a shared export is one instance however it was
+    /// registered. Setting it beside the default <see cref="ServiceLifetime.Transient"/> is not a
+    /// contradiction to refuse - pinning one object is the only thing the pair can mean, and it is
+    /// what was asked for.
+    /// </para>
+    /// </remarks>
+    public bool Shared {
+        get;
+        set;
+    }
+
+    /// <summary>
+    /// The exported service, which is what pinning applies to when <see cref="Shared"/> is set.
+    /// </summary>
+    /// <remarks>
+    /// Answered here rather than left to the runner because this attribute names no parameter - it
+    /// sits on a method, a class or an assembly - so nothing else knows what it registered.
+    /// </remarks>
+    IReadOnlyList<Type> ISharedTestRegistration.SharedServices => [Service];
 
 
     /// <summary>

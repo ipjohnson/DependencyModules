@@ -27,7 +27,8 @@ namespace DependencyModules.Testing.Attributes;
 /// ActivatorUtilities naming the parameter's type rather than the misplaced attribute.
 /// </remarks>
 [AttributeUsage(AttributeTargets.Parameter)]
-public class InjectValuesAttribute(params object[] value) : Attribute, IInjectValueAttribute {
+public class InjectValuesAttribute(params object[] value)
+    : Attribute, IInjectValueAttribute, ISharedTestRegistration {
 
     /// <summary>
     /// Provides the specified values for a method parameter during dependency

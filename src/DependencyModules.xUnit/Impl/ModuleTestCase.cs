@@ -99,6 +99,13 @@ public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase {
 
         SetupTestCaseInfo(serviceCollection, knownAttributes);
 
+        // Before the modules, so anything driving the application can take one through ordinary
+        // constructor injection. It answers nothing until the container below exists to take pinned
+        // instances from, which is why it is handed its composition rather than given it here.
+        var containerSource = new TestContainerSource();
+
+        serviceCollection.AddSingleton<ITestContainerSource>(containerSource);
+
         SeedEnvironment(serviceCollection, knownAttributes);
 
         SetupModules(serviceCollection, knownAttributes);
@@ -118,11 +125,34 @@ public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase {
         // run; see the remarks on the class.
         _providers.Add(provider);
 
+        await StartAsync(context, knownAttributes, provider);
+
+        // Named throughout, for the reason the base constructor above gives: three of these are
+        // delegates of shapes that would happily bind to one another.
+        containerSource.Initialize(
+            services: serviceCollection,
+            pinned: provider,
+            pinnedServices: SharedRegistrations.Collect(TestMethod.Method, knownAttributes),
+            build: services => BuildServiceProvider(context, services, knownAttributes),
+            start: built => StartAsync(context, knownAttributes, built),
+            track: _providers.Add);
+
+        return new StartupValues(provider, resolver);
+    }
+
+    /// <summary>
+    /// Runs the test's startup attributes against one container.
+    /// </summary>
+    /// <remarks>
+    /// Every container, not only the first. A framework whose startup installs middleware or a filter
+    /// provider would otherwise answer through a chain that was never assembled, which is a container
+    /// that looks composed and is not.
+    /// </remarks>
+    private static async ValueTask StartAsync(
+        ITestMethodContext context, Attribute[] knownAttributes, IServiceProvider provider) {
         foreach (var startupAttribute in knownAttributes.OfType<ITestStartupAttribute>()) {
             await startupAttribute.StartupAsync(context, provider);
         }
-
-        return new StartupValues(provider, resolver);
     }
 
     private void SetupTestCaseInfo(ServiceCollection serviceCollection, Attribute[] knownAttributes) {
@@ -143,7 +173,7 @@ public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase {
     /// which is the reverse of how every other attribute here resolves.
     /// </remarks>
     private IServiceProvider BuildServiceProvider(
-        ITestMethodContext context, ServiceCollection serviceCollection, Attribute[] knownAttributes) {
+        ITestMethodContext context, IServiceCollection serviceCollection, Attribute[] knownAttributes) {
         var serviceProviderBuilderAttribute =
             knownAttributes.OfType<IServiceProviderBuilderAttribute>().LastOrDefault();
 
@@ -169,7 +199,7 @@ public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase {
     /// mocked, which is what <c>[Mock]</c> is for.
     /// </remarks>
     private void SetupServiceSetupAttributes(
-        ITestMethodContext context, ServiceCollection serviceCollection, Attribute[] knownAttributes) {
+        ITestMethodContext context, IServiceCollection serviceCollection, Attribute[] knownAttributes) {
         var setupAttributes = knownAttributes
             .OfType<ITestServiceSetupAttribute>()
             .OrderBy(attribute => attribute is IMockSupportAttribute ? 0 : 1);

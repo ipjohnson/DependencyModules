@@ -25,11 +25,17 @@ namespace DependencyModules.Testing.Attributes;
 ///
 /// This carries no test framework dependency, so it is the same attribute whichever integration
 /// resolves the test's parameters.
+///
+/// The double is <see cref="ISharedTestRegistration">shared</see> across every container a test
+/// builds, and unconditionally: a substitute resolved fresh per container is one the test can assert
+/// nothing about, because the call it is asking after was recorded onto a different object. That is
+/// the whole bar for declaring an attribute shared - not that isolating it would be unusual, but that
+/// it would have no coherent reading.
 /// </remarks>
 [AttributeUsage(
     AttributeTargets.Parameter,
     AllowMultiple = true)]
-public class MockAttribute : Attribute, ITestParameterValueProvider {
+public class MockAttribute : Attribute, ITestParameterValueProvider, ISharedTestRegistration {
 
     /// <summary>
     /// Registers the double in place of the parameter's service.
