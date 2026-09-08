@@ -5,6 +5,41 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-09-08
+
+### Added
+
+- `ITestContainerSource`, which builds a container per call from a template taken once off the
+  test's own composition. A test method's invocations all shared one container, and that models a
+  topology that need not exist: two queue handlers deployed as two functions are two processes, and
+  a handler passing only because a previous invocation warmed a singleton is a test that cannot fail
+  for the reason production will. Resolved like any other service, so anything driving an
+  application can take one. Nothing is built until something asks, so a test that never rebuilds
+  pays for none of it.
+
+- `ISharedTestRegistration`, which is how an attribute declares that what it registered is pinned
+  for the whole test rather than rebuilt with every container. The bar for taking it is that
+  isolated would be *broken* rather than merely unusual, so `[Mock]` and `[InjectValues]` take it
+  unconditionally - a substitute resolved fresh per container is one the test can assert nothing
+  about - while `[TestExport]` reads perfectly well isolated and therefore implements it with
+  `Shared` defaulting to false, asking at the use site instead. `Shared` wins over `Lifetime` there,
+  because keeping one object across containers is an instance registration whatever the
+  registration said.
+
+- `[Shared]`, the same statement for one parameter. Parameters only: at a class or an assembly the
+  obvious reading is "one container across the tests here", which would undo the per-test isolation
+  that already holds.
+
+  A minor version. Every addition is additive - no member removed, no signature changed - and a
+  suite that adopts none of it behaves exactly as it did.
+
+### Fixed
+
+- Both runners now hand every container a case built to the disposal they already ran, NUnit in
+  reverse so a container the source built goes before the one holding the instances it was handed.
+  Startup attributes run against each container, because one that skipped them is not the one the
+  test composed.
+
 ## [1.3.1] - 2026-09-05
 
 ### Fixed
