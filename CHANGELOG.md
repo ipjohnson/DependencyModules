@@ -5,6 +5,43 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-09-08
+
+### Changed
+
+- **A test parameter is now pinned without being asked.** 1.4.0 pinned only what an attribute
+  declared, and that is the wrong default: a parameter exists to be looked at, so handing the test
+  one container's instance while the invocation runs against another makes the assertion
+  meaningless. That is as true of a plain application class a handler appends to as it is of a
+  `[Mock]`, and no attribute is what makes it so.
+
+  1.4.0's rule failed on the first test a scaffolded project runs, which takes a plain class and
+  asserts on what the handler recorded. A rule that needs an attribute to work is a rule most tests
+  will not get.
+
+  The rule is now two sentences. A test parameter is one instance for the whole test, unless it is
+  something the harness supplies to drive the application. A registration nothing holds is per
+  container, unless the harness pins it by name.
+
+### Added
+
+- `ISharedTestRegistration.IsolatedServices(MethodInfo)`, which names the parameters that must *not*
+  be pinned because they build containers rather than live in one - a trigger façade, a test web
+  application, an `HttpClient`, a generated client. Only the harness supplying them can know which
+  they are, and it answers per test method because the answer is a property of the signature. It
+  wins over every other answer, including an explicit `[Shared]`: pinning one of these is not a
+  preference, it turns the isolation off while the test believes it is on.
+
+  A default implementation returning empty, so it is additive.
+
+- `IServiceProvider` is never pinned. A test asking for one is asking which container it is in,
+  which is the one question pinning cannot answer.
+
+### Note
+
+1.4.0 was released the same day and is superseded by this. Its only difference is the default above,
+and nothing consumed it.
+
 ## [1.4.0] - 2026-09-08
 
 ### Added

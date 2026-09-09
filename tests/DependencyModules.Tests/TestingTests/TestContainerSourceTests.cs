@@ -40,9 +40,36 @@ public interface IAudit {
 public class TestContainerSourceTests {
 
     /// <summary>
+    /// A parameter the test holds crosses every container, with nothing said about it.
+    /// </summary>
+    /// <remarks>
+    /// The row an earlier rule got wrong, and the shape of the scaffolded test that caught it: a
+    /// plain application class a handler writes to and the test reads. Pinning it is the default
+    /// because a parameter exists to be looked at, and looking at one container's instance while the
+    /// work ran in another says nothing.
+    /// </remarks>
+    [ModuleTest(typeof(ContainerSourceModule))]
+    public async Task ABareParameterIsTheSameObjectInEveryContainer(
+        ITestContainerSource source, ICounter counter) {
+        var first = await source.CreateAsync();
+        var second = await source.CreateAsync();
+
+        first.GetRequiredService<ICounter>().Bump();
+        second.GetRequiredService<ICounter>().Bump();
+
+        Assert.Same(counter, first.GetRequiredService<ICounter>());
+        Assert.Equal(2, counter.Value);
+    }
+
+    /// <summary>
     /// A singleton is a singleton inside one container and nothing more, which is the property the
     /// whole design turns on.
     /// </summary>
+    /// <remarks>
+    /// Asserted on a service the test does <em>not</em> take as a parameter, because taking one
+    /// pins it. That is the rule, and this is the test that would otherwise quietly stop testing
+    /// anything.
+    /// </remarks>
     [ModuleTest(typeof(ContainerSourceModule))]
     public async Task EachContainerGetsItsOwnApplicationSingleton(ITestContainerSource source) {
         var first = await source.CreateAsync();
@@ -104,11 +131,16 @@ public class TestContainerSourceTests {
     }
 
     /// <summary>
-    /// [Shared] does for anything what [Mock] does for a substitute, which is the escape hatch for a
-    /// value the test holds and asserts on.
+    /// [Shared] on a value parameter is redundant rather than wrong, and says the same thing the
+    /// default already says.
     /// </summary>
+    /// <remarks>
+    /// Kept working on purpose. The attribute earns its place on a parameter that drives the
+    /// application, where it asks for one container across the calls, and a reader should not have
+    /// to know which kind of parameter they are looking at before writing it.
+    /// </remarks>
     [ModuleTest(typeof(ContainerSourceModule))]
-    public async Task SharedPinsAPlainParameter(ITestContainerSource source, [Shared] ICounter counter) {
+    public async Task SharedOnAValueParameterIsRedundant(ITestContainerSource source, [Shared] ICounter counter) {
         var first = await source.CreateAsync();
         var second = await source.CreateAsync();
 

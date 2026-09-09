@@ -10,6 +10,10 @@ namespace DependencyModules.Tests.TestingTests;
 /// <summary>
 /// Which services a test pins, decided without a container or a test framework in the way.
 /// </summary>
+/// <remarks>
+/// One test per row of the rule, because the rule has been wrong once already and the way it was
+/// wrong was a case nobody had written down.
+/// </remarks>
 public class SharedRegistrationsTests {
 
     private interface IThing;
@@ -18,11 +22,21 @@ public class SharedRegistrationsTests {
 
     private class Thing : IThing;
 
-    /// <summary>An attribute that answers no, to prove declining is not the same as not implementing.</summary>
+    /// <summary>Stands for a façade or a client: something the harness supplies to drive with.</summary>
+    private interface IDriver;
+
+    /// <summary>An attribute that declines, which is the only thing worth saying on a parameter.</summary>
     private class NotSharedAttribute : Attribute, ISharedTestRegistration {
         public bool Shared => false;
+    }
 
-        public IReadOnlyList<Type> SharedServices => [typeof(IOther)];
+    /// <summary>A harness naming what it supplies, the way the trigger and web attributes do.</summary>
+    private class DrivenByAttribute : Attribute, ISharedTestRegistration {
+        public IReadOnlyList<Type> IsolatedServices(MethodInfo testMethod) =>
+            testMethod.GetParameters()
+                .Where(parameter => parameter.ParameterType == typeof(IDriver))
+                .Select(parameter => parameter.ParameterType)
+                .ToArray();
     }
 
     private static IReadOnlyCollection<Type> Collect(string method, params Attribute[] known) =>
@@ -32,72 +46,117 @@ public class SharedRegistrationsTests {
 
     private static void Plain(IThing thing) { }
 
+    private static void Bare(IThing thing, IOther other) { }
+
     private static void Marked([Shared] IThing thing) { }
 
     private static void Mocked([Mock] IThing thing) { }
 
     private static void Declined([NotShared] IThing thing) { }
 
-    private static void Several([Shared] IThing thing, [Mock] IOther other, string plain) { }
+    private static void Driving(IDriver driver, IThing thing) { }
 
-    /// <summary>A parameter says nothing on its own, which is what keeps the default isolated.</summary>
-    [Fact]
-    public void AnUnmarkedParameterIsNotPinned() {
-        Assert.Empty(Collect(nameof(Plain)));
-    }
+    private static void DrivingAndMarked([Shared] IDriver driver) { }
 
-    [Fact]
-    public void SharedPinsTheParametersType() {
-        Assert.Equal([typeof(IThing)], Collect(nameof(Marked)));
-    }
+    private static void Container(IServiceProvider provider, IThing thing) { }
+
+    private static void None() { }
+
+    // ---------------------------------------------------------------- the default
 
     /// <summary>
-    /// The point of the interface: [Mock] pins without the use site writing [Shared].
+    /// The row the first version of this rule got wrong, and the one a scaffolded project hits
+    /// first: a plain application service the handler writes to and the test reads.
     /// </summary>
     [Fact]
-    public void MockPinsWithoutBeingAsked() {
+    public void AnUnmarkedParameterIsPinned() {
+        Assert.Equal([typeof(IThing)], Collect(nameof(Plain)));
+    }
+
+    [Fact]
+    public void EveryParameterIsPinned() {
+        Assert.Equal([typeof(IThing), typeof(IOther)], Collect(nameof(Bare)));
+    }
+
+    /// <summary>A mock needs no attribute to be pinned, which is what makes the rule general.</summary>
+    [Fact]
+    public void AMockIsPinnedLikeAnythingElse() {
         Assert.Equal([typeof(IThing)], Collect(nameof(Mocked)));
     }
 
+    /// <summary>Redundant now, and still allowed: it is how a driving parameter asks for reuse.</summary>
     [Fact]
-    public void AnAttributeAnsweringNoPinsNothing() {
+    public void SharedOnAValueParameterChangesNothing() {
+        Assert.Equal(Collect(nameof(Plain)), Collect(nameof(Marked)));
+    }
+
+    [Fact]
+    public void ATestWithNoParametersPinsNothing() {
+        Assert.Empty(Collect(nameof(None)));
+    }
+
+    // ---------------------------------------------------------------- the exceptions
+
+    /// <summary>
+    /// The parameter that drives the application is not pinned, because it builds the containers.
+    /// </summary>
+    [Fact]
+    public void AParameterTheHarnessDrivesWithIsNotPinned() {
+        var pinned = Collect(nameof(Driving), new DrivenByAttribute());
+
+        Assert.Equal([typeof(IThing)], pinned);
+    }
+
+    /// <summary>
+    /// And it stays unpinned even asked to be. Pinning a driver is not a preference that could go
+    /// either way; it turns the isolation off while the test believes it is on.
+    /// </summary>
+    [Fact]
+    public void IsolatedWinsOverAnExplicitShared() {
+        Assert.Empty(Collect(nameof(DrivingAndMarked), new DrivenByAttribute()));
+    }
+
+    [Fact]
+    public void AnAttributeDecliningUnpinsItsParameter() {
         Assert.Empty(Collect(nameof(Declined)));
     }
 
+    /// <summary>The container itself is the one question pinning cannot answer.</summary>
     [Fact]
-    public void EveryMarkedParameterIsCollected() {
-        Assert.Equal([typeof(IThing), typeof(IOther)], Collect(nameof(Several)));
+    public void TheServiceProviderIsNeverPinned() {
+        Assert.Equal([typeof(IThing)], Collect(nameof(Container)));
     }
 
+    // ---------------------------------------------------------------- what no parameter holds
+
     /// <summary>
-    /// An attribute with no parameter names what it registered, which is how [TestExport] joins in
-    /// from the method, the class or the assembly.
+    /// A harness keeps its own per-test services by naming them, since no parameter holds them.
     /// </summary>
     [Fact]
-    public void AnExportAskingToBeSharedNamesItsOwnService() {
-        var shared = new TestExportAttribute(typeof(IThing)) {
+    public void AnAttributeCanPinWhatNoParameterHolds() {
+        var shared = new TestExportAttribute(typeof(IOther)) {
             Implementation = typeof(Thing), Shared = true
         };
 
-        Assert.Equal([typeof(IThing)], Collect(nameof(Plain), shared));
+        Assert.Equal([typeof(IThing), typeof(IOther)], Collect(nameof(Plain), shared));
     }
 
-    /// <summary>The default, and the reason the default is what it is.</summary>
+    /// <summary>An export nothing holds stays per container until it asks.</summary>
     [Fact]
     public void AnExportIsNotPinnedUnlessItAsks() {
-        var isolated = new TestExportAttribute(typeof(IThing)) { Implementation = typeof(Thing) };
+        var isolated = new TestExportAttribute(typeof(IOther)) { Implementation = typeof(Thing) };
 
-        Assert.Empty(Collect(nameof(Plain), isolated));
+        Assert.Equal([typeof(IThing)], Collect(nameof(Plain), isolated));
     }
 
     /// <summary>
-    /// Two attributes naming one service and disagreeing is a use site asking for both. Pinning is
-    /// the answer that leaves the test able to see what it asked to see.
+    /// The parameter is the narrower statement and wins, which is how every other precedence in the
+    /// harness resolves. Isolating it would recreate the bug the rule exists to fix.
     /// </summary>
     [Fact]
-    public void OneAttributeAskingIsEnough() {
+    public void AnExportTheTestHoldsIsPinnedEvenWhenItDeclined() {
         var isolated = new TestExportAttribute(typeof(IThing)) { Implementation = typeof(Thing) };
 
-        Assert.Equal([typeof(IThing)], Collect(nameof(Marked), isolated));
+        Assert.Equal([typeof(IThing)], Collect(nameof(Plain), isolated));
     }
 }
