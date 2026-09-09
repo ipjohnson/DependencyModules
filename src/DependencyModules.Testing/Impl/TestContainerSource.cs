@@ -104,15 +104,16 @@ public sealed class TestContainerSource : ITestContainerSource {
     /// </para>
     /// </remarks>
     private static IServiceCollection BuildTemplate(Composition composition) {
+        var instances = Resolve(composition);
+
         IServiceCollection template = new ServiceCollection();
         var taken = new HashSet<Type>();
 
         foreach (var descriptor in composition.Services) {
             var serviceType = descriptor.ServiceType;
 
-            if (!composition.PinnedServices.Contains(serviceType) ||
-                descriptor.ImplementationInstance != null ||
-                serviceType.IsGenericTypeDefinition) {
+            if (!instances.TryGetValue(serviceType, out var pinned) ||
+                descriptor.ImplementationInstance != null) {
                 template.Add(descriptor);
 
                 continue;
@@ -122,16 +123,70 @@ public sealed class TestContainerSource : ITestContainerSource {
                 continue;
             }
 
-            var sequence = typeof(IEnumerable<>).MakeGenericType(serviceType);
-
-            foreach (var instance in (IEnumerable)composition.Pinned.GetRequiredService(sequence)) {
-                if (instance != null) {
-                    template.Add(new ServiceDescriptor(serviceType, instance));
-                }
+            foreach (var instance in pinned) {
+                template.Add(new ServiceDescriptor(serviceType, instance));
             }
         }
 
         return template;
+    }
+
+    /// <summary>
+    /// The instances to keep, for the pinned services the first container can actually produce.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>A service that cannot be produced is left alone rather than being an error.</b> Pinning is
+    /// a statement about identity, not a reason to construct something the test never asked for, and
+    /// a pinned set drawn from a signature holds types nothing registered - a value from a data row,
+    /// a concrete class the resolver builds on the spot - alongside the ones that matter.
+    /// </para>
+    /// <para>
+    /// The case that made this necessary is sharper than an absent registration. A harness may
+    /// register a <em>deliberately failing</em> factory for a parameter it cannot supply, so that
+    /// resolving it fails with a message naming the fix. Resolving eagerly here turned that message
+    /// into a failure at container build for every test that took such a parameter and never
+    /// resolved it - a data-driven test whose row supplies a string, for one. Leaving the descriptor
+    /// alone means the test either never resolves it, or resolves it and gets the error the harness
+    /// wrote.
+    /// </para>
+    /// <para>
+    /// Resolved through <c>IEnumerable&lt;T&gt;</c> rather than as a single service, so a type
+    /// registered more than once keeps every registration and its order. Taking the single service
+    /// would collapse the set to its last member and leave anything injecting the sequence one
+    /// element long.
+    /// </para>
+    /// <para>
+    /// An open generic is skipped, having no closed type to resolve.
+    /// </para>
+    /// </remarks>
+    private static Dictionary<Type, object[]> Resolve(Composition composition) {
+        var instances = new Dictionary<Type, object[]>();
+
+        foreach (var serviceType in composition.PinnedServices) {
+            if (serviceType.IsGenericTypeDefinition || serviceType.IsByRef || serviceType.IsPointer) {
+                continue;
+            }
+
+            object[] resolved;
+
+            try {
+                var sequence = typeof(IEnumerable<>).MakeGenericType(serviceType);
+
+                resolved = ((IEnumerable)composition.Pinned.GetRequiredService(sequence))
+                    .Cast<object>()
+                    .Where(instance => instance != null)
+                    .ToArray();
+            } catch (Exception) {
+                continue;
+            }
+
+            if (resolved.Length > 0) {
+                instances[serviceType] = resolved;
+            }
+        }
+
+        return instances;
     }
 
     private sealed record Composition(

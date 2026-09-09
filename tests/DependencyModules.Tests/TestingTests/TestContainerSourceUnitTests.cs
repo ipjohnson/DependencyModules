@@ -148,4 +148,49 @@ public class TestContainerSourceUnitTests {
 
         Assert.Contains("never initialized", refused.Message);
     }
+
+    /// <summary>
+    /// A pinned service the first container cannot produce is left alone rather than failing the
+    /// build.
+    /// </summary>
+    /// <remarks>
+    /// The case that made this necessary: a harness registers a deliberately failing factory for a
+    /// parameter it cannot supply, so resolving it fails with a message naming the fix. Resolving
+    /// eagerly here turned that message into a failure at container build for every test that took
+    /// such a parameter and never resolved it.
+    /// </remarks>
+    [Fact]
+    public async Task APinnedServiceThatCannotBeBuiltIsLeftAlone() {
+        var harness = new Harness(
+            services => {
+                services.AddSingleton<IThing, Thing>();
+                services.AddSingleton<string>(_ => throw new InvalidOperationException("name the fix"));
+            },
+            typeof(IThing), typeof(string));
+
+        var built = await harness.Source.CreateAsync();
+
+        Assert.NotNull(built.GetRequiredService<IThing>());
+
+        var refused = Assert.Throws<InvalidOperationException>(() => built.GetRequiredService<string>());
+
+        Assert.Equal("name the fix", refused.Message);
+    }
+
+    /// <summary>
+    /// A pinned type nothing registered is inert, which is what lets the set be drawn from a
+    /// signature without filtering it first.
+    /// </summary>
+    [Fact]
+    public async Task APinnedTypeNothingRegisteredIsInert() {
+        var harness = new Harness(
+            services => services.AddSingleton<IThing, Thing>(),
+            typeof(IThing), typeof(int), typeof(Uri));
+
+        var built = await harness.Source.CreateAsync();
+
+        Assert.NotNull(built.GetRequiredService<IThing>());
+        Assert.Null(built.GetService<Uri>());
+    }
 }
+
