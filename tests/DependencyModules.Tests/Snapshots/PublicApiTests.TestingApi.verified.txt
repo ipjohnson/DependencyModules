@@ -56,6 +56,7 @@ namespace DependencyModules.Testing.Attributes.Interfaces
     {
         bool Shared { get; }
         System.Collections.Generic.IReadOnlyList<System.Type> SharedServices { get; }
+        System.Collections.Generic.IReadOnlyList<System.Type> IsolatedServices(System.Reflection.MethodInfo testMethod);
     }
     public interface ITestContainerSource
     {
