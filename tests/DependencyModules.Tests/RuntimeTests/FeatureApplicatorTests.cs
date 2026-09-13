@@ -10,12 +10,13 @@ namespace DependencyModules.Tests.RuntimeTests;
 /// modules carrying that feature. It must hand the handler exactly the modules that implement the
 /// feature type, and nothing else.
 /// </summary>
-public class FeatureApplicatorTests {
-
+public class FeatureApplicatorTests
+{
     private interface ISomeFeature;
 
     [Fact]
-    public void Apply_PassesOnlyModulesImplementingTheFeature() {
+    public void Apply_PassesOnlyModulesImplementingTheFeature()
+    {
         var handler = new RecordingHandler();
         var applicator = new FeatureApplicator<ISomeFeature>(handler);
 
@@ -29,7 +30,8 @@ public class FeatureApplicatorTests {
     }
 
     [Fact]
-    public void Apply_WithNoMatchingModules_PassesAnEmptySequence() {
+    public void Apply_WithNoMatchingModules_PassesAnEmptySequence()
+    {
         var handler = new RecordingHandler();
         var applicator = new FeatureApplicator<ISomeFeature>(handler);
 
@@ -39,7 +41,8 @@ public class FeatureApplicatorTests {
     }
 
     [Fact]
-    public void Apply_PassesTheServiceCollectionThrough() {
+    public void Apply_PassesTheServiceCollectionThrough()
+    {
         var handler = new RecordingHandler();
         var applicator = new FeatureApplicator<ISomeFeature>(handler);
         var collection = new ServiceCollection();
@@ -50,18 +53,23 @@ public class FeatureApplicatorTests {
     }
 
     [Fact]
-    public void Order_ComesFromTheHandler() {
-        var applicator = new FeatureApplicator<ISomeFeature>(new RecordingHandler { HandlerOrder = 42 });
+    public void Order_ComesFromTheHandler()
+    {
+        var applicator = new FeatureApplicator<ISomeFeature>(
+            new RecordingHandler { HandlerOrder = 42 }
+        );
 
         Assert.Equal(42, applicator.Order);
     }
 
     [Fact]
-    public void Order_DefaultsToZero() {
+    public void Order_DefaultsToZero()
+    {
         Assert.Equal(0, new FeatureApplicator<ISomeFeature>(new DefaultOrderHandler()).Order);
     }
 
-    private class RecordingHandler : IDependencyModuleFeature<ISomeFeature> {
+    private class RecordingHandler : IDependencyModuleFeature<ISomeFeature>
+    {
         public int HandlerOrder { get; init; }
 
         public int Order => HandlerOrder;
@@ -70,21 +78,28 @@ public class FeatureApplicatorTests {
 
         public IServiceCollection? ReceivedCollection { get; private set; }
 
-        public void HandleFeature(IServiceCollection collection, IEnumerable<ISomeFeature> feature) {
+        public void HandleFeature(IServiceCollection collection, IEnumerable<ISomeFeature> feature)
+        {
             ReceivedCollection = collection;
             Received = feature.ToList();
         }
     }
 
-    private class DefaultOrderHandler : IDependencyModuleFeature<ISomeFeature> {
-        public void HandleFeature(IServiceCollection collection, IEnumerable<ISomeFeature> feature) { }
+    private class DefaultOrderHandler : IDependencyModuleFeature<ISomeFeature>
+    {
+        public void HandleFeature(
+            IServiceCollection collection,
+            IEnumerable<ISomeFeature> feature
+        ) { }
     }
 
-    private class FeatureModule : IDependencyModule, ISomeFeature {
+    private class FeatureModule : IDependencyModule, ISomeFeature
+    {
         public void PopulateServiceCollection(IServiceCollection serviceCollection) { }
     }
 
-    private class PlainModule : IDependencyModule {
+    private class PlainModule : IDependencyModule
+    {
         public void PopulateServiceCollection(IServiceCollection serviceCollection) { }
     }
 }

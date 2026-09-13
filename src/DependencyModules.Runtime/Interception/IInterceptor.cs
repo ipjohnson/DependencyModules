@@ -28,7 +28,8 @@ namespace DependencyModules.Runtime.Interception;
 /// }
 /// </code>
 /// </remarks>
-public interface IInterceptor {
+public interface IInterceptor
+{
     /// <summary>
     /// Wraps one call. Call <see cref="InvocationContext{TResult}.Proceed"/> to run the rest of the
     /// pipeline, more than once to retry, or not at all to return without reaching the
@@ -58,7 +59,8 @@ public interface IInterceptor {
 /// }
 /// </code>
 /// </remarks>
-public interface IAsyncInterceptor {
+public interface IAsyncInterceptor
+{
     /// <summary>
     /// Wraps one call. Call <see cref="AsyncInvocationContext{TResult}.ProceedAsync"/> to run the
     /// rest of the pipeline, more than once to retry, or not at all to return without reaching the
@@ -92,7 +94,8 @@ public interface IAsyncInterceptor {
 /// }
 /// </code>
 /// </remarks>
-public interface IAsyncEnumerableInterceptor {
+public interface IAsyncEnumerableInterceptor
+{
     /// <summary>
     /// Wraps one call. Enumerate <see cref="StreamInvocationContext{TItem}.Proceed"/> to yield the
     /// implementation's items, or yield something else to replace them.

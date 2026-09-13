@@ -7,7 +7,8 @@ namespace DependencyModules.Runtime.Features;
 /// Defines the contract for a feature applicator responsible for applying
 /// specific features within a dependency management system.
 /// </summary>
-public interface IFeatureApplicator {
+public interface IFeatureApplicator
+{
     /// <summary>
     /// Represents the order of execution for feature applicators when applying features
     /// to a service collection. This property determines the sequence in which

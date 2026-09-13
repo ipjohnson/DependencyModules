@@ -31,8 +31,8 @@ namespace DependencyModules.Moq;
 /// </code>
 /// </example>
 [AttributeUsage(AttributeTargets.Method | AttributeTargets.Class | AttributeTargets.Assembly)]
-public class MoqSupportAttribute : Attribute, IMockSupportAttribute, ITestServiceSetupAttribute {
-
+public class MoqSupportAttribute : Attribute, IMockSupportAttribute, ITestServiceSetupAttribute
+{
     /// <summary>
     /// Registers a mock for every <c>Mock&lt;T&gt;</c> the test asked for, alongside the object that
     /// mock produces.
@@ -54,14 +54,22 @@ public class MoqSupportAttribute : Attribute, IMockSupportAttribute, ITestServic
     /// </remarks>
     /// <param name="testMethod">The test the container is being built for.</param>
     /// <param name="serviceCollection">The collection backing the test's container.</param>
-    public void SetupServiceCollection(ITestMethodContext testMethod, IServiceCollection serviceCollection) {
+    public void SetupServiceCollection(
+        ITestMethodContext testMethod,
+        IServiceCollection serviceCollection
+    )
+    {
         var mocked = new HashSet<Type>();
 
-        foreach (var parameter in testMethod.Method.GetParameters()) {
+        foreach (var parameter in testMethod.Method.GetParameters())
+        {
             // Add returns false for a type already handled: two parameters naming the same
             // Mock<T> are one mock, so configuring either is configuring what the test was given.
-            if (!TryGetMockedType(parameter.ParameterType, out var mockedType) ||
-                !mocked.Add(mockedType)) {
+            if (
+                !TryGetMockedType(parameter.ParameterType, out var mockedType)
+                || !mocked.Add(mockedType)
+            )
+            {
                 continue;
             }
 
@@ -89,8 +97,10 @@ public class MoqSupportAttribute : Attribute, IMockSupportAttribute, ITestServic
     /// The mocked instance — <c>Mock&lt;T&gt;.Object</c> — or a <c>Mock&lt;T&gt;</c> when that is
     /// what was asked for.
     /// </returns>
-    public object ProvideMock(Type type) {
-        if (TryGetMockedType(type, out var mockedType)) {
+    public object ProvideMock(Type type)
+    {
+        if (TryGetMockedType(type, out var mockedType))
+        {
             return CreateMock(mockedType);
         }
 
@@ -107,13 +117,17 @@ public class MoqSupportAttribute : Attribute, IMockSupportAttribute, ITestServic
     /// [TestExport] naming the same service — and without this it would also beat the pairing here,
     /// leaving the test configuring one mock while the container handed out another.
     /// </remarks>
-    public bool RegistersService(ITestMethodContext testMethod, Type serviceType) {
-        foreach (var parameter in testMethod.Method.GetParameters()) {
-            if (!TryGetMockedType(parameter.ParameterType, out var mockedType)) {
+    public bool RegistersService(ITestMethodContext testMethod, Type serviceType)
+    {
+        foreach (var parameter in testMethod.Method.GetParameters())
+        {
+            if (!TryGetMockedType(parameter.ParameterType, out var mockedType))
+            {
                 continue;
             }
 
-            if (parameter.ParameterType == serviceType || mockedType == serviceType) {
+            if (parameter.ParameterType == serviceType || mockedType == serviceType)
+            {
                 return true;
             }
         }
@@ -127,9 +141,16 @@ public class MoqSupportAttribute : Attribute, IMockSupportAttribute, ITestServic
     /// <summary>
     /// Reads <c>IFoo</c> out of a <c>Mock&lt;IFoo&gt;</c>, and reports anything else as not ours.
     /// </summary>
-    private static bool TryGetMockedType(Type parameterType, [NotNullWhen(true)] out Type? mockedType) {
-        if (parameterType.IsGenericType &&
-            parameterType.GetGenericTypeDefinition() == typeof(MoqLib.Mock<>)) {
+    private static bool TryGetMockedType(
+        Type parameterType,
+        [NotNullWhen(true)] out Type? mockedType
+    )
+    {
+        if (
+            parameterType.IsGenericType
+            && parameterType.GetGenericTypeDefinition() == typeof(MoqLib.Mock<>)
+        )
+        {
             mockedType = parameterType.GetGenericArguments()[0];
             return true;
         }

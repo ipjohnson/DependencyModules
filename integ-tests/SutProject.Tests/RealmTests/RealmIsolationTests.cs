@@ -4,11 +4,13 @@ using Xunit;
 
 namespace SutProject.Tests.RealmTests;
 
-public class RealmIsolationTests {
+public class RealmIsolationTests
+{
     [ModuleTest]
     [FirstRealmModule]
     [SecondarySutModule]
-    public void OverrideDependencyWithRealm(IDependencyOne dependencyOne) {
+    public void OverrideDependencyWithRealm(IDependencyOne dependencyOne)
+    {
         Assert.IsType<RealmDependencyOne>(dependencyOne);
     }
 }

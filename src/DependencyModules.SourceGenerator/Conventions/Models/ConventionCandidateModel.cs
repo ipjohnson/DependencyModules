@@ -22,7 +22,8 @@ namespace DependencyModules.Conventions.Models;
 public record ImplementedInterfaceModel(
     ITypeDefinition InterfaceType,
     string DefinitionKey,
-    string? ViaTypeName);
+    string? ViaTypeName
+);
 
 /// <summary>
 /// A class or record a convention could match.
@@ -71,17 +72,20 @@ public record ConventionCandidateModel(
     /// should not silently pick up a type from a package, and a scan of a package should not pick up
     /// a local one.
     /// </remarks>
-    string? AssemblyName = null) {
-
+    string? AssemblyName = null
+)
+{
     public static readonly ConventionCandidateModel Ignore = new(
         TypeDefinition.Get("", "Ignore"),
         Array.Empty<ImplementedInterfaceModel>(),
         Array.Empty<ImplementedInterfaceModel>(),
         null,
         true,
-        LocationModel.None);
+        LocationModel.None
+    );
 
-    public bool IsIgnored => ReferenceEquals(this, Ignore) || ImplementationType.Equals(Ignore.ImplementationType);
+    public bool IsIgnored =>
+        ReferenceEquals(this, Ignore) || ImplementationType.Equals(Ignore.ImplementationType);
 
     /// <summary>
     /// The interfaces visible to a convention with the given reach.
@@ -90,30 +94,40 @@ public record ConventionCandidateModel(
         includeBaseClasses ? DeclaredInterfaces.Concat(BaseClassInterfaces) : DeclaredInterfaces;
 
     public virtual bool Equals(ConventionCandidateModel? other) =>
-        other is not null &&
-        ImplementationType.Equals(other.ImplementationType) &&
-        HasAccessibleConstructor == other.HasAccessibleConstructor &&
-        Location == other.Location &&
-        ModelEquality.ListEquals(DeclaredInterfaces, other.DeclaredInterfaces) &&
-        ModelEquality.ListEquals(BaseClassInterfaces, other.BaseClassInterfaces) &&
-        CompareConstructor(Constructor, other.Constructor) &&
+        other is not null
+        && ImplementationType.Equals(other.ImplementationType)
+        && HasAccessibleConstructor == other.HasAccessibleConstructor
+        && Location == other.Location
+        && ModelEquality.ListEquals(DeclaredInterfaces, other.DeclaredInterfaces)
+        && ModelEquality.ListEquals(BaseClassInterfaces, other.BaseClassInterfaces)
+        && CompareConstructor(Constructor, other.Constructor)
+        &&
         // Null and empty both mean unconditional and have to compare equal, or an edit elsewhere
         // in the file would miss the incremental cache.
-        ((Conditions?.Count ?? 0) == 0 && (other.Conditions?.Count ?? 0) == 0 ||
-         ModelEquality.ListEquals(Conditions, other.Conditions)) &&
-        ((AttributeTypeKeys?.Count ?? 0) == 0 && (other.AttributeTypeKeys?.Count ?? 0) == 0 ||
-         ModelEquality.ListEquals(AttributeTypeKeys, other.AttributeTypeKeys)) &&
-        AssemblyName == other.AssemblyName;
+        (
+            (Conditions?.Count ?? 0) == 0 && (other.Conditions?.Count ?? 0) == 0
+            || ModelEquality.ListEquals(Conditions, other.Conditions)
+        )
+        && (
+            (AttributeTypeKeys?.Count ?? 0) == 0 && (other.AttributeTypeKeys?.Count ?? 0) == 0
+            || ModelEquality.ListEquals(AttributeTypeKeys, other.AttributeTypeKeys)
+        )
+        && AssemblyName == other.AssemblyName;
 
-    private static bool CompareConstructor(ConstructorInfoModel? x, ConstructorInfoModel? y) {
-        if (x is null && y is null) return true;
-        if (x is null || y is null) return false;
+    private static bool CompareConstructor(ConstructorInfoModel? x, ConstructorInfoModel? y)
+    {
+        if (x is null && y is null)
+            return true;
+        if (x is null || y is null)
+            return false;
 
         return ModelEquality.ListEquals(x.Parameters, y.Parameters);
     }
 
-    public override int GetHashCode() {
-        unchecked {
+    public override int GetHashCode()
+    {
+        unchecked
+        {
             var hash = ImplementationType.GetHashCode();
             hash = hash * 31 + HasAccessibleConstructor.GetHashCode();
             hash = hash * 31 + ModelEquality.ListHashCode(DeclaredInterfaces);

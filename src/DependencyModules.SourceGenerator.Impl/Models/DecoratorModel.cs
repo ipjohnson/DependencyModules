@@ -43,20 +43,19 @@ public record DecoratorModel(
     ConstructorInfoModel? Constructor = null,
     int InnerParameterIndex = -1,
     bool TypeParametersMatchService = true,
-
     /// <summary>
     /// The one implementation this decorator wraps, or null to wrap every registration of the
     /// service — which is the default and what a decorator declared against an interface means.
     /// </summary>
     ITypeDefinition? Implementation = null,
-
     /// <summary>
     /// Where the decorator was declared, so DM0007 and DM0013 can point at it rather than at the
     /// project. Null for a decorator declared through [Decorate] on a module, which names two types
     /// and has no declaration of its own to point at.
     /// </summary>
-    LocationModel? Location = null) {
-
+    LocationModel? Location = null
+)
+{
     /// <summary>
     /// Whether the decorator can be constructed by generated code.
     /// </summary>
@@ -87,8 +86,8 @@ public record DecoratorModel(
     /// mode this generator is built never to produce.
     /// </remarks>
     public bool HasUnboundServiceType =>
-        ServiceType is GenericTypeDefinition generic &&
-        generic.TypeArguments.Any(argument => string.IsNullOrEmpty(argument.Name));
+        ServiceType is GenericTypeDefinition generic
+        && generic.TypeArguments.Any(argument => string.IsNullOrEmpty(argument.Name));
 
     /// <summary>
     /// Sentinel for a syntax node that carried the attribute but produced no usable model, matching
@@ -98,7 +97,8 @@ public record DecoratorModel(
         TypeDefinition.Get("", "Ignore"),
         TypeDefinition.Get("", "Ignore"),
         0,
-        null);
+        null
+    );
 
     public bool IsIgnored => ReferenceEquals(this, Ignore);
 }
@@ -107,39 +107,45 @@ public record DecoratorModel(
 /// Equality for the incremental pipeline. Every field affects generated output, so all of them are
 /// compared; missing one would serve stale output after an edit to it.
 /// </summary>
-public class DecoratorModelComparer : IEqualityComparer<DecoratorModel> {
-
-    public bool Equals(DecoratorModel? x, DecoratorModel? y) {
-        if (ReferenceEquals(x, y)) {
+public class DecoratorModelComparer : IEqualityComparer<DecoratorModel>
+{
+    public bool Equals(DecoratorModel? x, DecoratorModel? y)
+    {
+        if (ReferenceEquals(x, y))
+        {
             return true;
         }
 
-        if (x is null || y is null) {
+        if (x is null || y is null)
+        {
             return false;
         }
 
-        return x.Order == y.Order &&
-               x.ServiceType.Equals(y.ServiceType) &&
-               x.DecoratorType.Equals(y.DecoratorType) &&
-               Equals(x.Realm, y.Realm) &&
-               // Decides which registration is wrapped, so leaving it out would serve the previous
-               // emission when only Implementation changed.
-               Equals(x.Implementation, y.Implementation) &&
-               x.InnerParameterIndex == y.InnerParameterIndex &&
-               x.TypeParametersMatchService == y.TypeParametersMatchService &&
-               Equals(x.Constructor, y.Constructor) &&
-               ConditionsEqual(x.Conditions, y.Conditions);
+        return x.Order == y.Order
+            && x.ServiceType.Equals(y.ServiceType)
+            && x.DecoratorType.Equals(y.DecoratorType)
+            && Equals(x.Realm, y.Realm)
+            &&
+            // Decides which registration is wrapped, so leaving it out would serve the previous
+            // emission when only Implementation changed.
+            Equals(x.Implementation, y.Implementation)
+            && x.InnerParameterIndex == y.InnerParameterIndex
+            && x.TypeParametersMatchService == y.TypeParametersMatchService
+            && Equals(x.Constructor, y.Constructor)
+            && ConditionsEqual(x.Conditions, y.Conditions);
     }
 
     // Structural rather than by reference: two runs build separate lists, so comparing references
     // would miss the cache on every keystroke and re-emit every decorator.
     private static bool ConditionsEqual(
         IReadOnlyList<EnvironmentConditionModel>? x,
-        IReadOnlyList<EnvironmentConditionModel>? y) =>
-        (x?.Count ?? 0) == 0 && (y?.Count ?? 0) == 0 || ModelEquality.ListEquals(x, y);
+        IReadOnlyList<EnvironmentConditionModel>? y
+    ) => (x?.Count ?? 0) == 0 && (y?.Count ?? 0) == 0 || ModelEquality.ListEquals(x, y);
 
-    public int GetHashCode(DecoratorModel obj) {
-        unchecked {
+    public int GetHashCode(DecoratorModel obj)
+    {
+        unchecked
+        {
             var hash = obj.ServiceType.GetHashCode();
             hash = hash * 31 + obj.DecoratorType.GetHashCode();
             hash = hash * 31 + obj.Order;

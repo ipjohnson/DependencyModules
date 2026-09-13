@@ -32,11 +32,9 @@ namespace DependencyModules.Testing.Attributes;
 /// the whole bar for declaring an attribute shared - not that isolating it would be unusual, but that
 /// it would have no coherent reading.
 /// </remarks>
-[AttributeUsage(
-    AttributeTargets.Parameter,
-    AllowMultiple = true)]
-public class MockAttribute : Attribute, ITestParameterValueProvider, ISharedTestRegistration {
-
+[AttributeUsage(AttributeTargets.Parameter, AllowMultiple = true)]
+public class MockAttribute : Attribute, ITestParameterValueProvider, ISharedTestRegistration
+{
     /// <summary>
     /// Registers the double in place of the parameter's service.
     /// </summary>
@@ -53,17 +51,25 @@ public class MockAttribute : Attribute, ITestParameterValueProvider, ISharedTest
     /// Thrown when a required mock library is not found, indicating that the type or assembly is not correctly attributed.
     /// </exception>
     public void SetupServiceCollection(
-        ITestMethodContext testMethod, IServiceCollection serviceCollection, ParameterInfo parameter) {
+        ITestMethodContext testMethod,
+        IServiceCollection serviceCollection,
+        ParameterInfo parameter
+    )
+    {
         var mockAttribute = testMethod.Method.GetTestAttribute<IMockSupportAttribute>();
 
-        if (mockAttribute == null) {
-            throw new Exception("Mock library not found, please ensure the Type or Assembly is attributed correctly.");
+        if (mockAttribute == null)
+        {
+            throw new Exception(
+                "Mock library not found, please ensure the Type or Assembly is attributed correctly."
+            );
         }
 
         // The mock library owns this type for this test - a Moq test naming both Mock<IFoo> and
         // [Mock] IFoo wants one mock seen two ways, and registering a second one here would leave
         // the test configuring one while the container handed out another.
-        if (mockAttribute.RegistersService(testMethod, parameter.ParameterType)) {
+        if (mockAttribute.RegistersService(testMethod, parameter.ParameterType))
+        {
             return;
         }
 
@@ -74,10 +80,17 @@ public class MockAttribute : Attribute, ITestParameterValueProvider, ISharedTest
         // the keyed registration — the one the consumer actually injects — untouched, so the service
         // under test kept the real implementation while the test held a double it believed was wired
         // in. The arrangement ran, the double recorded nothing, and the assertion failed elsewhere.
-        if (key == null) {
+        if (key == null)
+        {
             serviceCollection.AddSingleton(parameter.ParameterType, _ => mockedValue);
-        } else {
-            serviceCollection.AddKeyedSingleton(parameter.ParameterType, key, (_, _) => mockedValue);
+        }
+        else
+        {
+            serviceCollection.AddKeyedSingleton(
+                parameter.ParameterType,
+                key,
+                (_, _) => mockedValue
+            );
         }
     }
 
@@ -98,11 +111,18 @@ public class MockAttribute : Attribute, ITestParameterValueProvider, ISharedTest
     /// or null if the parameter could not be resolved.
     /// </returns>
     public Task<object?> GetParameterValueAsync(
-        ITestMethodContext testMethod, IServiceProvider serviceProvider, ParameterInfo parameter) {
+        ITestMethodContext testMethod,
+        IServiceProvider serviceProvider,
+        ParameterInfo parameter
+    )
+    {
         var key = ServiceKeyOf(parameter);
 
-        if (key != null && serviceProvider is IKeyedServiceProvider keyedServiceProvider) {
-            return Task.FromResult(keyedServiceProvider.GetKeyedService(parameter.ParameterType, key));
+        if (key != null && serviceProvider is IKeyedServiceProvider keyedServiceProvider)
+        {
+            return Task.FromResult(
+                keyedServiceProvider.GetKeyedService(parameter.ParameterType, key)
+            );
         }
 
         return Task.FromResult(serviceProvider.GetService(parameter.ParameterType));

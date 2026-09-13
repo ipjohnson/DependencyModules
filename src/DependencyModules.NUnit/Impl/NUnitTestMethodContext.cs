@@ -14,14 +14,12 @@ namespace DependencyModules.NUnit.Impl;
 /// <c>if (testMethod is INUnitTestMethodContext nunit)</c> reaches NUnit's own model — the test's
 /// name and id, its properties, and the fixture it belongs to.
 /// </remarks>
-public interface INUnitTestMethodContext : ITestMethodContext {
-
+public interface INUnitTestMethodContext : ITestMethodContext
+{
     /// <summary>
     /// NUnit's own model of the test method being executed.
     /// </summary>
-    TestMethod NUnitTestMethod {
-        get;
-    }
+    TestMethod NUnitTestMethod { get; }
 }
 
 /// <summary>
@@ -34,15 +32,12 @@ public interface INUnitTestMethodContext : ITestMethodContext {
 /// </remarks>
 internal sealed class NUnitTestMethodContext(
     TestMethod testMethod,
-    IReadOnlyList<Attribute> attributes) : INUnitTestMethodContext {
-
-    public TestMethod NUnitTestMethod {
-        get;
-    } = testMethod;
+    IReadOnlyList<Attribute> attributes
+) : INUnitTestMethodContext
+{
+    public TestMethod NUnitTestMethod { get; } = testMethod;
 
     public MethodInfo Method => NUnitTestMethod.Method!.MethodInfo;
 
-    public IReadOnlyList<Attribute> Attributes {
-        get;
-    } = attributes;
+    public IReadOnlyList<Attribute> Attributes { get; } = attributes;
 }

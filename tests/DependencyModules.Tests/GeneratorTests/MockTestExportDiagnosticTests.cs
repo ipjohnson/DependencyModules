@@ -16,15 +16,17 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// everything under it, and one test overriding it for one argument is exactly what having both
 /// scopes is for. Reporting that would be reporting the feature.
 /// </summary>
-public class MockTestExportDiagnosticTests {
-
+public class MockTestExportDiagnosticTests
+{
     [Fact]
-    public void BothOnOneMethod_ReportsDM0021() {
+    public void BothOnOneMethod_ReportsDM0021()
+    {
         var result = Run(
             """
             [TestExport(typeof(IThing), Implementation = typeof(RealThing))]
             public void Conflicting([Mock] IThing thing) { }
-            """);
+            """
+        );
 
         var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0021");
 
@@ -37,12 +39,14 @@ public class MockTestExportDiagnosticTests {
     /// to see what actually happens.
     /// </summary>
     [Fact]
-    public void ItIsReportedAtTheParameter() {
+    public void ItIsReportedAtTheParameter()
+    {
         var result = Run(
             """
             [TestExport(typeof(IThing), Implementation = typeof(RealThing))]
             public void Conflicting([Mock] IThing thing) { }
-            """);
+            """
+        );
 
         var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0021");
 
@@ -54,32 +58,36 @@ public class MockTestExportDiagnosticTests {
     /// The class-level default a test opts out of. This is the shape the override exists for.
     /// </summary>
     [Fact]
-    public void TestExportOnTheClass_IsNotReported() {
+    public void TestExportOnTheClass_IsNotReported()
+    {
         var result = GeneratorTestHarness.Run(
             $$"""
-              {{Preamble}}
+            {{Preamble}}
 
-              [TestExport(typeof(IThing), Implementation = typeof(RealThing))]
-              public class Fixture {
-                  public void Overriding([Mock] IThing thing) { }
-              }
-              """);
+            [TestExport(typeof(IThing), Implementation = typeof(RealThing))]
+            public class Fixture {
+                public void Overriding([Mock] IThing thing) { }
+            }
+            """
+        );
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0021");
     }
 
     [Fact]
-    public void TestExportOnTheAssembly_IsNotReported() {
+    public void TestExportOnTheAssembly_IsNotReported()
+    {
         var result = GeneratorTestHarness.Run(
             $$"""
-              {{Preamble}}
+            {{Preamble}}
 
-              [assembly: TestExport(typeof(IThing), Implementation = typeof(RealThing))]
+            [assembly: TestExport(typeof(IThing), Implementation = typeof(RealThing))]
 
-              public class Fixture {
-                  public void Overriding([Mock] IThing thing) { }
-              }
-              """);
+            public class Fixture {
+                public void Overriding([Mock] IThing thing) { }
+            }
+            """
+        );
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0021");
     }
@@ -88,30 +96,35 @@ public class MockTestExportDiagnosticTests {
     /// Naming different services is two unrelated declarations, not a disagreement.
     /// </summary>
     [Fact]
-    public void BothOnOneMethodNamingDifferentServices_IsNotReported() {
+    public void BothOnOneMethodNamingDifferentServices_IsNotReported()
+    {
         var result = Run(
             """
             [TestExport(typeof(IOther), Implementation = typeof(RealOther))]
             public void Unrelated([Mock] IThing thing) { }
-            """);
+            """
+        );
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0021");
     }
 
     [Fact]
-    public void AMockWithNoTestExport_IsNotReported() {
+    public void AMockWithNoTestExport_IsNotReported()
+    {
         var result = Run("public void JustAMock([Mock] IThing thing) { }");
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0021");
     }
 
     [Fact]
-    public void ATestExportWithNoMock_IsNotReported() {
+    public void ATestExportWithNoMock_IsNotReported()
+    {
         var result = Run(
             """
             [TestExport(typeof(IThing), Implementation = typeof(RealThing))]
             public void JustAnExport(IThing thing) { }
-            """);
+            """
+        );
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0021");
     }
@@ -120,18 +133,19 @@ public class MockTestExportDiagnosticTests {
     /// Resolved rather than string-matched, the way every other attribute this generator reads is.
     /// </summary>
     [Fact]
-    public void QualifiedSpellings_AreStillReported() {
+    public void QualifiedSpellings_AreStillReported()
+    {
         var result = Run(
             """
             [DependencyModules.Testing.Attributes.TestExport(typeof(IThing), Implementation = typeof(RealThing))]
             public void Conflicting([global::DependencyModules.Testing.Attributes.Mock] IThing thing) { }
-            """);
+            """
+        );
 
         Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0021");
     }
 
-    private const string Preamble =
-        """
+    private const string Preamble = """
         using DependencyModules.Runtime.Attributes;
         using DependencyModules.Testing.Attributes;
 
@@ -149,10 +163,11 @@ public class MockTestExportDiagnosticTests {
     private static GeneratorResult Run(string body) =>
         GeneratorTestHarness.Run(
             $$"""
-              {{Preamble}}
+            {{Preamble}}
 
-              public class Fixture {
-                  {{body}}
-              }
-              """);
+            public class Fixture {
+                {{body}}
+            }
+            """
+        );
 }

@@ -19,21 +19,23 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// implementation type and skips descriptors built from anything else, which is the overload
 /// interception uses. Only the attribute could not say so.
 /// </summary>
-public class DecoratorImplementationTests {
-
+public class DecoratorImplementationTests
+{
     /// <summary>
     /// The default, unchanged: no Implementation named, so every registration of the service is
     /// wrapped.
     /// </summary>
     [Fact]
-    public void WithNoImplementationNamed_EveryRegistrationIsWrapped() {
+    public void WithNoImplementationNamed_EveryRegistrationIsWrapped()
+    {
         var resolved = Resolve("[Decorator]");
 
         Assert.Equal(["Logged", "Logged"], resolved.Select(Outer));
     }
 
     [Fact]
-    public void NamingAnImplementation_WrapsOnlyThatOne() {
+    public void NamingAnImplementation_WrapsOnlyThatOne()
+    {
         var resolved = Resolve("[Decorator(Implementation = typeof(Loud))]");
 
         Assert.Equal(["Logged", "Quiet"], resolved.Select(Outer));
@@ -44,7 +46,8 @@ public class DecoratorImplementationTests {
     /// implementation, not whichever registration happened to be first.
     /// </summary>
     [Fact]
-    public void TheWrappedInstance_IsTheNamedImplementation() {
+    public void TheWrappedInstance_IsTheNamedImplementation()
+    {
         var resolved = Resolve("[Decorator(Implementation = typeof(Loud))]");
 
         var logged = Assert.Single(resolved, greeter => Outer(greeter) == "Logged");
@@ -53,7 +56,8 @@ public class DecoratorImplementationTests {
     }
 
     [Fact]
-    public void TheUnnamedImplementation_IsUntouched() {
+    public void TheUnnamedImplementation_IsUntouched()
+    {
         var resolved = Resolve("[Decorator(Implementation = typeof(Loud))]");
 
         var quiet = Assert.Single(resolved, greeter => Outer(greeter) == "Quiet");
@@ -67,7 +71,8 @@ public class DecoratorImplementationTests {
     /// default.
     /// </summary>
     [Fact]
-    public void NamingAnImplementationThatIsNotRegistered_WrapsNothing() {
+    public void NamingAnImplementationThatIsNotRegistered_WrapsNothing()
+    {
         var resolved = Resolve("[Decorator(Implementation = typeof(Unregistered))]");
 
         Assert.Equal(["Loud", "Quiet"], resolved.Select(Outer));
@@ -84,8 +89,12 @@ public class DecoratorImplementationTests {
     /// learns about it. Reported rather than silently doing the wrong thing.
     /// </summary>
     [Fact]
-    public void NamingAnImplementationUnderGenerateFactories_ReportsDM0022() {
-        var result = Generate("[Decorator(Implementation = typeof(Loud))]", generateFactories: true);
+    public void NamingAnImplementationUnderGenerateFactories_ReportsDM0022()
+    {
+        var result = Generate(
+            "[Decorator(Implementation = typeof(Loud))]",
+            generateFactories: true
+        );
 
         var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0022");
 
@@ -94,15 +103,20 @@ public class DecoratorImplementationTests {
     }
 
     [Fact]
-    public void NamingNoImplementationUnderGenerateFactories_IsNotReported() {
+    public void NamingNoImplementationUnderGenerateFactories_IsNotReported()
+    {
         var result = Generate("[Decorator]", generateFactories: true);
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0022");
     }
 
     [Fact]
-    public void NamingAnImplementationWithoutGenerateFactories_IsNotReported() {
-        var result = Generate("[Decorator(Implementation = typeof(Loud))]", generateFactories: false);
+    public void NamingAnImplementationWithoutGenerateFactories_IsNotReported()
+    {
+        var result = Generate(
+            "[Decorator(Implementation = typeof(Loud))]",
+            generateFactories: false
+        );
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0022");
     }
@@ -115,48 +129,57 @@ public class DecoratorImplementationTests {
     private static GeneratorResult Generate(string decoratorAttribute, bool generateFactories) =>
         GeneratorTestHarness.Run(
             Source(decoratorAttribute),
-            new Dictionary<string, string> {
-                ["DependencyModules_GenerateFactories"] = generateFactories ? "true" : "false"
-            });
+            new Dictionary<string, string>
+            {
+                ["DependencyModules_GenerateFactories"] = generateFactories ? "true" : "false",
+            }
+        );
 
-    private static object[] Resolve(string decoratorAttribute, bool generateFactories = false) {
+    private static object[] Resolve(string decoratorAttribute, bool generateFactories = false)
+    {
         var generated = GeneratedAssembly.Create(
             Source(decoratorAttribute),
-            buildProperties: new Dictionary<string, string> {
-                ["DependencyModules_GenerateFactories"] = generateFactories ? "true" : "false"
-            });
+            buildProperties: new Dictionary<string, string>
+            {
+                ["DependencyModules_GenerateFactories"] = generateFactories ? "true" : "false",
+            }
+        );
 
         var provider = generated.BuildProvider();
 
-        return ((System.Collections.IEnumerable)provider
-                .GetService(typeof(IEnumerable<>).MakeGenericType(generated.Type("IGreeter")))!)
+        return (
+            (System.Collections.IEnumerable)
+                provider.GetService(
+                    typeof(IEnumerable<>).MakeGenericType(generated.Type("IGreeter"))
+                )!
+        )
             .Cast<object>()
             .OrderBy(greeter => greeter.GetType().Name, System.StringComparer.Ordinal)
             .ToArray();
     }
 
     private static string Source(string decoratorAttribute) =>
-            $$"""
-              using DependencyModules.Runtime.Attributes;
+        $$"""
+            using DependencyModules.Runtime.Attributes;
 
-              namespace TestNamespace;
+            namespace TestNamespace;
 
-              public interface IGreeter { string Greet(); }
+            public interface IGreeter { string Greet(); }
 
-              [SingletonService]
-              public class Loud : IGreeter { public string Greet() => "loud"; }
+            [SingletonService]
+            public class Loud : IGreeter { public string Greet() => "loud"; }
 
-              [SingletonService]
-              public class Quiet : IGreeter { public string Greet() => "quiet"; }
+            [SingletonService]
+            public class Quiet : IGreeter { public string Greet() => "quiet"; }
 
-              public class Unregistered : IGreeter { public string Greet() => "nowhere"; }
+            public class Unregistered : IGreeter { public string Greet() => "nowhere"; }
 
-              {{decoratorAttribute}}
-              public class Logged(IGreeter inner) : IGreeter {
-                  public string Greet() => inner.Greet();
-              }
+            {{decoratorAttribute}}
+            public class Logged(IGreeter inner) : IGreeter {
+                public string Greet() => inner.Greet();
+            }
 
-              [DependencyModule]
-              public partial class TestModule;
-              """;
+            [DependencyModule]
+            public partial class TestModule;
+            """;
 }

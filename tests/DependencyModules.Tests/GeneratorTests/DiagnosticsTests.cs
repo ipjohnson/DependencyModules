@@ -9,16 +9,19 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// mistake that previously produced either a crash when the container was built or, worse, a
 /// successful build that quietly registered nothing.
 /// </summary>
-public class DiagnosticsTests {
-
+public class DiagnosticsTests
+{
     /// <summary>
     /// An abstract implementation used to be registered anyway, and the resulting
     /// AddSingleton(typeof(IThing), typeof(AbstractThing)) threw when the provider was built,
     /// a long way from the declaration responsible.
     /// </summary>
     [Fact]
-    public void AbstractService_ReportsDM0002() {
-        var result = GeneratorTestHarness.Run(Module("[SingletonService] public abstract class Thing : IThing;"));
+    public void AbstractService_ReportsDM0002()
+    {
+        var result = GeneratorTestHarness.Run(
+            Module("[SingletonService] public abstract class Thing : IThing;")
+        );
 
         var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0002");
 
@@ -28,14 +31,18 @@ public class DiagnosticsTests {
     }
 
     [Fact]
-    public void AbstractService_IsNotRegistered() {
-        var result = GeneratorTestHarness.Run(Module("[SingletonService] public abstract class Thing : IThing;"));
+    public void AbstractService_IsNotRegistered()
+    {
+        var result = GeneratorTestHarness.Run(
+            Module("[SingletonService] public abstract class Thing : IThing;")
+        );
 
         Assert.DoesNotContain(result.GeneratedSources.Keys, key => key.Contains("Dependencies"));
     }
 
     [Fact]
-    public void StaticService_ReportsDM0002() {
+    public void StaticService_ReportsDM0002()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -47,7 +54,8 @@ public class DiagnosticsTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0002");
 
@@ -59,7 +67,8 @@ public class DiagnosticsTests {
     /// bad one should not discard the good ones.
     /// </summary>
     [Fact]
-    public void ConcreteServices_AreStillRegisteredAlongsideARejectedOne() {
+    public void ConcreteServices_AreStillRegisteredAlongsideARejectedOne()
+    {
         var generated = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -75,7 +84,8 @@ public class DiagnosticsTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         var provider = generated.BuildProvider();
 
@@ -88,7 +98,8 @@ public class DiagnosticsTests {
     /// DM0003 names the fix, and generation is skipped so it is the only error shown.
     /// </summary>
     [Fact]
-    public void NonPartialModule_ReportsDM0003() {
+    public void NonPartialModule_ReportsDM0003()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -101,7 +112,8 @@ public class DiagnosticsTests {
 
             [DependencyModule]
             public class NotPartialModule;
-            """);
+            """
+        );
 
         var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0003");
 
@@ -111,7 +123,8 @@ public class DiagnosticsTests {
     }
 
     [Fact]
-    public void NonPartialModule_DoesNotGenerateAConflictingDeclaration() {
+    public void NonPartialModule_DoesNotGenerateAConflictingDeclaration()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -120,23 +133,31 @@ public class DiagnosticsTests {
 
             [DependencyModule]
             public class NotPartialModule;
-            """);
+            """
+        );
 
         // Emitting the module half would add CS0260 on top of DM0003 and point at the wrong thing.
-        Assert.DoesNotContain(result.GeneratedSources.Keys, key => key.Contains("NotPartialModule.Module"));
+        Assert.DoesNotContain(
+            result.GeneratedSources.Keys,
+            key => key.Contains("NotPartialModule.Module")
+        );
         Assert.DoesNotContain(result.CompilationDiagnostics, d => d.Id == "CS0260");
     }
 
     [Fact]
-    public void PartialModule_ReportsNothing() {
-        var result = GeneratorTestHarness.Run(Module("[SingletonService] public class Thing : IThing;"));
+    public void PartialModule_ReportsNothing()
+    {
+        var result = GeneratorTestHarness.Run(
+            Module("[SingletonService] public class Thing : IThing;")
+        );
 
         result.AssertNoErrors();
         Assert.Empty(result.GeneratorDiagnostics);
     }
 
     [Fact]
-    public void AbstractFactoryHost_IsAllowedBecauseTheFactorySuppliesTheInstance() {
+    public void AbstractFactoryHost_IsAllowedBecauseTheFactorySuppliesTheInstance()
+    {
         // The declaring type is never constructed, so an abstract host is legitimate here.
         var result = GeneratorTestHarness.Run(
             """
@@ -153,7 +174,8 @@ public class DiagnosticsTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0002");
     }
@@ -164,7 +186,8 @@ public class DiagnosticsTests {
     /// a green build — a decorator in the source that never ran.
     /// </summary>
     [Fact]
-    public void GenericDecoratorOverOpenGenericRegistration_ReportsDM0013() {
+    public void GenericDecoratorOverOpenGenericRegistration_ReportsDM0013()
+    {
         var result = GeneratorTestHarness.Run(
             OpenGenericStore(
                 """
@@ -172,7 +195,9 @@ public class DiagnosticsTests {
                 public class LoggingStore<T>(IStore<T> inner) : IStore<T> {
                     public string Read(T key) => inner.Read(key);
                 }
-                """));
+                """
+            )
+        );
 
         var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0013");
 
@@ -186,7 +211,8 @@ public class DiagnosticsTests {
     /// expansion, so both have to report.
     /// </summary>
     [Fact]
-    public void ModuleDeclaredDecoratorOverOpenGenericRegistration_ReportsDM0013() {
+    public void ModuleDeclaredDecoratorOverOpenGenericRegistration_ReportsDM0013()
+    {
         var result = GeneratorTestHarness.Run(
             OpenGenericStore(
                 """
@@ -194,7 +220,9 @@ public class DiagnosticsTests {
                     public string Read(T key) => inner.Read(key);
                 }
                 """,
-                moduleAttributes: "[Decorate(typeof(IStore<>), typeof(LoggingStore<>))]"));
+                moduleAttributes: "[Decorate(typeof(IStore<>), typeof(LoggingStore<>))]"
+            )
+        );
 
         Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0013");
     }
@@ -205,7 +233,8 @@ public class DiagnosticsTests {
     /// which is CS7003 in generated code.
     /// </summary>
     [Fact]
-    public void NonGenericDecoratorOverOpenGenericRegistration_ReportsDM0013() {
+    public void NonGenericDecoratorOverOpenGenericRegistration_ReportsDM0013()
+    {
         var result = GeneratorTestHarness.Run(
             OpenGenericStore(
                 """
@@ -213,7 +242,9 @@ public class DiagnosticsTests {
                     public string Read(string key) => inner.Read(key);
                 }
                 """,
-                moduleAttributes: "[Decorate(typeof(IStore<>), typeof(StringStoreDecorator))]"));
+                moduleAttributes: "[Decorate(typeof(IStore<>), typeof(StringStoreDecorator))]"
+            )
+        );
 
         Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0013");
     }
@@ -223,7 +254,8 @@ public class DiagnosticsTests {
     /// asserts the compilation is clean and emits.
     /// </summary>
     [Fact]
-    public void NonGenericDecoratorOverOpenGenericRegistration_StillCompiles() {
+    public void NonGenericDecoratorOverOpenGenericRegistration_StillCompiles()
+    {
         var generated = GeneratedAssembly.Create(
             OpenGenericStore(
                 """
@@ -231,7 +263,9 @@ public class DiagnosticsTests {
                     public string Read(string key) => inner.Read(key);
                 }
                 """,
-                moduleAttributes: "[Decorate(typeof(IStore<>), typeof(StringStoreDecorator))]"));
+                moduleAttributes: "[Decorate(typeof(IStore<>), typeof(StringStoreDecorator))]"
+            )
+        );
 
         Assert.Contains(generated.Services, d => d.ServiceType == generated.Type("IStore`1"));
     }
@@ -241,7 +275,8 @@ public class DiagnosticsTests {
     /// across. This is the shape a MediatR-style pipeline is built from.
     /// </summary>
     [Fact]
-    public void GenericDecoratorOverClosedRegistrations_DoesNotReportDM0013() {
+    public void GenericDecoratorOverClosedRegistrations_DoesNotReportDM0013()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -260,7 +295,8 @@ public class DiagnosticsTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0013");
     }
@@ -271,7 +307,8 @@ public class DiagnosticsTests {
     /// on the feature's primary use.
     /// </summary>
     [Fact]
-    public void DecoratorForAServiceThisCompilationDoesNotRegister_DoesNotReportDM0013() {
+    public void DecoratorForAServiceThisCompilationDoesNotRegister_DoesNotReportDM0013()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -287,7 +324,8 @@ public class DiagnosticsTests {
             [DependencyModule]
             [Decorate(typeof(IElsewhere<>), typeof(LoggingElsewhere<>))]
             public partial class TestModule;
-            """);
+            """
+        );
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0013");
     }
@@ -299,8 +337,11 @@ public class DiagnosticsTests {
     /// <c>GetRequiredService&lt;Ledger&lt;&gt;&gt;()</c>.
     /// </summary>
     [Fact]
-    public void CrossWiredGenericType_ReportsDM0014() {
-        var result = GeneratorTestHarness.Run(CrossWiredLedger("public class Ledger<T> : ILedger<T>, IAudit<T>;"));
+    public void CrossWiredGenericType_ReportsDM0014()
+    {
+        var result = GeneratorTestHarness.Run(
+            CrossWiredLedger("public class Ledger<T> : ILedger<T>, IAudit<T>;")
+        );
 
         var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0014");
 
@@ -309,8 +350,11 @@ public class DiagnosticsTests {
     }
 
     [Fact]
-    public void CrossWiredGenericType_IsNotRegistered() {
-        var result = GeneratorTestHarness.Run(CrossWiredLedger("public class Ledger<T> : ILedger<T>, IAudit<T>;"));
+    public void CrossWiredGenericType_IsNotRegistered()
+    {
+        var result = GeneratorTestHarness.Run(
+            CrossWiredLedger("public class Ledger<T> : ILedger<T>, IAudit<T>;")
+        );
 
         Assert.DoesNotContain(result.GeneratedSources.Keys, key => key.Contains("Dependencies"));
     }
@@ -320,15 +364,19 @@ public class DiagnosticsTests {
     /// interfaces.
     /// </summary>
     [Fact]
-    public void CrossWiredNonGenericType_StillRegisters() {
-        var generated = GeneratedAssembly.Create(CrossWiredLedger("public class Ledger : ILedger<int>, IAudit<int>;"));
+    public void CrossWiredNonGenericType_StillRegisters()
+    {
+        var generated = GeneratedAssembly.Create(
+            CrossWiredLedger("public class Ledger : ILedger<int>, IAudit<int>;")
+        );
 
         var provider = generated.BuildProvider();
 
         // The point of cross-wiring: both interfaces answer with the one instance.
         Assert.Same(
             provider.GetService(generated.Type("ILedger`1").MakeGenericType(typeof(int))),
-            provider.GetService(generated.Type("IAudit`1").MakeGenericType(typeof(int))));
+            provider.GetService(generated.Type("IAudit`1").MakeGenericType(typeof(int)))
+        );
     }
 
     /// <summary>
@@ -337,7 +385,8 @@ public class DiagnosticsTests {
     /// anything could report on it.
     /// </summary>
     [Fact]
-    public void InterceptorThatServesNoMember_ReportsDM0015() {
+    public void InterceptorThatServesNoMember_ReportsDM0015()
+    {
         var result = GeneratorTestHarness.Run(
             Intercepted(
                 """
@@ -350,7 +399,9 @@ public class DiagnosticsTests {
                 public class AsyncOnly : IAsyncOnly {
                     public Task<string> GetAsync(string key) => Task.FromResult(key);
                 }
-                """));
+                """
+            )
+        );
 
         var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0015");
 
@@ -365,7 +416,8 @@ public class DiagnosticsTests {
     /// one, which is how an argument-rewriting interceptor stops rewriting halfway through a service.
     /// </summary>
     [Fact]
-    public void InterceptorThatServesSomeMembers_ReportsDM0015ForTheRest() {
+    public void InterceptorThatServesSomeMembers_ReportsDM0015ForTheRest()
+    {
         var result = GeneratorTestHarness.Run(
             Intercepted(
                 """
@@ -380,7 +432,9 @@ public class DiagnosticsTests {
                     public int Count(string key) => key.Length;
                     public Task<int> CountAsync(string key) => Task.FromResult(key.Length);
                 }
-                """));
+                """
+            )
+        );
 
         var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0015");
 
@@ -392,7 +446,8 @@ public class DiagnosticsTests {
     /// An interceptor covering every shape the service uses says nothing.
     /// </summary>
     [Fact]
-    public void InterceptorThatServesEveryMember_DoesNotReportDM0015() {
+    public void InterceptorThatServesEveryMember_DoesNotReportDM0015()
+    {
         var result = GeneratorTestHarness.Run(
             Intercepted(
                 """
@@ -405,7 +460,9 @@ public class DiagnosticsTests {
                 public class SyncOnly : ISyncOnly {
                     public int Count(string key) => key.Length;
                 }
-                """));
+                """
+            )
+        );
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0015");
     }
@@ -415,7 +472,8 @@ public class DiagnosticsTests {
     /// the guide read as though the other members were still intercepted.
     /// </summary>
     [Fact]
-    public void UnsupportedMember_ReportsThatNoMemberIsIntercepted() {
+    public void UnsupportedMember_ReportsThatNoMemberIsIntercepted()
+    {
         var result = GeneratorTestHarness.Run(
             Intercepted(
                 """
@@ -430,7 +488,9 @@ public class DiagnosticsTests {
                     public bool TryGet(string key, out string value) { value = key; return true; }
                     public int Fine(string key) => key.Length;
                 }
-                """));
+                """
+            )
+        );
 
         var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0008");
 
@@ -440,68 +500,68 @@ public class DiagnosticsTests {
 
     private static string Intercepted(string body) =>
         $$"""
-          using System.Threading.Tasks;
-          using DependencyModules.Runtime.Attributes;
-          using DependencyModules.Runtime.Interception;
+            using System.Threading.Tasks;
+            using DependencyModules.Runtime.Attributes;
+            using DependencyModules.Runtime.Interception;
 
-          namespace TestNamespace;
+            namespace TestNamespace;
 
-          [SingletonService]
-          public class SyncOnlyInterceptor : IInterceptor {
-              public TResult Intercept<TResult>(InvocationContext<TResult> context) => context.Proceed();
-          }
+            [SingletonService]
+            public class SyncOnlyInterceptor : IInterceptor {
+                public TResult Intercept<TResult>(InvocationContext<TResult> context) => context.Proceed();
+            }
 
-          {{body}}
+            {{body}}
 
-          [DependencyModule]
-          public partial class TestModule;
-          """;
+            [DependencyModule]
+            public partial class TestModule;
+            """;
 
     private static string OpenGenericStore(string body, string moduleAttributes = "") =>
         $$"""
-          using DependencyModules.Runtime.Attributes;
+            using DependencyModules.Runtime.Attributes;
 
-          namespace TestNamespace;
+            namespace TestNamespace;
 
-          public interface IStore<T> { string Read(T key); }
+            public interface IStore<T> { string Read(T key); }
 
-          [SingletonService]
-          public class Store<T> : IStore<T> { public string Read(T key) => "store"; }
+            [SingletonService]
+            public class Store<T> : IStore<T> { public string Read(T key) => "store"; }
 
-          {{body}}
+            {{body}}
 
-          [DependencyModule]
-          {{moduleAttributes}}
-          public partial class TestModule;
-          """;
+            [DependencyModule]
+            {{moduleAttributes}}
+            public partial class TestModule;
+            """;
 
     private static string CrossWiredLedger(string implementation) =>
         $$"""
-          using DependencyModules.Runtime.Attributes;
+            using DependencyModules.Runtime.Attributes;
 
-          namespace TestNamespace;
+            namespace TestNamespace;
 
-          public interface ILedger<T>;
-          public interface IAudit<T>;
+            public interface ILedger<T>;
+            public interface IAudit<T>;
 
-          [CrossWireService]
-          {{implementation}}
+            [CrossWireService]
+            {{implementation}}
 
-          [DependencyModule]
-          public partial class TestModule;
-          """;
+            [DependencyModule]
+            public partial class TestModule;
+            """;
 
     private static string Module(string body) =>
         $$"""
-          using DependencyModules.Runtime.Attributes;
+            using DependencyModules.Runtime.Attributes;
 
-          namespace TestNamespace;
+            namespace TestNamespace;
 
-          public interface IThing;
+            public interface IThing;
 
-          {{body}}
+            {{body}}
 
-          [DependencyModule]
-          public partial class TestModule;
-          """;
+            [DependencyModule]
+            public partial class TestModule;
+            """;
 }

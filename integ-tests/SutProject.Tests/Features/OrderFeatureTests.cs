@@ -3,14 +3,16 @@ using Xunit;
 
 namespace SutProject.Tests.Features;
 
-public class OrderFeatureTests {
+public class OrderFeatureTests
+{
     [ModuleTest]
     [FirstFeatureHandler]
     [SecondFeatureHandler]
     [ThirdFeatureHandler]
-    public void OrderTest(IEnumerable<DependencyValue> values) {
+    public void OrderTest(IEnumerable<DependencyValue> values)
+    {
         var valuesList = values as List<DependencyValue> ?? values.ToList();
-        
+
         Assert.Equal(3, valuesList.Count);
         Assert.Equal("1", valuesList[0].Value);
         Assert.Equal("2", valuesList[1].Value);

@@ -7,7 +7,8 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace DependencyModules.SourceGenerator.Impl.Utilities;
 
-public class ServiceModelUtility {
+public class ServiceModelUtility
+{
     /// <summary>
     /// Interfaces that describe a capability rather than a role, keyed by namespace and name.
     /// </summary>
@@ -41,11 +42,12 @@ public class ServiceModelUtility {
     /// typeof(IDisposable))]</c> still registers <c>IDisposable</c>. This governs inference only.
     /// </para>
     /// </remarks>
-    private static readonly HashSet<string> _capabilityInterfaces = new() {
+    private static readonly HashSet<string> _capabilityInterfaces = new()
+    {
         "System.IDisposable",
         "System.IAsyncDisposable",
         "System.ICloneable",
-        "System.IComparable",            // covers IComparable<T>, same name
+        "System.IComparable", // covers IComparable<T>, same name
         "System.IEquatable",
         "System.IConvertible",
         "System.IFormattable",
@@ -57,28 +59,44 @@ public class ServiceModelUtility {
         "System.Runtime.Serialization.ISerializable",
         "System.ComponentModel.INotifyPropertyChanged",
         "System.ComponentModel.INotifyPropertyChanging",
-        "System.Collections.Specialized.INotifyCollectionChanged"
+        "System.Collections.Specialized.INotifyCollectionChanged",
     };
 
-    private static readonly ITypeDefinition _crossWireService =
-        KnownTypes.DependencyModules.Attributes.CrossWireServiceAttribute;
+    private static readonly ITypeDefinition _crossWireService = KnownTypes
+        .DependencyModules
+        .Attributes
+        .CrossWireServiceAttribute;
 
-    private static readonly ITypeDefinition _serializerService =
-        KnownTypes.Microsoft.TextJson.JsonSourceGenerationOptionsAttribute;
+    private static readonly ITypeDefinition _serializerService = KnownTypes
+        .Microsoft
+        .TextJson
+        .JsonSourceGenerationOptionsAttribute;
 
-    private static readonly ITypeDefinition[] _attributeTypes = {
-        KnownTypes.DependencyModules.Attributes.TransientServiceAttribute, KnownTypes.DependencyModules.Attributes.ScopedServiceAttribute, KnownTypes.DependencyModules.Attributes.SingletonServiceAttribute,
+    private static readonly ITypeDefinition[] _attributeTypes =
+    {
+        KnownTypes.DependencyModules.Attributes.TransientServiceAttribute,
+        KnownTypes.DependencyModules.Attributes.ScopedServiceAttribute,
+        KnownTypes.DependencyModules.Attributes.SingletonServiceAttribute,
     };
 
     /// <summary>
     /// The lifetime a service attribute type carries.
     /// </summary>
-    private static ServiceLifestyle LifestyleOf(ITypeDefinition attributeType) {
-        if (attributeType.Name == KnownTypes.DependencyModules.Attributes.SingletonServiceAttribute.Name) {
+    private static ServiceLifestyle LifestyleOf(ITypeDefinition attributeType)
+    {
+        if (
+            attributeType.Name
+            == KnownTypes.DependencyModules.Attributes.SingletonServiceAttribute.Name
+        )
+        {
             return ServiceLifestyle.Singleton;
         }
 
-        if (attributeType.Name == KnownTypes.DependencyModules.Attributes.ScopedServiceAttribute.Name) {
+        if (
+            attributeType.Name
+            == KnownTypes.DependencyModules.Attributes.ScopedServiceAttribute.Name
+        )
+        {
             return ServiceLifestyle.Scoped;
         }
 
@@ -86,53 +104,84 @@ public class ServiceModelUtility {
     }
 
     public static ServiceModel? GetServiceModel(
-        SyntaxTransformContext context, CancellationToken cancellationToken) {
+        SyntaxTransformContext context,
+        CancellationToken cancellationToken
+    )
+    {
         cancellationToken.ThrowIfCancellationRequested();
-        if (context.Node is ClassDeclarationSyntax or RecordDeclarationSyntax) {
+        if (context.Node is ClassDeclarationSyntax or RecordDeclarationSyntax)
+        {
             return GetClassDeclarationServiceModel(context, cancellationToken);
         }
 
-        if (context.Node is MethodDeclarationSyntax methodDeclarationSyntax) {
-            return MethodDeclarationServiceModel(context, methodDeclarationSyntax, cancellationToken);
+        if (context.Node is MethodDeclarationSyntax methodDeclarationSyntax)
+        {
+            return MethodDeclarationServiceModel(
+                context,
+                methodDeclarationSyntax,
+                cancellationToken
+            );
         }
 
         return null;
     }
 
-    private static ServiceModel? MethodDeclarationServiceModel(SyntaxTransformContext context, MethodDeclarationSyntax methodDeclarationSyntax, CancellationToken cancellationToken) {
+    private static ServiceModel? MethodDeclarationServiceModel(
+        SyntaxTransformContext context,
+        MethodDeclarationSyntax methodDeclarationSyntax,
+        CancellationToken cancellationToken
+    )
+    {
         // only support public or internal factory methods
-        if (methodDeclarationSyntax.Modifiers.Any(
-                m => m.IsKind(SyntaxKind.PrivateKeyword) || m.IsKind(SyntaxKind.ProtectedKeyword))) {
+        if (
+            methodDeclarationSyntax.Modifiers.Any(m =>
+                m.IsKind(SyntaxKind.PrivateKeyword) || m.IsKind(SyntaxKind.ProtectedKeyword)
+            )
+        )
+        {
             return null;
         }
 
         // only support static methods
-        if (!methodDeclarationSyntax.Modifiers.Any(m => m.IsKind(SyntaxKind.StaticKeyword))) {
+        if (!methodDeclarationSyntax.Modifiers.Any(m => m.IsKind(SyntaxKind.StaticKeyword)))
+        {
             return null;
         }
 
         var returnType = methodDeclarationSyntax.ReturnType.GetTypeDefinition(context);
         var factoryModel = GetFactoryModel(context, methodDeclarationSyntax, cancellationToken);
 
-        if (returnType == null || factoryModel == null) {
+        if (returnType == null || factoryModel == null)
+        {
             return null;
         }
 
-        var models =
-            AttributeModelHelper.GetAttributeModels(context, context.Node, cancellationToken);
+        var models = AttributeModelHelper.GetAttributeModels(
+            context,
+            context.Node,
+            cancellationToken
+        );
 
         return new ServiceModel(
             returnType,
             null,
-            factoryModel, null,
+            factoryModel,
+            null,
             GetRegistrations(context, returnType, models, cancellationToken),
             RegistrationFeature.None,
-            Location: LocationModel.From(context.Node));
+            Location: LocationModel.From(context.Node)
+        );
     }
 
-    private static ServiceFactoryModel? GetFactoryModel(SyntaxTransformContext context, MethodDeclarationSyntax methodDeclarationSyntax, CancellationToken cancellationToken) {
+    private static ServiceFactoryModel? GetFactoryModel(
+        SyntaxTransformContext context,
+        MethodDeclarationSyntax methodDeclarationSyntax,
+        CancellationToken cancellationToken
+    )
+    {
         var factoryClass = methodDeclarationSyntax.FirstAncestorOrSelf<TypeDeclarationSyntax>();
-        if (factoryClass == null) {
+        if (factoryClass == null)
+        {
             return null;
         }
 
@@ -141,7 +190,8 @@ public class ServiceModelUtility {
         return new ServiceFactoryModel(
             factoryType,
             methodDeclarationSyntax.Identifier.ToString().Trim('"'),
-            methodDeclarationSyntax.GetMethodParameters(context, cancellationToken));
+            methodDeclarationSyntax.GetMethodParameters(context, cancellationToken)
+        );
     }
 
     /// <summary>
@@ -149,22 +199,28 @@ public class ServiceModelUtility {
     /// report it instead of emitting a registration that fails when the provider is built.
     /// </summary>
     private static RegistrationFeature GetConstructionFeatures(
-        SyntaxTransformContext context, CancellationToken cancellationToken) {
-
-        if (context.Node is not TypeDeclarationSyntax typeDeclarationSyntax) {
+        SyntaxTransformContext context,
+        CancellationToken cancellationToken
+    )
+    {
+        if (context.Node is not TypeDeclarationSyntax typeDeclarationSyntax)
+        {
             return RegistrationFeature.None;
         }
 
         var features = RegistrationFeature.None;
 
-        if (typeDeclarationSyntax.Modifiers.Any(m => m.IsKind(SyntaxKind.StaticKeyword))) {
+        if (typeDeclarationSyntax.Modifiers.Any(m => m.IsKind(SyntaxKind.StaticKeyword)))
+        {
             features |= RegistrationFeature.StaticImplementation;
         }
-        else if (typeDeclarationSyntax.Modifiers.Any(m => m.IsKind(SyntaxKind.AbstractKeyword))) {
+        else if (typeDeclarationSyntax.Modifiers.Any(m => m.IsKind(SyntaxKind.AbstractKeyword)))
+        {
             features |= RegistrationFeature.AbstractImplementation;
         }
 
-        if (IsIntercepted(typeDeclarationSyntax, context, cancellationToken)) {
+        if (IsIntercepted(typeDeclarationSyntax, context, cancellationToken))
+        {
             features |= RegistrationFeature.Intercepted;
         }
 
@@ -183,15 +239,22 @@ public class ServiceModelUtility {
     private static bool IsIntercepted(
         TypeDeclarationSyntax typeDeclarationSyntax,
         SyntaxTransformContext context,
-        CancellationToken cancellationToken) {
-
-        foreach (var attributeList in typeDeclarationSyntax.AttributeLists) {
-            foreach (var attribute in attributeList.Attributes) {
-                if (AttributeTypeMatcher.Matches(
+        CancellationToken cancellationToken
+    )
+    {
+        foreach (var attributeList in typeDeclarationSyntax.AttributeLists)
+        {
+            foreach (var attribute in attributeList.Attributes)
+            {
+                if (
+                    AttributeTypeMatcher.Matches(
                         context.SemanticModel,
                         attribute,
                         KnownTypes.DependencyModules.Attributes.InterceptAttribute,
-                        cancellationToken)) {
+                        cancellationToken
+                    )
+                )
+                {
                     return true;
                 }
             }
@@ -200,29 +263,44 @@ public class ServiceModelUtility {
         return false;
     }
 
-    private static ServiceModel? GetClassDeclarationServiceModel(SyntaxTransformContext context, CancellationToken cancellationToken) {
+    private static ServiceModel? GetClassDeclarationServiceModel(
+        SyntaxTransformContext context,
+        CancellationToken cancellationToken
+    )
+    {
         var classDefinition = GetClassDefinition(context);
 
-        if (classDefinition == null) {
+        if (classDefinition == null)
+        {
             return null;
         }
 
-        var attributes =
-            AttributeModelHelper.GetAttributeModels(context, context.Node, cancellationToken);
+        var attributes = AttributeModelHelper.GetAttributeModels(
+            context,
+            context.Node,
+            cancellationToken
+        );
 
-        var registrations = GetRegistrations(context, classDefinition, attributes, cancellationToken);
+        var registrations = GetRegistrations(
+            context,
+            classDefinition,
+            attributes,
+            cancellationToken
+        );
 
-        if (registrations.Count == 0) {
+        if (registrations.Count == 0)
+        {
             return new ServiceModel(
                 classDefinition,
                 GetConstructorInfo(context, context.Node, cancellationToken),
                 null,
                 FactoryOutput,
-                new[] {
+                new[]
+                {
                     new ServiceRegistrationModel(
                         KnownTypes.Microsoft.TextJson.IJsonTypeInfoResolver,
                         ServiceLifestyle.Transient
-                    )
+                    ),
                 },
                 RegistrationFeature.AutoRegisterSourceGenerator,
                 Location: LocationModel.From(context.Node)
@@ -231,19 +309,25 @@ public class ServiceModelUtility {
 
         FactoryOutputDelegate? factoryOutput = null;
 
-        if (registrations.Any(
-                r => r.ServiceType.Equals(KnownTypes.Microsoft.TextJson.IJsonTypeInfoResolver))) {
+        if (
+            registrations.Any(r =>
+                r.ServiceType.Equals(KnownTypes.Microsoft.TextJson.IJsonTypeInfoResolver)
+            )
+        )
+        {
             factoryOutput = FactoryOutput;
         }
 
-        return new ServiceModel(classDefinition,
+        return new ServiceModel(
+            classDefinition,
             GetConstructorInfo(context, context.Node, cancellationToken),
             null,
             factoryOutput,
             registrations,
             GetConstructionFeatures(context, cancellationToken),
             EnvironmentConditionUtility.GetConditions(context, context.Node, cancellationToken),
-            LocationModel.From(context.Node));
+            LocationModel.From(context.Node)
+        );
     }
 
     /// <summary>
@@ -263,92 +347,132 @@ public class ServiceModelUtility {
     /// type's parameters.
     /// </para>
     /// </remarks>
-    public static ConstructorInfoModel? GetConstructorInfo(SyntaxTransformContext context, SyntaxNode node, CancellationToken cancellationToken) {
+    public static ConstructorInfoModel? GetConstructorInfo(
+        SyntaxTransformContext context,
+        SyntaxNode node,
+        CancellationToken cancellationToken
+    )
+    {
         var constructorList = new List<ConstructorDeclarationSyntax>();
 
         var members = node is TypeDeclarationSyntax declaration
             ? declaration.Members.OfType<ConstructorDeclarationSyntax>()
             : node.DescendantNodes().OfType<ConstructorDeclarationSyntax>();
 
-        foreach (var constructor in members) {
-            if (constructor.Modifiers.Any(m => m.IsKind(SyntaxKind.PrivateKeyword))) {
+        foreach (var constructor in members)
+        {
+            if (constructor.Modifiers.Any(m => m.IsKind(SyntaxKind.PrivateKeyword)))
+            {
                 continue;
             }
 
-            if (constructor.AttributeLists.Any(attributeList =>
-                    attributeList.Attributes.Any(
-                        a => a.Name.ToString() == "ActivatorUtilitiesConstructorAttribute" ||
-                             a.Name.ToString() == "ActivatorUtilitiesConstructor"))) {
-
-                return new ConstructorInfoModel(constructor.GetMethodParameters(context, cancellationToken));
+            if (
+                constructor.AttributeLists.Any(attributeList =>
+                    attributeList.Attributes.Any(a =>
+                        a.Name.ToString() == "ActivatorUtilitiesConstructorAttribute"
+                        || a.Name.ToString() == "ActivatorUtilitiesConstructor"
+                    )
+                )
+            )
+            {
+                return new ConstructorInfoModel(
+                    constructor.GetMethodParameters(context, cancellationToken)
+                );
             }
 
             constructorList.Add(constructor);
         }
 
-        if (node is TypeDeclarationSyntax { ParameterList.Parameters.Count: > 0 } typeDeclarationSyntax) {
+        if (
+            node is TypeDeclarationSyntax
+            {
+                ParameterList.Parameters.Count: > 0
+            } typeDeclarationSyntax
+        )
+        {
             return new ConstructorInfoModel(
-                typeDeclarationSyntax.ParameterList.GetParameters(context, cancellationToken));
+                typeDeclarationSyntax.ParameterList.GetParameters(context, cancellationToken)
+            );
         }
-        
-        if (constructorList.Count == 0) {
+
+        if (constructorList.Count == 0)
+        {
             return new ConstructorInfoModel(ImmutableArray<ParameterInfoModel>.Empty);
         }
 
-        if (constructorList.Count == 1) {
+        if (constructorList.Count == 1)
+        {
             var constructor = constructorList[0];
 
-            return new ConstructorInfoModel(constructor.GetMethodParameters(context, cancellationToken));
+            return new ConstructorInfoModel(
+                constructor.GetMethodParameters(context, cancellationToken)
+            );
         }
 
         constructorList.Sort(
-            (a, b) =>
-                a.ParameterList.Parameters.Count.CompareTo(b.ParameterList.Parameters.Count));
+            (a, b) => a.ParameterList.Parameters.Count.CompareTo(b.ParameterList.Parameters.Count)
+        );
 
         return new ConstructorInfoModel(
             constructorList.Last().GetMethodParameters(context, cancellationToken)
         );
     }
 
-    private static IOutputComponent? FactoryOutput(ServiceModel servicemodel, ServiceRegistrationModel registrationmodel) {
+    private static IOutputComponent? FactoryOutput(
+        ServiceModel servicemodel,
+        ServiceRegistrationModel registrationmodel
+    )
+    {
         var signature = "_ => ";
 
-        if (registrationmodel.Key != null) {
+        if (registrationmodel.Key != null)
+        {
             signature = "(_,_) => ";
         }
 
         var component = CodeOutputComponent.Get(
-            $"{signature}{servicemodel.ImplementationType.Namespace}.{servicemodel.ImplementationType.Name}.Default");
+            $"{signature}{servicemodel.ImplementationType.Namespace}.{servicemodel.ImplementationType.Name}.Default"
+        );
 
         return component;
     }
 
-    private static ITypeDefinition? GetClassDefinition(SyntaxTransformContext context) {
+    private static ITypeDefinition? GetClassDefinition(SyntaxTransformContext context)
+    {
         ITypeDefinition? classTypeDefinition = null;
 
-        if (context.Node is TypeDeclarationSyntax typeDeclarationSyntax) {
+        if (context.Node is TypeDeclarationSyntax typeDeclarationSyntax)
+        {
             classTypeDefinition = GetTypeDeclarationDefinition(typeDeclarationSyntax);
         }
 
         return classTypeDefinition;
     }
 
-    private static ITypeDefinition GetTypeDeclarationDefinition(TypeDeclarationSyntax typeDeclarationSyntax) {
+    private static ITypeDefinition GetTypeDeclarationDefinition(
+        TypeDeclarationSyntax typeDeclarationSyntax
+    )
+    {
         ITypeDefinition classTypeDefinition;
         var declaredName = GetDeclaredName(typeDeclarationSyntax);
 
-        if (typeDeclarationSyntax.TypeParameterList is { Parameters.Count: > 0 }) {
-            classTypeDefinition =
-                new GenericTypeDefinition(
-                    TypeDefinitionEnum.ClassDefinition,
-                    typeDeclarationSyntax.GetNamespace(),
-                    declaredName,
-                    typeDeclarationSyntax.TypeParameterList.Parameters.Select(_ => TypeDefinition.Get("", ""))
-                        .ToArray()
-                );
+        if (typeDeclarationSyntax.TypeParameterList is { Parameters.Count: > 0 })
+        {
+            classTypeDefinition = new GenericTypeDefinition(
+                TypeDefinitionEnum.ClassDefinition,
+                typeDeclarationSyntax.GetNamespace(),
+                declaredName,
+                typeDeclarationSyntax
+                    .TypeParameterList.Parameters.Select(_ => TypeDefinition.Get("", ""))
+                    .ToArray()
+            );
         }
-        else {
-            classTypeDefinition = TypeDefinition.Get(typeDeclarationSyntax.GetNamespace(), declaredName);
+        else
+        {
+            classTypeDefinition = TypeDefinition.Get(
+                typeDeclarationSyntax.GetNamespace(),
+                declaredName
+            );
         }
 
         return classTypeDefinition;
@@ -358,35 +482,67 @@ public class ServiceModelUtility {
     /// The type's name qualified by any containing types, so a nested service is referenced as
     /// Outer.Inner rather than Inner, which would resolve against the namespace and fail to compile.
     /// </summary>
-    private static string GetDeclaredName(TypeDeclarationSyntax typeDeclarationSyntax) {
+    private static string GetDeclaredName(TypeDeclarationSyntax typeDeclarationSyntax)
+    {
         var name = typeDeclarationSyntax.Identifier.ToString();
 
-        foreach (var containingType in typeDeclarationSyntax.Ancestors().OfType<TypeDeclarationSyntax>()) {
+        foreach (
+            var containingType in typeDeclarationSyntax.Ancestors().OfType<TypeDeclarationSyntax>()
+        )
+        {
             name = containingType.Identifier + "." + name;
         }
 
         return name;
     }
 
-    private static List<ServiceRegistrationModel> GetRegistrations(SyntaxTransformContext context, ITypeDefinition classDefinition, IReadOnlyList<AttributeModel> attributes, CancellationToken cancellationToken) {
+    private static List<ServiceRegistrationModel> GetRegistrations(
+        SyntaxTransformContext context,
+        ITypeDefinition classDefinition,
+        IReadOnlyList<AttributeModel> attributes,
+        CancellationToken cancellationToken
+    )
+    {
         var list = new List<ServiceRegistrationModel>();
 
-        foreach (var attributeSyntax in
-                 context.Node.DescendantNodes().OfType<AttributeSyntax>()) {
-            foreach (var typeDefinition in _attributeTypes) {
+        foreach (var attributeSyntax in context.Node.DescendantNodes().OfType<AttributeSyntax>())
+        {
+            foreach (var typeDefinition in _attributeTypes)
+            {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 // Resolved, not compared as written: a namespace-qualified usage, a global:: prefix
                 // and a using alias all name the same attribute, and all of them used to be silently
                 // skipped — leaving the class unregistered with nothing to say so.
-                if (AttributeTypeMatcher.Matches(
-                        context.SemanticModel, attributeSyntax, typeDefinition, cancellationToken)) {
-                    list.Add(GetServiceRegistration(context, attributeSyntax, classDefinition, typeDefinition));
+                if (
+                    AttributeTypeMatcher.Matches(
+                        context.SemanticModel,
+                        attributeSyntax,
+                        typeDefinition,
+                        cancellationToken
+                    )
+                )
+                {
+                    list.Add(
+                        GetServiceRegistration(
+                            context,
+                            attributeSyntax,
+                            classDefinition,
+                            typeDefinition
+                        )
+                    );
                 }
             }
 
-            if (AttributeTypeMatcher.Matches(
-                    context.SemanticModel, attributeSyntax, _crossWireService, cancellationToken)) {
+            if (
+                AttributeTypeMatcher.Matches(
+                    context.SemanticModel,
+                    attributeSyntax,
+                    _crossWireService,
+                    cancellationToken
+                )
+            )
+            {
                 list.AddRange(GetCrossWiredService(context, attributeSyntax, classDefinition));
             }
         }
@@ -394,8 +550,12 @@ public class ServiceModelUtility {
         return list;
     }
 
-    private static IEnumerable<ServiceRegistrationModel> GetCrossWiredService(SyntaxTransformContext context, AttributeSyntax attributeSyntax, ITypeDefinition classDefinition) {
-
+    private static IEnumerable<ServiceRegistrationModel> GetCrossWiredService(
+        SyntaxTransformContext context,
+        AttributeSyntax attributeSyntax,
+        ITypeDefinition classDefinition
+    )
+    {
         RegistrationType? registrationType = null;
         ITypeDefinition? realm = null;
         object? key = null;
@@ -403,23 +563,33 @@ public class ServiceModelUtility {
         var order = 0;
         var namespaces = new List<string>();
 
-        if (attributeSyntax.ArgumentList != null) {
-            foreach (var argumentSyntax in attributeSyntax.ArgumentList.Arguments) {
-                if (argumentSyntax.NameEquals != null) {
-                    switch (argumentSyntax.NameEquals.Name.ToString()) {
+        if (attributeSyntax.ArgumentList != null)
+        {
+            foreach (var argumentSyntax in attributeSyntax.ArgumentList.Arguments)
+            {
+                if (argumentSyntax.NameEquals != null)
+                {
+                    switch (argumentSyntax.NameEquals.Name.ToString())
+                    {
                         case "Key":
                             key = argumentSyntax.Expression.ToString();
-                            if (argumentSyntax.Expression is MemberAccessExpressionSyntax accessExpressionSyntax) {
+                            if (
+                                argumentSyntax.Expression
+                                is MemberAccessExpressionSyntax accessExpressionSyntax
+                            )
+                            {
                                 var type = accessExpressionSyntax.GetTypeDefinition(context);
-                                if (type != null) {
+                                if (type != null)
+                                {
                                     namespaces.AddRange(type.KnownNamespaces);
                                 }
                             }
                             break;
 
                         case "Using":
-                            registrationType =
-                                BaseSourceGenerator.GetRegistrationType(argumentSyntax.Expression.ToString());
+                            registrationType = BaseSourceGenerator.GetRegistrationType(
+                                argumentSyntax.Expression.ToString()
+                            );
                             break;
 
                         case "Lifetime":
@@ -427,13 +597,20 @@ public class ServiceModelUtility {
                             break;
 
                         case "Realm":
-                            if (argumentSyntax.Expression is TypeOfExpressionSyntax realmType) {
+                            if (argumentSyntax.Expression is TypeOfExpressionSyntax realmType)
+                            {
                                 realm = realmType.Type.GetTypeDefinition(context);
                             }
                             break;
 
                         case "Order":
-                            if (int.TryParse(argumentSyntax.Expression.ToString(), out var parsedOrder)) {
+                            if (
+                                int.TryParse(
+                                    argumentSyntax.Expression.ToString(),
+                                    out var parsedOrder
+                                )
+                            )
+                            {
                                 order = parsedOrder;
                             }
                             break;
@@ -442,11 +619,14 @@ public class ServiceModelUtility {
             }
         }
 
-        if (context.Node is TypeDeclarationSyntax { BaseList: not null } typeDeclarationSyntax) {
-            foreach (var baseTypeSyntax in typeDeclarationSyntax.BaseList.Types) {
+        if (context.Node is TypeDeclarationSyntax { BaseList: not null } typeDeclarationSyntax)
+        {
+            foreach (var baseTypeSyntax in typeDeclarationSyntax.BaseList.Types)
+            {
                 var type = baseTypeSyntax.Type.GetTypeDefinition(context);
 
-                if (type?.TypeDefinitionEnum == TypeDefinitionEnum.InterfaceDefinition) {
+                if (type?.TypeDefinitionEnum == TypeDefinitionEnum.InterfaceDefinition)
+                {
                     yield return new ServiceRegistrationModel(
                         type,
                         lifestyle,
@@ -462,17 +642,18 @@ public class ServiceModelUtility {
         }
     }
 
-    private static ServiceLifestyle GetLifestyle(string toString) {
+    private static ServiceLifestyle GetLifestyle(string toString)
+    {
         // The value arrives as written in source, normally qualified: "ServiceLifetime.Scoped".
         // Parsing that whole string fails, and the silent fallback below then registered every
         // cross-wired service as a singleton regardless of the lifetime the developer asked for.
         var separatorIndex = toString.LastIndexOf('.');
 
-        var value = separatorIndex >= 0
-            ? toString.Substring(separatorIndex + 1).Trim()
-            : toString.Trim();
+        var value =
+            separatorIndex >= 0 ? toString.Substring(separatorIndex + 1).Trim() : toString.Trim();
 
-        if (Enum.TryParse(value, out ServiceLifestyle lifestyle)) {
+        if (Enum.TryParse(value, out ServiceLifestyle lifestyle))
+        {
             return lifestyle;
         }
 
@@ -483,8 +664,9 @@ public class ServiceModelUtility {
         SyntaxTransformContext context,
         AttributeSyntax attributeSyntax,
         ITypeDefinition classDefinition,
-        ITypeDefinition attributeType) {
-
+        ITypeDefinition attributeType
+    )
+    {
         // The lifetime comes from the attribute type the usage resolved to, not from how the usage
         // was spelled. Reading it back off `attributeSyntax.Name` meant only a spelling that literally
         // began with "Singleton" or "Scoped" produced that lifetime: a qualified name, a global::
@@ -503,43 +685,66 @@ public class ServiceModelUtility {
         object? key = null;
         var namespaces = new List<string>();
 
-        if (attributeSyntax.ArgumentList != null) {
-            foreach (var argumentSyntax in attributeSyntax.ArgumentList.Arguments) {
-                if (argumentSyntax.NameEquals != null) {
-                    switch (argumentSyntax.NameEquals.Name.ToString()) {
+        if (attributeSyntax.ArgumentList != null)
+        {
+            foreach (var argumentSyntax in attributeSyntax.ArgumentList.Arguments)
+            {
+                if (argumentSyntax.NameEquals != null)
+                {
+                    switch (argumentSyntax.NameEquals.Name.ToString())
+                    {
                         case "Key":
                             key = argumentSyntax.Expression.ToString();
 
-                            if (argumentSyntax.Expression is MemberAccessExpressionSyntax accessExpressionSyntax) {
+                            if (
+                                argumentSyntax.Expression
+                                is MemberAccessExpressionSyntax accessExpressionSyntax
+                            )
+                            {
                                 var type = accessExpressionSyntax.GetTypeDefinition(context);
-                                if (type != null) {
+                                if (type != null)
+                                {
                                     namespaces.AddRange(type.KnownNamespaces);
                                 }
                             }
                             break;
                         case "Using":
-                            registrationType =
-                                BaseSourceGenerator.GetRegistrationType(argumentSyntax.Expression.ToString());
+                            registrationType = BaseSourceGenerator.GetRegistrationType(
+                                argumentSyntax.Expression.ToString()
+                            );
                             break;
 
                         case "As":
-                            if (argumentSyntax.Expression is TypeOfExpressionSyntax typeOfExpression) {
+                            if (
+                                argumentSyntax.Expression is TypeOfExpressionSyntax typeOfExpression
+                            )
+                            {
                                 registration = typeOfExpression.Type.GetTypeDefinition(context);
 
-                                if (registration is GenericTypeDefinition) {
-                                    registration = ReplaceGenericParametersForRegistration(registration);
+                                if (registration is GenericTypeDefinition)
+                                {
+                                    registration = ReplaceGenericParametersForRegistration(
+                                        registration
+                                    );
                                 }
                             }
                             break;
 
                         case "Realm":
-                            if (argumentSyntax.Expression is TypeOfExpressionSyntax realmType) {
+                            if (argumentSyntax.Expression is TypeOfExpressionSyntax realmType)
+                            {
                                 realm = realmType.Type.GetTypeDefinition(context);
                             }
                             break;
 
                         case "Order":
-                            if (int.TryParse(argumentSyntax.Expression.ToString(), out var parsedOrder)) {
+                            if (
+                                int.TryParse(
+                                    argumentSyntax.Expression.ToString(),
+                                    out var parsedOrder
+                                )
+                            )
+                            {
                                 order = parsedOrder;
                             }
                             break;
@@ -561,7 +766,10 @@ public class ServiceModelUtility {
     }
 
     private static ITypeDefinition GetServiceTypeFromClass(
-        SyntaxTransformContext context, ITypeDefinition classDefinition) {
+        SyntaxTransformContext context,
+        ITypeDefinition classDefinition
+    )
+    {
         return GetBaseTypeRegistration(context) ?? classDefinition;
     }
 
@@ -570,27 +778,41 @@ public class ServiceModelUtility {
     /// declared interface that is not a <see cref="_capabilityInterfaces">capability</see>, else the
     /// first one a base class provides.
     /// </summary>
-    private static ITypeDefinition? GetBaseTypeRegistration(SyntaxTransformContext context) {
-        if (context.Node is TypeDeclarationSyntax { BaseList: not null } typeDeclarationSyntax) {
+    private static ITypeDefinition? GetBaseTypeRegistration(SyntaxTransformContext context)
+    {
+        if (context.Node is TypeDeclarationSyntax { BaseList: not null } typeDeclarationSyntax)
+        {
             INamedTypeSymbol? baseClassSymbol = null;
 
-            foreach (var baseTypeSyntax in typeDeclarationSyntax.BaseList.Types) {
-                var symbolInfo = ModelExtensions.GetSymbolInfo(context.SemanticModel, baseTypeSyntax.Type);
+            foreach (var baseTypeSyntax in typeDeclarationSyntax.BaseList.Types)
+            {
+                var symbolInfo = ModelExtensions.GetSymbolInfo(
+                    context.SemanticModel,
+                    baseTypeSyntax.Type
+                );
 
-                if (symbolInfo.Symbol is INamedTypeSymbol namedTypeSymbol) {
-                    var baseTypeDefinition =
-                        namedTypeSymbol.GetTypeDefinitionFromNamedSymbol();
+                if (symbolInfo.Symbol is INamedTypeSymbol namedTypeSymbol)
+                {
+                    var baseTypeDefinition = namedTypeSymbol.GetTypeDefinitionFromNamedSymbol();
 
                     // only auto register interfaces
-                    if (baseTypeDefinition is { TypeDefinitionEnum: TypeDefinitionEnum.InterfaceDefinition }) {
+                    if (
+                        baseTypeDefinition is
+                        { TypeDefinitionEnum: TypeDefinitionEnum.InterfaceDefinition }
+                    )
+                    {
                         // Passed over rather than remembered: a skipped interface must not become the
                         // symbol walked below, or IEnumerable<int> would hand back IEnumerable.
-                        if (SkipInterface(baseTypeDefinition)) {
+                        if (SkipInterface(baseTypeDefinition))
+                        {
                             continue;
                         }
 
-                        if (baseTypeDefinition is GenericTypeDefinition) {
-                            baseTypeDefinition = ReplaceGenericParametersForRegistration(baseTypeDefinition);
+                        if (baseTypeDefinition is GenericTypeDefinition)
+                        {
+                            baseTypeDefinition = ReplaceGenericParametersForRegistration(
+                                baseTypeDefinition
+                            );
                         }
 
                         return baseTypeDefinition;
@@ -600,7 +822,8 @@ public class ServiceModelUtility {
                 }
             }
 
-            if (baseClassSymbol != null) {
+            if (baseClassSymbol != null)
+            {
                 return GetBaseInterface(context, baseClassSymbol);
             }
         }
@@ -608,26 +831,31 @@ public class ServiceModelUtility {
         return null;
     }
 
-
-    private static ITypeDefinition? GetBaseInterface(SyntaxTransformContext context, INamedTypeSymbol baseTypeSymbol) {
-        foreach (var interfaceSymbol in baseTypeSymbol.Interfaces) {
-            var interfaceType =
-                interfaceSymbol.GetTypeDefinitionFromNamedSymbol();
+    private static ITypeDefinition? GetBaseInterface(
+        SyntaxTransformContext context,
+        INamedTypeSymbol baseTypeSymbol
+    )
+    {
+        foreach (var interfaceSymbol in baseTypeSymbol.Interfaces)
+        {
+            var interfaceType = interfaceSymbol.GetTypeDefinitionFromNamedSymbol();
 
             // only auto register interfaces
-            if (interfaceType == null ||
-                SkipInterface(interfaceType)) {
+            if (interfaceType == null || SkipInterface(interfaceType))
+            {
                 continue;
             }
 
-            if (interfaceType is GenericTypeDefinition) {
+            if (interfaceType is GenericTypeDefinition)
+            {
                 interfaceType = ReplaceGenericParametersForRegistration(interfaceType);
             }
 
             return interfaceType;
         }
 
-        if (baseTypeSymbol.BaseType == null) {
+        if (baseTypeSymbol.BaseType == null)
+        {
             return null;
         }
 
@@ -645,10 +873,15 @@ public class ServiceModelUtility {
     private static bool SkipInterface(ITypeDefinition interfaceType) =>
         _capabilityInterfaces.Contains($"{interfaceType.Namespace}.{interfaceType.Name}");
 
-    private static ITypeDefinition ReplaceGenericParametersForRegistration(ITypeDefinition registration) {
-        var argumentTypes =
-            registration.TypeArguments.Select(
-                _ => _ is TypeParameterDefinition ? TypeDefinition.Get("", "") : _).ToArray();
+    private static ITypeDefinition ReplaceGenericParametersForRegistration(
+        ITypeDefinition registration
+    )
+    {
+        var argumentTypes = registration
+            .TypeArguments.Select(_ =>
+                _ is TypeParameterDefinition ? TypeDefinition.Get("", "") : _
+            )
+            .ToArray();
 
         registration = new GenericTypeDefinition(
             registration.TypeDefinitionEnum,
@@ -656,7 +889,7 @@ public class ServiceModelUtility {
             registration.Name,
             argumentTypes
         );
-        
+
         return registration;
     }
 }

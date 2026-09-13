@@ -21,7 +21,8 @@ namespace DependencyModules.Runtime.Attributes;
 /// </param>
 /// <param name="decorator">The decorator, which must implement <paramref name="service"/>.</param>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
-public class DecorateAttribute(Type service, Type decorator) : Attribute {
+public class DecorateAttribute(Type service, Type decorator) : Attribute
+{
     /// <summary>
     /// The service being decorated.
     /// </summary>

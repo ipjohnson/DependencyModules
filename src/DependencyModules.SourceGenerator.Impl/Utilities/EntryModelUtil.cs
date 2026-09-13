@@ -1,11 +1,12 @@
 using System.Collections.Immutable;
-using CSharpAuthor;
 using System.Text.RegularExpressions;
+using CSharpAuthor;
 using DependencyModules.SourceGenerator.Impl.Models;
 
 namespace DependencyModules.SourceGenerator.Impl.Utilities;
 
-public class EntryModelUtil {
+public class EntryModelUtil
+{
     /// <summary>
     /// The declared module an auto-generated <c>ApplicationModule</c> should defer to, or null when
     /// it has to carry its own registrations.
@@ -33,28 +34,41 @@ public class EntryModelUtil {
     /// </para>
     /// </remarks>
     public static ITypeDefinition? DelegateTargetFor(
-        ModuleEntryPointModel entryPointModel, IEnumerable<ModuleEntryPointModel> allEntryPoints) {
-
-        if (!entryPointModel.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.AutoGenerateModule)) {
+        ModuleEntryPointModel entryPointModel,
+        IEnumerable<ModuleEntryPointModel> allEntryPoints
+    )
+    {
+        if (!entryPointModel.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.AutoGenerateModule))
+        {
             return null;
         }
 
         ModuleEntryPointModel? target = null;
 
-        foreach (var candidate in allEntryPoints) {
-            if (candidate.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.AutoGenerateModule) ||
-                candidate.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.OnlyRealm) ||
-                candidate.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.NotPartial)) {
+        foreach (var candidate in allEntryPoints)
+        {
+            if (
+                candidate.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.AutoGenerateModule)
+                || candidate.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.OnlyRealm)
+                || candidate.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.NotPartial)
+            )
+            {
                 continue;
             }
 
             // A module the caller has to supply arguments for cannot be constructed by the auto
             // module, which has nothing to pass.
-            if (candidate.Parameters.Count > 0) {
+            if (candidate.Parameters.Count > 0)
+            {
                 continue;
             }
 
-            if (target == null || string.Compare(FullName(candidate), FullName(target), StringComparison.Ordinal) < 0) {
+            if (
+                target == null
+                || string.Compare(FullName(candidate), FullName(target), StringComparison.Ordinal)
+                    < 0
+            )
+            {
                 target = candidate;
             }
         }
@@ -70,11 +84,16 @@ public class EntryModelUtil {
     /// through this, so an auto-generated module that defers to a declared one is skipped by all of
     /// them rather than by whichever ones remembered to.
     /// </remarks>
-    public static IList<ModuleEntryPointModel> RegistrationTargets(IList<ModuleEntryPointModel> entryPoints) {
+    public static IList<ModuleEntryPointModel> RegistrationTargets(
+        IList<ModuleEntryPointModel> entryPoints
+    )
+    {
         List<ModuleEntryPointModel>? filtered = null;
 
-        for (var i = 0; i < entryPoints.Count; i++) {
-            if (DelegateTargetFor(entryPoints[i], entryPoints) == null) {
+        for (var i = 0; i < entryPoints.Count; i++)
+        {
+            if (DelegateTargetFor(entryPoints[i], entryPoints) == null)
+            {
                 filtered?.Add(entryPoints[i]);
                 continue;
             }
@@ -99,47 +118,77 @@ public class EntryModelUtil {
     /// [Decorator] and the first [Intercept] to a project that happened to contain a record module.
     /// Shared so the next writer cannot get it wrong.
     /// </remarks>
-    public static string ApplyRecordDeclaration(string output, ModuleEntryPointModel entryPointModel) {
-        if (!entryPointModel.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.IsRecord)) {
+    public static string ApplyRecordDeclaration(
+        string output,
+        ModuleEntryPointModel entryPointModel
+    )
+    {
+        if (!entryPointModel.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.IsRecord))
+        {
             return output;
         }
 
         return Regex.Replace(
             output,
             @"partial class " + Regex.Escape(entryPointModel.EntryPointType.Name) + @"(?!\w)",
-            $"partial record class {entryPointModel.EntryPointType.Name}");
+            $"partial record class {entryPointModel.EntryPointType.Name}"
+        );
     }
 
-    public static string GenerateFileName(ModuleEntryPointModel entryPointModel, string uniquePortion) {
+    public static string GenerateFileName(
+        ModuleEntryPointModel entryPointModel,
+        string uniquePortion
+    )
+    {
         var namespaceName = entryPointModel.EntryPointType.Namespace;
-        if (string.IsNullOrEmpty(entryPointModel.EntryPointType.Namespace)) {
+        if (string.IsNullOrEmpty(entryPointModel.EntryPointType.Namespace))
+        {
             namespaceName = "blank-namespace";
         }
-        
+
         return $"{namespaceName}.{entryPointModel.EntryPointType.GetShortName()}.{uniquePortion}.g.cs";
     }
-    
-    public static ModuleEntryPointModel EnsureNamespace(ModuleEntryPointModel entryPointModel, DependencyModuleConfigurationModel configurationModel) {
-        
-        if (entryPointModel.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.AutoGenerateModule) &&
-            string.IsNullOrEmpty(entryPointModel.EntryPointType.Namespace)) {
-            entryPointModel = entryPointModel with {
+
+    public static ModuleEntryPointModel EnsureNamespace(
+        ModuleEntryPointModel entryPointModel,
+        DependencyModuleConfigurationModel configurationModel
+    )
+    {
+        if (
+            entryPointModel.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.AutoGenerateModule)
+            && string.IsNullOrEmpty(entryPointModel.EntryPointType.Namespace)
+        )
+        {
+            entryPointModel = entryPointModel with
+            {
                 EntryPointType = TypeDefinition.Get(
-                    configurationModel.RootNamespace, 
-                    entryPointModel.EntryPointType.Name)
+                    configurationModel.RootNamespace,
+                    entryPointModel.EntryPointType.Name
+                ),
             };
         }
         return entryPointModel;
     }
-    
-    public static (IList<ModuleEntryPointModel> uniqueEntryPoints, DependencyModuleConfigurationModel configurationModel) ConsolidateEntryPointModels(
-        ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> entryPointList) {
+
+    public static (
+        IList<ModuleEntryPointModel> uniqueEntryPoints,
+        DependencyModuleConfigurationModel configurationModel
+    ) ConsolidateEntryPointModels(
+        ImmutableArray<(
+            ModuleEntryPointModel Left,
+            DependencyModuleConfigurationModel Right
+        )> entryPointList
+    )
+    {
         var uniqueEntryPoints = new List<ModuleEntryPointModel>();
         var configurationModel = entryPointList.First().Right;
 
         var entryPointModels = entryPointList.Select(m => m.Left);
-        if (!configurationModel.AutoGenerateEntry) {
-            entryPointModels = entryPointModels.Where(m => !m.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.AutoGenerateModule));
+        if (!configurationModel.AutoGenerateEntry)
+        {
+            entryPointModels = entryPointModels.Where(m =>
+                !m.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.AutoGenerateModule)
+            );
         }
 
         // Before grouping, not after. A generated module is created with no namespace and given the
@@ -152,40 +201,59 @@ public class EntryModelUtil {
         // they are one module and keep the declared one.
         entryPointModels = entryPointModels.Select(m => EnsureNamespace(m, configurationModel));
 
-        var groupingEnumerable =
-            entryPointModels.GroupBy(m => m.EntryPointType.Namespace + "." + m.EntryPointType.GetShortName());
+        var groupingEnumerable = entryPointModels.GroupBy(m =>
+            m.EntryPointType.Namespace + "." + m.EntryPointType.GetShortName()
+        );
 
-        foreach (var grouping in groupingEnumerable) {
-            if (grouping.Count() > 1) {
+        foreach (var grouping in groupingEnumerable)
+        {
+            if (grouping.Count() > 1)
+            {
                 uniqueEntryPoints.Add(
-                    ConsolidateEntryPointModelGrouping(grouping, configurationModel));
-            } else {
+                    ConsolidateEntryPointModelGrouping(grouping, configurationModel)
+                );
+            }
+            else
+            {
                 var entryPointModel = grouping.First();
 
-                if (entryPointModel.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.AutoGenerateModule)) {
+                if (
+                    entryPointModel.ModuleFeatures.HasFlag(
+                        ModuleEntryPointFeatures.AutoGenerateModule
+                    )
+                )
+                {
                     var path = Path.Combine(configurationModel.ProjectDir, "Program.cs");
 
-                    if (entryPointModel.FileLocation == path) {
+                    if (entryPointModel.FileLocation == path)
+                    {
                         uniqueEntryPoints.Add(grouping.First());
                     }
                 }
-                else {
+                else
+                {
                     uniqueEntryPoints.Add(grouping.First());
                 }
             }
         }
-        
+
         return (uniqueEntryPoints, configurationModel);
     }
 
-    private static ModuleEntryPointModel ConsolidateEntryPointModelGrouping(IGrouping<string,ModuleEntryPointModel> grouping, DependencyModuleConfigurationModel configurationModel) {
-        var firstNonAuto = grouping.FirstOrDefault(
-            m => m.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.AutoGenerateModule) == false);
-        
-        if (firstNonAuto != null) {
+    private static ModuleEntryPointModel ConsolidateEntryPointModelGrouping(
+        IGrouping<string, ModuleEntryPointModel> grouping,
+        DependencyModuleConfigurationModel configurationModel
+    )
+    {
+        var firstNonAuto = grouping.FirstOrDefault(m =>
+            m.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.AutoGenerateModule) == false
+        );
+
+        if (firstNonAuto != null)
+        {
             return firstNonAuto;
         }
-        
+
         return grouping.First();
     }
 }

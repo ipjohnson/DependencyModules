@@ -14,9 +14,10 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities;
 /// Everything below the provider takes this instead, and the implicit conversions keep the call sites
 /// identical whichever provider they came from.
 /// </remarks>
-public readonly struct SyntaxTransformContext {
-
-    public SyntaxTransformContext(SyntaxNode node, SemanticModel semanticModel) {
+public readonly struct SyntaxTransformContext
+{
+    public SyntaxTransformContext(SyntaxNode node, SemanticModel semanticModel)
+    {
         Node = node;
         SemanticModel = semanticModel;
     }
@@ -32,6 +33,7 @@ public readonly struct SyntaxTransformContext {
     /// The target node is the declaration the attribute was found on, which is the node a
     /// <c>CreateSyntaxProvider</c> predicate would have selected for the same attribute.
     /// </summary>
-    public static implicit operator SyntaxTransformContext(GeneratorAttributeSyntaxContext context) =>
-        new(context.TargetNode, context.SemanticModel);
+    public static implicit operator SyntaxTransformContext(
+        GeneratorAttributeSyntaxContext context
+    ) => new(context.TargetNode, context.SemanticModel);
 }

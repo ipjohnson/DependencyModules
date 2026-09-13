@@ -8,12 +8,13 @@ namespace DependencyModules.Runtime.Interfaces;
 /// <summary>
 ///     Internal interface not intended to be consumed by developers
 /// </summary>
-public interface IDependencyModule {
+public interface IDependencyModule
+{
     /// <summary>
     /// Flag to disable loading module and dependencies.
     /// </summary>
     bool LoadModule => true;
-    
+
     /// <summary>
     /// Populate a service collection with registrations
     /// </summary>
@@ -24,16 +25,18 @@ public interface IDependencyModule {
     /// Intended for developers to override and provide their own IDependencyModules
     /// </summary>
     /// <returns></returns>
-    IEnumerable<IDependencyModule> GetModules() {
+    IEnumerable<IDependencyModule> GetModules()
+    {
         return Array.Empty<IDependencyModule>();
     }
-    
+
     /// <summary>
     /// Internal method not intended to be called by general developers
     /// </summary>
     /// <returns></returns>
     [Browsable(false)]
-    IEnumerable<object> InternalGetModules() {
+    IEnumerable<object> InternalGetModules()
+    {
         // Array.Empty<object>() rather than an array of the interface, so the runtime's empty check
         // is a plain ICollection<object> test rather than one relying on array covariance.
         return Array.Empty<object>();
@@ -57,10 +60,10 @@ public interface IDependencyModule {
     /// <param name="serviceCollection"></param>
     /// <param name="environment">Never null; see <c>ModuleEnvironment.Default</c>.</param>
     [Browsable(false)]
-    void InternalApplyServices(IServiceCollection serviceCollection, IModuleEnvironment environment) {
+    void InternalApplyServices(IServiceCollection serviceCollection, IModuleEnvironment environment)
+    {
         InternalApplyServices(serviceCollection);
     }
-
 
     /// <summary>
     /// Internal method not intended to be called by general developers
@@ -78,7 +81,8 @@ public interface IDependencyModule {
     /// order the developer declared.
     /// </remarks>
     [Browsable(false)]
-    IEnumerable<DecoratorRegistration> InternalGetDecorators() {
+    IEnumerable<DecoratorRegistration> InternalGetDecorators()
+    {
         return Array.Empty<DecoratorRegistration>();
     }
 }

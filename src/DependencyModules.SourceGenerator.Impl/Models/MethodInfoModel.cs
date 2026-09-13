@@ -2,7 +2,8 @@ using CSharpAuthor;
 
 namespace DependencyModules.SourceGenerator.Impl.Models;
 
-public enum AccessModifier {
+public enum AccessModifier
+{
     PublicModifier,
     PrivateModifier,
     ProtectedModifier,
@@ -14,4 +15,5 @@ public record MethodInfoModel(
     string MethodName,
     ITypeDefinition ReturnType,
     IReadOnlyList<ParameterInfoModel> Parameters,
-    IReadOnlyList<ITypeDefinition> GenericArguments);
+    IReadOnlyList<ITypeDefinition> GenericArguments
+);

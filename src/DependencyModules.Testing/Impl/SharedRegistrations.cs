@@ -10,8 +10,8 @@ namespace DependencyModules.Testing.Impl;
 /// Shared by every integration, because the rule is the same one wherever the test runs and only the
 /// discovery around it differs.
 /// </remarks>
-public static class SharedRegistrations {
-
+public static class SharedRegistrations
+{
     /// <summary>
     /// Types the harness itself can never pin, whatever anything else says.
     /// </summary>
@@ -56,21 +56,30 @@ public static class SharedRegistrations {
     /// <param name="knownAttributes">
     /// The attributes in scope for the test, widest first, as the runner collected them.
     /// </param>
-    public static IReadOnlyCollection<Type> Collect(MethodInfo method, IEnumerable<Attribute> knownAttributes) {
-        var attributes = knownAttributes as IReadOnlyCollection<Attribute> ?? knownAttributes.ToArray();
+    public static IReadOnlyCollection<Type> Collect(
+        MethodInfo method,
+        IEnumerable<Attribute> knownAttributes
+    )
+    {
+        var attributes =
+            knownAttributes as IReadOnlyCollection<Attribute> ?? knownAttributes.ToArray();
 
         var isolated = new HashSet<Type>(NeverPinned);
 
-        foreach (var registration in attributes.OfType<ISharedTestRegistration>()) {
-            foreach (var service in registration.IsolatedServices(method)) {
+        foreach (var registration in attributes.OfType<ISharedTestRegistration>())
+        {
+            foreach (var service in registration.IsolatedServices(method))
+            {
                 isolated.Add(service);
             }
         }
 
         var pinned = new HashSet<Type>();
 
-        foreach (var parameter in method.GetParameters()) {
-            var declarations = parameter.GetCustomAttributes()
+        foreach (var parameter in method.GetParameters())
+        {
+            var declarations = parameter
+                .GetCustomAttributes()
                 .OfType<ISharedTestRegistration>()
                 .ToArray();
 
@@ -78,25 +87,31 @@ public static class SharedRegistrations {
             // being asked. A second attribute asking cannot undo it: two attributes on one parameter
             // disagreeing is a use site asking for both, and pinned is the answer that leaves the
             // test able to see what it was asserting on.
-            if (declarations.Any(declaration => !declaration.Shared)) {
+            if (declarations.Any(declaration => !declaration.Shared))
+            {
                 continue;
             }
 
             pinned.Add(parameter.ParameterType);
 
-            foreach (var declaration in declarations) {
-                foreach (var service in declaration.SharedServices) {
+            foreach (var declaration in declarations)
+            {
+                foreach (var service in declaration.SharedServices)
+                {
                     pinned.Add(service);
                 }
             }
         }
 
-        foreach (var registration in attributes.OfType<ISharedTestRegistration>()) {
-            if (!registration.Shared) {
+        foreach (var registration in attributes.OfType<ISharedTestRegistration>())
+        {
+            if (!registration.Shared)
+            {
                 continue;
             }
 
-            foreach (var service in registration.SharedServices) {
+            foreach (var service in registration.SharedServices)
+            {
                 pinned.Add(service);
             }
         }

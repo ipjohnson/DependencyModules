@@ -16,7 +16,8 @@ namespace DependencyModules.Tests.Infrastructure;
 /// [CallerFilePath] is deliberately not used to locate them: deterministic builds
 /// (ContinuousIntegrationBuild) rewrite source paths to /_/..., which does not exist on disk.
 /// </summary>
-public static class Snapshot {
+public static class Snapshot
+{
     private const string UpdateVariable = "UPDATE_SNAPSHOTS";
     private const string SnapshotFolderName = "Snapshots";
 
@@ -31,42 +32,58 @@ public static class Snapshot {
     /// when updating, and only meaningful when the tests run on the machine that built them.
     /// </summary>
     private static string? SourceSnapshotDirectory { get; } =
-        typeof(Snapshot).Assembly
-            .GetCustomAttributes<AssemblyMetadataAttribute>()
+        typeof(Snapshot)
+            .Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
             .FirstOrDefault(attribute => attribute.Key == "SnapshotDirectory")
             ?.Value;
 
     public static void Match(
         string actual,
         [CallerFilePath] string callerFilePath = "",
-        [CallerMemberName] string callerMemberName = "") {
-
+        [CallerMemberName] string callerMemberName = ""
+    )
+    {
         var testClass = Path.GetFileNameWithoutExtension(callerFilePath);
         var fileName = $"{testClass}.{callerMemberName}.verified.txt";
         var normalized = Normalize(actual);
 
-        if (ShouldUpdate) {
+        if (ShouldUpdate)
+        {
             Update(fileName, normalized);
             return;
         }
 
         var snapshotPath = Path.Combine(OutputSnapshotDirectory, fileName);
 
-        Assert.True(File.Exists(snapshotPath),
-            $"Missing snapshot '{fileName}'. Re-run with {UpdateVariable}=1 to create it." +
-            Environment.NewLine + "Actual output was:" + Environment.NewLine + normalized);
+        Assert.True(
+            File.Exists(snapshotPath),
+            $"Missing snapshot '{fileName}'. Re-run with {UpdateVariable}=1 to create it."
+                + Environment.NewLine
+                + "Actual output was:"
+                + Environment.NewLine
+                + normalized
+        );
 
         var expected = Normalize(File.ReadAllText(snapshotPath));
 
-        if (expected != normalized) {
-            var receivedPath = Path.Combine(OutputSnapshotDirectory, fileName.Replace(".verified.txt", ".received.txt"));
+        if (expected != normalized)
+        {
+            var receivedPath = Path.Combine(
+                OutputSnapshotDirectory,
+                fileName.Replace(".verified.txt", ".received.txt")
+            );
             File.WriteAllText(receivedPath, normalized);
 
             Assert.Fail(
-                $"Generated output does not match '{fileName}'." + Environment.NewLine +
-                $"Wrote actual output to '{receivedPath}'." + Environment.NewLine +
-                $"If the change is intended, re-run with {UpdateVariable}=1." + Environment.NewLine +
-                Environment.NewLine + FirstDifference(expected, normalized));
+                $"Generated output does not match '{fileName}'."
+                    + Environment.NewLine
+                    + $"Wrote actual output to '{receivedPath}'."
+                    + Environment.NewLine
+                    + $"If the change is intended, re-run with {UpdateVariable}=1."
+                    + Environment.NewLine
+                    + Environment.NewLine
+                    + FirstDifference(expected, normalized)
+            );
         }
     }
 
@@ -74,14 +91,19 @@ public static class Snapshot {
     /// Writes to the source tree so the change can be reviewed and committed, and to the build
     /// output so a subsequent run in the same session reads the updated value.
     /// </summary>
-    private static void Update(string fileName, string content) {
-        Assert.True(!string.IsNullOrEmpty(SourceSnapshotDirectory),
-            $"Cannot update snapshots: the assembly has no SnapshotDirectory metadata. " +
-            $"Rebuild the test project, then re-run with {UpdateVariable}=1.");
+    private static void Update(string fileName, string content)
+    {
+        Assert.True(
+            !string.IsNullOrEmpty(SourceSnapshotDirectory),
+            $"Cannot update snapshots: the assembly has no SnapshotDirectory metadata. "
+                + $"Rebuild the test project, then re-run with {UpdateVariable}=1."
+        );
 
-        Assert.True(Directory.Exists(Path.GetDirectoryName(SourceSnapshotDirectory!)),
-            $"Cannot update snapshots: '{SourceSnapshotDirectory}' is not reachable from this machine. " +
-            "Snapshots can only be updated from a checkout of the source tree.");
+        Assert.True(
+            Directory.Exists(Path.GetDirectoryName(SourceSnapshotDirectory!)),
+            $"Cannot update snapshots: '{SourceSnapshotDirectory}' is not reachable from this machine. "
+                + "Snapshots can only be updated from a checkout of the source tree."
+        );
 
         Directory.CreateDirectory(SourceSnapshotDirectory!);
         File.WriteAllText(Path.Combine(SourceSnapshotDirectory!, fileName), content);
@@ -90,29 +112,36 @@ public static class Snapshot {
         File.WriteAllText(Path.Combine(OutputSnapshotDirectory, fileName), content);
     }
 
-    private static bool ShouldUpdate {
-        get {
+    private static bool ShouldUpdate
+    {
+        get
+        {
             var value = Environment.GetEnvironmentVariable(UpdateVariable);
-            return !string.IsNullOrEmpty(value) && !value.Equals("0", StringComparison.Ordinal) &&
-                   !value.Equals("false", StringComparison.OrdinalIgnoreCase);
+            return !string.IsNullOrEmpty(value)
+                && !value.Equals("0", StringComparison.Ordinal)
+                && !value.Equals("false", StringComparison.OrdinalIgnoreCase);
         }
     }
 
-    private static string Normalize(string value) =>
-        value.Replace("\r\n", "\n").TrimEnd() + "\n";
+    private static string Normalize(string value) => value.Replace("\r\n", "\n").TrimEnd() + "\n";
 
-    private static string FirstDifference(string expected, string actual) {
+    private static string FirstDifference(string expected, string actual)
+    {
         var expectedLines = expected.Split('\n');
         var actualLines = actual.Split('\n');
 
-        for (var i = 0; i < Math.Max(expectedLines.Length, actualLines.Length); i++) {
+        for (var i = 0; i < Math.Max(expectedLines.Length, actualLines.Length); i++)
+        {
             var expectedLine = i < expectedLines.Length ? expectedLines[i] : "<end of file>";
             var actualLine = i < actualLines.Length ? actualLines[i] : "<end of file>";
 
-            if (expectedLine != actualLine) {
-                return $"First difference at line {i + 1}:" + Environment.NewLine +
-                       $"  expected: {expectedLine}" + Environment.NewLine +
-                       $"  actual:   {actualLine}";
+            if (expectedLine != actualLine)
+            {
+                return $"First difference at line {i + 1}:"
+                    + Environment.NewLine
+                    + $"  expected: {expectedLine}"
+                    + Environment.NewLine
+                    + $"  actual:   {actualLine}";
             }
         }
 

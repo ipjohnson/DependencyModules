@@ -9,7 +9,8 @@ namespace DependencyModules.Runtime.Interception;
 /// as everything else, rather than each interceptor having to implement an overload it does not care
 /// about. An interceptor written generically never names this type.
 /// </remarks>
-public readonly struct NoResult {
+public readonly struct NoResult
+{
     /// <summary>
     /// Renders as <c>void</c>, so an interceptor logging a result does not print a type name.
     /// </summary>

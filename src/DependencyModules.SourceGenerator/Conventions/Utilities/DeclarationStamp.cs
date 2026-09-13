@@ -32,12 +32,13 @@ namespace DependencyModules.Conventions.Utilities;
 /// from it needs an argument.
 /// </para>
 /// </remarks>
-public static class DeclarationStamp {
-
+public static class DeclarationStamp
+{
     private static readonly ConditionalWeakTable<SyntaxTree, StampBox> PerTree = new();
     private static readonly ConditionalWeakTable<Compilation, StampBox> PerCompilation = new();
 
-    private sealed class StampBox {
+    private sealed class StampBox
+    {
         public StampBox(long value) => Value = value;
 
         public long Value { get; }
@@ -47,8 +48,10 @@ public static class DeclarationStamp {
     /// The stamp for a whole compilation. Memoised on the compilation, and on each tree beneath it,
     /// so an edit re-hashes one tree and re-combines the rest.
     /// </summary>
-    public static long Of(Compilation compilation) {
-        if (PerCompilation.TryGetValue(compilation, out var cached)) {
+    public static long Of(Compilation compilation)
+    {
+        if (PerCompilation.TryGetValue(compilation, out var cached))
+        {
             return cached.Value;
         }
 
@@ -56,11 +59,13 @@ public static class DeclarationStamp {
         // a stale semantic model is served, so the width is a correctness property.
         var hash = 14695981039346656037UL;
 
-        foreach (var tree in compilation.SyntaxTrees) {
+        foreach (var tree in compilation.SyntaxTrees)
+        {
             hash = Mix(hash, (ulong)TreeStamp(tree));
         }
 
-        foreach (var reference in compilation.References) {
+        foreach (var reference in compilation.References)
+        {
             hash = Mix(hash, (ulong)(reference.Display?.GetHashCode() ?? 0));
         }
 
@@ -75,8 +80,10 @@ public static class DeclarationStamp {
     /// One tree's contribution. Cached on the tree, which is immutable, so only an edited tree is
     /// ever re-hashed.
     /// </summary>
-    private static long TreeStamp(SyntaxTree tree) {
-        if (PerTree.TryGetValue(tree, out var cached)) {
+    private static long TreeStamp(SyntaxTree tree)
+    {
+        if (PerTree.TryGetValue(tree, out var cached))
+        {
             return cached.Value;
         }
 
@@ -84,10 +91,18 @@ public static class DeclarationStamp {
 
         // Descends into containers only. A method body is not a container of anything that can
         // change a binding, and skipping them is what makes the common keystroke free.
-        foreach (var node in tree.GetRoot().DescendantNodes(descendIntoChildren: n =>
-                     n is CompilationUnitSyntax or BaseNamespaceDeclarationSyntax or TypeDeclarationSyntax)) {
-
-            switch (node) {
+        foreach (
+            var node in tree.GetRoot()
+                .DescendantNodes(descendIntoChildren: n =>
+                    n
+                        is CompilationUnitSyntax
+                            or BaseNamespaceDeclarationSyntax
+                            or TypeDeclarationSyntax
+                )
+        )
+        {
+            switch (node)
+            {
                 case UsingDirectiveSyntax usingDirective:
                     hash = Mix(hash, Hash(usingDirective.ToString()));
                     break;
@@ -111,7 +126,8 @@ public static class DeclarationStamp {
 
                     // Signatures, not bodies. A constructor added to one part of a partial changes
                     // what another part's symbol reports about itself.
-                    foreach (var member in type.Members) {
+                    foreach (var member in type.Members)
+                    {
                         hash = Mix(hash, MemberSignature(member));
                     }
 
@@ -127,31 +143,44 @@ public static class DeclarationStamp {
     }
 
     private static ulong MemberSignature(MemberDeclarationSyntax member) =>
-        member switch {
-            ConstructorDeclarationSyntax constructor =>
-                Hash(constructor.Modifiers + constructor.ParameterList.ToString()),
-            MethodDeclarationSyntax method =>
-                Hash(method.Modifiers + method.ReturnType.ToString() + method.Identifier.Text +
-                     method.TypeParameterList + method.ParameterList),
-            PropertyDeclarationSyntax property =>
-                Hash(property.Modifiers + property.Type.ToString() + property.Identifier.Text),
-            FieldDeclarationSyntax field =>
-                Hash(field.Modifiers + field.Declaration.Type.ToString() +
-                     string.Join(",", field.Declaration.Variables.Select(v => v.Identifier.Text))),
-            EventDeclarationSyntax @event =>
-                Hash(@event.Modifiers + @event.Type.ToString() + @event.Identifier.Text),
+        member switch
+        {
+            ConstructorDeclarationSyntax constructor => Hash(
+                constructor.Modifiers + constructor.ParameterList.ToString()
+            ),
+            MethodDeclarationSyntax method => Hash(
+                method.Modifiers
+                    + method.ReturnType.ToString()
+                    + method.Identifier.Text
+                    + method.TypeParameterList
+                    + method.ParameterList
+            ),
+            PropertyDeclarationSyntax property => Hash(
+                property.Modifiers + property.Type.ToString() + property.Identifier.Text
+            ),
+            FieldDeclarationSyntax field => Hash(
+                field.Modifiers
+                    + field.Declaration.Type.ToString()
+                    + string.Join(",", field.Declaration.Variables.Select(v => v.Identifier.Text))
+            ),
+            EventDeclarationSyntax @event => Hash(
+                @event.Modifiers + @event.Type.ToString() + @event.Identifier.Text
+            ),
             // Nested types are reached by the walk above, so they need nothing here.
-            _ => Hash(member.Kind().ToString())
+            _ => Hash(member.Kind().ToString()),
         };
 
-    private static ulong Hash(string? text) {
-        if (text == null) {
+    private static ulong Hash(string? text)
+    {
+        if (text == null)
+        {
             return 0;
         }
 
         var hash = 14695981039346656037UL;
 
-        foreach (var c in text) {
+        foreach (var c in text)
+        {
             hash = (hash ^ c) * 1099511628211UL;
         }
 

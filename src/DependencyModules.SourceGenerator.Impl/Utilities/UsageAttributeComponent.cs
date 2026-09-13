@@ -2,12 +2,12 @@ using CSharpAuthor;
 
 namespace DependencyModules.SourceGenerator.Impl.Utilities;
 
-
 public class UsageAttributeComponent : BaseOutputComponent
 {
     private readonly string _usage;
 
-    public UsageAttributeComponent(string usage) {
+    public UsageAttributeComponent(string usage)
+    {
         _usage = usage;
     }
 

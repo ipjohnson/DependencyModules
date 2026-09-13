@@ -20,8 +20,8 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities;
 /// name the same closed service.
 /// </para>
 /// </remarks>
-public static class DecoratorExpansion {
-
+public static class DecoratorExpansion
+{
     /// <param name="refusedForOpenGenericRegistration">
     /// Decorators that name a service the compilation registers as an open generic. Nothing can be
     /// emitted for those — see <see cref="NamesAnOpenGenericRegistration"/> — and the caller reports
@@ -32,23 +32,28 @@ public static class DecoratorExpansion {
         IReadOnlyList<ITypeDefinition> registeredServiceTypes,
         out IReadOnlyList<DecoratorModel> refusedForOpenGenericRegistration,
         bool includeNonGeneric = true,
-        Func<ITypeDefinition, GenericTypeDefinition, bool>? canClose = null) {
-
+        Func<ITypeDefinition, GenericTypeDefinition, bool>? canClose = null
+    )
+    {
         var expanded = new List<DecoratorModel>(decorators.Count);
         List<DecoratorModel>? refused = null;
 
-        foreach (var decorator in decorators) {
-            if (decorator.IsIgnored) {
+        foreach (var decorator in decorators)
+        {
+            if (decorator.IsIgnored)
+            {
                 continue;
             }
 
-            if (!decorator.IsOpenGeneric) {
+            if (!decorator.IsOpenGeneric)
+            {
                 // An unbound service type has no legal emission at all: Decorate<IHolder<>> is
                 // CS7003. A generic decorator reaches this state only when nothing closed it, and is
                 // handled below; a non-generic one never had an expansion step to catch it, so this
                 // is where it stops. Refused whatever is registered, because the emission is invalid
                 // on its own terms.
-                if (decorator.HasUnboundServiceType) {
+                if (decorator.HasUnboundServiceType)
+                {
                     (refused ??= new List<DecoratorModel>()).Add(decorator);
 
                     continue;
@@ -59,7 +64,8 @@ public static class DecoratorExpansion {
                 // by generated code is dropped: generated code builds the decorator with a literal
                 // new, and the reflective overload that used to stand in for this is gone because
                 // it never worked in a published application.
-                if (includeNonGeneric && decorator.CanMonomorphise) {
+                if (includeNonGeneric && decorator.CanMonomorphise)
+                {
                     expanded.Add(decorator);
                 }
 
@@ -68,8 +74,10 @@ public static class DecoratorExpansion {
 
             var closedCount = 0;
 
-            foreach (var serviceType in registeredServiceTypes) {
-                if (!ClosesTheSameGeneric(serviceType, decorator.ServiceType)) {
+            foreach (var serviceType in registeredServiceTypes)
+            {
+                if (!ClosesTheSameGeneric(serviceType, decorator.ServiceType))
+                {
                     continue;
                 }
 
@@ -77,13 +85,15 @@ public static class DecoratorExpansion {
 
                 // A decorator may constrain its type parameters more tightly than the service does.
                 // Closing it over an argument that violates one emits code that does not compile.
-                if (canClose != null && !canClose(decorator.DecoratorType, closedService)) {
+                if (canClose != null && !canClose(decorator.DecoratorType, closedService))
+                {
                     continue;
                 }
 
                 var closed = DecoratorTypeUtility.Close(decorator, closedService);
 
-                if (closed == null) {
+                if (closed == null)
+                {
                     continue;
                 }
 
@@ -96,12 +106,17 @@ public static class DecoratorExpansion {
             // reporting, while a compilation that registers nothing at all is the ordinary
             // cross-assembly case — [Decorate] exists to name a service someone else registers, so
             // reporting that would fire on the feature's primary use.
-            if (closedCount == 0 && NamesAnOpenGenericRegistration(decorator, registeredServiceTypes)) {
+            if (
+                closedCount == 0
+                && NamesAnOpenGenericRegistration(decorator, registeredServiceTypes)
+            )
+            {
                 (refused ??= new List<DecoratorModel>()).Add(decorator);
             }
         }
 
-        refusedForOpenGenericRegistration = (IReadOnlyList<DecoratorModel>?)refused ?? Array.Empty<DecoratorModel>();
+        refusedForOpenGenericRegistration =
+            (IReadOnlyList<DecoratorModel>?)refused ?? Array.Empty<DecoratorModel>();
 
         return expanded;
     }
@@ -114,19 +129,25 @@ public static class DecoratorExpansion {
     /// <c>services.AddSingleton(typeof(IStore&lt;&gt;), typeof(Store&lt;&gt;))</c> produces.
     /// </remarks>
     private static bool NamesAnOpenGenericRegistration(
-        DecoratorModel decorator, IReadOnlyList<ITypeDefinition> registeredServiceTypes) {
-
-        if (decorator.ServiceType is not GenericTypeDefinition decorated) {
+        DecoratorModel decorator,
+        IReadOnlyList<ITypeDefinition> registeredServiceTypes
+    )
+    {
+        if (decorator.ServiceType is not GenericTypeDefinition decorated)
+        {
             return false;
         }
 
-        foreach (var registered in registeredServiceTypes) {
-            if (registered is GenericTypeDefinition open &&
-                open.TypeArguments.Count == decorated.TypeArguments.Count &&
-                open.Name == decorated.Name &&
-                open.Namespace == decorated.Namespace &&
-                open.TypeArguments.All(argument => string.IsNullOrEmpty(argument.Name))) {
-
+        foreach (var registered in registeredServiceTypes)
+        {
+            if (
+                registered is GenericTypeDefinition open
+                && open.TypeArguments.Count == decorated.TypeArguments.Count
+                && open.Name == decorated.Name
+                && open.Namespace == decorated.Namespace
+                && open.TypeArguments.All(argument => string.IsNullOrEmpty(argument.Name))
+            )
+            {
                 return true;
             }
         }
@@ -137,12 +158,16 @@ public static class DecoratorExpansion {
     /// <summary>
     /// Whether a registered service type is a closed construction of the decorated open generic.
     /// </summary>
-    private static bool ClosesTheSameGeneric(ITypeDefinition registered, ITypeDefinition decorated) =>
-        registered is GenericTypeDefinition closed &&
-        decorated is GenericTypeDefinition open &&
-        closed.TypeArguments.Count == open.TypeArguments.Count &&
-        closed.Name == open.Name &&
-        closed.Namespace == open.Namespace &&
+    private static bool ClosesTheSameGeneric(
+        ITypeDefinition registered,
+        ITypeDefinition decorated
+    ) =>
+        registered is GenericTypeDefinition closed
+        && decorated is GenericTypeDefinition open
+        && closed.TypeArguments.Count == open.TypeArguments.Count
+        && closed.Name == open.Name
+        && closed.Namespace == open.Namespace
+        &&
         // The decorated form has its arguments blanked; a registration that also has them blanked is
         // an open generic registration, which cannot be decorated at all.
         closed.TypeArguments.Any(argument => !string.IsNullOrEmpty(argument.Name));

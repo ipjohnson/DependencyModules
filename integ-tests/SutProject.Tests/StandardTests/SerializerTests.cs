@@ -5,12 +5,14 @@ using Xunit;
 
 namespace SutProject.Tests.StandardTests;
 
-public class SerializerTests {
+public class SerializerTests
+{
     [ModuleTest]
     [SerializerClasses]
-    public void LoadSerializer(IEnumerable<IJsonTypeInfoResolver> resolvers) {
+    public void LoadSerializer(IEnumerable<IJsonTypeInfoResolver> resolvers)
+    {
         var resolverList = resolvers.ToList();
-        
+
         Assert.Single(resolverList);
         Assert.IsType<SerializerContext>(resolverList.First());
     }
@@ -19,10 +21,10 @@ public class SerializerTests {
     [SerializerClasses]
     [InlineData("A")]
     [InlineData("B")]
-    public void LoadKeyedASerializer(string key, IServiceProvider serviceProvider) {
-        var resolverList =
-            serviceProvider.GetKeyedServices<IJsonTypeInfoResolver>(key).ToList();
-        
+    public void LoadKeyedASerializer(string key, IServiceProvider serviceProvider)
+    {
+        var resolverList = serviceProvider.GetKeyedServices<IJsonTypeInfoResolver>(key).ToList();
+
         Assert.Single(resolverList);
         Assert.EndsWith(key, resolverList[0].GetType().Name);
     }

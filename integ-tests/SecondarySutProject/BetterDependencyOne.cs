@@ -4,18 +4,15 @@ using SutProject;
 namespace SecondarySutProject;
 
 [TransientService]
-public class BetterDependencyOne : IDependencyOne {
-
-    public BetterDependencyOne(ISingletonService singletonService, IScopedService scopedService) {
+public class BetterDependencyOne : IDependencyOne
+{
+    public BetterDependencyOne(ISingletonService singletonService, IScopedService scopedService)
+    {
         SingletonService = singletonService;
         ScopedService = scopedService;
     }
 
-    public ISingletonService SingletonService {
-        get;
-    }
+    public ISingletonService SingletonService { get; }
 
-    public IScopedService ScopedService {
-        get;
-    }
+    public IScopedService ScopedService { get; }
 }

@@ -1,0 +1,9 @@
+# CSharpier reindents MSBuild XML but leaves the interior of multi-line comments at its old
+# indentation, so every commented csproj in this repo comes out with hanging comment bodies.
+# The C# formatting is what is wanted here; the project files stay hand-maintained.
+*.csproj
+*.props
+*.targets
+
+# Build output. Nothing here is a source file.
+artifacts/

@@ -20,7 +20,8 @@ namespace DependencyModules.Runtime.Attributes;
 /// The interceptor types to apply, in order. Each is resolved from the container.
 /// </param>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
-public class InterceptAttribute(params Type[] interceptors) : Attribute {
+public class InterceptAttribute(params Type[] interceptors) : Attribute
+{
     /// <summary>
     /// The interceptors applied to the service.
     /// </summary>

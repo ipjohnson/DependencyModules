@@ -26,7 +26,9 @@ public delegate void RegistryFunc(IServiceCollection serviceCollection);
 /// <param name="serviceCollection">The IServiceCollection to which dependencies will be added.</param>
 /// <param name="environment">The environment conditions are evaluated against. Never null.</param>
 public delegate void EnvironmentRegistryFunc(
-    IServiceCollection serviceCollection, IModuleEnvironment environment);
+    IServiceCollection serviceCollection,
+    IModuleEnvironment environment
+);
 
 /// <summary>
 ///     Static class used to store dependency registration functions
@@ -34,7 +36,8 @@ public delegate void EnvironmentRegistryFunc(
 /// </summary>
 /// <typeparam name="T"></typeparam>
 // ReSharper disable once ClassNeverInstantiated.Global
-public class DependencyRegistry<T> {
+public class DependencyRegistry<T>
+{
     // ReSharper disable StaticMemberInGenericType
     private static readonly object SyncLock = new();
     private static List<EnvironmentRegistryFunc>? RegistryFuncs;
@@ -46,8 +49,10 @@ public class DependencyRegistry<T> {
     /// </summary>
     /// <param name="registryFunc"></param>
     /// <returns></returns>
-    public static int Add(RegistryFunc registryFunc) {
-        lock (SyncLock) {
+    public static int Add(RegistryFunc registryFunc)
+    {
+        lock (SyncLock)
+        {
             (RegistryFuncs ??= []).Add((serviceCollection, _) => registryFunc(serviceCollection));
         }
 
@@ -59,8 +64,10 @@ public class DependencyRegistry<T> {
     /// </summary>
     /// <param name="registryFunc"></param>
     /// <returns></returns>
-    public static int Add(EnvironmentRegistryFunc registryFunc) {
-        lock (SyncLock) {
+    public static int Add(EnvironmentRegistryFunc registryFunc)
+    {
+        lock (SyncLock)
+        {
             (RegistryFuncs ??= []).Add(registryFunc);
         }
 
@@ -76,15 +83,16 @@ public class DependencyRegistry<T> {
     /// <returns></returns>
     public static int Add<TInstance>(
         Func<IServiceProvider, TInstance> provider,
-        ServiceLifetime lifetime = ServiceLifetime.Transient) where TInstance : class {
-        lock (SyncLock) {
+        ServiceLifetime lifetime = ServiceLifetime.Transient
+    )
+        where TInstance : class
+    {
+        lock (SyncLock)
+        {
             (RegistryFuncs ??= []).Add(
-                (registry, _) => registry.Add(
-                    new ServiceDescriptor(
-                        typeof(TInstance),
-                        provider,
-                        lifetime
-                    )));
+                (registry, _) =>
+                    registry.Add(new ServiceDescriptor(typeof(TInstance), provider, lifetime))
+            );
         }
         return 1;
     }
@@ -104,18 +112,25 @@ public class DependencyRegistry<T> {
     /// <returns></returns>
     public static int Add<TInstance>(
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
-        Type implementationType,
+            Type implementationType,
         ServiceLifetime lifetime = ServiceLifetime.Transient,
-        object? serviceKey = null) where TInstance : class {
-        lock (SyncLock) {
+        object? serviceKey = null
+    )
+        where TInstance : class
+    {
+        lock (SyncLock)
+        {
             (RegistryFuncs ??= []).Add(
-                (registry, _) => registry.Add(
-                    new ServiceDescriptor(
-                        typeof(TInstance),
-                        serviceKey,
-                        implementationType,
-                        lifetime
-                    )));
+                (registry, _) =>
+                    registry.Add(
+                        new ServiceDescriptor(
+                            typeof(TInstance),
+                            serviceKey,
+                            implementationType,
+                            lifetime
+                        )
+                    )
+            );
         }
         return 1;
     }
@@ -133,8 +148,10 @@ public class DependencyRegistry<T> {
     ///     that an application's decorators wrap those contributed by the libraries it consumes.
     /// </param>
     /// <returns></returns>
-    public static int AddDecorator(RegistryFunc registryFunc, int order = 0) {
-        lock (SyncLock) {
+    public static int AddDecorator(RegistryFunc registryFunc, int order = 0)
+    {
+        lock (SyncLock)
+        {
             (Decorators ??= []).Add(new DecoratorRegistration(order, registryFunc));
         }
 
@@ -152,8 +169,10 @@ public class DependencyRegistry<T> {
     /// <param name="registryFunc">Function that decorates registrations already in the collection.</param>
     /// <param name="order">See the other overload; ordering is unaffected by the condition.</param>
     /// <returns></returns>
-    public static int AddDecorator(EnvironmentRegistryFunc registryFunc, int order = 0) {
-        lock (SyncLock) {
+    public static int AddDecorator(EnvironmentRegistryFunc registryFunc, int order = 0)
+    {
+        lock (SyncLock)
+        {
             (Decorators ??= []).Add(new DecoratorRegistration(order, registryFunc));
         }
 
@@ -165,8 +184,10 @@ public class DependencyRegistry<T> {
     /// </summary>
     /// <param name="modules"></param>
     /// <returns></returns>
-    public static int AddModule(params IDependencyModule[] modules) {
-        lock (SyncLock) {
+    public static int AddModule(params IDependencyModule[] modules)
+    {
+        lock (SyncLock)
+        {
             (Modules ??= []).AddRange(modules);
         }
 
@@ -178,21 +199,26 @@ public class DependencyRegistry<T> {
     /// </summary>
     /// <param name="serviceCollection"></param>
     /// <param name="dependencyModules"></param>
-    public static void LoadModules(IServiceCollection serviceCollection, params IDependencyModule[] dependencyModules) {
+    public static void LoadModules(
+        IServiceCollection serviceCollection,
+        params IDependencyModule[] dependencyModules
+    )
+    {
         var modules = GetAllModules(dependencyModules);
-        
+
         ApplyFeatures(serviceCollection, modules);
 
         ApplyServices(serviceCollection, modules);
-        
+
         ApplyDecorators(serviceCollection, modules);
     }
-    
+
     /// <summary>
     ///     Apply all registration for a given type to the service collection
     /// </summary>
     /// <param name="serviceCollection"></param>
-    public static void ApplyServices(IServiceCollection serviceCollection) {
+    public static void ApplyServices(IServiceCollection serviceCollection)
+    {
         ApplyServices(serviceCollection, FindOrCreateEnvironment(serviceCollection));
     }
 
@@ -202,16 +228,23 @@ public class DependencyRegistry<T> {
     /// </summary>
     /// <param name="serviceCollection"></param>
     /// <param name="environment"></param>
-    public static void ApplyServices(IServiceCollection serviceCollection, IModuleEnvironment environment) {
+    public static void ApplyServices(
+        IServiceCollection serviceCollection,
+        IModuleEnvironment environment
+    )
+    {
         EnvironmentRegistryFunc[] snapshot;
-        lock (SyncLock) {
-            if (RegistryFuncs == null) {
+        lock (SyncLock)
+        {
+            if (RegistryFuncs == null)
+            {
                 return;
             }
             snapshot = RegistryFuncs.ToArray();
         }
 
-        foreach (var registryFunc in snapshot) {
+        foreach (var registryFunc in snapshot)
+        {
             registryFunc(serviceCollection, environment);
         }
     }
@@ -220,7 +253,8 @@ public class DependencyRegistry<T> {
     /// Apply all decorators
     /// </summary>
     /// <param name="serviceCollection"></param>
-    public static void ApplyDecorators(IServiceCollection serviceCollection) {
+    public static void ApplyDecorators(IServiceCollection serviceCollection)
+    {
         ApplyDecorators(serviceCollection, FindOrCreateEnvironment(serviceCollection));
     }
 
@@ -234,7 +268,8 @@ public class DependencyRegistry<T> {
     /// where two calls disagreeing would actually matter — two process defaults read the same
     /// variables and give the same answers.
     /// </remarks>
-    private static IModuleEnvironment FindOrCreateEnvironment(IServiceCollection serviceCollection) {
+    private static IModuleEnvironment FindOrCreateEnvironment(IServiceCollection serviceCollection)
+    {
         var environment = FindModuleEnvironment(serviceCollection);
 
         return environment ?? ModuleEnvironment.CreateDefault();
@@ -244,12 +279,15 @@ public class DependencyRegistry<T> {
     /// Stable insertion sort by Order. Replaces OrderBy so that no LINQ ordering machinery is
     /// instantiated for DecoratorRegistration at startup.
     /// </summary>
-    private static void SortByOrder(List<DecoratorRegistration> list) {
-        for (var i = 1; i < list.Count; i++) {
+    private static void SortByOrder(List<DecoratorRegistration> list)
+    {
+        for (var i = 1; i < list.Count; i++)
+        {
             var item = list[i];
             var j = i - 1;
 
-            while (j >= 0 && list[j].Order > item.Order) {
+            while (j >= 0 && list[j].Order > item.Order)
+            {
                 list[j + 1] = list[j];
                 j--;
             }
@@ -268,10 +306,12 @@ public class DependencyRegistry<T> {
     /// what lets decoration find the same instance the registrations were decided against, which
     /// matters now that <c>CreateDefault</c> builds a fresh one per call.
     /// </remarks>
-    private static IModuleEnvironment ResolveEnvironment(IServiceCollection serviceCollection) {
+    private static IModuleEnvironment ResolveEnvironment(IServiceCollection serviceCollection)
+    {
         var environment = FindModuleEnvironment(serviceCollection);
 
-        if (environment != null) {
+        if (environment != null)
+        {
             return environment;
         }
 
@@ -290,10 +330,15 @@ public class DependencyRegistry<T> {
     /// </summary>
     /// <param name="serviceCollection"></param>
     /// <param name="environment"></param>
-    public static void ApplyDecorators(IServiceCollection serviceCollection, IModuleEnvironment environment) {
+    public static void ApplyDecorators(
+        IServiceCollection serviceCollection,
+        IModuleEnvironment environment
+    )
+    {
         var list = new List<DecoratorRegistration>(GetDecorators());
         SortByOrder(list);
-        for (var i = 0; i < list.Count; i++) {
+        for (var i = 0; i < list.Count; i++)
+        {
             list[i].RegistryFunc(serviceCollection, environment);
         }
     }
@@ -306,8 +351,10 @@ public class DependencyRegistry<T> {
     /// that decorators from every module can be sorted together. Applying each module's decorators
     /// separately would make module discovery order outrank the declared order.
     /// </remarks>
-    public static IReadOnlyList<DecoratorRegistration> GetDecorators() {
-        lock (SyncLock) {
+    public static IReadOnlyList<DecoratorRegistration> GetDecorators()
+    {
+        lock (SyncLock)
+        {
             return Decorators == null ? Array.Empty<DecoratorRegistration>() : Decorators.ToArray();
         }
     }
@@ -317,9 +364,12 @@ public class DependencyRegistry<T> {
     /// </summary>
     /// <param name="modules"></param>
     /// <returns></returns>
-    public static IEnumerable<object> GetModules(params object[] modules) {
-        lock (SyncLock) {
-            if (Modules == null || Modules.Count == 0) {
+    public static IEnumerable<object> GetModules(params object[] modules)
+    {
+        lock (SyncLock)
+        {
+            if (Modules == null || Modules.Count == 0)
+            {
                 return modules;
             }
 
@@ -338,35 +388,45 @@ public class DependencyRegistry<T> {
     /// </remarks>
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static IEnumerable<object> CombineWithAddedModules(
-        List<IDependencyModule> registered, object[] modules) {
-
+        List<IDependencyModule> registered,
+        object[] modules
+    )
+    {
         var snapshot = registered.ToList();
 
         return modules.Length == 0 ? snapshot : snapshot.Concat(modules);
     }
 
-    private static void ApplyDecorators(IServiceCollection serviceCollection, IReadOnlyList<IDependencyModule> modules) {
+    private static void ApplyDecorators(
+        IServiceCollection serviceCollection,
+        IReadOnlyList<IDependencyModule> modules
+    )
+    {
         // Gathered from every module and sorted together, the same way ApplyFeatures collects and
         // sorts feature applicators. Applying each module's decorators in turn would let module
         // discovery order outrank the declared order, which breaks a pipeline assembled from more
         // than one package.
         List<DecoratorRegistration>? decorators = null;
 
-        for (var i = 0; i < modules.Count; i++) {
+        for (var i = 0; i < modules.Count; i++)
+        {
             var registrations = modules[i].InternalGetDecorators();
 
             // Tested before enumerating. A module with no decorators is the common case, and asking
             // it for an enumerator to immediately find it empty built one per module per startup.
-            if (registrations is ICollection<DecoratorRegistration> { Count: 0 }) {
+            if (registrations is ICollection<DecoratorRegistration> { Count: 0 })
+            {
                 continue;
             }
 
-            foreach (var registration in registrations) {
+            foreach (var registration in registrations)
+            {
                 (decorators ??= []).Add(registration);
             }
         }
 
-        if (decorators != null) {
+        if (decorators != null)
+        {
             // The same environment the registrations were decided against. ApplyServices runs first
             // and registers one when nothing supplied it, so this finds that instance rather than
             // building a second answer to "what environment is this" — a decorator gated on
@@ -377,12 +437,14 @@ public class DependencyRegistry<T> {
 
             SortByOrder(decorators);
 
-            for (var i = 0; i < decorators.Count; i++) {
+            for (var i = 0; i < decorators.Count; i++)
+            {
                 decorators[i].RegistryFunc(serviceCollection, environment);
             }
         }
 
-        for (var i = 0; i < modules.Count; i++) {
+        for (var i = 0; i < modules.Count; i++)
+        {
             var module = modules[i];
 
             // Retained for hand-written modules that decorate directly. Generated modules use
@@ -391,13 +453,18 @@ public class DependencyRegistry<T> {
 
             // Mirrors how ApplyServices invokes ConfigureServices. Runs last, so the manual escape
             // hatch sees every declared decorator already in place.
-            if (module is IServiceCollectionConfiguration serviceCollectionConfigure) {
+            if (module is IServiceCollectionConfiguration serviceCollectionConfigure)
+            {
                 serviceCollectionConfigure.ConfigureDecorators(serviceCollection);
             }
         }
     }
 
-    private static void ApplyServices(IServiceCollection serviceCollection, IReadOnlyList<IDependencyModule> modules) {
+    private static void ApplyServices(
+        IServiceCollection serviceCollection,
+        IReadOnlyList<IDependencyModule> modules
+    )
+    {
         // Always looked for now. Attribute conditions live on generated modules, which do not
         // implement IEnvironmentServiceCollectionConfiguration, so the old "only if some module
         // asked for it" gate would have missed them. It costs one scan of the collection per
@@ -409,7 +476,8 @@ public class DependencyRegistry<T> {
         // environment at all. An application with no environment says so with ModuleEnvironment.None.
         // Nothing to apply means nothing to decide, so the collection is left exactly as it was
         // rather than picking up an environment nobody asked for.
-        if (modules.Count == 0) {
+        if (modules.Count == 0)
+        {
             return;
         }
 
@@ -419,15 +487,18 @@ public class DependencyRegistry<T> {
         // never displaced — and registering it is what lets ApplyDecorators find the same instance.
         var environment = ResolveEnvironment(serviceCollection);
 
-        for (var i = 0; i < modules.Count; i++) {
+        for (var i = 0; i < modules.Count; i++)
+        {
             var module = modules[i];
             module.InternalApplyServices(serviceCollection, environment);
 
-            if (module is IServiceCollectionConfiguration serviceCollectionConfigure) {
+            if (module is IServiceCollectionConfiguration serviceCollectionConfigure)
+            {
                 serviceCollectionConfigure.ConfigureServices(serviceCollection);
             }
 
-            if (module is IEnvironmentServiceCollectionConfiguration environmentConfigure) {
+            if (module is IEnvironmentServiceCollectionConfiguration environmentConfigure)
+            {
                 environmentConfigure.ConfigureServices(serviceCollection, environment);
             }
         }
@@ -444,15 +515,18 @@ public class DependencyRegistry<T> {
     /// the registration that was ignored got shadowed by the one added in its place — a service
     /// gated on "Development" quietly took its production branch.
     /// </remarks>
-    private static void RefuseUnusableEnvironment(ServiceDescriptor descriptor) {
-        if (descriptor.ServiceType == typeof(IModuleEnvironment)) {
+    private static void RefuseUnusableEnvironment(ServiceDescriptor descriptor)
+    {
+        if (descriptor.ServiceType == typeof(IModuleEnvironment))
+        {
             throw new InvalidOperationException(
-                "An IModuleEnvironment is registered, but not as a singleton instance, so it cannot " +
-                "be used. The environment decides which services are registered, which happens " +
-                "while the service collection is being populated and before any provider exists to " +
-                "construct it from. Register the instance directly with " +
-                "AddSingleton<IModuleEnvironment>(new MyEnvironment()), or pass it to " +
-                "AddModules(environment, modules).");
+                "An IModuleEnvironment is registered, but not as a singleton instance, so it cannot "
+                    + "be used. The environment decides which services are registered, which happens "
+                    + "while the service collection is being populated and before any provider exists to "
+                    + "construct it from. Register the instance directly with "
+                    + "AddSingleton<IModuleEnvironment>(new MyEnvironment()), or pass it to "
+                    + "AddModules(environment, modules)."
+            );
         }
     }
 
@@ -467,18 +541,25 @@ public class DependencyRegistry<T> {
     /// The last matching descriptor decides, because that is the one the container would resolve.
     /// Anything earlier is shadowed and cannot be what the application meant.
     /// </remarks>
-    private static IModuleEnvironment? FindModuleEnvironment(IServiceCollection serviceCollection) {
-        for (var i = serviceCollection.Count - 1; i >= 0; i--) {
+    private static IModuleEnvironment? FindModuleEnvironment(IServiceCollection serviceCollection)
+    {
+        for (var i = serviceCollection.Count - 1; i >= 0; i--)
+        {
             var descriptor = serviceCollection[i];
 
-            if (descriptor.ServiceType != typeof(IModuleEnvironment)) {
+            if (descriptor.ServiceType != typeof(IModuleEnvironment))
+            {
                 continue;
             }
 
-            if (descriptor is {
+            if (
+                descriptor is
+                {
                     Lifetime: ServiceLifetime.Singleton,
                     ImplementationInstance: IModuleEnvironment environment
-                }) {
+                }
+            )
+            {
                 return environment;
             }
 
@@ -488,44 +569,59 @@ public class DependencyRegistry<T> {
         return null;
     }
 
-    private static void ApplyFeatures(IServiceCollection serviceCollection, IReadOnlyList<IDependencyModule> modules) {
+    private static void ApplyFeatures(
+        IServiceCollection serviceCollection,
+        IReadOnlyList<IDependencyModule> modules
+    )
+    {
         List<IFeatureApplicator>? features = null;
 
-        for (var i = 0; i < modules.Count; i++) {
+        for (var i = 0; i < modules.Count; i++)
+        {
             var module = modules[i];
-            
-            if (module is IDependencyModuleApplicatorProvider provider) {
-                foreach (var featureApplicator in provider.FeatureApplicators()) {
+
+            if (module is IDependencyModuleApplicatorProvider provider)
+            {
+                foreach (var featureApplicator in provider.FeatureApplicators())
+                {
                     (features ??= []).Add(featureApplicator);
                 }
             }
         }
-        
-        if (features != null) {
+
+        if (features != null)
+        {
             features.Sort((x, y) => x.Order.CompareTo(y.Order));
 
-            for (var i = 0; i < features.Count; i++) {
+            for (var i = 0; i < features.Count; i++)
+            {
                 var feature = features[i];
                 feature.Apply(serviceCollection, modules);
             }
         }
     }
 
-
-    private static IReadOnlyList<IDependencyModule> GetAllModules(IDependencyModule[] dependencyModules) {
+    private static IReadOnlyList<IDependencyModule> GetAllModules(
+        IDependencyModule[] dependencyModules
+    )
+    {
         var list = new List<IDependencyModule>();
 
-        foreach (var dependencyModule in dependencyModules) {
+        foreach (var dependencyModule in dependencyModules)
+        {
             InternalGetModules(dependencyModule, list);
         }
 
         return list;
     }
 
-    
-    private static void InternalGetModules(IDependencyModule dependencyModule, List<IDependencyModule> allDependencyModules) {
-        if (!dependencyModule.LoadModule ||
-            AlreadySeen(allDependencyModules, dependencyModule)) {
+    private static void InternalGetModules(
+        IDependencyModule dependencyModule,
+        List<IDependencyModule> allDependencyModules
+    )
+    {
+        if (!dependencyModule.LoadModule || AlreadySeen(allDependencyModules, dependencyModule))
+        {
             return;
         }
 
@@ -533,13 +629,17 @@ public class DependencyRegistry<T> {
 
         var declared = dependencyModule.InternalGetModules();
 
-        if (declared is not ICollection<object> { Count: 0 }) {
-            foreach (var dependencyObject in declared) {
-                if (dependencyObject is IDependencyModuleProvider moduleProvider) {
+        if (declared is not ICollection<object> { Count: 0 })
+        {
+            foreach (var dependencyObject in declared)
+            {
+                if (dependencyObject is IDependencyModuleProvider moduleProvider)
+                {
                     var dep = moduleProvider.GetModule();
                     InternalGetModules(dep, allDependencyModules);
                 }
-                else if (dependencyObject is IDependencyModule module) {
+                else if (dependencyObject is IDependencyModule module)
+                {
                     InternalGetModules(module, allDependencyModules);
                 }
             }
@@ -550,11 +650,13 @@ public class DependencyRegistry<T> {
         // Both lists are empty for the overwhelming majority of modules, and both are reached
         // through an interface. Testing for an empty collection first avoids building an enumerator
         // for each of them on every module of every startup.
-        if (overridden is ICollection<IDependencyModule> { Count: 0 }) {
+        if (overridden is ICollection<IDependencyModule> { Count: 0 })
+        {
             return;
         }
 
-        foreach (var module in overridden) {
+        foreach (var module in overridden)
+        {
             InternalGetModules(module, allDependencyModules);
         }
     }
@@ -568,11 +670,14 @@ public class DependencyRegistry<T> {
     /// for an interface is a runtime type-construction step - it showed up as the single most
     /// expensive thing in module discovery, to compare a list that usually holds one item.
     /// </remarks>
-    private static bool AlreadySeen(List<IDependencyModule> modules, IDependencyModule candidate) {
-        for (var i = 0; i < modules.Count; i++) {
+    private static bool AlreadySeen(List<IDependencyModule> modules, IDependencyModule candidate)
+    {
+        for (var i = 0; i < modules.Count; i++)
+        {
             // Argument order matches EqualityComparer<T>.Default, which asks the element rather
             // than the candidate, so a hand-written asymmetric Equals behaves as it always did.
-            if (modules[i].Equals(candidate)) {
+            if (modules[i].Equals(candidate))
+            {
                 return true;
             }
         }

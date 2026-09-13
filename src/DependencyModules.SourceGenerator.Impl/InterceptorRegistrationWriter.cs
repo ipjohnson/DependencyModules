@@ -1,6 +1,6 @@
-using DependencyModules.SourceGenerator.Impl.Utilities;
 using CSharpAuthor;
 using DependencyModules.SourceGenerator.Impl.Models;
+using DependencyModules.SourceGenerator.Impl.Utilities;
 using static CSharpAuthor.SyntaxHelpers;
 
 namespace DependencyModules.SourceGenerator.Impl;
@@ -9,13 +9,14 @@ namespace DependencyModules.SourceGenerator.Impl;
 /// Registers each generated wrapper as a decorator of the service it intercepts, and registers the
 /// interceptors themselves so the wrapper can be constructed.
 /// </summary>
-public class InterceptorRegistrationWriter {
-
+public class InterceptorRegistrationWriter
+{
     public string Write(
         ModuleEntryPointModel entryPointModel,
         DependencyModuleConfigurationModel configurationModel,
-        IReadOnlyList<InterceptorModel> models) {
-
+        IReadOnlyList<InterceptorModel> models
+    )
+    {
         var csharpFile = new CSharpFileDefinition(entryPointModel.EntryPointType.Namespace);
 
         var classDefinition = csharpFile.AddClass(entryPointModel.EntryPointType.Name);
@@ -25,14 +26,18 @@ public class InterceptorRegistrationWriter {
         // else, so the namespace is asked for by name; Global mode derives no usings on its own.
         classDefinition.AddUsingNamespace("Microsoft.Extensions.DependencyInjection");
 
-        for (var i = 0; i < models.Count; i++) {
+        for (var i = 0; i < models.Count; i++)
+        {
             WriteInterceptor(entryPointModel, classDefinition, models[i], i, configurationModel);
         }
 
-        var outputContext = new OutputContext(new OutputContextOptions {
-            TypeOutputMode = TypeOutputMode.Global,
-            BraceStyle = configurationModel.GeneratedCodeStyle
-        });
+        var outputContext = new OutputContext(
+            new OutputContextOptions
+            {
+                TypeOutputMode = TypeOutputMode.Global,
+                BraceStyle = configurationModel.GeneratedCodeStyle,
+            }
+        );
 
         csharpFile.WriteOutput(outputContext);
 
@@ -48,15 +53,21 @@ public class InterceptorRegistrationWriter {
     /// parameter names instead is CS0246, because no <c>T</c> is in scope at the registration.
     /// Blank-named arguments are how this codebase represents unbound throughout.
     /// </remarks>
-    private static ITypeDefinition Unbound(ITypeDefinition type, int arity) {
+    private static ITypeDefinition Unbound(ITypeDefinition type, int arity)
+    {
         var arguments = new ITypeDefinition[arity];
 
-        for (var i = 0; i < arity; i++) {
+        for (var i = 0; i < arity; i++)
+        {
             arguments[i] = TypeDefinition.Get("", "");
         }
 
         return new GenericTypeDefinition(
-            TypeDefinitionEnum.ClassDefinition, type.Namespace, type.Name, arguments);
+            TypeDefinitionEnum.ClassDefinition,
+            type.Namespace,
+            type.Name,
+            arguments
+        );
     }
 
     private static void WriteInterceptor(
@@ -64,19 +75,25 @@ public class InterceptorRegistrationWriter {
         ClassDefinition classDefinition,
         InterceptorModel model,
         int index,
-        DependencyModuleConfigurationModel configurationModel) {
-
+        DependencyModuleConfigurationModel configurationModel
+    )
+    {
         var methodName = $"ApplyInterceptor{index}";
 
         var method = classDefinition.AddMethod(methodName);
         method.Modifiers |= ComponentModifier.Private | ComponentModifier.Static;
 
-        if (configurationModel.ExcludeGeneratedCodeFromCoverage) {
-            method.AddAttribute(TypeDefinition.Get("System.Diagnostics.CodeAnalysis", "ExcludeFromCodeCoverage"));
+        if (configurationModel.ExcludeGeneratedCodeFromCoverage)
+        {
+            method.AddAttribute(
+                TypeDefinition.Get("System.Diagnostics.CodeAnalysis", "ExcludeFromCodeCoverage")
+            );
         }
 
         var services = method.AddParameter(
-            KnownTypes.Microsoft.DependencyInjection.IServiceCollection, "services");
+            KnownTypes.Microsoft.DependencyInjection.IServiceCollection,
+            "services"
+        );
 
         // Each interceptor is registered as itself, not as IInterceptor. Registering the shared
         // interface instead made every interceptor visible to every wrapper, and two services with
@@ -87,8 +104,10 @@ public class InterceptorRegistrationWriter {
         // theirs is the one already in the collection.
         var registered = new HashSet<ITypeDefinition>();
 
-        foreach (var interceptor in model.Interceptors) {
-            if (!registered.Add(interceptor.Type)) {
+        foreach (var interceptor in model.Interceptors)
+        {
+            if (!registered.Add(interceptor.Type))
+            {
                 continue;
             }
 
@@ -96,10 +115,13 @@ public class InterceptorRegistrationWriter {
                 new StaticInvokeStatement(
                     KnownTypes.Microsoft.DependencyInjection.ServiceCollectionDescriptorExtensions,
                     TryAddMethodFor(interceptor.Lifestyle),
-                    new List<IOutputComponent> {
+                    new List<IOutputComponent>
+                    {
                         CodeOutputComponent.Get(services.Name),
-                        TypeOf(interceptor.Type)
-                    }));
+                        TypeOf(interceptor.Type),
+                    }
+                )
+            );
         }
 
         var wrapperName = $"{model.ImplementationType.Name.Replace(".", "_")}_Intercepted";
@@ -107,7 +129,8 @@ public class InterceptorRegistrationWriter {
 
         method.NewLine();
 
-        if (model.IsOpenGeneric) {
+        if (model.IsOpenGeneric)
+        {
             // An open generic service cannot be decorated: decoration rewrites the registration into
             // a factory, and the container refuses a factory for one. It does accept an open generic
             // implementation type, and the wrapper is one — so the registration is swapped for the
@@ -120,23 +143,33 @@ public class InterceptorRegistrationWriter {
                 new StaticInvokeStatement(
                     KnownTypes.DependencyModules.Helpers.DecoratorHelper,
                     "InterceptOpenGeneric",
-                    new List<IOutputComponent> {
+                    new List<IOutputComponent>
+                    {
                         CodeOutputComponent.Get(services.Name),
                         TypeOf(Unbound(model.ServiceType, model.TypeParameters!.Count)),
                         TypeOf(Unbound(model.ImplementationType, model.TypeParameters!.Count)),
-                        TypeOf(Unbound(wrapperType, model.TypeParameters!.Count))
-                    }));
-        } else {
+                        TypeOf(Unbound(wrapperType, model.TypeParameters!.Count)),
+                    }
+                )
+            );
+        }
+        else
+        {
             // The wrapper is generated right here, so its constructor is known exactly: the
             // intercepted instance, then one parameter per interceptor. Emitting the `new` rather than
             // handing the type to ActivatorUtilities is what keeps interception working in a published
             // Native AOT application — the same reason decorators are emitted closed.
             var arguments = new List<object> { CodeOutputComponent.Get("inner") };
 
-            for (var i = 0; i < model.Interceptors.Count; i++) {
+            for (var i = 0; i < model.Interceptors.Count; i++)
+            {
                 arguments.Add(
                     new InvokeGenericDefinition(
-                        "provider", "GetRequiredService", new[] { model.Interceptors[i].Type }));
+                        "provider",
+                        "GetRequiredService",
+                        new[] { model.Interceptors[i].Type }
+                    )
+                );
             }
 
             // The implementation is named so the rewrite lands only on the registration this
@@ -154,8 +187,11 @@ public class InterceptorRegistrationWriter {
                     new WrapStatement(
                         CodeOutputComponent.Get(" => "),
                         CodeOutputComponent.Get("(provider, inner)"),
-                        New(wrapperType, arguments.ToArray())),
-                    TypeOf(model.ImplementationType)));
+                        New(wrapperType, arguments.ToArray())
+                    ),
+                    TypeOf(model.ImplementationType)
+                )
+            );
         }
 
         // A field initializer registers the method, matching how decorator registrations are hooked
@@ -164,22 +200,27 @@ public class InterceptorRegistrationWriter {
         field.Modifiers |= ComponentModifier.Private | ComponentModifier.Static;
         field.AddAttribute(
             TypeDefinition.Get("System.Diagnostics.CodeAnalysis", "DynamicDependency"),
-            $"nameof({methodName})");
+            $"nameof({methodName})"
+        );
 
         var registryType = new GenericTypeDefinition(
             TypeDefinitionEnum.ClassDefinition,
             KnownTypes.DependencyModules.Helpers.Namespace,
             "DependencyRegistry",
-            new[] { entryPointModel.EntryPointType });
+            new[] { entryPointModel.EntryPointType }
+        );
 
         field.InitializeValue = new StaticInvokeStatement(
             registryType,
             "AddDecorator",
-            new List<IOutputComponent> {
+            new List<IOutputComponent>
+            {
                 CodeOutputComponent.Get(methodName),
-                CodeOutputComponent.Get(model.Order.ToString())
-            }) {
-            Indented = false
+                CodeOutputComponent.Get(model.Order.ToString()),
+            }
+        )
+        {
+            Indented = false,
         };
     }
 
@@ -192,9 +233,10 @@ public class InterceptorRegistrationWriter {
     /// registration is already in the collection by the time this runs.
     /// </remarks>
     private static string TryAddMethodFor(ServiceLifestyle lifestyle) =>
-        lifestyle switch {
+        lifestyle switch
+        {
             ServiceLifestyle.Scoped => "TryAddScoped",
             ServiceLifestyle.Transient => "TryAddTransient",
-            _ => "TryAddSingleton"
+            _ => "TryAddSingleton",
         };
 }

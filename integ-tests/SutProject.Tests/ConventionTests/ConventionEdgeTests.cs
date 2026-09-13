@@ -9,9 +9,10 @@ namespace SutProject.Tests.ConventionTests;
 /// <summary>
 /// The corners of convention registration.
 /// </summary>
-public class ConventionEdgeTests {
-
-    private static ServiceProvider Provider(params IDependencyModule[] modules) {
+public class ConventionEdgeTests
+{
+    private static ServiceProvider Provider(params IDependencyModule[] modules)
+    {
         var collection = new ServiceCollection();
 
         collection.AddModules(modules);
@@ -24,7 +25,8 @@ public class ConventionEdgeTests {
     /// decorator or the service comes from an assembly you do not control.
     /// </summary>
     [Fact]
-    public void ModuleLevelDecorateWrapsAConventionRegistration() {
+    public void ModuleLevelDecorateWrapsAConventionRegistration()
+    {
         var provider = Provider(new ConventionModuleDecorateModule());
 
         Assert.Equal("wrapped(core)", provider.GetRequiredService<IModuleDecorated>().Describe());
@@ -36,7 +38,8 @@ public class ConventionEdgeTests {
     /// other.
     /// </summary>
     [Fact]
-    public void TwoModulesScanningOneInterfaceBothContribute() {
+    public void TwoModulesScanningOneInterfaceBothContribute()
+    {
         var names = Provider(new ConventionSharedFirstModule(), new ConventionSharedSecondModule())
             .GetServices<IShared>()
             .Select(shared => shared.Name)
@@ -51,7 +54,8 @@ public class ConventionEdgeTests {
     /// "MyApp.Order.Handlers".
     /// </summary>
     [Fact]
-    public void InNamespaceOfReachesNestedNamespaces() {
+    public void InNamespaceOfReachesNestedNamespaces()
+    {
         var names = Provider(new ConventionPrefixNamespaceModule())
             .GetServices<INamespaceScanned>()
             .Select(scanned => scanned.Name)
@@ -63,7 +67,8 @@ public class ConventionEdgeTests {
 
     /// <summary>And InExactNamespaces is how you say you meant only that one.</summary>
     [Fact]
-    public void InExactNamespacesExcludesNestedNamespaces() {
+    public void InExactNamespacesExcludesNestedNamespaces()
+    {
         var names = Provider(new ConventionExactNamespaceModule())
             .GetServices<INamespaceScanned>()
             .Select(scanned => scanned.Name)
@@ -73,7 +78,8 @@ public class ConventionEdgeTests {
     }
 
     [Fact]
-    public void NotInNamespaceOfExcludesThatNamespace() {
+    public void NotInNamespaceOfExcludesThatNamespace()
+    {
         var names = Provider(new ConventionExcludedNamespaceModule())
             .GetServices<INamespaceScanned>()
             .Select(scanned => scanned.Name)
@@ -87,7 +93,8 @@ public class ConventionEdgeTests {
     /// closes it per request.
     /// </summary>
     [Fact]
-    public void AnOpenGenericRegistrationResolvesAtEveryClosing() {
+    public void AnOpenGenericRegistrationResolvesAtEveryClosing()
+    {
         var provider = Provider(new ConventionOpenGenericModule());
 
         Assert.Equal("cache:String", provider.GetRequiredService<IOpenCache<string>>().Describe());
@@ -95,7 +102,8 @@ public class ConventionEdgeTests {
     }
 
     [Fact]
-    public void ADeclaredScopedLifetimeActuallyScopes() {
+    public void ADeclaredScopedLifetimeActuallyScopes()
+    {
         var provider = Provider(new ConventionLifetimeModule());
 
         using var first = provider.CreateScope();
@@ -111,7 +119,8 @@ public class ConventionEdgeTests {
     /// The container owns what it constructed, however the registration was declared.
     /// </summary>
     [Fact]
-    public void AConventionRegisteredSingletonIsDisposedWithTheProvider() {
+    public void AConventionRegisteredSingletonIsDisposedWithTheProvider()
+    {
         var provider = Provider(new ConventionLifetimeModule());
         var disposable = provider.GetRequiredService<IDisposableByConvention>();
 
@@ -128,7 +137,8 @@ public class ConventionEdgeTests {
     /// nothing can report, since it cannot see what it cannot see.
     /// </summary>
     [Fact]
-    public void AnInternalImplementationIsACandidateInThisCompilation() {
+    public void AnInternalImplementationIsACandidateInThisCompilation()
+    {
         var provider = Provider(new ConventionLifetimeModule());
 
         Assert.Equal("internal", provider.GetRequiredService<IInternallyImplemented>().Name);
@@ -139,7 +149,8 @@ public class ConventionEdgeTests {
     /// container, so a decorator's own dependencies can be convention-registered too.
     /// </summary>
     [Fact]
-    public void ADecoratorResolvesItsOwnConventionRegisteredDependencies() {
+    public void ADecoratorResolvesItsOwnConventionRegisteredDependencies()
+    {
         var provider = Provider(new ConventionDecoratorDependencyModule());
 
         Assert.Equal("dep(core)", provider.GetRequiredService<IDependentlyDecorated>().Describe());
@@ -149,7 +160,8 @@ public class ConventionEdgeTests {
     /// Filters and shapes apply to a metadata scan the same way they apply to local types.
     /// </summary>
     [Fact]
-    public void AFilteredMetadataScanRegistersTheConcreteType() {
+    public void AFilteredMetadataScanRegistersTheConcreteType()
+    {
         var provider = Provider(new ConventionFilteredScanModule());
 
         Assert.Equal("first", provider.GetRequiredService<FirstPackagePolicy>().Name);

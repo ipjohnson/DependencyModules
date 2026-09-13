@@ -10,29 +10,47 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace DependencyModules.SourceGenerator;
 
-public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel> {
-    private static ITypeDefinition[] _skipTypes = new [] { TypeDefinition.Get(typeof(INotifyPropertyChanged))};
-    private static readonly ITypeDefinition[] _attributeTypes = {
-        KnownTypes.DependencyModules.Attributes.TransientServiceAttribute, 
-        KnownTypes.DependencyModules.Attributes.ScopedServiceAttribute, 
+public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
+{
+    private static ITypeDefinition[] _skipTypes = new[]
+    {
+        TypeDefinition.Get(typeof(INotifyPropertyChanged)),
+    };
+    private static readonly ITypeDefinition[] _attributeTypes =
+    {
+        KnownTypes.DependencyModules.Attributes.TransientServiceAttribute,
+        KnownTypes.DependencyModules.Attributes.ScopedServiceAttribute,
         KnownTypes.DependencyModules.Attributes.SingletonServiceAttribute,
         KnownTypes.DependencyModules.Attributes.CrossWireServiceAttribute,
-        KnownTypes.Microsoft.TextJson.JsonSourceGenerationOptionsAttribute
+        KnownTypes.Microsoft.TextJson.JsonSourceGenerationOptionsAttribute,
     };
 
-    private readonly IEqualityComparer<ServiceModel> _serviceEqualityComparer = new ServiceModelComparer();
+    private readonly IEqualityComparer<ServiceModel> _serviceEqualityComparer =
+        new ServiceModelComparer();
 
-    protected override IEnumerable<ITypeDefinition> AttributeTypes() {
+    protected override IEnumerable<ITypeDefinition> AttributeTypes()
+    {
         return _attributeTypes;
     }
 
-    protected override void GenerateSourceOutput(SourceProductionContext context, 
-        (ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> Left, ImmutableArray<ServiceModel> Right) inputData, 
-        FileLogger logger) {
-        if (inputData.Left.Length == 0 || inputData.Right.Length == 0) {
+    protected override void GenerateSourceOutput(
+        SourceProductionContext context,
+        (
+            ImmutableArray<(
+                ModuleEntryPointModel Left,
+                DependencyModuleConfigurationModel Right
+            )> Left,
+            ImmutableArray<ServiceModel> Right
+        ) inputData,
+        FileLogger logger
+    )
+    {
+        if (inputData.Left.Length == 0 || inputData.Right.Length == 0)
+        {
             logger.Info(
-                $"Nothing to generate: {inputData.Left.Length} module(s) and " +
-                $"{inputData.Right.Length} service(s) were discovered.");
+                $"Nothing to generate: {inputData.Left.Length} module(s) and "
+                    + $"{inputData.Right.Length} service(s) were discovered."
+            );
             return;
         }
 
@@ -43,38 +61,55 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
         // generic that cannot be cross-wired, is dropped here and explained there.
         var serviceModels = Registerable(inputData.Right);
 
-        if (serviceModels.Length == 0) {
+        if (serviceModels.Length == 0)
+        {
             return;
         }
 
-        var (entryPointList, configurationModel) =
-            EntryModelUtil.ConsolidateEntryPointModels(inputData.Left);
+        var (entryPointList, configurationModel) = EntryModelUtil.ConsolidateEntryPointModels(
+            inputData.Left
+        );
 
-        foreach (var entryPointModel in EntryModelUtil.RegistrationTargets(entryPointList)) {
+        foreach (var entryPointModel in EntryModelUtil.RegistrationTargets(entryPointList))
+        {
             context.CancellationToken.ThrowIfCancellationRequested();
-            GenerateSourceOutput(context, entryPointModel, configurationModel, serviceModels, logger);
+            GenerateSourceOutput(
+                context,
+                entryPointModel,
+                configurationModel,
+                serviceModels,
+                logger
+            );
         }
     }
 
-    protected void GenerateSourceOutput(SourceProductionContext context,
+    protected void GenerateSourceOutput(
+        SourceProductionContext context,
         ModuleEntryPointModel entryPointModel,
         DependencyModuleConfigurationModel configurationModel,
-        ImmutableArray<ServiceModel> serviceModels, FileLogger logger) {
-
+        ImmutableArray<ServiceModel> serviceModels,
+        FileLogger logger
+    )
+    {
         // don't generate empty dependency registrations
-        if (serviceModels.Length == 0) {
+        if (serviceModels.Length == 0)
+        {
             return;
         }
-        
-        entryPointModel = EntryModelUtil.EnsureNamespace(entryPointModel,configurationModel);
-        
+
+        entryPointModel = EntryModelUtil.EnsureNamespace(entryPointModel, configurationModel);
+
         var writer = new DependencyFileWriter(logger);
 
         var output = writer.Write(entryPointModel, configurationModel, serviceModels, "Module");
-        
+
         context.AddSource(
             entryPointModel.EntryPointType.GetFileNameHint(
-                configurationModel.RootNamespace,"Dependencies"), output);
+                configurationModel.RootNamespace,
+                "Dependencies"
+            ),
+            output
+        );
     }
 
     /// <summary>
@@ -86,38 +121,54 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
     /// what configuration was in effect — none of which is visible from the generated output alone.
     /// </remarks>
     private static void LogDiscovery(
-        (ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> Left,
-            ImmutableArray<ServiceModel> Right) inputData,
-        FileLogger logger) {
-
+        (
+            ImmutableArray<(
+                ModuleEntryPointModel Left,
+                DependencyModuleConfigurationModel Right
+            )> Left,
+            ImmutableArray<ServiceModel> Right
+        ) inputData,
+        FileLogger logger
+    )
+    {
         var configuration = inputData.Left.First().Right;
 
         logger.Info(
-            "Configuration: " +
-            $"RootNamespace='{configuration.RootNamespace}', " +
-            $"ProjectDir='{configuration.ProjectDir}', " +
-            $"RegistrationType={configuration.RegistrationType}, " +
-            $"AutoGenerateModule={configuration.AutoGenerateEntry}, " +
-            $"GenerateFactories={configuration.GenerateFactories}, " +
-            $"ExcludeGeneratedCodeFromCoverage={configuration.ExcludeGeneratedCodeFromCoverage}");
+            "Configuration: "
+                + $"RootNamespace='{configuration.RootNamespace}', "
+                + $"ProjectDir='{configuration.ProjectDir}', "
+                + $"RegistrationType={configuration.RegistrationType}, "
+                + $"AutoGenerateModule={configuration.AutoGenerateEntry}, "
+                + $"GenerateFactories={configuration.GenerateFactories}, "
+                + $"ExcludeGeneratedCodeFromCoverage={configuration.ExcludeGeneratedCodeFromCoverage}"
+        );
 
         logger.Info($"Discovered {inputData.Left.Length} module(s):");
-        foreach (var (entryPoint, _) in inputData.Left) {
+        foreach (var (entryPoint, _) in inputData.Left)
+        {
             logger.Info(
-                $"  {entryPoint.EntryPointType.Namespace}.{entryPoint.EntryPointType.Name} " +
-                $"[{entryPoint.ModuleFeatures}] from '{entryPoint.FileLocation}'");
+                $"  {entryPoint.EntryPointType.Namespace}.{entryPoint.EntryPointType.Name} "
+                    + $"[{entryPoint.ModuleFeatures}] from '{entryPoint.FileLocation}'"
+            );
         }
 
         logger.Info($"Discovered {inputData.Right.Length} service(s):");
-        foreach (var serviceModel in inputData.Right) {
-            foreach (var registration in serviceModel.Registrations) {
+        foreach (var serviceModel in inputData.Right)
+        {
+            foreach (var registration in serviceModel.Registrations)
+            {
                 logger.Info(
-                    $"  {serviceModel.ImplementationType.Name} -> {registration.ServiceType.Name} " +
-                    $"({registration.Lifestyle}" +
-                    (registration.Key != null ? $", key={registration.Key}" : "") +
-                    (registration.Realm != null ? $", realm={registration.Realm.Name}" : "") +
-                    (registration.RegistrationType != null ? $", using={registration.RegistrationType}" : "") +
-                    ")");
+                    $"  {serviceModel.ImplementationType.Name} -> {registration.ServiceType.Name} "
+                        + $"({registration.Lifestyle}"
+                        + (registration.Key != null ? $", key={registration.Key}" : "")
+                        + (registration.Realm != null ? $", realm={registration.Realm.Name}" : "")
+                        + (
+                            registration.RegistrationType != null
+                                ? $", using={registration.RegistrationType}"
+                                : ""
+                        )
+                        + ")"
+                );
             }
         }
     }
@@ -131,15 +182,21 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
     /// build for an abstract or static type, and at compile time for a cross-wired generic. Each is
     /// explained by a diagnostic; this only decides what not to write.
     /// </remarks>
-    private static ImmutableArray<ServiceModel> Registerable(ImmutableArray<ServiceModel> serviceModels) {
-        if (!serviceModels.Any(m => IsUnconstructable(m) || IsCrossWiredGeneric(m))) {
+    private static ImmutableArray<ServiceModel> Registerable(
+        ImmutableArray<ServiceModel> serviceModels
+    )
+    {
+        if (!serviceModels.Any(m => IsUnconstructable(m) || IsCrossWiredGeneric(m)))
+        {
             return serviceModels;
         }
 
         var builder = ImmutableArray.CreateBuilder<ServiceModel>(serviceModels.Length);
 
-        foreach (var serviceModel in serviceModels) {
-            if (!IsUnconstructable(serviceModel) && !IsCrossWiredGeneric(serviceModel)) {
+        foreach (var serviceModel in serviceModels)
+        {
+            if (!IsUnconstructable(serviceModel) && !IsCrossWiredGeneric(serviceModel))
+            {
                 builder.Add(serviceModel);
             }
         }
@@ -172,8 +229,8 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
     /// A cross-wired registration on an implementation that is itself generic.
     /// </summary>
     private static bool IsCrossWiredGeneric(ServiceModel serviceModel) =>
-        serviceModel.ImplementationType is GenericTypeDefinition { TypeArguments.Count: > 0 } &&
-        serviceModel.Registrations.Any(registration => registration.CrossWire == true);
+        serviceModel.ImplementationType is GenericTypeDefinition { TypeArguments.Count: > 0 }
+        && serviceModel.Registrations.Any(registration => registration.CrossWire == true);
 
     /// <summary>
     /// Everything this generator has to say about the services it found.
@@ -184,20 +241,30 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
     /// project. The two halves share their predicates: what <see cref="Registerable"/> drops is
     /// exactly what the first two loops here explain.
     /// </remarks>
-    protected override void ReportDiagnostics(SourceProductionContext context,
-        (ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> Left,
-            ImmutableArray<ServiceModel> Right) data,
+    protected override void ReportDiagnostics(
+        SourceProductionContext context,
+        (
+            ImmutableArray<(
+                ModuleEntryPointModel Left,
+                DependencyModuleConfigurationModel Right
+            )> Left,
+            ImmutableArray<ServiceModel> Right
+        ) data,
         SyntaxTreeLookup lookup,
-        FileLogger logger) {
-
-        if (data.Left.Length == 0 || data.Right.Length == 0) {
+        FileLogger logger
+    )
+    {
+        if (data.Left.Length == 0 || data.Right.Length == 0)
+        {
             return;
         }
 
-        foreach (var serviceModel in data.Right) {
+        foreach (var serviceModel in data.Right)
+        {
             context.CancellationToken.ThrowIfCancellationRequested();
 
-            if (!IsUnconstructable(serviceModel)) {
+            if (!IsUnconstructable(serviceModel))
+            {
                 continue;
             }
 
@@ -211,13 +278,17 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
                     DependencyModuleDiagnostics.ServiceCannotBeConstructed,
                     serviceModel.Location?.ToLocationOrNone(lookup) ?? Location.None,
                     typeName,
-                    reason));
+                    reason
+                )
+            );
         }
 
-        foreach (var serviceModel in data.Right) {
+        foreach (var serviceModel in data.Right)
+        {
             context.CancellationToken.ThrowIfCancellationRequested();
 
-            if (!IsCrossWiredGeneric(serviceModel)) {
+            if (!IsCrossWiredGeneric(serviceModel))
+            {
                 continue;
             }
 
@@ -229,12 +300,15 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
                 Diagnostic.Create(
                     DependencyModuleDiagnostics.CrossWireCannotBeGeneric,
                     serviceModel.Location?.ToLocationOrNone(lookup) ?? Location.None,
-                    typeName));
+                    typeName
+                )
+            );
         }
 
         var registerable = Registerable(data.Right);
 
-        if (registerable.Length > 0) {
+        if (registerable.Length > 0)
+        {
             ReportEnvironmentConditions(context, registerable, lookup, logger);
         }
     }
@@ -250,22 +324,30 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
     /// meant to say.
     /// </remarks>
     private static void ReportEnvironmentConditions(
-        SourceProductionContext context, ImmutableArray<ServiceModel> serviceModels,
-        SyntaxTreeLookup lookup, FileLogger logger) {
-
-        foreach (var serviceModel in serviceModels) {
-            if (serviceModel.Conditions is not { Count: > 0 } conditions) {
+        SourceProductionContext context,
+        ImmutableArray<ServiceModel> serviceModels,
+        SyntaxTreeLookup lookup,
+        FileLogger logger
+    )
+    {
+        foreach (var serviceModel in serviceModels)
+        {
+            if (serviceModel.Conditions is not { Count: > 0 } conditions)
+            {
                 continue;
             }
 
             var typeName = serviceModel.ImplementationType.Name;
 
-            foreach (var condition in conditions) {
-                if (!EnvironmentConditionUtility.IsEmpty(condition)) {
+            foreach (var condition in conditions)
+            {
+                if (!EnvironmentConditionUtility.IsEmpty(condition))
+                {
                     continue;
                 }
 
-                var kind = condition.Kind == EnvironmentConditionKind.Name ? "environment name" : "key";
+                var kind =
+                    condition.Kind == EnvironmentConditionKind.Name ? "environment name" : "key";
 
                 logger.Error($"'{typeName}' has an environment condition that names no {kind}.");
 
@@ -274,7 +356,9 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
                         DependencyModuleDiagnostics.EmptyEnvironmentCondition,
                         serviceModel.Location?.ToLocationOrNone(lookup) ?? Location.None,
                         typeName,
-                        kind));
+                        kind
+                    )
+                );
             }
 
             var described = conditions
@@ -282,7 +366,8 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
                 .Select(EnvironmentConditionUtility.Describe)
                 .ToArray();
 
-            if (described.Length == 0) {
+            if (described.Length == 0)
+            {
                 continue;
             }
 
@@ -294,25 +379,34 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
                 Diagnostic.Create(
                     DependencyModuleDiagnostics.RegisteredConditionally,
                     serviceModel.Location?.ToLocationOrNone(lookup) ?? Location.None,
-                    summary));
+                    summary
+                )
+            );
         }
     }
 
     private static bool IsUnconstructable(ServiceModel serviceModel) =>
         // A factory supplies the instance, so the declaring type never has to be constructed.
-        serviceModel.Factory == null &&
-        (serviceModel.Features.HasFlag(RegistrationFeature.AbstractImplementation) ||
-         serviceModel.Features.HasFlag(RegistrationFeature.StaticImplementation));
+        serviceModel.Factory == null
+        && (
+            serviceModel.Features.HasFlag(RegistrationFeature.AbstractImplementation)
+            || serviceModel.Features.HasFlag(RegistrationFeature.StaticImplementation)
+        );
 
     protected override ServiceModel IgnoredModel => ServiceModel.Ignore;
 
-    protected override IEqualityComparer<ServiceModel> GetComparer() {
+    protected override IEqualityComparer<ServiceModel> GetComparer()
+    {
         return _serviceEqualityComparer;
     }
 
-    protected override ServiceModel GenerateAttributeModel(GeneratorAttributeSyntaxContext context, CancellationToken cancellationToken) {
+    protected override ServiceModel GenerateAttributeModel(
+        GeneratorAttributeSyntaxContext context,
+        CancellationToken cancellationToken
+    )
+    {
         var serviceModel = ServiceModelUtility.GetServiceModel(context, cancellationToken);
-        
+
         return serviceModel ?? ServiceModel.Ignore;
     }
 }

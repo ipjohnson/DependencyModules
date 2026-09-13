@@ -22,10 +22,11 @@ namespace DependencyModules.NUnit.Impl;
 /// teardown, timeouts, expected exceptions and the rest working normally — this only has to make
 /// sure the arguments are in place before delegating.
 /// </remarks>
-public class ModuleTestCommand(TestCommand innerCommand) : DelegatingTestCommand(innerCommand) {
-
+public class ModuleTestCommand(TestCommand innerCommand) : DelegatingTestCommand(innerCommand)
+{
     /// <inheritdoc />
-    public override TestResult Execute(TestExecutionContext context) {
+    public override TestResult Execute(TestExecutionContext context)
+    {
         var testMethod = (TestMethod)Test;
         var method = testMethod.Method!.MethodInfo;
 
@@ -58,13 +59,18 @@ public class ModuleTestCommand(TestCommand innerCommand) : DelegatingTestCommand
         // beats a [TestExport] naming the same service.
         resolver.SetupServiceCollection(serviceCollection);
 
-        var serviceProvider = BuildServiceProvider(moduleContext, serviceCollection, knownAttributes);
+        var serviceProvider = BuildServiceProvider(
+            moduleContext,
+            serviceCollection,
+            knownAttributes
+        );
 
         // Every container the case built, the first and any the source was asked for, disposed
         // together in the finally below.
         var providers = new List<IServiceProvider> { serviceProvider };
 
-        try {
+        try
+        {
             Start(moduleContext, knownAttributes, serviceProvider);
 
             // Named throughout: three of these are delegates of shapes that would happily bind to
@@ -74,24 +80,30 @@ public class ModuleTestCommand(TestCommand innerCommand) : DelegatingTestCommand
                 pinned: serviceProvider,
                 pinnedServices: SharedRegistrations.Collect(method, knownAttributes),
                 build: services => BuildServiceProvider(moduleContext, services, knownAttributes),
-                start: built => {
+                start: built =>
+                {
                     Start(moduleContext, knownAttributes, built);
 
                     return ValueTask.CompletedTask;
                 },
-                track: providers.Add);
+                track: providers.Add
+            );
 
             var arguments = resolver
                 .ResolveArgumentsAsync(serviceProvider, RowArguments(testMethod))
-                .GetAwaiter().GetResult();
+                .GetAwaiter()
+                .GetResult();
 
             PublishArguments(testMethod, serviceProvider, arguments);
 
             return innerCommand.Execute(context);
-        } finally {
+        }
+        finally
+        {
             // Backwards, so a container the source built goes before the one holding the instances
             // it was handed.
-            for (var i = providers.Count - 1; i >= 0; i--) {
+            for (var i = providers.Count - 1; i >= 0; i--)
+            {
                 DisposeProvider(providers[i]);
             }
         }
@@ -108,8 +120,13 @@ public class ModuleTestCommand(TestCommand innerCommand) : DelegatingTestCommand
     /// hook is awaited here rather than up the stack.
     /// </remarks>
     private static void Start(
-        ITestMethodContext context, Attribute[] knownAttributes, IServiceProvider provider) {
-        foreach (var startupAttribute in knownAttributes.OfType<ITestStartupAttribute>()) {
+        ITestMethodContext context,
+        Attribute[] knownAttributes,
+        IServiceProvider provider
+    )
+    {
+        foreach (var startupAttribute in knownAttributes.OfType<ITestStartupAttribute>())
+        {
             startupAttribute.StartupAsync(context, provider).GetAwaiter().GetResult();
         }
     }
@@ -131,7 +148,11 @@ public class ModuleTestCommand(TestCommand innerCommand) : DelegatingTestCommand
     /// NUnit's setup and teardown handling.
     /// </remarks>
     private static void PublishArguments(
-        TestMethod testMethod, IServiceProvider serviceProvider, object?[] arguments) {
+        TestMethod testMethod,
+        IServiceProvider serviceProvider,
+        object?[] arguments
+    )
+    {
         var target = testMethod.Arguments;
 
         Array.Copy(arguments, target, arguments.Length);
@@ -140,12 +161,19 @@ public class ModuleTestCommand(TestCommand innerCommand) : DelegatingTestCommand
     }
 
     private static void SetupTestCaseInfo(
-        IServiceCollection serviceCollection, TestMethod testMethod, Attribute[] knownAttributes) {
-        serviceCollection.AddSingleton<ITestCaseInfo>(provider => provider.GetRequiredService<TestCaseInfo>());
+        IServiceCollection serviceCollection,
+        TestMethod testMethod,
+        Attribute[] knownAttributes
+    )
+    {
+        serviceCollection.AddSingleton<ITestCaseInfo>(provider =>
+            provider.GetRequiredService<TestCaseInfo>()
+        );
         serviceCollection.AddSingleton(_ => new TestCaseInfo(
             testMethod,
             ArraySegment<object?>.Empty,
-            knownAttributes));
+            knownAttributes
+        ));
     }
 
     /// <remarks>
@@ -156,11 +184,17 @@ public class ModuleTestCommand(TestCommand innerCommand) : DelegatingTestCommand
     /// which is the reverse of how every other attribute here resolves.
     /// </remarks>
     private static IServiceProvider BuildServiceProvider(
-        ITestMethodContext context, IServiceCollection serviceCollection, Attribute[] knownAttributes) {
-        var serviceProviderBuilderAttribute =
-            knownAttributes.OfType<IServiceProviderBuilderAttribute>().LastOrDefault();
+        ITestMethodContext context,
+        IServiceCollection serviceCollection,
+        Attribute[] knownAttributes
+    )
+    {
+        var serviceProviderBuilderAttribute = knownAttributes
+            .OfType<IServiceProviderBuilderAttribute>()
+            .LastOrDefault();
 
-        if (serviceProviderBuilderAttribute != null) {
+        if (serviceProviderBuilderAttribute != null)
+        {
             return serviceProviderBuilderAttribute.BuildServiceProvider(context, serviceCollection);
         }
 
@@ -177,12 +211,17 @@ public class ModuleTestCommand(TestCommand innerCommand) : DelegatingTestCommand
     /// which relying on attribute order alone would not guarantee.
     /// </remarks>
     private static void SetupServiceSetupAttributes(
-        ITestMethodContext context, IServiceCollection serviceCollection, Attribute[] knownAttributes) {
+        ITestMethodContext context,
+        IServiceCollection serviceCollection,
+        Attribute[] knownAttributes
+    )
+    {
         var setupAttributes = knownAttributes
             .OfType<ITestServiceSetupAttribute>()
             .OrderBy(attribute => attribute is IMockSupportAttribute ? 0 : 1);
 
-        foreach (var setupAttribute in setupAttributes) {
+        foreach (var setupAttribute in setupAttributes)
+        {
             setupAttribute.SetupServiceCollection(context, serviceCollection);
         }
     }
@@ -194,14 +233,20 @@ public class ModuleTestCommand(TestCommand innerCommand) : DelegatingTestCommand
     /// service-setup pass runs too late to supply it.
     /// </summary>
     private static void SeedEnvironment(
-        IServiceCollection serviceCollection, MethodInfo method, Attribute[] knownAttributes) {
+        IServiceCollection serviceCollection,
+        MethodInfo method,
+        Attribute[] knownAttributes
+    )
+    {
         IModuleEnvironment? environment = null;
 
-        foreach (var provider in knownAttributes.OfType<IModuleEnvironmentProvider>()) {
+        foreach (var provider in knownAttributes.OfType<IModuleEnvironmentProvider>())
+        {
             environment = provider.ProvideEnvironment(method) ?? environment;
         }
 
-        if (environment != null) {
+        if (environment != null)
+        {
             serviceCollection.Add(new ServiceDescriptor(typeof(IModuleEnvironment), environment));
         }
     }
@@ -214,19 +259,27 @@ public class ModuleTestCommand(TestCommand innerCommand) : DelegatingTestCommand
     /// because it does not drag the runtime in behind it.
     /// </remarks>
     private static void SetupModules(
-        IServiceCollection serviceCollection, MethodInfo method, IEnumerable<Attribute> knownAttributes) {
+        IServiceCollection serviceCollection,
+        MethodInfo method,
+        IEnumerable<Attribute> knownAttributes
+    )
+    {
         var modules = new List<IDependencyModule>();
 
-        foreach (var loadModuleAttribute in knownAttributes.OfType<IDependencyModuleProvider>()) {
+        foreach (var loadModuleAttribute in knownAttributes.OfType<IDependencyModuleProvider>())
+        {
             modules.Add(loadModuleAttribute.GetModule());
         }
 
         var testAttribute = method.GetTestAttribute<IModuleTestAttribute>();
 
-        if (testAttribute != null) {
+        if (testAttribute != null)
+        {
             var count = 0;
-            foreach (var moduleType in testAttribute.ModuleTypes) {
-                if (Activator.CreateInstance(moduleType, []) is IDependencyModule moduleInstance) {
+            foreach (var moduleType in testAttribute.ModuleTypes)
+            {
+                if (Activator.CreateInstance(moduleType, []) is IDependencyModule moduleInstance)
+                {
                     modules.Insert(count++, moduleInstance);
                 }
             }
@@ -242,8 +295,10 @@ public class ModuleTestCommand(TestCommand innerCommand) : DelegatingTestCommand
     /// implements <see cref="IAsyncDisposable"/> makes <c>ServiceProvider.Dispose</c> throw rather
     /// than fall back.
     /// </remarks>
-    private static void DisposeProvider(IServiceProvider serviceProvider) {
-        switch (serviceProvider) {
+    private static void DisposeProvider(IServiceProvider serviceProvider)
+    {
+        switch (serviceProvider)
+        {
             case IAsyncDisposable asyncDisposable:
                 asyncDisposable.DisposeAsync().AsTask().GetAwaiter().GetResult();
                 break;

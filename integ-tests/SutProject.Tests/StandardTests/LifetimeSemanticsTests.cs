@@ -14,11 +14,12 @@ namespace SutProject.Tests.StandardTests;
 /// <c>Assert.Same(a, b)</c> passes either way. Distinguishing them requires crossing a scope
 /// boundary, which is what these tests do.
 /// </summary>
-public class LifetimeSemanticsTests {
-
+public class LifetimeSemanticsTests
+{
     [ModuleTest]
     [SutModule]
-    public void Singleton_IsTheSameInstanceAcrossScopes(IServiceProvider provider) {
+    public void Singleton_IsTheSameInstanceAcrossScopes(IServiceProvider provider)
+    {
         using var first = provider.CreateScope();
         using var second = provider.CreateScope();
 
@@ -31,7 +32,8 @@ public class LifetimeSemanticsTests {
 
     [ModuleTest]
     [SutModule]
-    public void Singleton_IsTheSameInstanceAsTheRootProviders(IServiceProvider provider) {
+    public void Singleton_IsTheSameInstanceAsTheRootProviders(IServiceProvider provider)
+    {
         var fromRoot = provider.GetService<ISingletonService>();
 
         using var scope = provider.CreateScope();
@@ -41,7 +43,8 @@ public class LifetimeSemanticsTests {
 
     [ModuleTest]
     [SutModule]
-    public void Scoped_IsSharedWithinAScope(IServiceProvider provider) {
+    public void Scoped_IsSharedWithinAScope(IServiceProvider provider)
+    {
         using var scope = provider.CreateScope();
 
         var first = scope.ServiceProvider.GetService<IScopedService>();
@@ -57,7 +60,8 @@ public class LifetimeSemanticsTests {
     /// </summary>
     [ModuleTest]
     [SutModule]
-    public void Scoped_DiffersBetweenScopes(IServiceProvider provider) {
+    public void Scoped_DiffersBetweenScopes(IServiceProvider provider)
+    {
         using var first = provider.CreateScope();
         using var second = provider.CreateScope();
 
@@ -74,7 +78,8 @@ public class LifetimeSemanticsTests {
     /// </summary>
     [ModuleTest]
     [SutModule]
-    public void Transient_IsANewInstanceEveryResolution(IServiceProvider provider) {
+    public void Transient_IsANewInstanceEveryResolution(IServiceProvider provider)
+    {
         var first = provider.GetService<IDependencyOne>();
         var second = provider.GetService<IDependencyOne>();
 
@@ -85,7 +90,8 @@ public class LifetimeSemanticsTests {
 
     [ModuleTest]
     [SutModule]
-    public void Transient_IsANewInstanceWithinASingleScope(IServiceProvider provider) {
+    public void Transient_IsANewInstanceWithinASingleScope(IServiceProvider provider)
+    {
         using var scope = provider.CreateScope();
 
         var first = scope.ServiceProvider.GetService<IDependencyOne>();
@@ -96,21 +102,25 @@ public class LifetimeSemanticsTests {
 
     [ModuleTest]
     [SutModule]
-    public void RegisteredLifetimes_MatchTheirAttributes(IServiceProvider provider) {
+    public void RegisteredLifetimes_MatchTheirAttributes(IServiceProvider provider)
+    {
         // Resolving proves the wiring; the descriptors prove the lifetime the generator chose.
         var collection = new ServiceCollection();
         collection.AddModule<SutModule>();
 
         Assert.Equal(
             ServiceLifetime.Singleton,
-            Assert.Single(collection, d => d.ServiceType == typeof(ISingletonService)).Lifetime);
+            Assert.Single(collection, d => d.ServiceType == typeof(ISingletonService)).Lifetime
+        );
 
         Assert.Equal(
             ServiceLifetime.Scoped,
-            Assert.Single(collection, d => d.ServiceType == typeof(IScopedService)).Lifetime);
+            Assert.Single(collection, d => d.ServiceType == typeof(IScopedService)).Lifetime
+        );
 
         Assert.Equal(
             ServiceLifetime.Transient,
-            Assert.Single(collection, d => d.ServiceType == typeof(IDependencyOne)).Lifetime);
+            Assert.Single(collection, d => d.ServiceType == typeof(IDependencyOne)).Lifetime
+        );
     }
 }

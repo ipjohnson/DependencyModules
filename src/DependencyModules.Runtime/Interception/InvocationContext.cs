@@ -13,7 +13,8 @@ namespace DependencyModules.Runtime.Interception;
 /// <typeparam name="TResult">
 /// The member's return type, or <see cref="NoResult"/> when it returns void.
 /// </typeparam>
-public readonly struct InvocationContext<TResult> {
+public readonly struct InvocationContext<TResult>
+{
     private readonly InvocationState<TResult> _state;
     private readonly int _stage;
 
@@ -22,7 +23,8 @@ public readonly struct InvocationContext<TResult> {
     /// </summary>
     /// <param name="state">The state for this call.</param>
     /// <param name="stage">The position of the interceptor receiving this context.</param>
-    public InvocationContext(InvocationState<TResult> state, int stage) {
+    public InvocationContext(InvocationState<TResult> state, int stage)
+    {
         _state = state;
         _stage = stage;
     }
@@ -54,7 +56,8 @@ public readonly struct InvocationContext<TResult> {
 /// <typeparam name="TResult">
 /// The type the task produces, or <see cref="NoResult"/> for a task with no result.
 /// </typeparam>
-public readonly struct AsyncInvocationContext<TResult> {
+public readonly struct AsyncInvocationContext<TResult>
+{
     private readonly AsyncInvocationState<TResult> _state;
     private readonly int _stage;
 
@@ -63,7 +66,8 @@ public readonly struct AsyncInvocationContext<TResult> {
     /// </summary>
     /// <param name="state">The state for this call.</param>
     /// <param name="stage">The position of the interceptor receiving this context.</param>
-    public AsyncInvocationContext(AsyncInvocationState<TResult> state, int stage) {
+    public AsyncInvocationContext(AsyncInvocationState<TResult> state, int stage)
+    {
         _state = state;
         _stage = stage;
     }
@@ -93,7 +97,8 @@ public readonly struct AsyncInvocationContext<TResult> {
 /// observes each item as it is produced rather than only the call that produced the stream.
 /// </remarks>
 /// <typeparam name="TItem">The type the stream yields.</typeparam>
-public readonly struct StreamInvocationContext<TItem> {
+public readonly struct StreamInvocationContext<TItem>
+{
     private readonly StreamInvocationState<TItem> _state;
     private readonly int _stage;
 
@@ -102,7 +107,8 @@ public readonly struct StreamInvocationContext<TItem> {
     /// </summary>
     /// <param name="state">The state for this call.</param>
     /// <param name="stage">The position of the interceptor receiving this context.</param>
-    public StreamInvocationContext(StreamInvocationState<TItem> state, int stage) {
+    public StreamInvocationContext(StreamInvocationState<TItem> state, int stage)
+    {
         _state = state;
         _stage = stage;
     }

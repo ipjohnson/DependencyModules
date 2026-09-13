@@ -6,18 +6,21 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace SecondarySutProject.ParameterizedModules;
 
 [DependencyModule(OnlyRealm = true)]
-public partial class ParameterizedModule : IServiceCollectionConfiguration {
+public partial class ParameterizedModule : IServiceCollectionConfiguration
+{
     private readonly string _a;
     private readonly int _b;
 
-    public ParameterizedModule(string a, int b) {
+    public ParameterizedModule(string a, int b)
+    {
         _a = a;
         _b = b;
     }
 
     public string? C { get; set; }
 
-    public void ConfigureServices(IServiceCollection services) {
+    public void ConfigureServices(IServiceCollection services)
+    {
         services.AddTransient<SomeRuntimeDependency>(_ => new SomeRuntimeDependency(_a, _b, C!));
     }
 

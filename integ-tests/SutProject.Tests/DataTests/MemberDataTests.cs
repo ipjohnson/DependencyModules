@@ -13,16 +13,18 @@ namespace SutProject.Tests.DataTests;
 /// this file needs to exist. A regression here is only visible as the suite getting smaller, so
 /// the unit-level counterpart in ModuleTestCaseDataTests asserts on the number of cases created.
 /// </summary>
-public class MemberDataTests {
-
+public class MemberDataTests
+{
     public static TheoryData<string> Rows => new("one", "two");
 
-    public static IEnumerable<object[]> RawRows() {
+    public static IEnumerable<object[]> RawRows()
+    {
         yield return ["one"];
         yield return ["two"];
     }
 
-    public static IEnumerable<TheoryDataRow<string>> TypedRows() {
+    public static IEnumerable<TheoryDataRow<string>> TypedRows()
+    {
         yield return new TheoryDataRow<string>("one");
         yield return new TheoryDataRow<string>("two");
     }
@@ -34,7 +36,8 @@ public class MemberDataTests {
     [ModuleTest]
     [MemberData(nameof(Rows))]
     [SutModule]
-    public void TheoryDataRowsAreSupplied(string value, IDependencyOne one) {
+    public void TheoryDataRowsAreSupplied(string value, IDependencyOne one)
+    {
         Assert.NotNull(value);
         Assert.NotNull(one);
     }
@@ -42,7 +45,8 @@ public class MemberDataTests {
     [ModuleTest]
     [MemberData(nameof(RawRows))]
     [SutModule]
-    public void ObjectArrayRowsAreSupplied(string value, IDependencyOne one) {
+    public void ObjectArrayRowsAreSupplied(string value, IDependencyOne one)
+    {
         Assert.NotNull(value);
         Assert.NotNull(one);
     }
@@ -50,7 +54,8 @@ public class MemberDataTests {
     [ModuleTest]
     [MemberData(nameof(TypedRows))]
     [SutModule]
-    public void TheoryDataRowRowsAreSupplied(string value, IDependencyOne one) {
+    public void TheoryDataRowRowsAreSupplied(string value, IDependencyOne one)
+    {
         Assert.NotNull(value);
         Assert.NotNull(one);
     }
@@ -61,7 +66,8 @@ public class MemberDataTests {
     [ModuleTest]
     [MemberData(nameof(Rows), MemberType = typeof(MemberDataTests))]
     [SutModule]
-    public void ExplicitMemberTypeRowsAreSupplied(string value, IDependencyOne one) {
+    public void ExplicitMemberTypeRowsAreSupplied(string value, IDependencyOne one)
+    {
         Assert.NotNull(value);
         Assert.NotNull(one);
     }
@@ -69,7 +75,8 @@ public class MemberDataTests {
     [ModuleTest]
     [ClassData(typeof(ClassRows))]
     [SutModule]
-    public void ClassDataRowsAreSupplied(string value, IDependencyOne one) {
+    public void ClassDataRowsAreSupplied(string value, IDependencyOne one)
+    {
         Assert.NotNull(value);
         Assert.NotNull(one);
     }
@@ -77,8 +84,10 @@ public class MemberDataTests {
 #pragma warning restore xUnit1037
 }
 
-public class ClassRows : TheoryData<string> {
-    public ClassRows() {
+public class ClassRows : TheoryData<string>
+{
+    public ClassRows()
+    {
         Add("one");
         Add("two");
     }

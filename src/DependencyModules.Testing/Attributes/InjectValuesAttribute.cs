@@ -28,8 +28,10 @@ namespace DependencyModules.Testing.Attributes;
 /// </remarks>
 [AttributeUsage(AttributeTargets.Parameter)]
 public class InjectValuesAttribute(params object[] value)
-    : Attribute, IInjectValueAttribute, ISharedTestRegistration {
-
+    : Attribute,
+        IInjectValueAttribute,
+        ISharedTestRegistration
+{
     /// <summary>
     /// Provides the specified values for a method parameter during dependency
     /// injection and test execution. This method is part of the
@@ -48,7 +50,8 @@ public class InjectValuesAttribute(params object[] value)
     /// An array of objects representing the values to be injected into the specified
     /// method parameter.
     /// </returns>
-    public object[] ProvideValue(IServiceProvider serviceProvider, ParameterInfo parameter) {
+    public object[] ProvideValue(IServiceProvider serviceProvider, ParameterInfo parameter)
+    {
         return value;
     }
 }

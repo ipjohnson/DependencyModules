@@ -5,7 +5,8 @@ namespace DependencyModules.Runtime.Interfaces;
 /// <summary>
 ///     DependencyModules that want to do programmatic registration should implement this interface.
 /// </summary>
-public interface IServiceCollectionConfiguration {
+public interface IServiceCollectionConfiguration
+{
     /// <summary>
     /// Configure service in IServiceCollection
     /// </summary>
@@ -22,7 +23,8 @@ public interface IServiceCollectionConfiguration {
 /// <summary>
 ///     DependencyModules that need access to the environment during registration should implement this interface.
 /// </summary>
-public interface IEnvironmentServiceCollectionConfiguration {
+public interface IEnvironmentServiceCollectionConfiguration
+{
     /// <summary>
     /// Configure services with access to the module environment.
     /// </summary>

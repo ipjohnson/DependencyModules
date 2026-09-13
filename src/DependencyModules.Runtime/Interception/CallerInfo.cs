@@ -14,7 +14,8 @@ namespace DependencyModules.Runtime.Interception;
 /// </remarks>
 /// <param name="serviceType">The interface being intercepted.</param>
 /// <param name="memberName">The member being invoked.</param>
-public readonly struct CallerInfo(Type serviceType, string memberName) {
+public readonly struct CallerInfo(Type serviceType, string memberName)
+{
     /// <summary>
     /// The intercepted interface.
     /// </summary>

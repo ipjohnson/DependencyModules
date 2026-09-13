@@ -4,32 +4,27 @@ using SutProject;
 using Xunit;
 
 [DependencyModule]
-public partial class TestModule {
-    
-}
+public partial class TestModule { }
 
 [DependencyModule(OnlyRealm = true)]
-public partial class NoNamespaceTestModule {
-    
-}
+public partial class NoNamespaceTestModule { }
 
 #pragma warning disable CS8618
 [SingletonService(Realm = typeof(NoNamespaceTestModule))]
-public class SomeDependency : IDependencyOne {
-   public ISingletonService SingletonService {
-        get;
-    }
+public class SomeDependency : IDependencyOne
+{
+    public ISingletonService SingletonService { get; }
 
-    public IScopedService ScopedService {
-        get;
-    }
+    public IScopedService ScopedService { get; }
 }
-#pragma warning restore CS8618 
+#pragma warning restore CS8618
 
-public class NoNamespaceTests {
+public class NoNamespaceTests
+{
     [ModuleTest]
     [NoNamespaceTestModule]
-    public void NoNamespaceTest(IDependencyOne dependency) {
+    public void NoNamespaceTest(IDependencyOne dependency)
+    {
         Assert.NotNull(dependency);
         Assert.IsType<SomeDependency>(dependency);
     }

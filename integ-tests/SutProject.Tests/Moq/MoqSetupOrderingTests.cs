@@ -13,7 +13,8 @@ namespace SutProject.Tests.Moq;
 /// Declared outside the fixture because the attribute naming it sits on the fixture itself, and
 /// attribute arguments there resolve in the enclosing scope rather than the class's own.
 /// </remarks>
-public class ExportedSingletonService : ISingletonService {
+public class ExportedSingletonService : ISingletonService
+{
     public string GetName() => "exported";
 }
 
@@ -37,13 +38,16 @@ public class ExportedSingletonService : ISingletonService {
 /// that test still passes; this one does not.
 /// </remarks>
 [TestExport(typeof(ISingletonService), Implementation = typeof(ExportedSingletonService))]
-public class MoqSetupOrderingTests {
-
+public class MoqSetupOrderingTests
+{
     [ModuleTest]
     [SutModule]
     [MoqSupport]
     public void ExplicitRegistrationBeatsAMockDeclaredNearerTheMethod(
-        ISingletonService instance, Mock<ISingletonService> mock) {
+        ISingletonService instance,
+        Mock<ISingletonService> mock
+    )
+    {
         Assert.IsType<ExportedSingletonService>(instance);
         Assert.Equal("exported", instance.GetName());
 

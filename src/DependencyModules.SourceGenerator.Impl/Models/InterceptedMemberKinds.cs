@@ -9,11 +9,12 @@ namespace DependencyModules.SourceGenerator.Impl.Models;
 /// namespace rather than as a type.
 /// </remarks>
 [Flags]
-public enum InterceptedMemberKinds {
+public enum InterceptedMemberKinds
+{
     None = 0,
     Methods = 1,
     Properties = 2,
     Indexers = 4,
     Events = 8,
-    All = Methods | Properties | Indexers | Events
+    All = Methods | Properties | Indexers | Events,
 }

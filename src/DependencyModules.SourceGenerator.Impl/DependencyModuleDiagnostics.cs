@@ -9,7 +9,8 @@ namespace DependencyModules.SourceGenerator.Impl;
 /// that succeeds and an application that misbehaves at run time. Everything here exists to move a
 /// failure from run time to build time, or at minimum to make it visible.
 /// </summary>
-public static class DependencyModuleDiagnostics {
+public static class DependencyModuleDiagnostics
+{
     private const string Category = "DependencyModules";
 
     /// <summary>
@@ -20,13 +21,13 @@ public static class DependencyModuleDiagnostics {
     public static readonly DiagnosticDescriptor GeneratorFailure = new(
         id: "DM0001",
         title: "DependencyModules generator failed",
-        messageFormat:
-        "The DependencyModules generator failed and registrations may be missing or incomplete: {0}. " +
-        "Set DependencyModules_LogOutputDirectory to capture a log, and report the issue at " +
-        "https://github.com/ipjohnson/DependencyModules/issues with that log attached.",
+        messageFormat: "The DependencyModules generator failed and registrations may be missing or incomplete: {0}. "
+            + "Set DependencyModules_LogOutputDirectory to capture a log, and report the issue at "
+            + "https://github.com/ipjohnson/DependencyModules/issues with that log attached.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+        isEnabledByDefault: true
+    );
 
     /// <summary>
     /// Raised for a service the container could never construct. Without this the generator emits a
@@ -35,12 +36,12 @@ public static class DependencyModuleDiagnostics {
     public static readonly DiagnosticDescriptor ServiceCannotBeConstructed = new(
         id: "DM0002",
         title: "Service type cannot be constructed",
-        messageFormat:
-        "'{0}' is {1} and cannot be instantiated, so it was not registered. " +
-        "Apply the service attribute to a concrete class, or register it with a static factory method.",
+        messageFormat: "'{0}' is {1} and cannot be instantiated, so it was not registered. "
+            + "Apply the service attribute to a concrete class, or register it with a static factory method.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+        isEnabledByDefault: true
+    );
 
     /// <summary>
     /// Raised for a module that is not partial. The compiler also reports CS0260 once the generated
@@ -49,12 +50,12 @@ public static class DependencyModuleDiagnostics {
     public static readonly DiagnosticDescriptor ModuleMustBePartial = new(
         id: "DM0003",
         title: "Dependency module must be partial",
-        messageFormat:
-        "'{0}' is marked with [DependencyModule] but is not declared partial. " +
-        "The generator completes the type with a second partial declaration, so add the partial modifier.",
+        messageFormat: "'{0}' is marked with [DependencyModule] but is not declared partial. "
+            + "The generator completes the type with a second partial declaration, so add the partial modifier.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+        isEnabledByDefault: true
+    );
 
     /// <summary>
     /// Raised for a module declared inside another type.
@@ -69,13 +70,13 @@ public static class DependencyModuleDiagnostics {
     public static readonly DiagnosticDescriptor ModuleCannotBeNested = new(
         id: "DM0017",
         title: "Dependency module cannot be nested inside another type",
-        messageFormat:
-        "'{0}' is marked with [DependencyModule] but is declared inside another type. " +
-        "The generator completes a module at namespace level, so this would produce a second, " +
-        "unrelated type and register nothing. Move it out to the namespace.",
+        messageFormat: "'{0}' is marked with [DependencyModule] but is declared inside another type. "
+            + "The generator completes a module at namespace level, so this would produce a second, "
+            + "unrelated type and register nothing. Move it out to the namespace.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+        isEnabledByDefault: true
+    );
 
     /// <summary>
     /// Raised for an assembly-level module attribute in a file that is not the entry point.
@@ -110,14 +111,14 @@ public static class DependencyModuleDiagnostics {
     public static readonly DiagnosticDescriptor DecoratorImplementationNeedsTypeRegistration = new(
         id: "DM0022",
         title: "Decorator names an implementation while factories are generated",
-        messageFormat:
-        "'{0}' decorates only '{1}', but DependencyModules_GenerateFactories is on for this project " +
-        "and a factory registration cannot say what implementation it built — so the decorator would " +
-        "wrap every registration of '{2}' instead of one. Turn the property off for this project, or " +
-        "drop Implementation and decorate them all.",
+        messageFormat: "'{0}' decorates only '{1}', but DependencyModules_GenerateFactories is on for this project "
+            + "and a factory registration cannot say what implementation it built — so the decorator would "
+            + "wrap every registration of '{2}' instead of one. Turn the property off for this project, or "
+            + "drop Implementation and decorate them all.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+        isEnabledByDefault: true
+    );
 
     /// <summary>
     /// Raised for a <c>[Mock]</c> parameter and a <c>[TestExport]</c> on the same method, both
@@ -136,14 +137,14 @@ public static class DependencyModuleDiagnostics {
     public static readonly DiagnosticDescriptor MockAndTestExportOnOneMethod = new(
         id: "DM0021",
         title: "[Mock] and [TestExport] name one service on the same method",
-        messageFormat:
-        "'{0}' carries [TestExport] for '{1}' and a [Mock] parameter naming the same service. The " +
-        "parameter wins, so the [TestExport] does nothing. Move the [TestExport] to the class or " +
-        "the assembly if it is the default this test is overriding, or drop whichever of the two " +
-        "was not meant.",
+        messageFormat: "'{0}' carries [TestExport] for '{1}' and a [Mock] parameter naming the same service. The "
+            + "parameter wins, so the [TestExport] does nothing. Move the [TestExport] to the class or "
+            + "the assembly if it is the default this test is overriding, or drop whichever of the two "
+            + "was not meant.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+        isEnabledByDefault: true
+    );
 
     /// <summary>
     /// Raised for an interception no module applies, so it can never run.
@@ -162,25 +163,25 @@ public static class DependencyModuleDiagnostics {
     public static readonly DiagnosticDescriptor InterceptionAppliedByNoModule = new(
         id: "DM0020",
         title: "Interception is applied by no module",
-        messageFormat:
-        "'{0}' is marked for interception, but no module in this compilation applies it, so the " +
-        "interceptors never run. This happens when the registration and the interception land in " +
-        "different realms — a realm-only module registering '{0}' by convention, for instance, while " +
-        "the interception names no realm. Name the module on [Intercept(Realm = typeof(...))].",
+        messageFormat: "'{0}' is marked for interception, but no module in this compilation applies it, so the "
+            + "interceptors never run. This happens when the registration and the interception land in "
+            + "different realms — a realm-only module registering '{0}' by convention, for instance, while "
+            + "the interception names no realm. Name the module on [Intercept(Realm = typeof(...))].",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+        isEnabledByDefault: true
+    );
 
     public static readonly DiagnosticDescriptor AssemblyModuleAttributeNotComposed = new(
         id: "DM0019",
         title: "Assembly-level module attribute is not composed",
-        messageFormat:
-        "'{0}' is applied at the assembly level in this file, but the generated ApplicationModule is " +
-        "built from '{1}', so this composition is ignored and the module's services are not " +
-        "registered. Move the attribute to '{1}', or load the module explicitly with AddModule.",
+        messageFormat: "'{0}' is applied at the assembly level in this file, but the generated ApplicationModule is "
+            + "built from '{1}', so this composition is ignored and the module's services are not "
+            + "registered. Move the attribute to '{1}', or load the module explicitly with AddModule.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+        isEnabledByDefault: true
+    );
 
     /// <summary>
     /// Raised for a module carrying settable properties while relying on the generated
@@ -196,11 +197,10 @@ public static class DependencyModuleDiagnostics {
     public static readonly DiagnosticDescriptor ModuleWithPropertiesShouldImplementEquals = new(
         id: "DM0018",
         title: "Module with properties relies on generated equality",
-        messageFormat:
-        "'{0}' has settable properties but does not declare Equals, so the generated equality " +
-        "compares by type alone. Two instances carrying different values count as the same module " +
-        "and the first one reached wins. Declare Equals and GetHashCode on '{0}' to say which " +
-        "instances are the same.",
+        messageFormat: "'{0}' has settable properties but does not declare Equals, so the generated equality "
+            + "compares by type alone. Two instances carrying different values count as the same module "
+            + "and the first one reached wins. Declare Equals and GetHashCode on '{0}' to say which "
+            + "instances are the same.",
         category: Category,
         // A warning rather than informational. The identity of a module with parameters is genuinely
         // ambiguous, and the generator picks type-only on the developer's behalf — so the choice is
@@ -212,7 +212,8 @@ public static class DependencyModuleDiagnostics {
         // Silencing still works per project, through NoWarn or .editorconfig, for a codebase whose
         // parameterised modules are each composed once.
         defaultSeverity: DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+        isEnabledByDefault: true
+    );
 
     /// <summary>
     /// Raised when two conventions in one module register a type as the <i>same</i> service type.
@@ -232,12 +233,12 @@ public static class DependencyModuleDiagnostics {
     public static readonly DiagnosticDescriptor AmbiguousConventionMatch = new(
         id: "DM0004",
         title: "Convention match is ambiguous",
-        messageFormat:
-        "'{0}' is matched by two conventions in '{1}' that both register it as '{2}'. {3} " +
-        "Narrow one of them, or move it to another module.",
+        messageFormat: "'{0}' is matched by two conventions in '{1}' that both register it as '{2}'. {3} "
+            + "Narrow one of them, or move it to another module.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+        isEnabledByDefault: true
+    );
 
     /// <summary>
     /// Raised for a convention that matched nothing. A convention naming a service type no type in
@@ -254,7 +255,8 @@ public static class DependencyModuleDiagnostics {
         messageFormat: "The convention registering '{0}' in '{1}' matched no types. {2}.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+        isEnabledByDefault: true
+    );
 
     /// <summary>
     /// Raised for a convention match the container could not construct. The abstract and static
@@ -264,12 +266,12 @@ public static class DependencyModuleDiagnostics {
     public static readonly DiagnosticDescriptor ConventionMatchNotConstructable = new(
         id: "DM0006",
         title: "Convention matched a type that cannot be constructed",
-        messageFormat:
-        "'{0}' matches the convention registering '{1}' in '{2}', but has no accessible constructor, " +
-        "so it was not registered",
+        messageFormat: "'{0}' matches the convention registering '{1}' in '{2}', but has no accessible constructor, "
+            + "so it was not registered",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+        isEnabledByDefault: true
+    );
 
     /// <summary>
     /// Raised when two decorators of one service share an order. Applying them in an arbitrary order
@@ -278,12 +280,12 @@ public static class DependencyModuleDiagnostics {
     public static readonly DiagnosticDescriptor AmbiguousDecoratorOrder = new(
         id: "DM0007",
         title: "Decorator order is ambiguous",
-        messageFormat:
-        "'{0}' and '{1}' both decorate '{2}' with order {3}, so the order they nest in is undefined. " +
-        "Give them distinct Order values.",
+        messageFormat: "'{0}' and '{1}' both decorate '{2}' with order {3}, so the order they nest in is undefined. "
+            + "Give them distinct Order values.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+        isEnabledByDefault: true
+    );
 
     /// <summary>
     /// Raised when a class marked for interception cannot be wrapped. Interception works through an
@@ -299,13 +301,13 @@ public static class DependencyModuleDiagnostics {
     public static readonly DiagnosticDescriptor CannotIntercept = new(
         id: "DM0008",
         title: "Service cannot be intercepted",
-        messageFormat:
-        "This service cannot be intercepted, so no wrapper was generated and none of its members are " +
-        "intercepted: {0}. Other members may be unsupported for the same reason. Write a decorator " +
-        "instead, or move the member to an interface that is not intercepted.",
+        messageFormat: "This service cannot be intercepted, so no wrapper was generated and none of its members are "
+            + "intercepted: {0}. Other members may be unsupported for the same reason. Write a decorator "
+            + "instead, or move the member to an interface that is not intercepted.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+        isEnabledByDefault: true
+    );
 
     /// <summary>
     /// Raised for something in a Conventions method body the generator could not read.
@@ -321,7 +323,8 @@ public static class DependencyModuleDiagnostics {
         messageFormat: "This convention declaration could not be read, because {0}: {1}",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+        isEnabledByDefault: true
+    );
 
     /// <summary>
     /// Reports, on the class itself, that a convention registered it.
@@ -342,7 +345,8 @@ public static class DependencyModuleDiagnostics {
         messageFormat: "Exposed as {0}",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Info,
-        isEnabledByDefault: true);
+        isEnabledByDefault: true
+    );
 
     /// <summary>
     /// Reports, on the class itself, that its registration is conditional and on what.
@@ -362,7 +366,8 @@ public static class DependencyModuleDiagnostics {
         messageFormat: "Registered only when {0}",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Info,
-        isEnabledByDefault: true);
+        isEnabledByDefault: true
+    );
 
     /// <summary>
     /// Raised for a condition that names nothing to test.
@@ -379,7 +384,8 @@ public static class DependencyModuleDiagnostics {
         messageFormat: "{0} names no {1} to test, so it does not depend on the environment",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+        isEnabledByDefault: true
+    );
 
     /// <summary>
     /// Raised for an interceptor that cannot serve some of the members it was applied to.
@@ -401,12 +407,12 @@ public static class DependencyModuleDiagnostics {
     public static readonly DiagnosticDescriptor InterceptorCannotServeMembers = new(
         id: "DM0015",
         title: "Interceptor does not apply to every member",
-        messageFormat:
-        "'{0}' does not implement '{1}', so it is not applied to {2} on '{3}': {4}. Those members run " +
-        "without it. Implement '{1}' on the interceptor, or apply it to a service that has no such member.",
+        messageFormat: "'{0}' does not implement '{1}', so it is not applied to {2} on '{3}': {4}. Those members run "
+            + "without it. Implement '{1}' on the interceptor, or apply it to a service that has no such member.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+        isEnabledByDefault: true
+    );
 
     /// <summary>
     /// Raised for a decorator whose service is registered as an open generic.
@@ -431,14 +437,14 @@ public static class DependencyModuleDiagnostics {
     public static readonly DiagnosticDescriptor OpenGenericCannotBeDecorated = new(
         id: "DM0013",
         title: "Open generic registration cannot be decorated",
-        messageFormat:
-        "'{0}' is registered as an open generic, so '{1}' cannot decorate it. Decoration replaces a " +
-        "registration with a factory, and the container does not allow one for an open generic " +
-        "service type. Register closed constructions of '{0}' instead — a convention over the open " +
-        "generic registers one per implementation, and a generic decorator is then expanded across them.",
+        messageFormat: "'{0}' is registered as an open generic, so '{1}' cannot decorate it. Decoration replaces a "
+            + "registration with a factory, and the container does not allow one for an open generic "
+            + "service type. Register closed constructions of '{0}' instead — a convention over the open "
+            + "generic registers one per implementation, and a generic decorator is then expanded across them.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+        isEnabledByDefault: true
+    );
 
     /// <summary>
     /// Raised for <c>[CrossWireService]</c> on a generic type.
@@ -459,14 +465,14 @@ public static class DependencyModuleDiagnostics {
     public static readonly DiagnosticDescriptor CrossWireCannotBeGeneric = new(
         id: "DM0014",
         title: "Generic type cannot be cross-wired",
-        messageFormat:
-        "'{0}' is generic, so [CrossWireService] cannot register it. Cross-wiring shares one instance " +
-        "across every service type, which needs a factory, and the container does not allow one for an " +
-        "open generic registration. Use [SingletonService], [ScopedService] or [TransientService] to " +
-        "register it, applying one per interface if it needs to answer to more than one.",
+        messageFormat: "'{0}' is generic, so [CrossWireService] cannot register it. Cross-wiring shares one instance "
+            + "across every service type, which needs a factory, and the container does not allow one for an "
+            + "open generic registration. Use [SingletonService], [ScopedService] or [TransientService] to "
+            + "register it, applying one per interface if it needs to answer to more than one.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+        isEnabledByDefault: true
+    );
 
     /// <summary>
     /// Raised for an assembly-level module attribute whose namespace the file does not import.
@@ -489,12 +495,11 @@ public static class DependencyModuleDiagnostics {
     public static readonly DiagnosticDescriptor ModuleAttributeNamespaceNotImported = new(
         id: "DM0016",
         title: "Assembly-level module attribute needs its namespace imported",
-        messageFormat:
-        "'{0}' is declared in '{1}', and an assembly-level attribute has no namespace context, so " +
-        "this does not compile. Add 'using {1};' to this file, or write it qualified as " +
-        "'[assembly: {1}.{0}]'.",
+        messageFormat: "'{0}' is declared in '{1}', and an assembly-level attribute has no namespace context, so "
+            + "this does not compile. Add 'using {1};' to this file, or write it qualified as "
+            + "'[assembly: {1}.{0}]'.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
-
+        isEnabledByDefault: true
+    );
 }

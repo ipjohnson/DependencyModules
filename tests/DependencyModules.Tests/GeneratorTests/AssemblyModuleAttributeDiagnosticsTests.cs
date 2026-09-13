@@ -12,10 +12,9 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// running, so it does not exist in the compilation being examined and nothing about it resolves.
 /// That makes the false positives the interesting cases, and most of these tests are one.
 /// </summary>
-public class AssemblyModuleAttributeDiagnosticsTests {
-
-    private const string ModuleInNamespace =
-        """
+public class AssemblyModuleAttributeDiagnosticsTests
+{
+    private const string ModuleInNamespace = """
         namespace MyApp.Composition;
 
         [DependencyModules.Runtime.Attributes.DependencyModule]
@@ -23,7 +22,8 @@ public class AssemblyModuleAttributeDiagnosticsTests {
         """;
 
     [Fact]
-    public void MissingUsing_IsReported() {
+    public void MissingUsing_IsReported()
+    {
         var result = Run("[assembly: ApplicationModule]");
 
         var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0016");
@@ -34,20 +34,23 @@ public class AssemblyModuleAttributeDiagnosticsTests {
 
     /// <summary>The suffixed spelling names the same module.</summary>
     [Fact]
-    public void MissingUsing_IsReported_ForTheAttributeSuffixedSpelling() {
+    public void MissingUsing_IsReported_ForTheAttributeSuffixedSpelling()
+    {
         var result = Run("[assembly: ApplicationModuleAttribute]");
 
         Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0016");
     }
 
     [Fact]
-    public void TheUsingBeingPresent_IsSilent() {
+    public void TheUsingBeingPresent_IsSilent()
+    {
         var result = Run(
             """
             using MyApp.Composition;
 
             [assembly: ApplicationModule]
-            """);
+            """
+        );
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0016");
     }
@@ -57,19 +60,23 @@ public class AssemblyModuleAttributeDiagnosticsTests {
     /// attribute sits in would report a build that is already correct.
     /// </summary>
     [Fact]
-    public void AGlobalUsingInAnotherFile_IsSilent() {
+    public void AGlobalUsingInAnotherFile_IsSilent()
+    {
         var result = GeneratorTestHarness.Run(
-            new Dictionary<string, string> {
+            new Dictionary<string, string>
+            {
                 ["Module.cs"] = ModuleInNamespace,
                 ["GlobalUsings.cs"] = "global using MyApp.Composition;",
-                ["Bootstrap.cs"] = "[assembly: ApplicationModule]"
-            });
+                ["Bootstrap.cs"] = "[assembly: ApplicationModule]",
+            }
+        );
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0016");
     }
 
     [Fact]
-    public void AQualifiedUsage_IsSilent() {
+    public void AQualifiedUsage_IsSilent()
+    {
         var result = Run("[assembly: MyApp.Composition.ApplicationModule]");
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0016");
@@ -77,7 +84,8 @@ public class AssemblyModuleAttributeDiagnosticsTests {
 
     /// <summary>An attribute this compilation declares no module for belongs to somebody else.</summary>
     [Fact]
-    public void AnUnrelatedAssemblyAttribute_IsSilent() {
+    public void AnUnrelatedAssemblyAttribute_IsSilent()
+    {
         var result = Run("[assembly: System.Reflection.AssemblyMetadata(\"key\", \"value\")]");
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0016");
@@ -85,16 +93,18 @@ public class AssemblyModuleAttributeDiagnosticsTests {
 
     /// <summary>A module in the global namespace has no namespace to import.</summary>
     [Fact]
-    public void AModuleInTheGlobalNamespace_IsSilent() {
+    public void AModuleInTheGlobalNamespace_IsSilent()
+    {
         var result = GeneratorTestHarness.Run(
-            new Dictionary<string, string> {
-                ["Module.cs"] =
-                    """
-                    [DependencyModules.Runtime.Attributes.DependencyModule]
-                    public partial class ApplicationModule;
-                    """,
-                ["Bootstrap.cs"] = "[assembly: ApplicationModule]"
-            });
+            new Dictionary<string, string>
+            {
+                ["Module.cs"] = """
+                [DependencyModules.Runtime.Attributes.DependencyModule]
+                public partial class ApplicationModule;
+                """,
+                ["Bootstrap.cs"] = "[assembly: ApplicationModule]",
+            }
+        );
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0016");
     }
@@ -104,13 +114,15 @@ public class AssemblyModuleAttributeDiagnosticsTests {
     /// into scope under the name written here and the report still stands.
     /// </summary>
     [Fact]
-    public void AUsingAlias_DoesNotCountAsTheImport() {
+    public void AUsingAlias_DoesNotCountAsTheImport()
+    {
         var result = Run(
             """
             using Composition = MyApp.Composition;
 
             [assembly: ApplicationModule]
-            """);
+            """
+        );
 
         Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0016");
     }
@@ -122,15 +134,16 @@ public class AssemblyModuleAttributeDiagnosticsTests {
     /// resolve.
     /// </summary>
     [Fact]
-    public void AnAssemblyAttributeOutsideTheEntryPointFile_IsReported() {
+    public void AnAssemblyAttributeOutsideTheEntryPointFile_IsReported()
+    {
         var result = RunWithEntryPoint(
-            bootstrap:
-            """
+            bootstrap: """
             using MyApp.Composition;
 
             [assembly: ApplicationModule]
             """,
-            program: "System.Console.WriteLine();");
+            program: "System.Console.WriteLine();"
+        );
 
         var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0019");
 
@@ -139,17 +152,18 @@ public class AssemblyModuleAttributeDiagnosticsTests {
     }
 
     [Fact]
-    public void AnAssemblyAttributeInTheEntryPointFile_IsSilent() {
+    public void AnAssemblyAttributeInTheEntryPointFile_IsSilent()
+    {
         var result = RunWithEntryPoint(
             bootstrap: "",
-            program:
-            """
+            program: """
             using MyApp.Composition;
 
             [assembly: ApplicationModule]
 
             System.Console.WriteLine();
-            """);
+            """
+        );
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0019");
     }
@@ -161,29 +175,35 @@ public class AssemblyModuleAttributeDiagnosticsTests {
     /// what the testing guide shows.
     /// </summary>
     [Fact]
-    public void WithNoGeneratedApplicationModule_IsSilent() {
+    public void WithNoGeneratedApplicationModule_IsSilent()
+    {
         var result = Run(
             """
             using MyApp.Composition;
 
             [assembly: ApplicationModule]
-            """);
+            """
+        );
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0019");
     }
 
     private static GeneratorResult Run(string bootstrap) =>
         GeneratorTestHarness.Run(
-            new Dictionary<string, string> {
+            new Dictionary<string, string>
+            {
                 ["Module.cs"] = ModuleInNamespace,
-                ["Bootstrap.cs"] = bootstrap
-            });
+                ["Bootstrap.cs"] = bootstrap,
+            }
+        );
 
     private static GeneratorResult RunWithEntryPoint(string bootstrap, string program) =>
         GeneratorTestHarness.Run(
-            new Dictionary<string, string> {
+            new Dictionary<string, string>
+            {
                 ["Module.cs"] = ModuleInNamespace,
                 ["Bootstrap.cs"] = bootstrap,
-                ["Program.cs"] = program
-            });
+                ["Program.cs"] = program,
+            }
+        );
 }

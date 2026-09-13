@@ -2,22 +2,25 @@ using CSharpAuthor;
 
 namespace DependencyModules.SourceGenerator.Impl.Models;
 
-public enum ServiceLifestyle {
+public enum ServiceLifestyle
+{
     Transient,
     Scoped,
-    Singleton
+    Singleton,
 }
 
-public enum RegistrationType {
+public enum RegistrationType
+{
     Add,
     Try,
     TryEnumerable,
-    Replace
+    Replace,
 }
 
 [Flags]
-public enum RegistrationFeature {
-    None= 0,
+public enum RegistrationFeature
+{
+    None = 0,
     AutoRegisterSourceGenerator = 1,
 
     /// <summary>
@@ -54,17 +57,20 @@ public enum RegistrationFeature {
 public record ServiceFactoryModel(
     ITypeDefinition TypeDefinition,
     string MethodName,
-    IReadOnlyList<ParameterInfoModel> Parameters) {
-
+    IReadOnlyList<ParameterInfoModel> Parameters
+)
+{
     // Structural equality over Parameters; see ModelEquality.
     public virtual bool Equals(ServiceFactoryModel? other) =>
-        other is not null &&
-        TypeDefinition.Equals(other.TypeDefinition) &&
-        MethodName == other.MethodName &&
-        ModelEquality.ListEquals(Parameters, other.Parameters);
+        other is not null
+        && TypeDefinition.Equals(other.TypeDefinition)
+        && MethodName == other.MethodName
+        && ModelEquality.ListEquals(Parameters, other.Parameters);
 
-    public override int GetHashCode() {
-        unchecked {
+    public override int GetHashCode()
+    {
+        unchecked
+        {
             var hash = TypeDefinition.GetHashCode();
             hash = hash * 31 + MethodName.GetHashCode();
             hash = hash * 31 + ModelEquality.ListHashCode(Parameters);
@@ -81,16 +87,18 @@ public record ServiceRegistrationModel(
     object? Key = null,
     bool? CrossWire = false,
     IReadOnlyList<string>? Namespaces = null,
-
     /// <summary>
     /// Where this registration sits among the others for the same service, lowest first. Decides the
     /// sequence an <c>IEnumerable&lt;T&gt;</c> dependency sees, and therefore which one a single
     /// resolve returns.
     /// </summary>
-    int Order = 0);
+    int Order = 0
+);
 
 public delegate IOutputComponent? FactoryOutputDelegate(
-    ServiceModel serviceModel, ServiceRegistrationModel registrationModel);
+    ServiceModel serviceModel,
+    ServiceRegistrationModel registrationModel
+);
 
 public record ServiceModel(
     ITypeDefinition ImplementationType,
@@ -106,14 +114,15 @@ public record ServiceModel(
     /// writer emits one guard around the lot.
     /// </summary>
     IReadOnlyList<EnvironmentConditionModel>? Conditions = null,
-
     /// <summary>
     /// Where the implementation was declared, so a diagnostic about it can point at the class
     /// rather than at the project. Deliberately absent from
     /// <see cref="ServiceModelComparer"/> — it is not part of what makes two models the same
     /// registration, and including it would miss the incremental cache on an edit above the class.
     /// </summary>
-    LocationModel? Location = null) {
+    LocationModel? Location = null
+)
+{
     public static ServiceModel Ignore = new ServiceModel(
         TypeDefinition.Get("", "Ignore"),
         null,
@@ -121,35 +130,51 @@ public record ServiceModel(
         null,
         Array.Empty<ServiceRegistrationModel>(),
         RegistrationFeature.None
-        );
+    );
 }
 
-public class ServiceModelComparer : IEqualityComparer<ServiceModel> {
-
-    public bool Equals(ServiceModel? x, ServiceModel? y) {
-        if (ReferenceEquals(x, y)) return true;
-        if (x is null) return false;
-        if (y is null) return false;
-        if (x.GetType() != y.GetType()) return false;
-        return
-            x.Features == y.Features &&
-            x.ImplementationType.Equals(y.ImplementationType) &&
-            CompareConstructor(x.Constructor, y.Constructor) &&
-            CompareRegistrations(x.Registrations, y.Registrations) &&
-            CompareFactory(x.Factory, y.Factory) &&
-            CompareFactoryOutput(x.FactoryOutput, y.FactoryOutput) &&
-            CompareConditions(x.Conditions, y.Conditions);
+public class ServiceModelComparer : IEqualityComparer<ServiceModel>
+{
+    public bool Equals(ServiceModel? x, ServiceModel? y)
+    {
+        if (ReferenceEquals(x, y))
+            return true;
+        if (x is null)
+            return false;
+        if (y is null)
+            return false;
+        if (x.GetType() != y.GetType())
+            return false;
+        return x.Features == y.Features
+            && x.ImplementationType.Equals(y.ImplementationType)
+            && CompareConstructor(x.Constructor, y.Constructor)
+            && CompareRegistrations(x.Registrations, y.Registrations)
+            && CompareFactory(x.Factory, y.Factory)
+            && CompareFactoryOutput(x.FactoryOutput, y.FactoryOutput)
+            && CompareConditions(x.Conditions, y.Conditions);
     }
 
-    private bool CompareConstructor(ConstructorInfoModel? xConstructor, ConstructorInfoModel? yConstructor) {
-        if (xConstructor is null && yConstructor is null) return true;
-        if (xConstructor is null || yConstructor is null) return false;
+    private bool CompareConstructor(
+        ConstructorInfoModel? xConstructor,
+        ConstructorInfoModel? yConstructor
+    )
+    {
+        if (xConstructor is null && yConstructor is null)
+            return true;
+        if (xConstructor is null || yConstructor is null)
+            return false;
         return xConstructor.Parameters.SequenceEqual(yConstructor.Parameters);
     }
 
-    private bool CompareFactoryOutput(FactoryOutputDelegate? xFactoryOutput, FactoryOutputDelegate? yFactoryOutput) {
-        if (xFactoryOutput is null && yFactoryOutput is null) return true;
-        if (xFactoryOutput is null || yFactoryOutput is null) return false;
+    private bool CompareFactoryOutput(
+        FactoryOutputDelegate? xFactoryOutput,
+        FactoryOutputDelegate? yFactoryOutput
+    )
+    {
+        if (xFactoryOutput is null && yFactoryOutput is null)
+            return true;
+        if (xFactoryOutput is null || yFactoryOutput is null)
+            return false;
         return true;
     }
 
@@ -159,35 +184,50 @@ public class ServiceModelComparer : IEqualityComparer<ServiceModel> {
     /// </summary>
     private bool CompareConditions(
         IReadOnlyList<EnvironmentConditionModel>? xConditions,
-        IReadOnlyList<EnvironmentConditionModel>? yConditions) {
-        if ((xConditions?.Count ?? 0) == 0 && (yConditions?.Count ?? 0) == 0) {
+        IReadOnlyList<EnvironmentConditionModel>? yConditions
+    )
+    {
+        if ((xConditions?.Count ?? 0) == 0 && (yConditions?.Count ?? 0) == 0)
+        {
             return true;
         }
 
         return ModelEquality.ListEquals(xConditions, yConditions);
     }
 
-    private bool CompareFactory(ServiceFactoryModel? xFactory, ServiceFactoryModel? yFactory) {
-        if (xFactory is null && yFactory is null) return true;
-        if (xFactory is null) return false;
-        if (yFactory is null) return false;
+    private bool CompareFactory(ServiceFactoryModel? xFactory, ServiceFactoryModel? yFactory)
+    {
+        if (xFactory is null && yFactory is null)
+            return true;
+        if (xFactory is null)
+            return false;
+        if (yFactory is null)
+            return false;
         return xFactory.Equals(yFactory);
     }
 
-    public int GetHashCode(ServiceModel obj) {
+    public int GetHashCode(ServiceModel obj)
+    {
         return obj.ImplementationType.GetHashCode();
     }
 
-    private bool CompareRegistrations(IReadOnlyList<ServiceRegistrationModel> xRegistrations, IReadOnlyList<ServiceRegistrationModel> yRegistrations) {
-        if (xRegistrations.Count != yRegistrations.Count) {
+    private bool CompareRegistrations(
+        IReadOnlyList<ServiceRegistrationModel> xRegistrations,
+        IReadOnlyList<ServiceRegistrationModel> yRegistrations
+    )
+    {
+        if (xRegistrations.Count != yRegistrations.Count)
+        {
             return false;
         }
 
-        for (var i = 0; i < xRegistrations.Count; i++) {
+        for (var i = 0; i < xRegistrations.Count; i++)
+        {
             var x = xRegistrations[i];
             var y = yRegistrations[i];
 
-            if (!CompareRegistration(x, y)) {
+            if (!CompareRegistration(x, y))
+            {
                 return false;
             }
         }
@@ -195,19 +235,27 @@ public class ServiceModelComparer : IEqualityComparer<ServiceModel> {
         return true;
     }
 
-    private bool CompareRegistration(ServiceRegistrationModel x, ServiceRegistrationModel y) {
-        return x.ServiceType.Equals(y.ServiceType) &&
-               x.Lifestyle == y.Lifestyle &&
-               x.RegistrationType == y.RegistrationType &&
-               CompareNamespaces(x.Namespaces, y.Namespaces) &&
-               Equals(x.Realm, y.Realm) &&
-               Equals(x.Key, y.Key);
+    private bool CompareRegistration(ServiceRegistrationModel x, ServiceRegistrationModel y)
+    {
+        return x.ServiceType.Equals(y.ServiceType)
+            && x.Lifestyle == y.Lifestyle
+            && x.RegistrationType == y.RegistrationType
+            && CompareNamespaces(x.Namespaces, y.Namespaces)
+            && Equals(x.Realm, y.Realm)
+            && Equals(x.Key, y.Key);
     }
 
-    private bool CompareNamespaces(IReadOnlyList<string>? xNamespaces, IReadOnlyList<string>? yNamespaces) {
-        if (xNamespaces is null && yNamespaces is null) return true;
-        if (xNamespaces is null || yNamespaces is null) return false;
-        if (xNamespaces.Count != yNamespaces.Count) return false;
+    private bool CompareNamespaces(
+        IReadOnlyList<string>? xNamespaces,
+        IReadOnlyList<string>? yNamespaces
+    )
+    {
+        if (xNamespaces is null && yNamespaces is null)
+            return true;
+        if (xNamespaces is null || yNamespaces is null)
+            return false;
+        if (xNamespaces.Count != yNamespaces.Count)
+            return false;
         return xNamespaces.SequenceEqual(yNamespaces);
     }
 }

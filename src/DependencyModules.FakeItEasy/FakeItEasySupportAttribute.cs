@@ -22,8 +22,8 @@ namespace DependencyModules.FakeItEasy;
 /// </code>
 /// </example>
 [AttributeUsage(AttributeTargets.Method | AttributeTargets.Class | AttributeTargets.Assembly)]
-public class FakeItEasySupportAttribute : Attribute, IMockSupportAttribute {
-
+public class FakeItEasySupportAttribute : Attribute, IMockSupportAttribute
+{
     /// <summary>
     /// Provides a fake of the specified type.
     /// </summary>
@@ -33,7 +33,8 @@ public class FakeItEasySupportAttribute : Attribute, IMockSupportAttribute {
     /// </remarks>
     /// <param name="type">The type to fake.</param>
     /// <returns>A fake implementing <paramref name="type"/>.</returns>
-    public object ProvideMock(Type type) {
+    public object ProvideMock(Type type)
+    {
         return global::FakeItEasy.Sdk.Create.Fake(type);
     }
 }

@@ -8,16 +8,22 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// FileLogger backs the DependencyModules_LogOutputDirectory build property. It runs inside the
 /// compiler, so it must be inert unless explicitly switched on and must never fail a build.
 /// </summary>
-public class FileLoggerTests : IDisposable {
-    private readonly string _outputFolder =
-        Path.Combine(Path.GetTempPath(), "DependencyModulesLoggerTests", Guid.NewGuid().ToString("n"));
+public class FileLoggerTests : IDisposable
+{
+    private readonly string _outputFolder = Path.Combine(
+        Path.GetTempPath(),
+        "DependencyModulesLoggerTests",
+        Guid.NewGuid().ToString("n")
+    );
 
     [Fact]
-    public void WithNoOutputFolder_WritesNothing() {
+    public void WithNoOutputFolder_WritesNothing()
+    {
         var before = Directory.GetCurrentDirectory();
         var filesBefore = Directory.GetFiles(before);
 
-        using (var logger = new FileLogger(Configuration(logOutputFolder: ""), "test")) {
+        using (var logger = new FileLogger(Configuration(logOutputFolder: ""), "test"))
+        {
             logger.Info("a message");
             logger.Error("a problem");
         }
@@ -30,8 +36,10 @@ public class FileLoggerTests : IDisposable {
     /// configured folder entirely.
     /// </summary>
     [Fact]
-    public void WithAnOutputFolder_WritesIntoThatFolder() {
-        using (var logger = new FileLogger(Configuration(_outputFolder), "generator")) {
+    public void WithAnOutputFolder_WritesIntoThatFolder()
+    {
+        using (var logger = new FileLogger(Configuration(_outputFolder), "generator"))
+        {
             logger.Info("a message");
         }
 
@@ -43,10 +51,12 @@ public class FileLoggerTests : IDisposable {
     }
 
     [Fact]
-    public void WithAnOutputFolder_CreatesTheFolderIfMissing() {
+    public void WithAnOutputFolder_CreatesTheFolderIfMissing()
+    {
         Assert.False(Directory.Exists(_outputFolder));
 
-        using (var logger = new FileLogger(Configuration(_outputFolder), "generator")) {
+        using (var logger = new FileLogger(Configuration(_outputFolder), "generator"))
+        {
             logger.Info("a message");
         }
 
@@ -54,8 +64,10 @@ public class FileLoggerTests : IDisposable {
     }
 
     [Fact]
-    public void RecordsLevelsAndMessages() {
-        using (var logger = new FileLogger(Configuration(_outputFolder), "generator")) {
+    public void RecordsLevelsAndMessages()
+    {
+        using (var logger = new FileLogger(Configuration(_outputFolder), "generator"))
+        {
             logger.Info("an info message");
             logger.Error("an error message");
             logger.Info("with data", "the data");
@@ -73,37 +85,44 @@ public class FileLoggerTests : IDisposable {
     /// Swallowing it produced a successful build with no registrations and no message at all.
     /// </summary>
     [Fact]
-    public void Wrap_WithoutAReporter_RethrowsSoTheFailureIsVisible() {
-        var exception = Assert.Throws<InvalidOperationException>(
-            () => FileLogger.Wrap(
+    public void Wrap_WithoutAReporter_RethrowsSoTheFailureIsVisible()
+    {
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            FileLogger.Wrap(
                 "generator",
                 Configuration(_outputFolder),
-                _ => throw new InvalidOperationException("generator blew up")));
+                _ => throw new InvalidOperationException("generator blew up")
+            )
+        );
 
         Assert.Equal("generator blew up", exception.Message);
     }
 
     [Fact]
-    public void Wrap_WithAReporter_HandsItTheExceptionInsteadOfPropagating() {
+    public void Wrap_WithAReporter_HandsItTheExceptionInsteadOfPropagating()
+    {
         Exception? reported = null;
 
         FileLogger.Wrap(
             "generator",
             Configuration(_outputFolder),
             _ => throw new InvalidOperationException("generator blew up"),
-            exception => reported = exception);
+            exception => reported = exception
+        );
 
         Assert.NotNull(reported);
         Assert.Equal("generator blew up", reported!.Message);
     }
 
     [Fact]
-    public void Wrap_RecordsTheExceptionInTheLog() {
+    public void Wrap_RecordsTheExceptionInTheLog()
+    {
         FileLogger.Wrap(
             "generator",
             Configuration(_outputFolder),
             _ => throw new InvalidOperationException("generator blew up"),
-            _ => { });
+            _ => { }
+        );
 
         var content = File.ReadAllText(Directory.GetFiles(_outputFolder).Single());
 
@@ -112,25 +131,33 @@ public class FileLoggerTests : IDisposable {
     }
 
     [Fact]
-    public void Wrap_RunsTheCallbackAndDisposesTheLogger() {
+    public void Wrap_RunsTheCallbackAndDisposesTheLogger()
+    {
         var ran = false;
 
-        FileLogger.Wrap("generator", Configuration(_outputFolder), logger => {
-            ran = true;
-            logger.Info("inside");
-        });
+        FileLogger.Wrap(
+            "generator",
+            Configuration(_outputFolder),
+            logger =>
+            {
+                ran = true;
+                logger.Info("inside");
+            }
+        );
 
         Assert.True(ran);
         Assert.Contains("inside", File.ReadAllText(Directory.GetFiles(_outputFolder).Single()));
     }
 
     [Fact]
-    public void AnUnwritableOutputFolder_DoesNotThrow() {
+    public void AnUnwritableOutputFolder_DoesNotThrow()
+    {
         // A path whose parent is a file cannot be created; logging must still not fail the build.
         var file = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("n"));
         File.WriteAllText(file, "not a directory");
 
-        try {
+        try
+        {
             var logger = new FileLogger(Configuration(Path.Combine(file, "nested")), "generator");
             logger.Info("a message");
 
@@ -138,7 +165,8 @@ public class FileLoggerTests : IDisposable {
 
             Assert.Null(exception);
         }
-        finally {
+        finally
+        {
             File.Delete(file);
         }
     }
@@ -152,10 +180,13 @@ public class FileLoggerTests : IDisposable {
             AutoGenerateEntry: true,
             LogOutputFolder: logOutputFolder,
             LogOutputLevel.Debug,
-            GenerateFactories: false);
+            GenerateFactories: false
+        );
 
-    public void Dispose() {
-        if (Directory.Exists(_outputFolder)) {
+    public void Dispose()
+    {
+        if (Directory.Exists(_outputFolder))
+        {
             Directory.Delete(_outputFolder, recursive: true);
         }
     }

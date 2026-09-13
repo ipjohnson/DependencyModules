@@ -1,18 +1,22 @@
+using DependencyModules.NSubstitute;
 using DependencyModules.Testing.Attributes;
 using DependencyModules.xUnit.Attributes;
-using DependencyModules.NSubstitute;
 using NSubstitute;
 using Xunit;
 
 namespace SutProject.Tests.NSubstitute;
 
 [NSubstituteSupport]
-public class NSubstituteAttributeTests {
-
+public class NSubstituteAttributeTests
+{
     [ModuleTest]
     [SutModule]
-    public void MockTest([Mock] IDependencyOne dependencyOne,
-        [Mock] IScopedService scopedService, ISingletonService singletonService) {
+    public void MockTest(
+        [Mock] IDependencyOne dependencyOne,
+        [Mock] IScopedService scopedService,
+        ISingletonService singletonService
+    )
+    {
         dependencyOne.SingletonService.Returns(singletonService);
         dependencyOne.ScopedService.Returns(scopedService);
 

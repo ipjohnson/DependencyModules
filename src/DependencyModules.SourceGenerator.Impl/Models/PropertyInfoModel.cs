@@ -17,8 +17,9 @@ public record PropertyInfoModel(
     string PropertyName,
     bool IsReadOnly,
     bool IsStatic,
-    bool IsVisibleToAttribute) {
-
+    bool IsVisibleToAttribute
+)
+{
     /// <summary>
     /// Whether this property is carried across to the generated attribute as a module parameter.
     /// </summary>

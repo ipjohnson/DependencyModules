@@ -18,18 +18,21 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// The default is 0 for everything, and the sort is stable within an order, so a project that names
 /// no orders sees exactly what it saw before.
 /// </summary>
-public class ServiceOrderTests {
-
+public class ServiceOrderTests
+{
     [Fact]
-    public void WithNoOrderNamed_TheExistingOrderIsKept() {
+    public void WithNoOrderNamed_TheExistingOrderIsKept()
+    {
         Assert.Equal(["Alpha", "Beta", "Gamma"], Resolve("", "", ""));
     }
 
     [Fact]
-    public void OrderDecidesTheSequence() {
+    public void OrderDecidesTheSequence()
+    {
         Assert.Equal(
             ["Gamma", "Beta", "Alpha"],
-            Resolve(", Order = 30", ", Order = 20", ", Order = 10"));
+            Resolve(", Order = 30", ", Order = 20", ", Order = 10")
+        );
     }
 
     /// <summary>
@@ -37,7 +40,8 @@ public class ServiceOrderTests {
     /// looks like when the rest of the project has never named an order.
     /// </summary>
     [Fact]
-    public void ANegativeOrder_SortsAhead() {
+    public void ANegativeOrder_SortsAhead()
+    {
         Assert.Equal(["Gamma", "Alpha", "Beta"], Resolve("", "", ", Order = -1"));
     }
 
@@ -46,8 +50,12 @@ public class ServiceOrderTests {
     /// not scramble the rest.
     /// </summary>
     [Fact]
-    public void WithinOneOrder_TheSortIsStable() {
-        Assert.Equal(["Alpha", "Beta", "Gamma"], Resolve(", Order = 5", ", Order = 5", ", Order = 5"));
+    public void WithinOneOrder_TheSortIsStable()
+    {
+        Assert.Equal(
+            ["Alpha", "Beta", "Gamma"],
+            Resolve(", Order = 5", ", Order = 5", ", Order = 5")
+        );
     }
 
     /// <summary>
@@ -55,7 +63,8 @@ public class ServiceOrderTests {
     /// too — worth pinning, because it is the half a reader does not think about.
     /// </summary>
     [Fact]
-    public void TheLastInOrder_IsWhatASingleResolveReturns() {
+    public void TheLastInOrder_IsWhatASingleResolveReturns()
+    {
         var generated = Build(", Order = 30", ", Order = 20", ", Order = 10");
 
         var resolved = generated.BuildProvider().GetService(generated.Type("IStep"))!;
@@ -63,11 +72,16 @@ public class ServiceOrderTests {
         Assert.Equal("Alpha", resolved.GetType().Name);
     }
 
-    private static string[] Resolve(string alpha, string beta, string gamma) {
+    private static string[] Resolve(string alpha, string beta, string gamma)
+    {
         var generated = Build(alpha, beta, gamma);
 
-        return ((System.Collections.IEnumerable)generated.BuildProvider()
-                .GetService(typeof(IEnumerable<>).MakeGenericType(generated.Type("IStep")))!)
+        return (
+            (System.Collections.IEnumerable)
+                generated
+                    .BuildProvider()
+                    .GetService(typeof(IEnumerable<>).MakeGenericType(generated.Type("IStep")))!
+        )
             .Cast<object>()
             .Select(step => step.GetType().Name)
             .ToArray();
@@ -76,22 +90,23 @@ public class ServiceOrderTests {
     private static GeneratedAssembly Build(string alpha, string beta, string gamma) =>
         GeneratedAssembly.Create(
             $$"""
-              using DependencyModules.Runtime.Attributes;
+            using DependencyModules.Runtime.Attributes;
 
-              namespace TestNamespace;
+            namespace TestNamespace;
 
-              public interface IStep;
+            public interface IStep;
 
-              [SingletonService(As = typeof(IStep){{alpha}})]
-              public class Alpha : IStep;
+            [SingletonService(As = typeof(IStep){{alpha}})]
+            public class Alpha : IStep;
 
-              [SingletonService(As = typeof(IStep){{beta}})]
-              public class Beta : IStep;
+            [SingletonService(As = typeof(IStep){{beta}})]
+            public class Beta : IStep;
 
-              [SingletonService(As = typeof(IStep){{gamma}})]
-              public class Gamma : IStep;
+            [SingletonService(As = typeof(IStep){{gamma}})]
+            public class Gamma : IStep;
 
-              [DependencyModule]
-              public partial class TestModule;
-              """);
+            [DependencyModule]
+            public partial class TestModule;
+            """
+        );
 }

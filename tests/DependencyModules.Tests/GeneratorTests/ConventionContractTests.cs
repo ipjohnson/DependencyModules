@@ -3,7 +3,6 @@ using DependencyModules.Runtime.Conventions;
 using DependencyModules.Tests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
-
 using GeneratorNames = DependencyModules.Conventions.ConventionContractSource;
 
 namespace DependencyModules.Tests.GeneratorTests;
@@ -23,20 +22,23 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// registers nothing, which is the failure mode this generator exists to prevent everywhere else.
 /// </para>
 /// </remarks>
-public class ConventionContractTests {
-
+public class ConventionContractTests
+{
     [Fact]
-    public void TheGeneratorLooksForTheNamespaceTheContractsAreDeclaredIn() {
+    public void TheGeneratorLooksForTheNamespaceTheContractsAreDeclaredIn()
+    {
         Assert.Equal(GeneratorNames.Namespace, typeof(IConventionModule).Namespace);
     }
 
     [Fact]
-    public void TheGeneratorLooksForTheInterfaceTheContractsDeclare() {
+    public void TheGeneratorLooksForTheInterfaceTheContractsDeclare()
+    {
         Assert.Equal(GeneratorNames.ConventionModule, nameof(IConventionModule));
     }
 
     [Fact]
-    public void TheGeneratorLooksForTheMethodTheInterfaceDeclares() {
+    public void TheGeneratorLooksForTheMethodTheInterfaceDeclares()
+    {
         var method = Assert.Single(typeof(IConventionModule).GetMethods());
 
         Assert.Equal(GeneratorNames.ConventionMethod, method.Name);
@@ -51,8 +53,10 @@ public class ConventionContractTests {
     /// hurried addition gets wrong and nothing else would catch.
     /// </remarks>
     [Fact]
-    public void EveryRegistrationVerbContinuesTheChain() {
-        var breaks = typeof(IConventionRegistration).GetMethods()
+    public void EveryRegistrationVerbContinuesTheChain()
+    {
+        var breaks = typeof(IConventionRegistration)
+            .GetMethods()
             .Where(method => method.ReturnType != typeof(IConventionRegistration))
             .Select(method => method.Name)
             .ToArray();
@@ -64,8 +68,10 @@ public class ConventionContractTests {
     /// Every entry point produces a registration to continue from.
     /// </summary>
     [Fact]
-    public void EveryRegisterAllOverloadStartsTheChain() {
-        var breaks = typeof(IConventionDefinitions).GetMethods()
+    public void EveryRegisterAllOverloadStartsTheChain()
+    {
+        var breaks = typeof(IConventionDefinitions)
+            .GetMethods()
             .Where(method => method.ReturnType != typeof(IConventionRegistration))
             .Select(method => method.Name)
             .ToArray();
@@ -73,8 +79,7 @@ public class ConventionContractTests {
         Assert.Empty(breaks);
     }
 
-    private const string Preamble =
-        """
+    private const string Preamble = """
         using DependencyModules.Runtime.Attributes;
         using DependencyModules.Runtime.Conventions;
 
@@ -98,41 +103,51 @@ public class ConventionContractTests {
     /// that it stays retired.
     /// </remarks>
     [Fact]
-    public void AnImplicitPublicImplementationDeclaresConventions() {
+    public void AnImplicitPublicImplementationDeclaresConventions()
+    {
         var assembly = GeneratedAssembly.Create(
-            Preamble +
-            """
-            [DependencyModule]
-            public partial class TestModule : IConventionModule {
-                public void Conventions(IConventionDefinitions conventions) {
-                    conventions.RegisterAll<IGreeter>().AsSingleton();
+            Preamble
+                + """
+                [DependencyModule]
+                public partial class TestModule : IConventionModule {
+                    public void Conventions(IConventionDefinitions conventions) {
+                        conventions.RegisterAll<IGreeter>().AsSingleton();
+                    }
                 }
-            }
-            """);
+                """
+        );
 
         var provider = assembly.BuildProvider();
 
-        Assert.Equal("hello", ((dynamic)provider.GetRequiredService(assembly.Type("IGreeter"))).Greet());
+        Assert.Equal(
+            "hello",
+            ((dynamic)provider.GetRequiredService(assembly.Type("IGreeter"))).Greet()
+        );
     }
 
     /// <summary>
     /// The explicit form still compiles and still registers, so nobody has to rewrite anything.
     /// </summary>
     [Fact]
-    public void TheExplicitImplementationStillDeclaresConventions() {
+    public void TheExplicitImplementationStillDeclaresConventions()
+    {
         var assembly = GeneratedAssembly.Create(
-            Preamble +
-            """
-            [DependencyModule]
-            public partial class TestModule : IConventionModule {
-                void IConventionModule.Conventions(IConventionDefinitions conventions) {
-                    conventions.RegisterAll<IGreeter>().AsSingleton();
+            Preamble
+                + """
+                [DependencyModule]
+                public partial class TestModule : IConventionModule {
+                    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                        conventions.RegisterAll<IGreeter>().AsSingleton();
+                    }
                 }
-            }
-            """);
+                """
+        );
 
         var provider = assembly.BuildProvider();
 
-        Assert.Equal("hello", ((dynamic)provider.GetRequiredService(assembly.Type("IGreeter"))).Greet());
+        Assert.Equal(
+            "hello",
+            ((dynamic)provider.GetRequiredService(assembly.Type("IGreeter"))).Greet()
+        );
     }
 }

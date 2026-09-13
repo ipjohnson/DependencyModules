@@ -6,7 +6,8 @@ namespace DependencyModules.Runtime.Attributes;
 /// <summary>
 /// Defines the method of registration for services in a dependency injection container.
 /// </summary>
-public enum RegistrationType {
+public enum RegistrationType
+{
     /// <summary>
     /// Registers the service unconditionally, adding a new registration even if another service of the same type exists.
     /// </summary>
@@ -28,7 +29,7 @@ public enum RegistrationType {
     /// Replaces an existing service registration with the new one.
     /// Typically used to override default implementations in the dependency injection container.
     /// </summary>
-    Replace
+    Replace,
 }
 
 /// <summary>
@@ -57,24 +58,27 @@ public enum RegistrationType {
 /// a registration consists of.
 /// </para>
 /// </remarks>
-public interface  IServiceRegistrationAttribute {
+public interface IServiceRegistrationAttribute
+{
     /// <summary>
     /// Gets or sets a key used for service registration,
     /// typically to distinguish between multiple registrations
     /// of the same service type or to categorize services.
     /// </summary>
-    object? Key { 
+    object? Key
+    {
         get => null;
-        set {}
+        set { }
     }
 
     /// <summary>
     /// Gets or sets the type that the service should be registered as in the dependency injection container.
     /// Typically used to specify an interface or a base type that the implementation will be registered and resolved as.
     /// </summary>
-    Type? As { 
+    Type? As
+    {
         get => null;
-        set { } 
+        set { }
     }
 
     /// <summary>
@@ -82,7 +86,8 @@ public interface  IServiceRegistrationAttribute {
     /// determining the duration for which the service instance is retained.
     /// Common lifetimes include Transient, Scoped, and Singleton.
     /// </summary>
-    ServiceLifetime Lifetime {
+    ServiceLifetime Lifetime
+    {
         get => ServiceLifetime.Transient;
         set { }
     }
@@ -93,7 +98,8 @@ public interface  IServiceRegistrationAttribute {
     /// service if it doesn't already exist, adding a service to an enumerable, or replacing
     /// an existing service.
     /// </summary>
-    RegistrationType Using {
+    RegistrationType Using
+    {
         get => RegistrationType.Add;
         set { }
     }
@@ -105,17 +111,16 @@ public interface  IServiceRegistrationAttribute {
 /// registration attributes, such as specifying the service type, registration type, and
 /// associated service lifetime.
 /// </summary>
-public abstract class BaseServiceAttribute : Attribute, IServiceRegistrationAttribute {
-    
+public abstract class BaseServiceAttribute : Attribute, IServiceRegistrationAttribute
+{
     /// <inheritdoc />
     public object? Key { get; set; }
-    
+
     /// <inheritdoc />
     public Type? As { get; set; }
-    
+
     /// <inheritdoc />
     public RegistrationType Using { get; set; } = RegistrationType.Add;
-
 
     /// <summary>
     /// Gets or sets the module or scope under which the service should be registered.
@@ -146,10 +151,11 @@ public abstract class BaseServiceAttribute : Attribute, IServiceRegistrationAttr
     /// </para>
     /// </remarks>
     public int Order { get; set; }
-    
+
     /// <inheritdoc />
     [Browsable(false)]
-    ServiceLifetime IServiceRegistrationAttribute.Lifetime {
+    ServiceLifetime IServiceRegistrationAttribute.Lifetime
+    {
         get => Lifetime;
         set => throw new Exception("Setting lifetime is not supported");
     }

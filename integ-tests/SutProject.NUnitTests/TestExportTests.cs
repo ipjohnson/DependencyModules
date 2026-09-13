@@ -8,7 +8,8 @@ namespace SutProject.NUnitTests;
 /// <summary>
 /// Stands in for the real singleton, so a test can tell which of two registrations survived.
 /// </summary>
-public class ExportedSingletonService : ISingletonService {
+public class ExportedSingletonService : ISingletonService
+{
     public string GetName() => nameof(ExportedSingletonService);
 }
 
@@ -20,12 +21,13 @@ public class ExportedSingletonService : ISingletonService {
 /// is why it is available here at all — it registers through <c>ITestServiceSetupAttribute</c> and
 /// never needed a test framework.
 /// </remarks>
-public class TestExportTests {
-
+public class TestExportTests
+{
     [ModuleTest]
     [SutModule]
     [TestExport(typeof(ISingletonService), Implementation = typeof(ExportedSingletonService))]
-    public void OverridesARegistrationForOneTest(ISingletonService singletonService) {
+    public void OverridesARegistrationForOneTest(ISingletonService singletonService)
+    {
         Assert.That(singletonService, Is.TypeOf<ExportedSingletonService>());
     }
 
@@ -35,15 +37,23 @@ public class TestExportTests {
     /// </summary>
     [ModuleTest]
     [SutModule]
-    public void TheOverrideDoesNotLeakIntoTheNextTest(ISingletonService singletonService) {
+    public void TheOverrideDoesNotLeakIntoTheNextTest(ISingletonService singletonService)
+    {
         Assert.That(singletonService, Is.TypeOf<SingletonService>());
     }
 
     [ModuleTest]
     [SutModule]
-    [TestExport(typeof(ISingletonService), Implementation = typeof(ExportedSingletonService),
-        Lifetime = ServiceLifetime.Singleton)]
-    public void HonoursTheLifetimeItIsGiven(ISingletonService first, IServiceProvider serviceProvider) {
+    [TestExport(
+        typeof(ISingletonService),
+        Implementation = typeof(ExportedSingletonService),
+        Lifetime = ServiceLifetime.Singleton
+    )]
+    public void HonoursTheLifetimeItIsGiven(
+        ISingletonService first,
+        IServiceProvider serviceProvider
+    )
+    {
         Assert.That(serviceProvider.GetRequiredService<ISingletonService>(), Is.SameAs(first));
     }
 }

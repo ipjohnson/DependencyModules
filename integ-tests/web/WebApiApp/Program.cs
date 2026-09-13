@@ -15,4 +15,3 @@ app.MapGet("/weatherforecast", (Weather weather) => weather.GetWeatherForecast()
     .WithName("GetWeatherForecast");
 
 app.Run();
-

@@ -6,23 +6,34 @@ using static CSharpAuthor.SyntaxHelpers;
 
 namespace DependencyModules.SourceGenerator.Impl;
 
-public class ModuleAttributeWriter : BaseAttributeWriter<ModuleEntryPointModel> {
-
-    protected override void CustomImplementation(IConstructContainer container, ClassDefinition attributeClass, ModuleEntryPointModel model) {
+public class ModuleAttributeWriter : BaseAttributeWriter<ModuleEntryPointModel>
+{
+    protected override void CustomImplementation(
+        IConstructContainer container,
+        ClassDefinition attributeClass,
+        ModuleEntryPointModel model
+    )
+    {
         var method = attributeClass.AddMethod("GetModule");
 
         method.SetReturnType(KnownTypes.DependencyModules.Interfaces.IDependencyModule);
 
-        var newModule =
-            method.Assign(
-                New(model.EntryPointType,
-                    attributeClass.Fields.Select(f => f.Instance).OfType<object>().ToArray())).ToVar("newModule");
+        var newModule = method
+            .Assign(
+                New(
+                    model.EntryPointType,
+                    attributeClass.Fields.Select(f => f.Instance).OfType<object>().ToArray()
+                )
+            )
+            .ToVar("newModule");
 
-        foreach (var propertyInfoModel in model.PropertyInfoModels) {
-            if (!propertyInfoModel.IsModuleParameter) {
+        foreach (var propertyInfoModel in model.PropertyInfoModels)
+        {
+            if (!propertyInfoModel.IsModuleParameter)
+            {
                 continue;
             }
-            
+
             // Guarded whatever the declared nullability. An attribute property is null until
             // somebody assigns it, and `?` is an annotation rather than a runtime fact — so gating
             // the guard on it meant `public string Label { get; set; } = "default";` had its
@@ -35,7 +46,9 @@ public class ModuleAttributeWriter : BaseAttributeWriter<ModuleEntryPointModel> 
             // BaseAttributeWriter already wraps the class in a pragma for it.
             var block = method.If(NotEquals(propertyInfoModel.PropertyName, Null()));
 
-            block.Assign(propertyInfoModel.PropertyName).To(newModule.Property(propertyInfoModel.PropertyName));
+            block
+                .Assign(propertyInfoModel.PropertyName)
+                .To(newModule.Property(propertyInfoModel.PropertyName));
         }
 
         method.Return(newModule);

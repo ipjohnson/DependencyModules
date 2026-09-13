@@ -18,12 +18,14 @@ namespace DependencyModules.Tests.Infrastructure;
 /// registrations the same way an application would, so a change that still emits plausible-looking
 /// code but breaks behaviour fails here.
 /// </summary>
-public class GeneratedAssembly {
+public class GeneratedAssembly
+{
     private static int _assemblyCounter;
 
     private readonly Assembly _assembly;
 
-    private GeneratedAssembly(Assembly assembly, IServiceCollection services) {
+    private GeneratedAssembly(Assembly assembly, IServiceCollection services)
+    {
         _assembly = assembly;
         Services = services;
     }
@@ -49,30 +51,36 @@ public class GeneratedAssembly {
         string source,
         string moduleName = "TestModule",
         IReadOnlyDictionary<string, string>? buildProperties = null,
-                IModuleEnvironment? environment = null,
-        IReadOnlyList<MetadataReference>? additionalReferences = null) {
-
+        IModuleEnvironment? environment = null,
+        IReadOnlyList<MetadataReference>? additionalReferences = null
+    )
+    {
         var assemblyName = "GeneratedAssemblyTest" + Interlocked.Increment(ref _assemblyCounter);
 
         var result = GeneratorTestHarness.Run(
             new Dictionary<string, string> { ["Test.cs"] = source },
             buildProperties,
             assemblyName: assemblyName,
-                        additionalReferences: additionalReferences);
+            additionalReferences: additionalReferences
+        );
 
         result.AssertNoErrors();
 
         var assembly = Emit(result, assemblyName);
 
-        var moduleType = assembly.GetType($"TestNamespace.{moduleName}")
-                         ?? throw new InvalidOperationException(
-                             $"The compiled assembly has no type 'TestNamespace.{moduleName}'. " +
-                             $"Types present: {string.Join(", ", assembly.GetTypes().Select(t => t.FullName))}");
+        var moduleType =
+            assembly.GetType($"TestNamespace.{moduleName}")
+            ?? throw new InvalidOperationException(
+                $"The compiled assembly has no type 'TestNamespace.{moduleName}'. "
+                    + $"Types present: {string.Join(", ", assembly.GetTypes().Select(t => t.FullName))}"
+            );
 
-        if (Activator.CreateInstance(moduleType) is not IDependencyModule module) {
+        if (Activator.CreateInstance(moduleType) is not IDependencyModule module)
+        {
             throw new InvalidOperationException(
-                $"'{moduleType.FullName}' did not implement IDependencyModule. The generator should " +
-                "have added that to the partial declaration.");
+                $"'{moduleType.FullName}' did not implement IDependencyModule. The generator should "
+                    + "have added that to the partial declaration."
+            );
         }
 
         var services = new ServiceCollection();
@@ -84,17 +92,24 @@ public class GeneratedAssembly {
         return new GeneratedAssembly(assembly, services);
     }
 
-    private static Assembly Emit(GeneratorResult result, string assemblyName) {
+    private static Assembly Emit(GeneratorResult result, string assemblyName)
+    {
         using var stream = new MemoryStream();
 
         EmitResult emitResult = result.Compilation.Emit(stream);
 
-        Assert.True(emitResult.Success,
-            $"The generated code did not emit. Errors:{Environment.NewLine}" +
-            string.Join(Environment.NewLine,
-                emitResult.Diagnostics
-                    .Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)
-                    .Select(diagnostic => $"  {diagnostic.Id} {diagnostic.GetMessage()}")));
+        Assert.True(
+            emitResult.Success,
+            $"The generated code did not emit. Errors:{Environment.NewLine}"
+                + string.Join(
+                    Environment.NewLine,
+                    emitResult
+                        .Diagnostics.Where(diagnostic =>
+                            diagnostic.Severity == DiagnosticSeverity.Error
+                        )
+                        .Select(diagnostic => $"  {diagnostic.Id} {diagnostic.GetMessage()}")
+                )
+        );
 
         // Loaded into the default context so it binds against the DependencyModules.Runtime already
         // loaded by this test assembly. That is what lets tests cast to IDependencyModule and
@@ -108,7 +123,8 @@ public class GeneratedAssembly {
     public Type Type(string name) =>
         _assembly.GetType($"TestNamespace.{name}")
         ?? throw new InvalidOperationException(
-            $"No type 'TestNamespace.{name}'. Present: {string.Join(", ", _assembly.GetTypes().Select(t => t.Name))}");
+            $"No type 'TestNamespace.{name}'. Present: {string.Join(", ", _assembly.GetTypes().Select(t => t.Name))}"
+        );
 
     /// <summary>
     /// Builds a provider from the applied registrations.
@@ -118,13 +134,16 @@ public class GeneratedAssembly {
     /// <summary>
     /// Resolves a service by type name, failing the test if it was never registered.
     /// </summary>
-    public object ResolveRequired(string typeName) {
+    public object ResolveRequired(string typeName)
+    {
         var provider = BuildProvider();
         var service = provider.GetService(Type(typeName));
 
-        Assert.True(service != null,
-            $"'{typeName}' did not resolve. Registered service types: " +
-            string.Join(", ", Services.Select(descriptor => descriptor.ServiceType.Name)));
+        Assert.True(
+            service != null,
+            $"'{typeName}' did not resolve. Registered service types: "
+                + string.Join(", ", Services.Select(descriptor => descriptor.ServiceType.Name))
+        );
 
         return service!;
     }
@@ -132,17 +151,21 @@ public class GeneratedAssembly {
     /// <summary>
     /// The descriptor registered for a service type, failing the test if there is not exactly one.
     /// </summary>
-    public ServiceDescriptor Descriptor(string serviceTypeName) {
+    public ServiceDescriptor Descriptor(string serviceTypeName)
+    {
         var serviceType = Type(serviceTypeName);
         var matches = Services.Where(descriptor => descriptor.ServiceType == serviceType).ToArray();
 
-        Assert.True(matches.Length == 1,
-            $"Expected exactly one registration for '{serviceTypeName}', found {matches.Length}.");
+        Assert.True(
+            matches.Length == 1,
+            $"Expected exactly one registration for '{serviceTypeName}', found {matches.Length}."
+        );
 
         return matches[0];
     }
 
-    public IReadOnlyList<ServiceDescriptor> Descriptors(string serviceTypeName) {
+    public IReadOnlyList<ServiceDescriptor> Descriptors(string serviceTypeName)
+    {
         var serviceType = Type(serviceTypeName);
 
         return Services.Where(descriptor => descriptor.ServiceType == serviceType).ToArray();

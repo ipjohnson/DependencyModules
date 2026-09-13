@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
-using Microsoft.Extensions.DependencyInjection;
 using DependencyModules.Tests.Infrastructure;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace DependencyModules.Tests.GeneratorTests;
@@ -24,10 +24,9 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// property's whole contract — it is meant to change how a service is constructed, not what is
 /// registered or what wraps it.
 /// </summary>
-public class GenerateFactoriesInterceptionTests {
-
-    private const string Interceptor =
-        """
+public class GenerateFactoriesInterceptionTests
+{
+    private const string Interceptor = """
         public sealed class CountingInterceptor : IInterceptor {
             public TResult Intercept<TResult>(InvocationContext<TResult> context) => context.Proceed();
         }
@@ -39,7 +38,8 @@ public class GenerateFactoriesInterceptionTests {
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void AnUnmarkedSibling_IsNotWrapped(bool generateFactories) {
+    public void AnUnmarkedSibling_IsNotWrapped(bool generateFactories)
+    {
         var resolved = Resolve(
             """
             [SingletonService] [Intercept(typeof(CountingInterceptor))]
@@ -48,7 +48,8 @@ public class GenerateFactoriesInterceptionTests {
             [SingletonService]
             public sealed class Quiet : IGreeter { public string Greet() => "quiet"; }
             """,
-            generateFactories);
+            generateFactories
+        );
 
         Assert.Equal(["Loud_Intercepted", "Quiet"], resolved);
     }
@@ -60,7 +61,8 @@ public class GenerateFactoriesInterceptionTests {
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void TwoMarkedImplementations_EachGetTheirOwnWrapper(bool generateFactories) {
+    public void TwoMarkedImplementations_EachGetTheirOwnWrapper(bool generateFactories)
+    {
         var resolved = Resolve(
             """
             [SingletonService] [Intercept(typeof(CountingInterceptor))]
@@ -69,7 +71,8 @@ public class GenerateFactoriesInterceptionTests {
             [SingletonService] [Intercept(typeof(CountingInterceptor))]
             public sealed class Quiet : IGreeter { public string Greet() => "quiet"; }
             """,
-            generateFactories);
+            generateFactories
+        );
 
         Assert.Equal(["Loud_Intercepted", "Quiet_Intercepted"], resolved);
     }
@@ -81,7 +84,8 @@ public class GenerateFactoriesInterceptionTests {
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void AKeyedSibling_IsNotWrapped(bool generateFactories) {
+    public void AKeyedSibling_IsNotWrapped(bool generateFactories)
+    {
         var generated = Build(
             """
             [SingletonService(Key = "loud")] [Intercept(typeof(CountingInterceptor))]
@@ -90,7 +94,8 @@ public class GenerateFactoriesInterceptionTests {
             [SingletonService(Key = "quiet")]
             public sealed class Quiet : IGreeter { public string Greet() => "quiet"; }
             """,
-            generateFactories);
+            generateFactories
+        );
 
         var provider = generated.BuildProvider();
         var serviceType = generated.Type("IGreeter");
@@ -109,39 +114,46 @@ public class GenerateFactoriesInterceptionTests {
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void AConventionRegisteredSibling_IsNotWrapped(bool generateFactories) {
+    public void AConventionRegisteredSibling_IsNotWrapped(bool generateFactories)
+    {
         var generated = GeneratedAssembly.Create(
             $$"""
-              using DependencyModules.Runtime.Attributes;
-              using DependencyModules.Runtime.Conventions;
-              using DependencyModules.Runtime.Interception;
+            using DependencyModules.Runtime.Attributes;
+            using DependencyModules.Runtime.Conventions;
+            using DependencyModules.Runtime.Interception;
 
-              namespace TestNamespace;
+            namespace TestNamespace;
 
-              public interface IGreeter { string Greet(); }
+            public interface IGreeter { string Greet(); }
 
-              {{Interceptor}}
+            {{Interceptor}}
 
-              [Intercept(typeof(CountingInterceptor))]
-              public sealed class Loud : IGreeter { public string Greet() => "loud"; }
+            [Intercept(typeof(CountingInterceptor))]
+            public sealed class Loud : IGreeter { public string Greet() => "loud"; }
 
-              public sealed class Quiet : IGreeter { public string Greet() => "quiet"; }
+            public sealed class Quiet : IGreeter { public string Greet() => "quiet"; }
 
-              [DependencyModule]
-              public partial class TestModule : IConventionModule {
-                  void IConventionModule.Conventions(IConventionDefinitions conventions) {
-                      conventions.RegisterAll<IGreeter>().AsSingleton();
-                  }
-              }
-              """,
-            buildProperties: new Dictionary<string, string> {
-                ["DependencyModules_GenerateFactories"] = generateFactories ? "true" : "false"
-            });
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll<IGreeter>().AsSingleton();
+                }
+            }
+            """,
+            buildProperties: new Dictionary<string, string>
+            {
+                ["DependencyModules_GenerateFactories"] = generateFactories ? "true" : "false",
+            }
+        );
 
         var provider = generated.BuildProvider();
 
-        var resolved = ((System.Collections.IEnumerable)provider
-                .GetService(typeof(IEnumerable<>).MakeGenericType(generated.Type("IGreeter")))!)
+        var resolved = (
+            (System.Collections.IEnumerable)
+                provider.GetService(
+                    typeof(IEnumerable<>).MakeGenericType(generated.Type("IGreeter"))
+                )!
+        )
             .Cast<object>()
             .Select(greeter => greeter.GetType().Name)
             .OrderBy(name => name, System.StringComparer.Ordinal)
@@ -150,12 +162,17 @@ public class GenerateFactoriesInterceptionTests {
         Assert.Equal(["Loud_Intercepted", "Quiet"], resolved);
     }
 
-    private static string[] Resolve(string body, bool generateFactories) {
+    private static string[] Resolve(string body, bool generateFactories)
+    {
         var generated = Build(body, generateFactories);
         var provider = generated.BuildProvider();
 
-        return ((System.Collections.IEnumerable)provider
-                .GetService(typeof(IEnumerable<>).MakeGenericType(generated.Type("IGreeter")))!)
+        return (
+            (System.Collections.IEnumerable)
+                provider.GetService(
+                    typeof(IEnumerable<>).MakeGenericType(generated.Type("IGreeter"))
+                )!
+        )
             .Cast<object>()
             .Select(greeter => greeter.GetType().Name)
             .OrderBy(name => name, System.StringComparer.Ordinal)
@@ -165,21 +182,23 @@ public class GenerateFactoriesInterceptionTests {
     private static GeneratedAssembly Build(string body, bool generateFactories) =>
         GeneratedAssembly.Create(
             $$"""
-              using DependencyModules.Runtime.Attributes;
-              using DependencyModules.Runtime.Interception;
+            using DependencyModules.Runtime.Attributes;
+            using DependencyModules.Runtime.Interception;
 
-              namespace TestNamespace;
+            namespace TestNamespace;
 
-              public interface IGreeter { string Greet(); }
+            public interface IGreeter { string Greet(); }
 
-              {{Interceptor}}
+            {{Interceptor}}
 
-              {{body}}
+            {{body}}
 
-              [DependencyModule]
-              public partial class TestModule;
-              """,
-            buildProperties: new Dictionary<string, string> {
-                ["DependencyModules_GenerateFactories"] = generateFactories ? "true" : "false"
-            });
+            [DependencyModule]
+            public partial class TestModule;
+            """,
+            buildProperties: new Dictionary<string, string>
+            {
+                ["DependencyModules_GenerateFactories"] = generateFactories ? "true" : "false",
+            }
+        );
 }

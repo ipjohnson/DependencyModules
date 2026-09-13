@@ -22,8 +22,8 @@ namespace DependencyModules.xUnit.Impl;
 /// <c>ModuleTestCommand</c> has always disposed in a <c>finally</c> around the test; this is the
 /// same lifetime for xUnit.
 /// </remarks>
-public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase {
-
+public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase
+{
     /// <summary>
     /// One per container this case built: one for a plain test, one per row for a data-driven
     /// one. Runtime state only, never serialized with the case.
@@ -56,26 +56,29 @@ public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase {
         object?[]? testMethodArguments = null,
         string? sourceFilePath = null,
         int? sourceLineNumber = null,
-        int? timeout = null) : base(
-        // Named rather than positional throughout. XunitTestCase's constructor takes thirteen
-        // parameters, eleven of them optional, and a version that inserts one mid-list rebinds
-        // every argument after it — silently where the types happen to line up, and as a wall of
-        // unrelated-looking conversion errors where they do not. Named arguments make an insertion
-        // either invisible or a single precise error.
-        testMethod: testMethod,
-        testCaseDisplayName: testCaseDisplayName,
-        uniqueID: uniqueID,
-        @explicit: @explicit,
-        skipExceptions: skipExceptions,
-        skipReason: skipReason,
-        skipType: skipType,
-        skipUnless: skipUnless,
-        skipWhen: skipWhen,
-        traits: traits,
-        testMethodArguments: testMethodArguments,
-        sourceFilePath: sourceFilePath,
-        sourceLineNumber: sourceLineNumber,
-        timeout: timeout) { }
+        int? timeout = null
+    )
+        : base(
+            // Named rather than positional throughout. XunitTestCase's constructor takes thirteen
+            // parameters, eleven of them optional, and a version that inserts one mid-list rebinds
+            // every argument after it — silently where the types happen to line up, and as a wall of
+            // unrelated-looking conversion errors where they do not. Named arguments make an insertion
+            // either invisible or a single precise error.
+            testMethod: testMethod,
+            testCaseDisplayName: testCaseDisplayName,
+            uniqueID: uniqueID,
+            @explicit: @explicit,
+            skipExceptions: skipExceptions,
+            skipReason: skipReason,
+            skipType: skipType,
+            skipUnless: skipUnless,
+            skipWhen: skipWhen,
+            traits: traits,
+            testMethodArguments: testMethodArguments,
+            sourceFilePath: sourceFilePath,
+            sourceLineNumber: sourceLineNumber,
+            timeout: timeout
+        ) { }
 
     /// <summary>
     /// Executes logic before the invocation of the test method associated with the current test case.
@@ -83,11 +86,10 @@ public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase {
     /// </summary>
     public override void PreInvoke() { }
 
-    private record StartupValues(
-        IServiceProvider ServiceProvider,
-        TestParameterResolver Resolver);
+    private record StartupValues(IServiceProvider ServiceProvider, TestParameterResolver Resolver);
 
-    private async Task<StartupValues> SetupServiceCollection() {
+    private async Task<StartupValues> SetupServiceCollection()
+    {
         var serviceCollection = new ServiceCollection();
 
         var knownAttributes = TestMethod.Method.GetTestAttributes<Attribute>().ToArray();
@@ -135,7 +137,8 @@ public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase {
             pinnedServices: SharedRegistrations.Collect(TestMethod.Method, knownAttributes),
             build: services => BuildServiceProvider(context, services, knownAttributes),
             start: built => StartAsync(context, knownAttributes, built),
-            track: _providers.Add);
+            track: _providers.Add
+        );
 
         return new StartupValues(provider, resolver);
     }
@@ -149,20 +152,27 @@ public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase {
     /// that looks composed and is not.
     /// </remarks>
     private static async ValueTask StartAsync(
-        ITestMethodContext context, Attribute[] knownAttributes, IServiceProvider provider) {
-        foreach (var startupAttribute in knownAttributes.OfType<ITestStartupAttribute>()) {
+        ITestMethodContext context,
+        Attribute[] knownAttributes,
+        IServiceProvider provider
+    )
+    {
+        foreach (var startupAttribute in knownAttributes.OfType<ITestStartupAttribute>())
+        {
             await startupAttribute.StartupAsync(context, provider);
         }
     }
 
-    private void SetupTestCaseInfo(ServiceCollection serviceCollection, Attribute[] knownAttributes) {
-        
-        serviceCollection.AddSingleton<ITestCaseInfo>(provider => provider.GetRequiredService<TestCaseInfo>());
+    private void SetupTestCaseInfo(ServiceCollection serviceCollection, Attribute[] knownAttributes)
+    {
+        serviceCollection.AddSingleton<ITestCaseInfo>(provider =>
+            provider.GetRequiredService<TestCaseInfo>()
+        );
         serviceCollection.AddSingleton<TestCaseInfo>(_ => new TestCaseInfo(
             TestMethod,
-            ArraySegment<object>.Empty, 
+            ArraySegment<object>.Empty,
             knownAttributes
-            ));
+        ));
     }
 
     /// <remarks>
@@ -173,11 +183,17 @@ public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase {
     /// which is the reverse of how every other attribute here resolves.
     /// </remarks>
     private IServiceProvider BuildServiceProvider(
-        ITestMethodContext context, IServiceCollection serviceCollection, Attribute[] knownAttributes) {
-        var serviceProviderBuilderAttribute =
-            knownAttributes.OfType<IServiceProviderBuilderAttribute>().LastOrDefault();
+        ITestMethodContext context,
+        IServiceCollection serviceCollection,
+        Attribute[] knownAttributes
+    )
+    {
+        var serviceProviderBuilderAttribute = knownAttributes
+            .OfType<IServiceProviderBuilderAttribute>()
+            .LastOrDefault();
 
-        if (serviceProviderBuilderAttribute != null) {
+        if (serviceProviderBuilderAttribute != null)
+        {
             return serviceProviderBuilderAttribute.BuildServiceProvider(context, serviceCollection);
         }
 
@@ -199,12 +215,17 @@ public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase {
     /// mocked, which is what <c>[Mock]</c> is for.
     /// </remarks>
     private void SetupServiceSetupAttributes(
-        ITestMethodContext context, IServiceCollection serviceCollection, Attribute[] knownAttributes) {
+        ITestMethodContext context,
+        IServiceCollection serviceCollection,
+        Attribute[] knownAttributes
+    )
+    {
         var setupAttributes = knownAttributes
             .OfType<ITestServiceSetupAttribute>()
             .OrderBy(attribute => attribute is IMockSupportAttribute ? 0 : 1);
 
-        foreach (var setupAttribute in setupAttributes) {
+        foreach (var setupAttribute in setupAttributes)
+        {
             setupAttribute.SetupServiceCollection(context, serviceCollection);
         }
     }
@@ -221,42 +242,52 @@ public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase {
     /// had been decided against the default. Widest scope first, so the narrowest attribute that
     /// answers decides, matching how every other attribute here resolves.
     /// </remarks>
-    private void SeedEnvironment(IServiceCollection serviceCollection, Attribute[] knownAttributes) {
+    private void SeedEnvironment(IServiceCollection serviceCollection, Attribute[] knownAttributes)
+    {
         IModuleEnvironment? environment = null;
 
-        foreach (var provider in knownAttributes.OfType<IModuleEnvironmentProvider>()) {
+        foreach (var provider in knownAttributes.OfType<IModuleEnvironmentProvider>())
+        {
             environment = provider.ProvideEnvironment(TestMethod.Method) ?? environment;
         }
 
-        if (environment != null) {
+        if (environment != null)
+        {
             serviceCollection.Add(new ServiceDescriptor(typeof(IModuleEnvironment), environment));
         }
     }
 
-    private void SetupModules(ServiceCollection serviceCollection, IEnumerable<Attribute> knownAttributes) {
+    private void SetupModules(
+        ServiceCollection serviceCollection,
+        IEnumerable<Attribute> knownAttributes
+    )
+    {
         var modules = new List<IDependencyModule>();
 
-        foreach (var loadModuleAttribute in knownAttributes.OfType<IDependencyModuleProvider>()) {
-
+        foreach (var loadModuleAttribute in knownAttributes.OfType<IDependencyModuleProvider>())
+        {
             var moduleTypes = loadModuleAttribute.GetModule();
-            
+
             modules.Add(moduleTypes);
         }
 
         // The interface rather than ModuleTestAttribute, so this reads the same for any integration.
         var testAttribute = TestMethod.Method.GetTestAttribute<IModuleTestAttribute>();
 
-        if (testAttribute != null) {
+        if (testAttribute != null)
+        {
             var count = 0;
-            foreach (var moduleType in testAttribute.ModuleTypes) {
-                if (Activator.CreateInstance(moduleType, []) is IDependencyModule moduleInstance) {
+            foreach (var moduleType in testAttribute.ModuleTypes)
+            {
+                if (Activator.CreateInstance(moduleType, []) is IDependencyModule moduleInstance)
+                {
                     modules.Insert(count++, moduleInstance);
                 }
             }
         }
 
         modules.Reverse();
-        
+
         DependencyRegistry<object>.LoadModules(serviceCollection, modules.ToArray());
     }
 
@@ -277,23 +308,36 @@ public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase {
         IMessageBus messageBus,
         object?[] constructorArguments,
         ExceptionAggregator aggregator,
-        CancellationTokenSource cancellationTokenSource) {
-        try {
+        CancellationTokenSource cancellationTokenSource
+    )
+    {
+        try
+        {
             return await XunitRunnerHelper.RunXunitTestCase(
-                this, messageBus, cancellationTokenSource, aggregator, explicitOption, constructorArguments);
+                this,
+                messageBus,
+                cancellationTokenSource,
+                aggregator,
+                explicitOption,
+                constructorArguments
+            );
         }
-        finally {
+        finally
+        {
             await DisposeProviders();
         }
     }
 
-    private async ValueTask DisposeProviders() {
+    private async ValueTask DisposeProviders()
+    {
         var providers = _providers.ToArray();
 
         _providers.Clear();
 
-        foreach (var provider in providers) {
-            switch (provider) {
+        foreach (var provider in providers)
+        {
+            switch (provider)
+            {
                 case IAsyncDisposable asyncDisposable:
                     await asyncDisposable.DisposeAsync();
                     break;
@@ -310,11 +354,12 @@ public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase {
     ///     tests that are associated with this test case.
     /// </remarks>
     /// <inheritdoc />
-    public override async ValueTask<IReadOnlyCollection<IXunitTest>> CreateTests() {
-        var dataAttributes =
-            TestMethod.Method.GetTestAttributes<IDataAttribute>().ToArray();
+    public override async ValueTask<IReadOnlyCollection<IXunitTest>> CreateTests()
+    {
+        var dataAttributes = TestMethod.Method.GetTestAttributes<IDataAttribute>().ToArray();
 
-        if (dataAttributes.Length == 0) {
+        if (dataAttributes.Length == 0)
+        {
             return await UnitTestWithNoDataAttributes();
         }
 
@@ -341,26 +386,33 @@ public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase {
     /// Conditional, as the interface requires: an explicit MemberType is the author's answer and is
     /// never overwritten.
     /// </remarks>
-    private void SupplyReflectedType(IDataAttribute[] dataAttributes) {
+    private void SupplyReflectedType(IDataAttribute[] dataAttributes)
+    {
         var reflectedType = TestMethod.Method.ReflectedType;
 
-        if (reflectedType == null) {
+        if (reflectedType == null)
+        {
             return;
         }
 
-        foreach (var typeAware in dataAttributes.OfType<ITypeAwareDataAttribute>()) {
+        foreach (var typeAware in dataAttributes.OfType<ITypeAwareDataAttribute>())
+        {
             typeAware.MemberType ??= reflectedType;
         }
     }
 
-    private async Task<IReadOnlyCollection<IXunitTest>> UnitTestFromDataAttributes(IDataAttribute[] dataAttributes) {
+    private async Task<IReadOnlyCollection<IXunitTest>> UnitTestFromDataAttributes(
+        IDataAttribute[] dataAttributes
+    )
+    {
         var unitTests = new List<IXunitTest>();
 
-        foreach (var dataAttribute in dataAttributes) {
-            var dataRowCollection =
-                await dataAttribute.GetData(TestMethod.Method, DisposalTracker);
+        foreach (var dataAttribute in dataAttributes)
+        {
+            var dataRowCollection = await dataAttribute.GetData(TestMethod.Method, DisposalTracker);
 
-            foreach (var theoryDataRow in dataRowCollection) {
+            foreach (var theoryDataRow in dataRowCollection)
+            {
                 var data = theoryDataRow.GetData();
 
                 var startupValues = await SetupServiceCollection();
@@ -383,7 +435,8 @@ public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase {
                         skipWhen: theoryDataRow.SkipWhen ?? SkipWhen,
                         testDisplayName: GetRowDisplayName(theoryDataRow, data),
                         testIndex: unitTests.Count,
-                        traits: theoryDataRow.Traits?.ToReadOnlyTraits() ?? Traits.ToReadOnlyTraits(),
+                        traits: theoryDataRow.Traits?.ToReadOnlyTraits()
+                            ?? Traits.ToReadOnlyTraits(),
                         timeout: theoryDataRow.Timeout ?? Timeout,
                         testMethodArguments: await ResolveArguments(data, startupValues)
                     )
@@ -391,7 +444,8 @@ public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase {
             }
         }
 
-        if (unitTests.Count == 0) {
+        if (unitTests.Count == 0)
+        {
             // Failing rather than returning nothing, which is what xUnit's own delay-enumerated
             // theory does for a theory without data. Returning an empty collection here is reported
             // as a pass, so a row source that stopped producing rows — for any reason, not only the
@@ -401,16 +455,18 @@ public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase {
             // Exceptions thrown from CreateTests are caught and converted into a test case failure,
             // which is the documented way to surface this.
             throw new InvalidOperationException(
-                $"No data was found for '{TestMethod.TestClass.TestClassName}.{TestMethod.MethodName}'. " +
-                $"It carries {DescribeAttributes(dataAttributes)}, and every one of them returned no rows. " +
-                "A data-driven test with no rows runs nothing, so it is reported as a failure rather " +
-                "than as a pass.");
+                $"No data was found for '{TestMethod.TestClass.TestClassName}.{TestMethod.MethodName}'. "
+                    + $"It carries {DescribeAttributes(dataAttributes)}, and every one of them returned no rows. "
+                    + "A data-driven test with no rows runs nothing, so it is reported as a failure rather "
+                    + "than as a pass."
+            );
         }
 
         return unitTests;
     }
 
-    private static string DescribeAttributes(IDataAttribute[] dataAttributes) {
+    private static string DescribeAttributes(IDataAttribute[] dataAttributes)
+    {
         var names = dataAttributes
             .Select(attribute => "[" + TrimAttributeSuffix(attribute.GetType().Name) + "]")
             .ToArray();
@@ -433,7 +489,8 @@ public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase {
     /// at execution time, and naming a test after a service instance would be neither readable
     /// nor stable between runs.
     /// </remarks>
-    private string GetRowDisplayName(Xunit.ITheoryDataRow theoryDataRow, object?[] data) {
+    private string GetRowDisplayName(Xunit.ITheoryDataRow theoryDataRow, object?[] data)
+    {
         var baseDisplayName = theoryDataRow.TestDisplayName ?? TestCaseDisplayName;
 
         return TestMethod.GetDisplayName(
@@ -442,13 +499,16 @@ public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase {
             // for [Theory]; passing null would compile and quietly drop it for module tests.
             label: theoryDataRow.Label,
             testMethodArguments: data,
-            methodGenericTypes: null);
+            methodGenericTypes: null
+        );
     }
 
-    private async Task<IReadOnlyCollection<IXunitTest>> UnitTestWithNoDataAttributes() {
+    private async Task<IReadOnlyCollection<IXunitTest>> UnitTestWithNoDataAttributes()
+    {
         var startupValues = await SetupServiceCollection();
 
-        return [
+        return
+        [
             new XunitTest(
                 testCase: this,
                 testMethod: TestMethod,
@@ -462,7 +522,7 @@ public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase {
                 traits: Traits.ToReadOnlyTraits(),
                 timeout: Timeout,
                 testMethodArguments: await ResolveArguments([], startupValues)
-            )
+            ),
         ];
     }
 
@@ -470,10 +530,18 @@ public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase {
     /// The arguments are published on <see cref="TestCaseInfo"/> so a test can read what it was
     /// invoked with. That is xUnit's own object, which is why this is not part of the shared resolver.
     /// </remarks>
-    private static async Task<object?[]> ResolveArguments(object?[] data, StartupValues startupValues) {
-        var arguments = await startupValues.Resolver.ResolveArgumentsAsync(startupValues.ServiceProvider, data);
+    private static async Task<object?[]> ResolveArguments(
+        object?[] data,
+        StartupValues startupValues
+    )
+    {
+        var arguments = await startupValues.Resolver.ResolveArgumentsAsync(
+            startupValues.ServiceProvider,
+            data
+        );
 
-        startupValues.ServiceProvider.GetRequiredService<TestCaseInfo>().TestMethodArguments = arguments;
+        startupValues.ServiceProvider.GetRequiredService<TestCaseInfo>().TestMethodArguments =
+            arguments;
 
         return arguments;
     }

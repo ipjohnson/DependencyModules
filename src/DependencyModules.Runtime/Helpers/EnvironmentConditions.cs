@@ -12,8 +12,8 @@ namespace DependencyModules.Runtime.Helpers;
 /// The negative forms of the attributes emit a <c>!</c> around these rather than adding methods.
 /// </remarks>
 [EditorBrowsable(EditorBrowsableState.Never)]
-public static class EnvironmentConditions {
-
+public static class EnvironmentConditions
+{
     /// <summary>
     /// True when the environment name matches any of <paramref name="names"/>.
     /// </summary>
@@ -25,13 +25,23 @@ public static class EnvironmentConditions {
     /// <param name="environment">The environment to test.</param>
     /// <param name="names">The names to accept.</param>
     /// <returns>True when any name matches.</returns>
-    public static bool NameIs(IModuleEnvironment environment, params string[] names) {
-        if (environment == null) {
+    public static bool NameIs(IModuleEnvironment environment, params string[] names)
+    {
+        if (environment == null)
+        {
             return false;
         }
 
-        for (var i = 0; i < names.Length; i++) {
-            if (string.Equals(environment.EnvironmentName, names[i], StringComparison.OrdinalIgnoreCase)) {
+        for (var i = 0; i < names.Length; i++)
+        {
+            if (
+                string.Equals(
+                    environment.EnvironmentName,
+                    names[i],
+                    StringComparison.OrdinalIgnoreCase
+                )
+            )
+            {
                 return true;
             }
         }

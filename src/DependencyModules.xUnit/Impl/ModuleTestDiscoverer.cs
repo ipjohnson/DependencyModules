@@ -14,8 +14,8 @@ namespace DependencyModules.xUnit.Impl;
 /// </remarks>
 /// <seealso cref="ModuleTestAttribute"/>
 /// <seealso cref="IXunitTestCaseDiscoverer"/>
-public class ModuleTestDiscoverer : IXunitTestCaseDiscoverer {
-
+public class ModuleTestDiscoverer : IXunitTestCaseDiscoverer
+{
     /// <summary>
     /// Discovers test cases for the provided method using the xUnit framework
     /// and returns a collection of test cases to be executed.
@@ -33,8 +33,11 @@ public class ModuleTestDiscoverer : IXunitTestCaseDiscoverer {
     /// A task that, when completed, contains a read-only collection of discovered test cases specific to the provided method.
     /// </returns>
     public ValueTask<IReadOnlyCollection<IXunitTestCase>> Discover(
-        ITestFrameworkDiscoveryOptions discoveryOptions, IXunitTestMethod testMethod, IFactAttribute factAttribute) {
-
+        ITestFrameworkDiscoveryOptions discoveryOptions,
+        IXunitTestMethod testMethod,
+        IFactAttribute factAttribute
+    )
+    {
         // Delegate to xUnit's own introspection rather than deriving these by hand. The bare method
         // name is not unique across test classes, and xUnit silently drops a test case whose ID
         // collides with one already discovered. This also picks up display name formatting, the
@@ -46,10 +49,15 @@ public class ModuleTestDiscoverer : IXunitTestCaseDiscoverer {
         // Naming a parameter only the newer one declares resolves it. A module test has no label,
         // which is what null says.
         var details = TestIntrospectionHelper.GetTestCaseDetails(
-            discoveryOptions, testMethod, factAttribute, label: null);
+            discoveryOptions,
+            testMethod,
+            factAttribute,
+            label: null
+        );
 
         return new ValueTask<IReadOnlyCollection<IXunitTestCase>>(
-            new[] {
+            new[]
+            {
                 new ModuleTestCase(
                     testMethod: details.ResolvedTestMethod,
                     testCaseDisplayName: details.TestCaseDisplayName,
@@ -70,7 +78,7 @@ public class ModuleTestDiscoverer : IXunitTestCaseDiscoverer {
                     sourceFilePath: details.SourceFilePath,
                     sourceLineNumber: details.SourceLineNumber,
                     timeout: details.Timeout
-                )
+                ),
             }
         );
     }

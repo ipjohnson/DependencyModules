@@ -20,11 +20,12 @@ public class ExtraService { }
 /// <c>[Test]</c> does, so a module test fixture needs no class-level attribute — the same as the
 /// xUnit integration.
 /// </remarks>
-public class ModuleLoadingTests {
-
+public class ModuleLoadingTests
+{
     /// <summary>Modules named on the attribute itself.</summary>
     [ModuleTest(typeof(SutModule))]
-    public void LoadsAModuleNamedByType(ISingletonService singletonService) {
+    public void LoadsAModuleNamedByType(ISingletonService singletonService)
+    {
         Assert.That(singletonService, Is.Not.Null);
         Assert.That(singletonService.GetName(), Is.EqualTo(nameof(SingletonService)));
     }
@@ -32,25 +33,29 @@ public class ModuleLoadingTests {
     /// <summary>The generated module attribute, which reaches the same loading by another route.</summary>
     [ModuleTest]
     [SutModule]
-    public void LoadsAModuleNamedByItsGeneratedAttribute(IDependencyOne dependencyOne) {
+    public void LoadsAModuleNamedByItsGeneratedAttribute(IDependencyOne dependencyOne)
+    {
         Assert.That(dependencyOne.SingletonService, Is.Not.Null);
         Assert.That(dependencyOne.ScopedService, Is.Not.Null);
     }
 
     [ModuleTest(typeof(SutModule), typeof(ExtraModule))]
-    public void LoadsSeveralModules(ISingletonService singletonService, ExtraService extraService) {
+    public void LoadsSeveralModules(ISingletonService singletonService, ExtraService extraService)
+    {
         Assert.That(singletonService, Is.Not.Null);
         Assert.That(extraService, Is.Not.Null);
     }
 
     [ModuleTest]
-    public void TakesNoModulesAtAll() {
+    public void TakesNoModulesAtAll()
+    {
         Assert.Pass("a module test need not name a module");
     }
 
     /// <summary>The container itself, which cannot be resolved from itself.</summary>
     [ModuleTest(typeof(SutModule))]
-    public void InjectsTheServiceProvider(IServiceProvider serviceProvider) {
+    public void InjectsTheServiceProvider(IServiceProvider serviceProvider)
+    {
         Assert.That(serviceProvider.GetService<ISingletonService>(), Is.Not.Null);
     }
 
@@ -59,18 +64,24 @@ public class ModuleLoadingTests {
     /// class under test without registering it.
     /// </summary>
     [ModuleTest(typeof(SutModule))]
-    public void ConstructsAnUnregisteredConcreteType(NeedsASingleton needsASingleton) {
+    public void ConstructsAnUnregisteredConcreteType(NeedsASingleton needsASingleton)
+    {
         Assert.That(needsASingleton.SingletonService, Is.Not.Null);
     }
 
     [ModuleTest(typeof(SutModule))]
-    public void PublishesTheTestCaseInfo(ITestCaseInfo testCaseInfo, ISingletonService singletonService) {
+    public void PublishesTheTestCaseInfo(
+        ITestCaseInfo testCaseInfo,
+        ISingletonService singletonService
+    )
+    {
         Assert.That(testCaseInfo.TestMethod.Name, Is.EqualTo(nameof(PublishesTheTestCaseInfo)));
         Assert.That(testCaseInfo.TestMethodArguments, Has.Count.EqualTo(2));
         Assert.That(testCaseInfo.TestMethodArguments[1], Is.SameAs(singletonService));
     }
 
-    public class NeedsASingleton(ISingletonService singletonService) {
+    public class NeedsASingleton(ISingletonService singletonService)
+    {
         public ISingletonService SingletonService { get; } = singletonService;
     }
 }

@@ -7,8 +7,8 @@ namespace DependencyModules.Tests.Infrastructure;
 /// Builds generator model objects for tests. The model records have wide positional constructors,
 /// so tests name only the field they care about and take defaults for the rest.
 /// </summary>
-public static class ModelFactory {
-
+public static class ModelFactory
+{
     public static ModuleEntryPointModel EntryPoint(
         ModuleEntryPointFeatures features = ModuleEntryPointFeatures.None,
         string fileLocation = "/project/Module.cs",
@@ -22,7 +22,8 @@ public static class ModelFactory {
         IReadOnlyList<PropertyInfoModel>? properties = null,
         IReadOnlyList<AttributeModel>? attributes = null,
         IReadOnlyList<ITypeDefinition>? additionalModules = null,
-        IReadOnlyList<ITypeDefinition>? featureTypes = null) =>
+        IReadOnlyList<ITypeDefinition>? featureTypes = null
+    ) =>
         new(
             features,
             fileLocation,
@@ -37,7 +38,8 @@ public static class ModelFactory {
             properties ?? new List<PropertyInfoModel>(),
             attributes ?? new List<AttributeModel>(),
             additionalModules ?? new List<ITypeDefinition>(),
-            featureTypes ?? new List<ITypeDefinition>());
+            featureTypes ?? new List<ITypeDefinition>()
+        );
 
     public static DependencyModuleConfigurationModel Configuration(
         RegistrationType registrationType = RegistrationType.Add,
@@ -49,7 +51,8 @@ public static class ModelFactory {
         LogOutputLevel logOutputLevel = LogOutputLevel.Debug,
         bool generateFactories = false,
         bool excludeGeneratedCodeFromCoverage = true,
-        BraceStyle generatedCodeStyle = BraceStyle.Allman) =>
+        BraceStyle generatedCodeStyle = BraceStyle.Allman
+    ) =>
         new(
             registrationType,
             registerSourceGenerator,
@@ -60,5 +63,6 @@ public static class ModelFactory {
             logOutputLevel,
             generateFactories,
             excludeGeneratedCodeFromCoverage,
-            generatedCodeStyle);
+            generatedCodeStyle
+        );
 }

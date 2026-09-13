@@ -9,77 +9,95 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// and a real change serves stale output. These tests pin that behaviour from the outside, which
 /// is more durable than asserting on the comparers directly.
 /// </summary>
-public class IncrementalGenerationTests {
-
+public class IncrementalGenerationTests
+{
     [Fact]
-    public void RerunningOnUnchangedSource_ReusesCachedOutput() {
+    public void RerunningOnUnchangedSource_ReusesCachedOutput()
+    {
         var result = GeneratorTestHarness.RunIncremental(Sources(Service), Sources(Service));
 
-        Assert.True(result.AllOutputsCached,
-            "Re-running on identical source recomputed output: " +
-            string.Join(", ", result.OutputReasons));
+        Assert.True(
+            result.AllOutputsCached,
+            "Re-running on identical source recomputed output: "
+                + string.Join(", ", result.OutputReasons)
+        );
     }
 
     [Fact]
-    public void EditingAnUnrelatedMethodBody_ReusesCachedOutput() {
+    public void EditingAnUnrelatedMethodBody_ReusesCachedOutput()
+    {
         var before = Sources(
-            Service +
-            """
+            Service
+                + """
 
-            public class Unrelated {
-                public int Compute() => 1;
-            }
-            """);
+                public class Unrelated {
+                    public int Compute() => 1;
+                }
+                """
+        );
 
         var after = Sources(
-            Service +
-            """
+            Service
+                + """
 
-            public class Unrelated {
-                public int Compute() => 2;
-            }
-            """);
+                public class Unrelated {
+                    public int Compute() => 2;
+                }
+                """
+        );
 
         var result = GeneratorTestHarness.RunIncremental(before, after);
 
         Assert.Equal(result.FirstRun.Keys.OrderBy(k => k), result.SecondRun.Keys.OrderBy(k => k));
-        Assert.True(result.AllOutputsCached,
-            "Editing an unrelated method body regenerated output: " +
-            string.Join(", ", result.OutputReasons));
+        Assert.True(
+            result.AllOutputsCached,
+            "Editing an unrelated method body regenerated output: "
+                + string.Join(", ", result.OutputReasons)
+        );
     }
 
     [Fact]
-    public void AddingAComment_ReusesCachedOutput() {
+    public void AddingAComment_ReusesCachedOutput()
+    {
         var result = GeneratorTestHarness.RunIncremental(
             Sources(Service),
-            Sources("// a new comment\n" + Service));
+            Sources("// a new comment\n" + Service)
+        );
 
-        Assert.True(result.AllOutputsCached,
-            "Adding a comment regenerated output: " + string.Join(", ", result.OutputReasons));
+        Assert.True(
+            result.AllOutputsCached,
+            "Adding a comment regenerated output: " + string.Join(", ", result.OutputReasons)
+        );
     }
 
     [Fact]
-    public void AddingAService_RegeneratesAndIncludesIt() {
+    public void AddingAService_RegeneratesAndIncludesIt()
+    {
         var after = Sources(
-            Service +
-            """
+            Service
+                + """
 
-            public interface ISecond;
+                public interface ISecond;
 
-            [SingletonService]
-            public class SecondThing : ISecond;
-            """);
+                [SingletonService]
+                public class SecondThing : ISecond;
+                """
+        );
 
         var result = GeneratorTestHarness.RunIncremental(Sources(Service), after);
 
         var dependencies = result.SecondRun.Single(pair => pair.Key.Contains("Dependencies")).Value;
 
         Assert.Contains("SecondThing", dependencies);
-        Assert.DoesNotContain("SecondThing", result.FirstRun.Single(pair => pair.Key.Contains("Dependencies")).Value);
+        Assert.DoesNotContain(
+            "SecondThing",
+            result.FirstRun.Single(pair => pair.Key.Contains("Dependencies")).Value
+        );
     }
 
     [Fact]
-    public void ChangingAServiceLifetime_RegeneratesWithTheNewLifetime() {
+    public void ChangingAServiceLifetime_RegeneratesWithTheNewLifetime()
+    {
         var before = Sources("[SingletonService]\npublic class Thing : IThing;");
         var after = Sources("[ScopedService]\npublic class Thing : IThing;");
 
@@ -94,16 +112,18 @@ public class IncrementalGenerationTests {
     }
 
     [Fact]
-    public void RemovingAService_RegeneratesWithoutIt() {
+    public void RemovingAService_RegeneratesWithoutIt()
+    {
         var before = Sources(
-            Service +
-            """
+            Service
+                + """
 
-            public interface ISecond;
+                public interface ISecond;
 
-            [SingletonService]
-            public class SecondThing : ISecond;
-            """);
+                [SingletonService]
+                public class SecondThing : ISecond;
+                """
+        );
 
         var result = GeneratorTestHarness.RunIncremental(before, Sources(Service));
 
@@ -112,26 +132,25 @@ public class IncrementalGenerationTests {
         Assert.DoesNotContain("SecondThing", second);
     }
 
-    private const string Service =
-        """
+    private const string Service = """
         [SingletonService]
         public class Thing : IThing;
         """;
 
     private static Dictionary<string, string> Sources(string body) =>
-        new() {
-            ["Test.cs"] =
-                $$"""
-                  using DependencyModules.Runtime.Attributes;
+        new()
+        {
+            ["Test.cs"] = $$"""
+                using DependencyModules.Runtime.Attributes;
 
-                  namespace TestNamespace;
+                namespace TestNamespace;
 
-                  public interface IThing;
+                public interface IThing;
 
-                  {{body}}
+                {{body}}
 
-                  [DependencyModule]
-                  public partial class TestModule;
-                  """
+                [DependencyModule]
+                public partial class TestModule;
+                """,
         };
 }

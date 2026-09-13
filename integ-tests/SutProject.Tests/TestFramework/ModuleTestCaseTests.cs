@@ -8,26 +8,32 @@ using Xunit;
 
 namespace SutProject.Tests.TestFramework;
 
-public class AssemblyTestCaseTests {
+public class AssemblyTestCaseTests
+{
     [ModuleTest]
-    public void AssemblyTest(ITestRealmService service) {
+    public void AssemblyTest(ITestRealmService service)
+    {
         Assert.IsType<AssemblyTestCaseService>(service);
     }
 }
 
 [ClassLevelModule]
-public class ClassTestCaseTests {
+public class ClassTestCaseTests
+{
     [ModuleTest]
-    public void ClassTest(ITestRealmService service) {
+    public void ClassTest(ITestRealmService service)
+    {
         Assert.IsType<ClassTestCaseService>(service);
     }
 }
 
 [ClassLevelModule]
-public class MethodTestCaseTests {
+public class MethodTestCaseTests
+{
     [ModuleTest]
     [MethodLevelModule]
-    public void MethodTest(ITestRealmService service) {
+    public void MethodTest(ITestRealmService service)
+    {
         Assert.IsType<MethodTestCaseService>(service);
     }
 }

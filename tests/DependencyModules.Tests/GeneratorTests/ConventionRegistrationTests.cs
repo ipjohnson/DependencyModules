@@ -14,10 +14,9 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// source passes happily while the wrong service type is registered, which is exactly the class of
 /// mistake convention matching is most likely to make.
 /// </remarks>
-public class ConventionRegistrationTests {
-
-    private const string Preamble =
-        """
+public class ConventionRegistrationTests
+{
+    private const string Preamble = """
         using System;
         using DependencyModules.Runtime.Attributes;
         using DependencyModules.Runtime.Conventions;
@@ -44,9 +43,9 @@ public class ConventionRegistrationTests {
     [Theory]
     [InlineData("Development", 2)]
     [InlineData("Production", 1)]
-    public void ConventionsHonourEnvironmentConditions(string environmentName, int expected) {
-        const string source =
-            """
+    public void ConventionsHonourEnvironmentConditions(string environmentName, int expected)
+    {
+        const string source = """
             public interface IFoo { }
 
             public class AlwaysFoo : IFoo { }
@@ -64,7 +63,8 @@ public class ConventionRegistrationTests {
 
         var assembly = GeneratedAssembly.Create(
             Preamble + source,
-            environment: new ModuleEnvironment(environmentName));
+            environment: new ModuleEnvironment(environmentName)
+        );
 
         Assert.Equal(expected, assembly.Descriptors("IFoo").Count);
     }
@@ -76,9 +76,9 @@ public class ConventionRegistrationTests {
     [Theory]
     [InlineData("Development", 2)]
     [InlineData("Production", 0)]
-    public void ConventionsCarryTheirOwnEnvironmentCondition(string environmentName, int expected) {
-        const string source =
-            """
+    public void ConventionsCarryTheirOwnEnvironmentCondition(string environmentName, int expected)
+    {
+        const string source = """
             public interface IFoo { }
 
             public class OneFoo : IFoo { }
@@ -94,7 +94,8 @@ public class ConventionRegistrationTests {
 
         var assembly = GeneratedAssembly.Create(
             Preamble + source,
-            environment: new ModuleEnvironment(environmentName));
+            environment: new ModuleEnvironment(environmentName)
+        );
 
         Assert.Equal(expected, assembly.Descriptors("IFoo").Count);
     }
@@ -112,10 +113,12 @@ public class ConventionRegistrationTests {
     [InlineData("Development", "us", 1)]
     [InlineData("Production", "eu", 0)]
     public void ConventionAndClassConditionsCombineWithAnd(
-        string environmentName, string region, int expected) {
-
-        const string source =
-            """
+        string environmentName,
+        string region,
+        int expected
+    )
+    {
+        const string source = """
             public interface IFoo { }
 
             public class PlainFoo : IFoo { }
@@ -133,7 +136,8 @@ public class ConventionRegistrationTests {
 
         var assembly = GeneratedAssembly.Create(
             Preamble + source,
-            environment: new ModuleEnvironment(false, environmentName) { { "REGION", region } });
+            environment: new ModuleEnvironment(false, environmentName) { { "REGION", region } }
+        );
 
         Assert.Equal(expected, assembly.Descriptors("IFoo").Count);
     }
@@ -141,9 +145,9 @@ public class ConventionRegistrationTests {
     [Theory]
     [InlineData("on", 1)]
     [InlineData("off", 0)]
-    public void ConventionsCarryValueConditions(string flag, int expected) {
-        const string source =
-            """
+    public void ConventionsCarryValueConditions(string flag, int expected)
+    {
+        const string source = """
             public interface IFoo { }
 
             public class OneFoo : IFoo { }
@@ -158,7 +162,8 @@ public class ConventionRegistrationTests {
 
         var assembly = GeneratedAssembly.Create(
             Preamble + source,
-            environment: new ModuleEnvironment(false, "Development") { { "FLAG", flag } });
+            environment: new ModuleEnvironment(false, "Development") { { "FLAG", flag } }
+        );
 
         Assert.Equal(expected, assembly.Descriptors("IFoo").Count);
     }
@@ -166,9 +171,9 @@ public class ConventionRegistrationTests {
     [Theory]
     [InlineData("Development", 0)]
     [InlineData("Production", 1)]
-    public void ConventionsCarryNegatedConditions(string environmentName, int expected) {
-        const string source =
-            """
+    public void ConventionsCarryNegatedConditions(string environmentName, int expected)
+    {
+        const string source = """
             public interface IFoo { }
 
             public class OneFoo : IFoo { }
@@ -183,7 +188,8 @@ public class ConventionRegistrationTests {
 
         var assembly = GeneratedAssembly.Create(
             Preamble + source,
-            environment: new ModuleEnvironment(environmentName));
+            environment: new ModuleEnvironment(environmentName)
+        );
 
         Assert.Equal(expected, assembly.Descriptors("IFoo").Count);
     }
@@ -200,10 +206,12 @@ public class ConventionRegistrationTests {
     [InlineData("Development", 1, 1)]
     [InlineData("Production", 0, 1)]
     public void ConventionsWithDifferentConditionsDoNotShareAGuard(
-        string environmentName, int expectedFoo, int expectedBar) {
-
-        const string source =
-            """
+        string environmentName,
+        int expectedFoo,
+        int expectedBar
+    )
+    {
+        const string source = """
             public interface IFoo { }
             public interface IBar { }
 
@@ -220,7 +228,8 @@ public class ConventionRegistrationTests {
 
         var assembly = GeneratedAssembly.Create(
             Preamble + source,
-            environment: new ModuleEnvironment(environmentName));
+            environment: new ModuleEnvironment(environmentName)
+        );
 
         Assert.Equal(expectedFoo, assembly.Descriptors("IFoo").Count);
         Assert.Equal(expectedBar, assembly.Descriptors("IBar").Count);
@@ -236,9 +245,9 @@ public class ConventionRegistrationTests {
     /// and registered nothing. One convention, named twice.
     /// </remarks>
     [Fact]
-    public void APartialClassReachingTheServiceFromTwoPartsIsNotAmbiguous() {
-        const string source =
-            """
+    public void APartialClassReachingTheServiceFromTwoPartsIsNotAmbiguous()
+    {
+        const string source = """
             public interface IFoo { }
 
             public abstract class FooBase : IFoo { }
@@ -265,9 +274,9 @@ public class ConventionRegistrationTests {
     /// Two parts declaring different interfaces that both reach the scanned one is still one class.
     /// </summary>
     [Fact]
-    public void APartialClassDeclaringTheServiceTwiceIsNotAmbiguous() {
-        const string source =
-            """
+    public void APartialClassDeclaringTheServiceTwiceIsNotAmbiguous()
+    {
+        const string source = """
             public interface IFoo { }
             public interface IFooPrime : IFoo { }
 
@@ -292,9 +301,9 @@ public class ConventionRegistrationTests {
     /// needed even when another part reaches the same interface through a base class.
     /// </summary>
     [Fact]
-    public void APartDeclaringTheServiceMakesItADeclaredMatch() {
-        const string source =
-            """
+    public void APartDeclaringTheServiceMakesItADeclaredMatch()
+    {
+        const string source = """
             public interface IFoo { }
 
             public abstract class FooBase : IFoo { }
@@ -322,9 +331,9 @@ public class ConventionRegistrationTests {
     /// have, which is a CS error inside generated code.
     /// </remarks>
     [Fact]
-    public void TheConstructorMayBeDeclaredInAnotherPart() {
-        const string source =
-            """
+    public void TheConstructorMayBeDeclaredInAnotherPart()
+    {
+        const string source = """
             public interface IDep { }
 
             [SingletonService]
@@ -359,9 +368,9 @@ public class ConventionRegistrationTests {
     /// and the two registrations are independently predictable from reading the module.
     /// </summary>
     [Fact]
-    public void ATypeMatchedThroughDifferentInterfacesRegistersAsBoth() {
-        const string source =
-            """
+    public void ATypeMatchedThroughDifferentInterfacesRegistersAsBoth()
+    {
+        const string source = """
             public interface IFoo { }
             public interface IBar { }
 
@@ -391,7 +400,8 @@ public class ConventionRegistrationTests {
     /// Sharing one instance is <c>AsSelfWithInterfaces</c>, and it is opt-in.
     /// </summary>
     [Fact]
-    public void EachRoleKeepsItsOwnLifetimeAndItsOwnInstance() {
+    public void EachRoleKeepsItsOwnLifetimeAndItsOwnInstance()
+    {
         var assembly = Compile(
             """
             public interface IFoo { }
@@ -406,7 +416,8 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll<IBar>().AsScoped();
                 }
             }
-            """);
+            """
+        );
 
         Assert.Equal(ServiceLifetime.Singleton, assembly.Descriptor("IFoo").Lifetime);
         Assert.Equal(ServiceLifetime.Scoped, assembly.Descriptor("IBar").Lifetime);
@@ -415,7 +426,8 @@ public class ConventionRegistrationTests {
 
         Assert.NotSame(
             provider.GetService(assembly.Type("IFoo")),
-            provider.GetService(assembly.Type("IBar")));
+            provider.GetService(assembly.Type("IBar"))
+        );
     }
 
     /// <summary>
@@ -426,7 +438,8 @@ public class ConventionRegistrationTests {
     /// green build, no diagnostic, and an event that never fires.
     /// </remarks>
     [Fact]
-    public void OneConventionRegistersEveryClosingACandidateImplements() {
+    public void OneConventionRegistersEveryClosingACandidateImplements()
+    {
         var assembly = Compile(
             """
             public interface INotificationHandler<T> { }
@@ -442,7 +455,8 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll(typeof(INotificationHandler<>)).AsTransient();
                 }
             }
-            """);
+            """
+        );
 
         var handlerType = assembly.Type("INotificationHandler`1");
 
@@ -460,7 +474,8 @@ public class ConventionRegistrationTests {
     /// implementations — the shape the attribute path produces and the writer relies on.
     /// </summary>
     [Fact]
-    public void SeveralClosingsProduceOneImplementationWithSeveralRegistrations() {
+    public void SeveralClosingsProduceOneImplementationWithSeveralRegistrations()
+    {
         var assembly = Compile(
             """
             public interface IHandler<T> { }
@@ -476,17 +491,17 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll(typeof(IHandler<>)).AsTransient();
                 }
             }
-            """);
+            """
+        );
 
-        var registered = assembly.Services
-            .Where(d => d.ImplementationType == assembly.Type("Both"))
+        var registered = assembly
+            .Services.Where(d => d.ImplementationType == assembly.Type("Both"))
             .ToArray();
 
         Assert.Equal(2, registered.Length);
     }
 
-    private const string Marker =
-        """
+    private const string Marker = """
         public class HandlerAttribute : System.Attribute { }
         public class LegacyAttribute : System.Attribute { }
 
@@ -503,20 +518,25 @@ public class ConventionRegistrationTests {
         """;
 
     [Fact]
-    public void WithAttributeLimitsMatchesToTypesCarryingIt() {
+    public void WithAttributeLimitsMatchesToTypesCarryingIt()
+    {
         var assembly = Compile(
-            Marker +
-            """
+            Marker
+                + """
 
-            [DependencyModule]
-            public partial class TestModule : IConventionModule {
-                void IConventionModule.Conventions(IConventionDefinitions conventions) {
-                    conventions.RegisterAll<IFoo>().WithAttribute<HandlerAttribute>().AsSingleton();
+                [DependencyModule]
+                public partial class TestModule : IConventionModule {
+                    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                        conventions.RegisterAll<IFoo>().WithAttribute<HandlerAttribute>().AsSingleton();
+                    }
                 }
-            }
-            """);
+                """
+        );
 
-        var implementations = assembly.Descriptors("IFoo").Select(d => d.ImplementationType).ToArray();
+        var implementations = assembly
+            .Descriptors("IFoo")
+            .Select(d => d.ImplementationType)
+            .ToArray();
 
         Assert.Equal(2, implementations.Length);
         Assert.Contains(assembly.Type("Marked"), implementations);
@@ -525,41 +545,48 @@ public class ConventionRegistrationTests {
     }
 
     [Fact]
-    public void WithoutAttributeExcludesTypesCarryingIt() {
+    public void WithoutAttributeExcludesTypesCarryingIt()
+    {
         var assembly = Compile(
-            Marker +
-            """
+            Marker
+                + """
 
-            [DependencyModule]
-            public partial class TestModule : IConventionModule {
-                void IConventionModule.Conventions(IConventionDefinitions conventions) {
-                    conventions.RegisterAll<IFoo>().WithoutAttribute<LegacyAttribute>().AsSingleton();
+                [DependencyModule]
+                public partial class TestModule : IConventionModule {
+                    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                        conventions.RegisterAll<IFoo>().WithoutAttribute<LegacyAttribute>().AsSingleton();
+                    }
                 }
-            }
-            """);
+                """
+        );
 
-        var implementations = assembly.Descriptors("IFoo").Select(d => d.ImplementationType).ToArray();
+        var implementations = assembly
+            .Descriptors("IFoo")
+            .Select(d => d.ImplementationType)
+            .ToArray();
 
         Assert.Equal(2, implementations.Length);
         Assert.DoesNotContain(assembly.Type("MarkedLegacy"), implementations);
     }
 
     [Fact]
-    public void AttributeFiltersCombineWithAnd() {
+    public void AttributeFiltersCombineWithAnd()
+    {
         var assembly = Compile(
-            Marker +
-            """
+            Marker
+                + """
 
-            [DependencyModule]
-            public partial class TestModule : IConventionModule {
-                void IConventionModule.Conventions(IConventionDefinitions conventions) {
-                    conventions.RegisterAll<IFoo>()
-                        .WithAttribute<HandlerAttribute>()
-                        .WithoutAttribute<LegacyAttribute>()
-                        .AsSingleton();
+                [DependencyModule]
+                public partial class TestModule : IConventionModule {
+                    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                        conventions.RegisterAll<IFoo>()
+                            .WithAttribute<HandlerAttribute>()
+                            .WithoutAttribute<LegacyAttribute>()
+                            .AsSingleton();
+                    }
                 }
-            }
-            """);
+                """
+        );
 
         Assert.Equal(assembly.Type("Marked"), assembly.Descriptor("IFoo").ImplementationType);
     }
@@ -568,20 +595,22 @@ public class ConventionRegistrationTests {
     /// Resolved rather than matched on how it was written, so the qualified form counts.
     /// </summary>
     [Fact]
-    public void ANamespaceQualifiedAttributeStillMatches() {
+    public void ANamespaceQualifiedAttributeStillMatches()
+    {
         var assembly = Compile(
-            Marker +
-            """
+            Marker
+                + """
 
-            [DependencyModule]
-            public partial class TestModule : IConventionModule {
-                void IConventionModule.Conventions(IConventionDefinitions conventions) {
-                    conventions.RegisterAll<IFoo>()
-                        .WithAttribute<TestNamespace.HandlerAttribute>()
-                        .AsSingleton();
+                [DependencyModule]
+                public partial class TestModule : IConventionModule {
+                    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                        conventions.RegisterAll<IFoo>()
+                            .WithAttribute<TestNamespace.HandlerAttribute>()
+                            .AsSingleton();
+                    }
                 }
-            }
-            """);
+                """
+        );
 
         Assert.Equal(2, assembly.Descriptors("IFoo").Count);
     }
@@ -592,48 +621,56 @@ public class ConventionRegistrationTests {
     [InlineData("Order?epository", 1)]
     [InlineData("TestNamespace.*Repository", 2)]
     [InlineData("*repository", 0)]
-    public void WithNameMatchesTheGlob(string pattern, int expected) {
+    public void WithNameMatchesTheGlob(string pattern, int expected)
+    {
         var result = Run(
             $$"""
-              public class OrderRepository { }
-              public class UserRepository { }
-              public class OrderService { }
+            public class OrderRepository { }
+            public class UserRepository { }
+            public class OrderService { }
 
-              [DependencyModule]
-              public partial class TestModule : IConventionModule {
-                  void IConventionModule.Conventions(IConventionDefinitions conventions) {
-                      conventions.RegisterAll().WithName("{{pattern}}").AsSelf().AsScoped();
-                  }
-              }
-              """);
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    conventions.RegisterAll().WithName("{{pattern}}").AsSelf().AsScoped();
+                }
+            }
+            """
+        );
 
         // A pattern matching nothing is DM0005 rather than silence.
-        if (expected == 0) {
+        if (expected == 0)
+        {
             Assert.Contains(result.GeneratorDiagnostics, d => d.Id == "DM0005");
 
             return;
         }
 
         var assembly = GeneratedAssembly.Create(
-            Preamble +
-            $$"""
-              public class OrderRepository { }
-              public class UserRepository { }
-              public class OrderService { }
+            Preamble
+                + $$"""
+                public class OrderRepository { }
+                public class UserRepository { }
+                public class OrderService { }
 
-              [DependencyModule]
-              public partial class TestModule : IConventionModule {
-                  void IConventionModule.Conventions(IConventionDefinitions conventions) {
-                      conventions.RegisterAll().WithName("{{pattern}}").AsSelf().AsScoped();
-                  }
-              }
-              """);
+                [DependencyModule]
+                public partial class TestModule : IConventionModule {
+                    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                        conventions.RegisterAll().WithName("{{pattern}}").AsSelf().AsScoped();
+                    }
+                }
+                """
+        );
 
-        Assert.Equal(expected, assembly.Services.Count(d => d.ImplementationType?.Namespace == "TestNamespace"));
+        Assert.Equal(
+            expected,
+            assembly.Services.Count(d => d.ImplementationType?.Namespace == "TestNamespace")
+        );
     }
 
     [Fact]
-    public void AsRegistersEveryMatchAsOneNamedService() {
+    public void AsRegistersEveryMatchAsOneNamedService()
+    {
         var assembly = Compile(
             """
             public interface IFoo { }
@@ -647,14 +684,16 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll<IFoo>().As<IMarker>().AsSingleton();
                 }
             }
-            """);
+            """
+        );
 
         Assert.Empty(assembly.Descriptors("IFoo"));
         Assert.Equal(assembly.Type("Foo"), assembly.Descriptor("IMarker").ImplementationType);
     }
 
     [Fact]
-    public void AsMatchingInterfaceRegistersFooAsIFoo() {
+    public void AsMatchingInterfaceRegistersFooAsIFoo()
+    {
         var assembly = Compile(
             """
             public interface IMarker { }
@@ -670,7 +709,8 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll<IMarker>().AsMatchingInterface().AsSingleton();
                 }
             }
-            """);
+            """
+        );
 
         Assert.Equal(assembly.Type("Foo"), assembly.Descriptor("IFoo").ImplementationType);
         Assert.Equal(assembly.Type("Bar"), assembly.Descriptor("IBar").ImplementationType);
@@ -685,7 +725,8 @@ public class ConventionRegistrationTests {
     /// which is never what "register this as its interfaces" means.
     /// </remarks>
     [Fact]
-    public void AsSelfWithInterfacesSkipsSystemInterfaces() {
+    public void AsSelfWithInterfacesSkipsSystemInterfaces()
+    {
         var assembly = Compile(
             """
             public interface IMarker { }
@@ -702,7 +743,8 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll<IMarker>().AsSelfWithInterfaces().AsSingleton().IncludeBaseClasses();
                 }
             }
-            """);
+            """
+        );
 
         Assert.Single(assembly.Descriptors("IMarker"));
 
@@ -710,7 +752,8 @@ public class ConventionRegistrationTests {
     }
 
     [Fact]
-    public void AsSelfWithInterfacesSkipsGenericSystemInterfaces() {
+    public void AsSelfWithInterfacesSkipsGenericSystemInterfaces()
+    {
         var assembly = Compile(
             """
             public interface IRule { }
@@ -731,12 +774,16 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll(typeof(IValidator<>)).AsSelfWithInterfaces().AsScoped().IncludeBaseClasses();
                 }
             }
-            """);
+            """
+        );
 
         // The validator interface survives; the enumerable ones do not.
         Assert.Single(assembly.Services, d => d.ServiceType.Name == "IValidator`1");
 
-        Assert.DoesNotContain(assembly.Services, d => d.ServiceType.Namespace?.StartsWith("System") == true);
+        Assert.DoesNotContain(
+            assembly.Services,
+            d => d.ServiceType.Namespace?.StartsWith("System") == true
+        );
     }
 
     /// <summary>
@@ -744,7 +791,8 @@ public class ConventionRegistrationTests {
     /// whatever namespace it lives in — refusing that is a different kind of wrong.
     /// </summary>
     [Fact]
-    public void ANamedSystemServiceTypeIsStillRegistered() {
+    public void ANamedSystemServiceTypeIsStillRegistered()
+    {
         var assembly = Compile(
             """
             public class Closeable : System.IDisposable {
@@ -757,7 +805,8 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll<System.IDisposable>().AsSingleton();
                 }
             }
-            """);
+            """
+        );
 
         Assert.Single(assembly.Services, d => d.ServiceType == typeof(IDisposable));
     }
@@ -766,7 +815,8 @@ public class ConventionRegistrationTests {
     /// Filtering everything away degrades to AsSelf rather than to nothing.
     /// </summary>
     [Fact]
-    public void ATypeReachingOnlySystemInterfacesRegistersItself() {
+    public void ATypeReachingOnlySystemInterfacesRegistersItself()
+    {
         var assembly = Compile(
             """
             public interface IMarker { }
@@ -781,15 +831,15 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll<IMarker>().AsSelf().AsSingleton().IncludeBaseClasses();
                 }
             }
-            """);
+            """
+        );
 
         // Nothing to assert beyond the module compiling and registering something; the shape that
         // matters is covered by AsSelfWithInterfacesSkipsSystemInterfaces.
         Assert.NotEmpty(assembly.Services);
     }
 
-    private const string Validators =
-        """
+    private const string Validators = """
         public interface IRule { }
         public interface IValidator { }
         public interface IValidator<T> : IValidator { }
@@ -808,18 +858,20 @@ public class ConventionRegistrationTests {
     /// The FluentValidation shape: registered as the matched interface and as the concrete type.
     /// </summary>
     [Fact]
-    public void AlsoAsSelfRegistersTheInterfaceAndTheType() {
+    public void AlsoAsSelfRegistersTheInterfaceAndTheType()
+    {
         var assembly = Compile(
-            Validators +
-            """
+            Validators
+                + """
 
-            [DependencyModule]
-            public partial class TestModule : IConventionModule {
-                void IConventionModule.Conventions(IConventionDefinitions conventions) {
-                    conventions.RegisterAll(typeof(IValidator<>)).IncludeBaseClasses().AlsoAsSelf().AsScoped();
+                [DependencyModule]
+                public partial class TestModule : IConventionModule {
+                    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                        conventions.RegisterAll(typeof(IValidator<>)).IncludeBaseClasses().AlsoAsSelf().AsScoped();
+                    }
                 }
-            }
-            """);
+                """
+        );
 
         Assert.Contains(assembly.Services, d => d.ServiceType.Name == "IValidator`1");
         Assert.Contains(assembly.Services, d => d.ServiceType == assembly.Type("FooValidator"));
@@ -830,54 +882,64 @@ public class ConventionRegistrationTests {
     /// independently and hands you two; this is a deliberate difference.
     /// </summary>
     [Fact]
-    public void AlsoAsSelfSharesOneInstance() {
+    public void AlsoAsSelfSharesOneInstance()
+    {
         var assembly = Compile(
-            Validators +
-            """
+            Validators
+                + """
 
-            [DependencyModule]
-            public partial class TestModule : IConventionModule {
-                void IConventionModule.Conventions(IConventionDefinitions conventions) {
-                    conventions.RegisterAll(typeof(IValidator<>)).IncludeBaseClasses().AlsoAsSelf().AsScoped();
+                [DependencyModule]
+                public partial class TestModule : IConventionModule {
+                    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                        conventions.RegisterAll(typeof(IValidator<>)).IncludeBaseClasses().AlsoAsSelf().AsScoped();
+                    }
                 }
-            }
-            """);
+                """
+        );
 
         var provider = assembly.BuildProvider();
         using var scope = provider.CreateScope();
 
-        var validatorInterface = assembly.Services
-            .First(d => d.ServiceType.Name == "IValidator`1").ServiceType;
+        var validatorInterface = assembly
+            .Services.First(d => d.ServiceType.Name == "IValidator`1")
+            .ServiceType;
 
         Assert.Same(
             scope.ServiceProvider.GetService(validatorInterface),
-            scope.ServiceProvider.GetService(assembly.Type("FooValidator")));
+            scope.ServiceProvider.GetService(assembly.Type("FooValidator"))
+        );
     }
 
     /// <summary>
     /// Only the interfaces the convention matched, not everything the type can reach.
     /// </summary>
     [Fact]
-    public void AlsoAsSelfDoesNotPullInUnmatchedInterfaces() {
+    public void AlsoAsSelfDoesNotPullInUnmatchedInterfaces()
+    {
         var assembly = Compile(
-            Validators +
-            """
+            Validators
+                + """
 
-            [DependencyModule]
-            public partial class TestModule : IConventionModule {
-                void IConventionModule.Conventions(IConventionDefinitions conventions) {
-                    conventions.RegisterAll(typeof(IValidator<>)).IncludeBaseClasses().AlsoAsSelf().AsScoped();
+                [DependencyModule]
+                public partial class TestModule : IConventionModule {
+                    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                        conventions.RegisterAll(typeof(IValidator<>)).IncludeBaseClasses().AlsoAsSelf().AsScoped();
+                    }
                 }
-            }
-            """);
+                """
+        );
 
         // IValidator and the enumerable interfaces are reachable but were not matched.
         Assert.DoesNotContain(assembly.Services, d => d.ServiceType == assembly.Type("IValidator"));
-        Assert.DoesNotContain(assembly.Services, d => d.ServiceType.Namespace?.StartsWith("System") == true);
+        Assert.DoesNotContain(
+            assembly.Services,
+            d => d.ServiceType.Namespace?.StartsWith("System") == true
+        );
     }
 
     [Fact]
-    public void AsSelfAndAlsoAsSelfTogetherIsRefused() {
+    public void AsSelfAndAlsoAsSelfTogetherIsRefused()
+    {
         var result = Run(
             """
             public interface IFoo { }
@@ -889,7 +951,8 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll<IFoo>().AsSelf().AlsoAsSelf().AsSingleton();
                 }
             }
-            """);
+            """
+        );
 
         Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0009");
     }
@@ -899,7 +962,8 @@ public class ConventionRegistrationTests {
     /// convention repeating itself is not an ambiguity.
     /// </summary>
     [Fact]
-    public void AlsoAsSelfRegistersTheTypeOnceAcrossSeveralClosings() {
+    public void AlsoAsSelfRegistersTheTypeOnceAcrossSeveralClosings()
+    {
         var result = Run(
             """
             public interface IHandler<T> { }
@@ -915,7 +979,8 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll(typeof(IHandler<>)).AlsoAsSelf().AsScoped();
                 }
             }
-            """);
+            """
+        );
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0004");
 
@@ -934,14 +999,16 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll(typeof(IHandler<>)).AlsoAsSelf().AsScoped();
                 }
             }
-            """);
+            """
+        );
 
         Assert.Single(assembly.Services, d => d.ServiceType == assembly.Type("Both"));
         Assert.Equal(2, assembly.Services.Count(d => d.ServiceType.Name == "IHandler`1"));
     }
 
     [Fact]
-    public void UsingChoosesHowTheRegistrationIsAdded() {
+    public void UsingChoosesHowTheRegistrationIsAdded()
+    {
         var assembly = Compile(
             """
             public interface IFoo { }
@@ -954,14 +1021,16 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll<IFoo>().AsSingleton().Using(RegistrationType.Try);
                 }
             }
-            """);
+            """
+        );
 
         // Try registers the service type once and skips the second match.
         Assert.Single(assembly.Descriptors("IFoo"));
     }
 
     [Fact]
-    public void WithKeyRegistersUnderAServiceKey() {
+    public void WithKeyRegistersUnderAServiceKey()
+    {
         var assembly = Compile(
             """
             public interface IFoo { }
@@ -973,7 +1042,8 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll<IFoo>().AsSingleton().WithKey("primary");
                 }
             }
-            """);
+            """
+        );
 
         var descriptor = assembly.Descriptor("IFoo");
 
@@ -982,7 +1052,8 @@ public class ConventionRegistrationTests {
 
         Assert.IsType(
             assembly.Type("Foo"),
-            assembly.BuildProvider().GetRequiredKeyedService(assembly.Type("IFoo"), "primary"));
+            assembly.BuildProvider().GetRequiredKeyedService(assembly.Type("IFoo"), "primary")
+        );
     }
 
     /// <summary>
@@ -990,7 +1061,8 @@ public class ConventionRegistrationTests {
     /// the source does not say which.
     /// </summary>
     [Fact]
-    public void TwoConventionsRegisteringOneServiceTypeIsAmbiguous() {
+    public void TwoConventionsRegisteringOneServiceTypeIsAmbiguous()
+    {
         var result = Run(
             """
             public interface IFoo { }
@@ -1005,7 +1077,8 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll<IFoo>().AsSingleton();
                 }
             }
-            """);
+            """
+        );
 
         var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0004");
 
@@ -1018,7 +1091,8 @@ public class ConventionRegistrationTests {
     /// redundant and collapsing it silently is the failure mode this codebase avoids.
     /// </summary>
     [Fact]
-    public void ADuplicatedConventionIsAmbiguousEvenWithEqualLifetimes() {
+    public void ADuplicatedConventionIsAmbiguousEvenWithEqualLifetimes()
+    {
         var result = Run(
             """
             public interface IFoo { }
@@ -1032,7 +1106,8 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll<IFoo>().AsSingleton();
                 }
             }
-            """);
+            """
+        );
 
         var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0004");
 
@@ -1040,7 +1115,8 @@ public class ConventionRegistrationTests {
     }
 
     [Fact]
-    public void AsSelfRegistersTheConcreteTypeRatherThanTheService() {
+    public void AsSelfRegistersTheConcreteTypeRatherThanTheService()
+    {
         var assembly = Compile(
             """
             public interface IFoo { }
@@ -1052,7 +1128,8 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll<IFoo>().AsSelf().AsSingleton();
                 }
             }
-            """);
+            """
+        );
 
         Assert.Empty(assembly.Descriptors("IFoo"));
         Assert.Single(assembly.Descriptors("Foo"));
@@ -1063,7 +1140,8 @@ public class ConventionRegistrationTests {
     /// which is why it emits the cross-wire shape rather than two independent registrations.
     /// </summary>
     [Fact]
-    public void AsSelfWithInterfacesSharesOneInstance() {
+    public void AsSelfWithInterfacesSharesOneInstance()
+    {
         var assembly = Compile(
             """
             public interface IFoo { }
@@ -1076,7 +1154,8 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll<IFoo>().AsSelfWithInterfaces().AsSingleton();
                 }
             }
-            """);
+            """
+        );
 
         var provider = assembly.BuildProvider();
 
@@ -1093,7 +1172,8 @@ public class ConventionRegistrationTests {
     /// The hole this closes: a concrete class implementing nothing, selected by namespace.
     /// </summary>
     [Fact]
-    public void AConcreteTypeWithNoInterfaceRegistersByNamespace() {
+    public void AConcreteTypeWithNoInterfaceRegistersByNamespace()
+    {
         var assembly = Compile(
             """
             public class OrderCalculator { }
@@ -1105,14 +1185,16 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll().InNamespaceOf<OrderCalculator>().AsSelf().AsScoped();
                 }
             }
-            """);
+            """
+        );
 
         Assert.Single(assembly.Descriptors("OrderCalculator"));
         Assert.Single(assembly.Descriptors("OrderValidator"));
     }
 
     [Fact]
-    public void NamespaceFiltersNarrowAnAssignabilityConvention() {
+    public void NamespaceFiltersNarrowAnAssignabilityConvention()
+    {
         var result = Run(
             """
             public interface IFoo { }
@@ -1124,14 +1206,16 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll<IFoo>().InNamespaces("SomewhereElse").AsSingleton();
                 }
             }
-            """);
+            """
+        );
 
         // Filtered out entirely, which is DM0005 rather than silence.
         Assert.Contains(result.GeneratorDiagnostics, d => d.Id == "DM0005");
     }
 
     [Fact]
-    public void NotInNamespacesExcludesAfterInclusions() {
+    public void NotInNamespacesExcludesAfterInclusions()
+    {
         var assembly = Compile(
             """
             public interface IFoo { }
@@ -1143,13 +1227,15 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll<IFoo>().NotInNamespaces("TestNamespace").AsSingleton();
                 }
             }
-            """);
+            """
+        );
 
         Assert.Empty(assembly.Descriptors("IFoo"));
     }
 
     [Fact]
-    public void RegisterAllWithNoServiceTypeNeedsAShape() {
+    public void RegisterAllWithNoServiceTypeNeedsAShape()
+    {
         var result = Run(
             """
             public class Thing { }
@@ -1160,7 +1246,8 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll().InNamespaceOf<Thing>().AsScoped();
                 }
             }
-            """);
+            """
+        );
 
         var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0009");
 
@@ -1171,7 +1258,8 @@ public class ConventionRegistrationTests {
     /// Without a filter it would match every class in the compilation, so it is refused.
     /// </summary>
     [Fact]
-    public void RegisterAllWithNoServiceTypeAndNoFilterIsRefused() {
+    public void RegisterAllWithNoServiceTypeAndNoFilterIsRefused()
+    {
         var result = Run(
             """
             public class Thing { }
@@ -1182,7 +1270,8 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll().AsSelf().AsScoped();
                 }
             }
-            """);
+            """
+        );
 
         var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0009");
 
@@ -1190,7 +1279,8 @@ public class ConventionRegistrationTests {
     }
 
     [Fact]
-    public void RegistersEveryTypeDeclaringTheServiceInterface() {
+    public void RegistersEveryTypeDeclaringTheServiceInterface()
+    {
         var assembly = Compile(
             """
             public interface IFoo { }
@@ -1205,7 +1295,8 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll<IFoo>().AsSingleton();
                 }
             }
-            """);
+            """
+        );
 
         var descriptors = assembly.Descriptors("IFoo");
 
@@ -1216,7 +1307,8 @@ public class ConventionRegistrationTests {
     }
 
     [Fact]
-    public void RegisteredServiceResolves() {
+    public void RegisteredServiceResolves()
+    {
         var assembly = Compile(
             """
             public interface IFoo { }
@@ -1228,7 +1320,8 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll<IFoo>().AsScoped();
                 }
             }
-            """);
+            """
+        );
 
         Assert.IsType(assembly.Type("Foo"), assembly.ResolveRequired("IFoo"));
         Assert.Equal(ServiceLifetime.Scoped, assembly.Descriptor("IFoo").Lifetime);
@@ -1239,7 +1332,8 @@ public class ConventionRegistrationTests {
     /// so a convention naming the base interface matches by declaration.
     /// </summary>
     [Fact]
-    public void MatchesThroughInterfaceInheritance() {
+    public void MatchesThroughInterfaceInheritance()
+    {
         var assembly = Compile(
             """
             public interface IFoo { }
@@ -1253,7 +1347,8 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll<IFoo>().AsSingleton();
                 }
             }
-            """);
+            """
+        );
 
         Assert.Equal(assembly.Type("Thing"), assembly.Descriptor("IFoo").ImplementationType);
     }
@@ -1264,7 +1359,8 @@ public class ConventionRegistrationTests {
     /// takes an explicit opt-in.
     /// </summary>
     [Fact]
-    public void DoesNotMatchThroughABaseClassByDefault() {
+    public void DoesNotMatchThroughABaseClassByDefault()
+    {
         var result = Run(
             """
             public interface IFoo { }
@@ -1277,14 +1373,16 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll<IFoo>().AsSingleton();
                 }
             }
-            """);
+            """
+        );
 
         // Nothing matched, which is DM0005 rather than silence.
         Assert.Contains(result.GeneratorDiagnostics, d => d.Id == "DM0005");
     }
 
     [Fact]
-    public void MatchesThroughABaseClassWhenAskedTo() {
+    public void MatchesThroughABaseClassWhenAskedTo()
+    {
         var assembly = Compile(
             """
             public interface IFoo { }
@@ -1297,7 +1395,8 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll<IFoo>().AsSingleton().IncludeBaseClasses();
                 }
             }
-            """);
+            """
+        );
 
         Assert.Equal(assembly.Type("Thing"), assembly.Descriptor("IFoo").ImplementationType);
     }
@@ -1307,7 +1406,8 @@ public class ConventionRegistrationTests {
     /// actually implements, not the open definition.
     /// </summary>
     [Fact]
-    public void ClosesAnOpenGenericAgainstEachImplementation() {
+    public void ClosesAnOpenGenericAgainstEachImplementation()
+    {
         var assembly = Compile(
             """
             public interface IHandler<TIn, TOut> { }
@@ -1325,11 +1425,15 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll(typeof(IHandler<,>)).AsTransient();
                 }
             }
-            """);
+            """
+        );
 
         var handler = assembly.Type("IHandler`2");
 
-        var createOrder = handler.MakeGenericType(assembly.Type("CreateOrder"), assembly.Type("OrderId"));
+        var createOrder = handler.MakeGenericType(
+            assembly.Type("CreateOrder"),
+            assembly.Type("OrderId")
+        );
         var rename = handler.MakeGenericType(assembly.Type("Rename"), assembly.Type("OrderId"));
 
         var provider = assembly.BuildProvider();
@@ -1343,7 +1447,8 @@ public class ConventionRegistrationTests {
     /// RegisterAll&lt;IHandler&lt;A,B&gt;&gt;() would pick up every other closing too.
     /// </summary>
     [Fact]
-    public void AClosedGenericConventionMatchesOnlyThatConstruction() {
+    public void AClosedGenericConventionMatchesOnlyThatConstruction()
+    {
         var assembly = Compile(
             """
             public interface IRepo<T> { }
@@ -1356,20 +1461,23 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll<IRepo<int>>().AsSingleton();
                 }
             }
-            """);
+            """
+        );
 
         var repo = assembly.Type("IRepo`1");
         var provider = assembly.BuildProvider();
 
         Assert.IsType(
             assembly.Type("IntRepo"),
-            provider.GetService(repo.MakeGenericType(typeof(int))));
+            provider.GetService(repo.MakeGenericType(typeof(int)))
+        );
 
         Assert.Null(provider.GetService(repo.MakeGenericType(typeof(string))));
     }
 
     [Fact]
-    public void AnExplicitServiceAttributeBeatsTheConvention() {
+    public void AnExplicitServiceAttributeBeatsTheConvention()
+    {
         var assembly = Compile(
             """
             public interface IFoo { }
@@ -1385,25 +1493,31 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll<IFoo>().AsTransient();
                 }
             }
-            """);
+            """
+        );
 
         var descriptors = assembly.Descriptors("IFoo");
 
         // The attributed type is registered once, by its attribute, at the lifetime the attribute
         // declared — not a second time at the convention's lifetime.
-        var attributed = descriptors.Where(d => d.ImplementationType == assembly.Type("Attributed")).ToArray();
+        var attributed = descriptors
+            .Where(d => d.ImplementationType == assembly.Type("Attributed"))
+            .ToArray();
 
         Assert.Single(attributed);
         Assert.Equal(ServiceLifetime.Singleton, attributed[0].Lifetime);
 
-        var byConvention = descriptors.Where(d => d.ImplementationType == assembly.Type("ByConvention")).ToArray();
+        var byConvention = descriptors
+            .Where(d => d.ImplementationType == assembly.Type("ByConvention"))
+            .ToArray();
 
         Assert.Single(byConvention);
         Assert.Equal(ServiceLifetime.Transient, byConvention[0].Lifetime);
     }
 
     [Fact]
-    public void OmittingTheLifetimeIsRefused() {
+    public void OmittingTheLifetimeIsRefused()
+    {
         var result = Run(
             """
             public interface IFoo { }
@@ -1415,7 +1529,8 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll<IFoo>();
                 }
             }
-            """);
+            """
+        );
 
         var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0009");
 
@@ -1428,26 +1543,30 @@ public class ConventionRegistrationTests {
     /// build stayed green.
     /// </summary>
     [Theory]
-    [InlineData("foreach (var t in new Type[0]) { conventions.RegisterAll<IFoo>().AsSingleton(); }")]
+    [InlineData(
+        "foreach (var t in new Type[0]) { conventions.RegisterAll<IFoo>().AsSingleton(); }"
+    )]
     [InlineData("if (DateTime.Now.Day > 1) { conventions.RegisterAll<IFoo>().AsSingleton(); }")]
     [InlineData("var x = 5;")]
     [InlineData("Helper(conventions);")]
     [InlineData("conventions.RegisterAll<IFoo>().AsSingleton().AsScoped();")]
-    public void UnreadableStatementsAreRefused(string statement) {
+    public void UnreadableStatementsAreRefused(string statement)
+    {
         var result = Run(
             $$"""
-              public interface IFoo { }
-              public class Foo : IFoo { }
+            public interface IFoo { }
+            public class Foo : IFoo { }
 
-              [DependencyModule]
-              public partial class TestModule : IConventionModule {
-                  void IConventionModule.Conventions(IConventionDefinitions conventions) {
-                      {{statement}}
-                  }
+            [DependencyModule]
+            public partial class TestModule : IConventionModule {
+                void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                    {{statement}}
+                }
 
-                  private static void Helper(IConventionDefinitions c) { }
-              }
-              """);
+                private static void Helper(IConventionDefinitions c) { }
+            }
+            """
+        );
 
         Assert.Contains(result.GeneratorDiagnostics, d => d.Id == "DM0009");
     }
@@ -1459,7 +1578,8 @@ public class ConventionRegistrationTests {
     // keeps DM0004 honest for the case it exists for.
 
     [Fact]
-    public void AConcreteTypeWithNoAccessibleConstructorIsReported() {
+    public void AConcreteTypeWithNoAccessibleConstructorIsReported()
+    {
         var result = Run(
             """
             public interface IFoo { }
@@ -1474,7 +1594,8 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll<IFoo>().AsSingleton();
                 }
             }
-            """);
+            """
+        );
 
         var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0006");
 
@@ -1486,7 +1607,8 @@ public class ConventionRegistrationTests {
     /// declaration that explains why it is in the container.
     /// </summary>
     [Fact]
-    public void ReportsWhatEachClassIsExposedAs() {
+    public void ReportsWhatEachClassIsExposedAs()
+    {
         var result = Run(
             """
             public interface IFoo { }
@@ -1501,7 +1623,8 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll<IFoo>().AsSingleton();
                 }
             }
-            """);
+            """
+        );
 
         var exposures = result.GeneratorDiagnostics.Where(d => d.Id == "DM0010").ToArray();
 
@@ -1510,7 +1633,10 @@ public class ConventionRegistrationTests {
 
         // The indirect match names the hop, which is what keeps it from reading as luck.
         Assert.Contains(exposures, d => d.GetMessage() == "Exposed as IFoo in TestModule");
-        Assert.Contains(exposures, d => d.GetMessage() == "Exposed as IFoo in TestModule (via IFooPrime)");
+        Assert.Contains(
+            exposures,
+            d => d.GetMessage() == "Exposed as IFoo in TestModule (via IFooPrime)"
+        );
     }
 
     /// <summary>
@@ -1519,9 +1645,9 @@ public class ConventionRegistrationTests {
     /// primitives at output. This asserts the rebuild lands on the right line.
     /// </summary>
     [Fact]
-    public void ExposureIsReportedOnTheClassItself() {
-        const string body =
-            """
+    public void ExposureIsReportedOnTheClassItself()
+    {
+        const string body = """
             public interface IFoo { }
 
             public class Foo : IFoo { }
@@ -1551,7 +1677,8 @@ public class ConventionRegistrationTests {
     /// reported rather than left to fail silently.
     /// </summary>
     [Fact]
-    public void ConventionsOnANonModuleAreReported() {
+    public void ConventionsOnANonModuleAreReported()
+    {
         var result = Run(
             """
             public interface IFoo { }
@@ -1565,7 +1692,8 @@ public class ConventionRegistrationTests {
                     conventions.RegisterAll<IFoo>().AsSingleton();
                 }
             }
-            """);
+            """
+        );
 
         var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0009");
 
@@ -1573,9 +1701,9 @@ public class ConventionRegistrationTests {
     }
 
     [Fact]
-    public void EditingAnUnrelatedMethodBodyReusesTheCachedOutput() {
-        const string template =
-            """
+    public void EditingAnUnrelatedMethodBodyReusesTheCachedOutput()
+    {
+        const string template = """
             using DependencyModules.Runtime.Attributes;
             using DependencyModules.Runtime.Conventions;
 
@@ -1597,10 +1725,13 @@ public class ConventionRegistrationTests {
 
         var result = GeneratorTestHarness.RunIncremental(
             new Dictionary<string, string> { ["Test.cs"] = template.Replace("VALUE", "1") },
-            new Dictionary<string, string> { ["Test.cs"] = template.Replace("VALUE", "2") });
+            new Dictionary<string, string> { ["Test.cs"] = template.Replace("VALUE", "2") }
+        );
 
         Assert.Equal(result.FirstRun, result.SecondRun);
-        Assert.True(result.AllOutputsCached,
-            "editing a method body cannot change any registration, so every output should be cached");
+        Assert.True(
+            result.AllOutputsCached,
+            "editing a method body cannot change any registration, so every output should be cached"
+        );
     }
 }

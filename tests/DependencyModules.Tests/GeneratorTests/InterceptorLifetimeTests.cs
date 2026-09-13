@@ -17,10 +17,11 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// decorators, but only somebody reading the generated code would ever find it. Naming the lifetime
 /// where the interception is declared says it out loud.
 /// </summary>
-public class InterceptorLifetimeTests {
-
+public class InterceptorLifetimeTests
+{
     [Fact]
-    public void WithNoLifetimeNamed_TheInterceptorIsASingleton() {
+    public void WithNoLifetimeNamed_TheInterceptorIsASingleton()
+    {
         var interceptors = Run("[Intercept(typeof(CountingInterceptor))]");
 
         Assert.Contains("TryAddSingleton", interceptors);
@@ -30,9 +31,11 @@ public class InterceptorLifetimeTests {
     [InlineData("Scoped", "TryAddScoped")]
     [InlineData("Transient", "TryAddTransient")]
     [InlineData("Singleton", "TryAddSingleton")]
-    public void ANamedLifetime_IsTheOneRegistered(string lifetime, string expected) {
+    public void ANamedLifetime_IsTheOneRegistered(string lifetime, string expected)
+    {
         var interceptors = Run(
-            $"[Intercept(typeof(CountingInterceptor), Lifetime = ServiceLifetime.{lifetime})]");
+            $"[Intercept(typeof(CountingInterceptor), Lifetime = ServiceLifetime.{lifetime})]"
+        );
 
         Assert.Contains(expected, interceptors);
     }
@@ -42,9 +45,11 @@ public class InterceptorLifetimeTests {
     /// not to add a second registration the container resolves ahead of the first.
     /// </summary>
     [Fact]
-    public void AScopedInterceptor_IsNotAlsoRegisteredAsASingleton() {
+    public void AScopedInterceptor_IsNotAlsoRegisteredAsASingleton()
+    {
         var interceptors = Run(
-            "[Intercept(typeof(CountingInterceptor), Lifetime = ServiceLifetime.Scoped)]");
+            "[Intercept(typeof(CountingInterceptor), Lifetime = ServiceLifetime.Scoped)]"
+        );
 
         Assert.DoesNotContain("TryAddSingleton", interceptors);
     }
@@ -53,9 +58,11 @@ public class InterceptorLifetimeTests {
     /// The registration still has to work end to end, not merely be emitted with the right name.
     /// </summary>
     [Fact]
-    public void AScopedInterceptor_Runs() {
+    public void AScopedInterceptor_Runs()
+    {
         var generated = GeneratedAssembly.Create(
-            Source("[Intercept(typeof(CountingInterceptor), Lifetime = ServiceLifetime.Scoped)]"));
+            Source("[Intercept(typeof(CountingInterceptor), Lifetime = ServiceLifetime.Scoped)]")
+        );
 
         var provider = generated.BuildProvider();
         var greeter = provider.GetService(generated.Type("IGreeter"))!;
@@ -65,29 +72,30 @@ public class InterceptorLifetimeTests {
     }
 
     private static string Run(string attribute) =>
-        GeneratorTestHarness.Run(Source(attribute))
+        GeneratorTestHarness
+            .Run(Source(attribute))
             .AssertNoErrors()
             .SourceContaining("Interceptors");
 
     private static string Source(string attribute) =>
         $$"""
-          using DependencyModules.Runtime.Attributes;
-          using DependencyModules.Runtime.Interception;
-          using Microsoft.Extensions.DependencyInjection;
+            using DependencyModules.Runtime.Attributes;
+            using DependencyModules.Runtime.Interception;
+            using Microsoft.Extensions.DependencyInjection;
 
-          namespace TestNamespace;
+            namespace TestNamespace;
 
-          public interface IGreeter { string Greet(); }
+            public interface IGreeter { string Greet(); }
 
-          public sealed class CountingInterceptor : IInterceptor {
-              public TResult Intercept<TResult>(InvocationContext<TResult> context) => context.Proceed();
-          }
+            public sealed class CountingInterceptor : IInterceptor {
+                public TResult Intercept<TResult>(InvocationContext<TResult> context) => context.Proceed();
+            }
 
-          [SingletonService]
-          {{attribute}}
-          public sealed class Greeter : IGreeter { public string Greet() => "hi"; }
+            [SingletonService]
+            {{attribute}}
+            public sealed class Greeter : IGreeter { public string Greet() => "hi"; }
 
-          [DependencyModule]
-          public partial class TestModule;
-          """;
+            [DependencyModule]
+            public partial class TestModule;
+            """;
 }

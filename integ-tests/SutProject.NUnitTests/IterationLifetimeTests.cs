@@ -12,23 +12,22 @@ public partial class LifetimeModule { }
 /// than inferred.
 /// </summary>
 [ScopedService(Realm = typeof(LifetimeModule))]
-public class TrackedService : IDisposable {
-
+public class TrackedService : IDisposable
+{
     private static int _next;
 
     public static readonly List<int> Constructed = [];
 
     public static readonly List<int> Disposed = [];
 
-    public TrackedService() {
+    public TrackedService()
+    {
         Id = Interlocked.Increment(ref _next);
 
         Constructed.Add(Id);
     }
 
-    public int Id {
-        get;
-    }
+    public int Id { get; }
 
     public void Dispose() => Disposed.Add(Id);
 }
@@ -43,8 +42,8 @@ public class TrackedService : IDisposable {
 /// because the report at the end reads what they recorded; NUnit runs fixtures within an assembly
 /// in alphabetical order.
 /// </remarks>
-public class ARepeatedModuleTests {
-
+public class ARepeatedModuleTests
+{
     public static readonly List<string> Log = [];
 
     public static readonly List<int> ServiceIds = [];
@@ -57,42 +56,54 @@ public class ARepeatedModuleTests {
 
     [ModuleTest(typeof(LifetimeModule))]
     [Repeat(3)]
-    public void EachRepetitionGetsItsOwnContainer(TrackedService trackedService) {
+    public void EachRepetitionGetsItsOwnContainer(TrackedService trackedService)
+    {
         Log.Add($"test:{trackedService.Id}");
 
         ServiceIds.Add(trackedService.Id);
     }
 }
 
-public class BRetriedModuleTests {
-
+public class BRetriedModuleTests
+{
     private static int _attempts;
 
     public static readonly List<int> ServiceIds = [];
 
     [ModuleTest(typeof(LifetimeModule))]
     [Retry(3)]
-    public void EachRetryAttemptGetsItsOwnContainer(TrackedService trackedService) {
+    public void EachRetryAttemptGetsItsOwnContainer(TrackedService trackedService)
+    {
         ServiceIds.Add(trackedService.Id);
 
         _attempts++;
 
-        Assert.That(_attempts, Is.EqualTo(3), "fails the first two attempts on purpose, passes the third");
+        Assert.That(
+            _attempts,
+            Is.EqualTo(3),
+            "fails the first two attempts on purpose, passes the third"
+        );
     }
 }
 
-public class CLifetimeReport {
-
+public class CLifetimeReport
+{
     /// <summary>
     /// The container has to outlive setup and teardown, not sit between them. Wrapping only the test
     /// method would order this setup, open, test, close, teardown — leaving <c>[SetUp]</c> running
     /// before the container exists and <c>[TearDown]</c> after it is gone.
     /// </summary>
     [Test]
-    public void SetUpAndTearDownRunInsideTheContainersLifetime() {
-        Assert.That(ARepeatedModuleTests.Log, Has.Count.EqualTo(9), "three iterations of setup, test, teardown");
+    public void SetUpAndTearDownRunInsideTheContainersLifetime()
+    {
+        Assert.That(
+            ARepeatedModuleTests.Log,
+            Has.Count.EqualTo(9),
+            "three iterations of setup, test, teardown"
+        );
 
-        for (var i = 0; i < 3; i++) {
+        for (var i = 0; i < 3; i++)
+        {
             Assert.That(ARepeatedModuleTests.Log[i * 3], Is.EqualTo("setup"));
             Assert.That(ARepeatedModuleTests.Log[i * 3 + 1], Does.StartWith("test:"));
             Assert.That(ARepeatedModuleTests.Log[i * 3 + 2], Is.EqualTo("teardown"));
@@ -100,22 +111,30 @@ public class CLifetimeReport {
     }
 
     [Test]
-    public void NoServiceInstanceIsSharedBetweenIterations() {
+    public void NoServiceInstanceIsSharedBetweenIterations()
+    {
         var repeated = ARepeatedModuleTests.ServiceIds;
         var retried = BRetriedModuleTests.ServiceIds;
 
         Assert.That(repeated, Has.Count.EqualTo(3));
         Assert.That(retried, Has.Count.EqualTo(3));
 
-        Assert.That(repeated.Concat(retried).Distinct().Count(), Is.EqualTo(6),
-            "three repetitions and three retry attempts, six containers, six instances");
+        Assert.That(
+            repeated.Concat(retried).Distinct().Count(),
+            Is.EqualTo(6),
+            "three repetitions and three retry attempts, six containers, six instances"
+        );
     }
 
     [Test]
-    public void EveryIterationsServicesWereDisposedWithItsContainer() {
+    public void EveryIterationsServicesWereDisposedWithItsContainer()
+    {
         var iterationIds = ARepeatedModuleTests.ServiceIds.Concat(BRetriedModuleTests.ServiceIds);
 
-        Assert.That(TrackedService.Disposed, Is.SupersetOf(iterationIds),
-            "the container is torn down at the end of the iteration, not left to the fixture");
+        Assert.That(
+            TrackedService.Disposed,
+            Is.SupersetOf(iterationIds),
+            "the container is torn down at the end of the iteration, not left to the fixture"
+        );
     }
 }

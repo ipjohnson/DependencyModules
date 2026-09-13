@@ -28,8 +28,8 @@ namespace DependencyModules.Conventions.Utilities;
 /// documented rather than diagnosed.
 /// </para>
 /// </remarks>
-public static class MetadataCandidateUtility {
-
+public static class MetadataCandidateUtility
+{
     /// <summary>
     /// Candidates from every assembly the given conventions name.
     /// </summary>
@@ -40,33 +40,47 @@ public static class MetadataCandidateUtility {
     public static IReadOnlyList<ConventionCandidateModel> Collect(
         IReadOnlyList<ConventionModuleModel> conventionModules,
         Compilation compilation,
-        CancellationToken cancellationToken) {
-
+        CancellationToken cancellationToken
+    )
+    {
         var wanted = new HashSet<string>(StringComparer.Ordinal);
 
-        foreach (var module in conventionModules) {
-            foreach (var convention in module.Conventions) {
-                if (convention.AssemblyName != null) {
+        foreach (var module in conventionModules)
+        {
+            foreach (var convention in module.Conventions)
+            {
+                if (convention.AssemblyName != null)
+                {
                     wanted.Add(convention.AssemblyName);
                 }
             }
         }
 
-        if (wanted.Count == 0) {
+        if (wanted.Count == 0)
+        {
             return Array.Empty<ConventionCandidateModel>();
         }
 
         var candidates = new List<ConventionCandidateModel>();
 
-        foreach (var reference in compilation.References) {
+        foreach (var reference in compilation.References)
+        {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (compilation.GetAssemblyOrModuleSymbol(reference) is not IAssemblySymbol assembly ||
-                !wanted.Contains(assembly.Name)) {
+            if (
+                compilation.GetAssemblyOrModuleSymbol(reference) is not IAssemblySymbol assembly
+                || !wanted.Contains(assembly.Name)
+            )
+            {
                 continue;
             }
 
-            CollectFromNamespace(assembly.GlobalNamespace, assembly.Name, candidates, cancellationToken);
+            CollectFromNamespace(
+                assembly.GlobalNamespace,
+                assembly.Name,
+                candidates,
+                cancellationToken
+            );
         }
 
         return candidates;
@@ -76,12 +90,15 @@ public static class MetadataCandidateUtility {
         INamespaceSymbol namespaceSymbol,
         string assemblyName,
         List<ConventionCandidateModel> candidates,
-        CancellationToken cancellationToken) {
-
-        foreach (var member in namespaceSymbol.GetMembers()) {
+        CancellationToken cancellationToken
+    )
+    {
+        foreach (var member in namespaceSymbol.GetMembers())
+        {
             cancellationToken.ThrowIfCancellationRequested();
 
-            switch (member) {
+            switch (member)
+            {
                 case INamespaceSymbol nested:
                     CollectFromNamespace(nested, assemblyName, candidates, cancellationToken);
                     break;
@@ -106,17 +123,20 @@ public static class MetadataCandidateUtility {
     /// scanning that interface would match the decorator and register it as a service.
     /// </remarks>
     private static bool IsCandidate(INamedTypeSymbol type) =>
-        type.TypeKind == TypeKind.Class &&
-        !type.IsAbstract &&
-        !type.IsStatic &&
-        type.DeclaredAccessibility == Accessibility.Public &&
-        !DeclaresRegistration(type);
+        type.TypeKind == TypeKind.Class
+        && !type.IsAbstract
+        && !type.IsStatic
+        && type.DeclaredAccessibility == Accessibility.Public
+        && !DeclaresRegistration(type);
 
-    private static bool DeclaresRegistration(INamedTypeSymbol type) {
-        foreach (var attribute in type.GetAttributes()) {
+    private static bool DeclaresRegistration(INamedTypeSymbol type)
+    {
+        foreach (var attribute in type.GetAttributes())
+        {
             var name = attribute.AttributeClass?.Name;
 
-            if (name != null && Array.IndexOf(ExcludedAttributeNames, name) >= 0) {
+            if (name != null && Array.IndexOf(ExcludedAttributeNames, name) >= 0)
+            {
                 return true;
             }
         }
@@ -124,7 +144,8 @@ public static class MetadataCandidateUtility {
         return false;
     }
 
-    private static readonly string[] ExcludedAttributeNames = {
+    private static readonly string[] ExcludedAttributeNames =
+    {
         "SingletonServiceAttribute",
         "ScopedServiceAttribute",
         "TransientServiceAttribute",
@@ -132,7 +153,11 @@ public static class MetadataCandidateUtility {
         "DecoratorAttribute",
     };
 
-    private static ConventionCandidateModel BuildCandidate(INamedTypeSymbol type, string assemblyName) {
+    private static ConventionCandidateModel BuildCandidate(
+        INamedTypeSymbol type,
+        string assemblyName
+    )
+    {
         var declared = new List<ImplementedInterfaceModel>();
         var viaBaseClass = new List<ImplementedInterfaceModel>();
         var seen = new HashSet<ITypeDefinition>();
@@ -140,15 +165,18 @@ public static class MetadataCandidateUtility {
         // Directly implemented interfaces, and what those extend, are the metadata equivalent of
         // "written on the declaration". Anything else in AllInterfaces arrived through a base class,
         // which is the distinction IncludeBaseClasses turns on.
-        foreach (var interfaceSymbol in type.Interfaces) {
+        foreach (var interfaceSymbol in type.Interfaces)
+        {
             Add(declared, seen, interfaceSymbol, null);
 
-            foreach (var inherited in interfaceSymbol.AllInterfaces) {
+            foreach (var inherited in interfaceSymbol.AllInterfaces)
+            {
                 Add(declared, seen, inherited, interfaceSymbol.Name);
             }
         }
 
-        foreach (var interfaceSymbol in type.AllInterfaces) {
+        foreach (var interfaceSymbol in type.AllInterfaces)
+        {
             Add(viaBaseClass, seen, interfaceSymbol, type.BaseType?.Name);
         }
 
@@ -161,23 +189,31 @@ public static class MetadataCandidateUtility {
             LocationModel.None,
             null,
             AttributeKeysOf(type),
-            assemblyName);
+            assemblyName
+        );
     }
 
     private static void Add(
         List<ImplementedInterfaceModel> target,
         HashSet<ITypeDefinition> seen,
         INamedTypeSymbol interfaceSymbol,
-        string? viaTypeName) {
-
+        string? viaTypeName
+    )
+    {
         var definition = interfaceSymbol.GetTypeDefinition();
 
-        if (!seen.Add(definition)) {
+        if (!seen.Add(definition))
+        {
             return;
         }
 
-        target.Add(new ImplementedInterfaceModel(
-            definition, ConventionTypeKey.For(definition), viaTypeName));
+        target.Add(
+            new ImplementedInterfaceModel(
+                definition,
+                ConventionTypeKey.For(definition),
+                viaTypeName
+            )
+        );
     }
 
     /// <summary>
@@ -192,17 +228,21 @@ public static class MetadataCandidateUtility {
     private static ConstructorInfoModel? GreediestConstructor(INamedTypeSymbol type) =>
         SymbolConstructorReader.Read(type);
 
-    private static IReadOnlyList<string>? AttributeKeysOf(INamedTypeSymbol type) {
+    private static IReadOnlyList<string>? AttributeKeysOf(INamedTypeSymbol type)
+    {
         var attributes = type.GetAttributes();
 
-        if (attributes.Length == 0) {
+        if (attributes.Length == 0)
+        {
             return null;
         }
 
         var keys = new List<string>(attributes.Length);
 
-        foreach (var attribute in attributes) {
-            if (attribute.AttributeClass is { } attributeClass) {
+        foreach (var attribute in attributes)
+        {
+            if (attribute.AttributeClass is { } attributeClass)
+            {
                 keys.Add(ConventionTypeKey.For(attributeClass.GetTypeDefinition()));
             }
         }

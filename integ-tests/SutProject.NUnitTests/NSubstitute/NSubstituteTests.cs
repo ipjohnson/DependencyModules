@@ -17,14 +17,16 @@ namespace SutProject.NUnitTests.NSubstitute;
 /// each other.
 /// </remarks>
 [NSubstituteSupport]
-public class NSubstituteTests {
-
+public class NSubstituteTests
+{
     [ModuleTest]
     [SutModule]
     public void MockTest(
         [Mock] IDependencyOne dependencyOne,
         [Mock] IScopedService scopedService,
-        ISingletonService singletonService) {
+        ISingletonService singletonService
+    )
+    {
         dependencyOne.SingletonService.Returns(singletonService);
         dependencyOne.ScopedService.Returns(scopedService);
 
@@ -36,7 +38,10 @@ public class NSubstituteTests {
     [ModuleTest]
     [SutModule]
     public void AMockReplacesTheRegistrationForTheWholeContainer(
-        [Mock] IScopedService scopedService, IDependencyOne dependencyOne) {
+        [Mock] IScopedService scopedService,
+        IDependencyOne dependencyOne
+    )
+    {
         Assert.That(dependencyOne.ScopedService, Is.SameAs(scopedService));
     }
 
@@ -47,8 +52,13 @@ public class NSubstituteTests {
     [ModuleTest]
     [SutModule]
     [Repeat(3)]
-    public void EachIterationGetsAFreshMock([Mock] IScopedService scopedService) {
-        Assert.That(Seen.Add(scopedService), Is.True, "a mock instance is never reused across iterations");
+    public void EachIterationGetsAFreshMock([Mock] IScopedService scopedService)
+    {
+        Assert.That(
+            Seen.Add(scopedService),
+            Is.True,
+            "a mock instance is never reused across iterations"
+        );
     }
 
     private static readonly HashSet<IScopedService> Seen = [];

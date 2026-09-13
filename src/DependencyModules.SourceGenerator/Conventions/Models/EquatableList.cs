@@ -11,10 +11,12 @@ namespace DependencyModules.Conventions.Models;
 /// is measurable rather than theoretical: the metadata scan re-runs on every keystroke by
 /// construction, so without this the emission would too.
 /// </remarks>
-public sealed class EquatableList<T> : IReadOnlyList<T> {
+public sealed class EquatableList<T> : IReadOnlyList<T>
+{
     private readonly IReadOnlyList<T> _items;
 
-    public EquatableList(IReadOnlyList<T> items) {
+    public EquatableList(IReadOnlyList<T> items)
+    {
         _items = items;
     }
 

@@ -15,14 +15,15 @@ namespace DependencyModules.Tests.xUnitTests;
 /// exactly how a unique ID collision shipped undetected. Testing the discoverer from outside the
 /// framework it provides is the only way those failures become visible.
 /// </summary>
-public class ModuleTestDiscovererTests {
-
+public class ModuleTestDiscovererTests
+{
     /// <summary>
     /// Regression test. Unique IDs used to be the bare method name, so two test classes each
     /// declaring a same-named test produced colliding IDs and xUnit silently discarded one.
     /// </summary>
     [Fact]
-    public async Task SameMethodNameInDifferentClasses_ProducesDifferentUniqueIDs() {
+    public async Task SameMethodNameInDifferentClasses_ProducesDifferentUniqueIDs()
+    {
         var first = await DiscoverSingle(typeof(FirstSample), nameof(FirstSample.SharedName));
         var second = await DiscoverSingle(typeof(SecondSample), nameof(SecondSample.SharedName));
 
@@ -30,7 +31,8 @@ public class ModuleTestDiscovererTests {
     }
 
     [Fact]
-    public async Task SameMethodNameInDifferentClasses_ProducesDifferentDisplayNames() {
+    public async Task SameMethodNameInDifferentClasses_ProducesDifferentDisplayNames()
+    {
         var first = await DiscoverSingle(typeof(FirstSample), nameof(FirstSample.SharedName));
         var second = await DiscoverSingle(typeof(SecondSample), nameof(SecondSample.SharedName));
 
@@ -38,14 +40,16 @@ public class ModuleTestDiscovererTests {
     }
 
     [Fact]
-    public async Task UniqueID_IsNotJustTheMethodName() {
+    public async Task UniqueID_IsNotJustTheMethodName()
+    {
         var testCase = await DiscoverSingle(typeof(FirstSample), nameof(FirstSample.SharedName));
 
         Assert.NotEqual(nameof(FirstSample.SharedName), testCase.UniqueID);
     }
 
     [Fact]
-    public async Task UniqueID_IsStableAcrossRepeatedDiscovery() {
+    public async Task UniqueID_IsStableAcrossRepeatedDiscovery()
+    {
         var first = await DiscoverSingle(typeof(FirstSample), nameof(FirstSample.SharedName));
         var second = await DiscoverSingle(typeof(FirstSample), nameof(FirstSample.SharedName));
 
@@ -53,7 +57,8 @@ public class ModuleTestDiscovererTests {
     }
 
     [Fact]
-    public async Task DifferentMethodsInOneClass_ProduceDifferentUniqueIDs() {
+    public async Task DifferentMethodsInOneClass_ProduceDifferentUniqueIDs()
+    {
         var first = await DiscoverSingle(typeof(FirstSample), nameof(FirstSample.SharedName));
         var second = await DiscoverSingle(typeof(FirstSample), nameof(FirstSample.AnotherName));
 
@@ -61,21 +66,24 @@ public class ModuleTestDiscovererTests {
     }
 
     [Fact]
-    public async Task DisplayName_IsQualifiedByItsDeclaringClass() {
+    public async Task DisplayName_IsQualifiedByItsDeclaringClass()
+    {
         var testCase = await DiscoverSingle(typeof(FirstSample), nameof(FirstSample.SharedName));
 
         Assert.Contains(nameof(FirstSample), testCase.TestCaseDisplayName);
     }
 
     [Fact]
-    public async Task Discovery_ProducesExactlyOneTestCasePerMethod() {
+    public async Task Discovery_ProducesExactlyOneTestCasePerMethod()
+    {
         var cases = await Discover(typeof(FirstSample), nameof(FirstSample.SharedName));
 
         Assert.Single(cases);
     }
 
     [Fact]
-    public async Task Discovery_ProducesAModuleTestCase() {
+    public async Task Discovery_ProducesAModuleTestCase()
+    {
         var testCase = await DiscoverSingle(typeof(FirstSample), nameof(FirstSample.SharedName));
 
         Assert.IsType<ModuleTestCase>(testCase);
@@ -86,15 +94,20 @@ public class ModuleTestDiscovererTests {
     /// every sample method asserts the set is distinct, which is the property that was violated.
     /// </summary>
     [Fact]
-    public async Task EveryDiscoveredTestCase_HasADistinctUniqueID() {
+    public async Task EveryDiscoveredTestCase_HasADistinctUniqueID()
+    {
         var ids = new List<string>();
 
-        foreach (var (type, method) in new[] {
-                     (typeof(FirstSample), nameof(FirstSample.SharedName)),
-                     (typeof(FirstSample), nameof(FirstSample.AnotherName)),
-                     (typeof(SecondSample), nameof(SecondSample.SharedName)),
-                     (typeof(SecondSample), nameof(SecondSample.AnotherName))
-                 }) {
+        foreach (
+            var (type, method) in new[]
+            {
+                (typeof(FirstSample), nameof(FirstSample.SharedName)),
+                (typeof(FirstSample), nameof(FirstSample.AnotherName)),
+                (typeof(SecondSample), nameof(SecondSample.SharedName)),
+                (typeof(SecondSample), nameof(SecondSample.AnotherName)),
+            }
+        )
+        {
             ids.Add((await DiscoverSingle(type, method)).UniqueID);
         }
 
@@ -109,7 +122,8 @@ public class ModuleTestDiscovererTests {
     /// <c>[ModuleTest]</c>.
     /// </summary>
     [Fact]
-    public async Task Traits_OnTheTestMethod_ReachTheTestCase() {
+    public async Task Traits_OnTheTestMethod_ReachTheTestCase()
+    {
         var testCase = await DiscoverSingle(typeof(TraitSample), nameof(TraitSample.Categorised));
 
         Assert.Contains("Fast", testCase.Traits["Category"]);
@@ -127,14 +141,16 @@ public class ModuleTestDiscovererTests {
     /// Traits_SurviveOntoTheCreatedTests do that.
     /// </remarks>
     [Fact]
-    public async Task Traits_AreKeyedCaseInsensitively() {
+    public async Task Traits_AreKeyedCaseInsensitively()
+    {
         var testCase = await DiscoverSingle(typeof(TraitSample), nameof(TraitSample.Categorised));
 
         Assert.True(testCase.Traits.ContainsKey("cAtEgOrY"));
     }
 
     [Fact]
-    public async Task Traits_KeepEveryValueOfARepeatedKey() {
+    public async Task Traits_KeepEveryValueOfARepeatedKey()
+    {
         var testCase = await DiscoverSingle(typeof(TraitSample), nameof(TraitSample.MultiValued));
 
         Assert.Equal(["one", "two"], testCase.Traits["Category"].OrderBy(value => value));
@@ -153,9 +169,10 @@ public class ModuleTestDiscovererTests {
     /// under the <c>Xunit.Internal</c> helpers or their replacement.
     /// </remarks>
     [Fact]
-    public async Task Traits_SurviveOntoTheCreatedTests() {
-        var testCase = (ModuleTestCase)await DiscoverSingle(
-            typeof(TraitSample), nameof(TraitSample.Categorised));
+    public async Task Traits_SurviveOntoTheCreatedTests()
+    {
+        var testCase = (ModuleTestCase)
+            await DiscoverSingle(typeof(TraitSample), nameof(TraitSample.Categorised));
 
         var test = Assert.Single(await testCase.CreateTests());
 
@@ -163,8 +180,12 @@ public class ModuleTestDiscovererTests {
     }
 
     [Fact]
-    public async Task Traits_AreNotSharedBetweenTestCases() {
-        var categorised = await DiscoverSingle(typeof(TraitSample), nameof(TraitSample.Categorised));
+    public async Task Traits_AreNotSharedBetweenTestCases()
+    {
+        var categorised = await DiscoverSingle(
+            typeof(TraitSample),
+            nameof(TraitSample.Categorised)
+        );
         var untraited = await DiscoverSingle(typeof(FirstSample), nameof(FirstSample.SharedName));
 
         Assert.False(untraited.Traits.ContainsKey("Category"));
@@ -185,7 +206,8 @@ public class ModuleTestDiscovererTests {
     /// the location captured is this file. That is the point: it is a real usage site.
     /// </remarks>
     [Fact]
-    public async Task TestCase_CarriesTheSourceLocationOfItsAttribute() {
+    public async Task TestCase_CarriesTheSourceLocationOfItsAttribute()
+    {
         var testCase = await DiscoverSingle(typeof(FirstSample), nameof(FirstSample.SharedName));
 
         Assert.EndsWith("ModuleTestDiscovererTests.cs", testCase.SourceFilePath);
@@ -203,7 +225,8 @@ public class ModuleTestDiscovererTests {
     /// lose its source location.
     /// </remarks>
     [Fact]
-    public void NamingOneModule_StillCapturesTheSourceLocation() {
+    public void NamingOneModule_StillCapturesTheSourceLocation()
+    {
         var attribute = new ModuleTestAttribute(typeof(FirstSample));
 
         Assert.Single(attribute.ModuleTypes);
@@ -220,7 +243,8 @@ public class ModuleTestDiscovererTests {
     /// says so.
     /// </remarks>
     [Fact]
-    public void NamingSeveralModules_FallsBackToTheOverloadWithoutASourceLocation() {
+    public void NamingSeveralModules_FallsBackToTheOverloadWithoutASourceLocation()
+    {
         var attribute = new ModuleTestAttribute(typeof(FirstSample), typeof(SecondSample));
 
         Assert.Equal(2, attribute.ModuleTypes.Length);
@@ -230,21 +254,31 @@ public class ModuleTestDiscovererTests {
     private static async Task<IXunitTestCase> DiscoverSingle(Type testClass, string methodName) =>
         Assert.Single(await Discover(testClass, methodName));
 
-    private static async Task<IReadOnlyCollection<IXunitTestCase>> Discover(Type testClass, string methodName) {
+    private static async Task<IReadOnlyCollection<IXunitTestCase>> Discover(
+        Type testClass,
+        string methodName
+    )
+    {
         var testMethod = BuildTestMethod(testClass, methodName);
 
         // Supplied directly rather than read off the sample methods: annotating private nested
         // classes with [ModuleTest] makes the xUnit analyzer treat them as test classes.
         return await new ModuleTestDiscoverer().Discover(
-            new DiscoveryOptions(), testMethod, new ModuleTestAttribute());
+            new DiscoveryOptions(),
+            testMethod,
+            new ModuleTestAttribute()
+        );
     }
 
     /// <summary>
     /// The discoverer only reads method display settings, and xUnit falls back to its defaults for
     /// anything unset, so an empty option bag is enough to exercise it.
     /// </summary>
-    private class DiscoveryOptions : ITestFrameworkDiscoveryOptions {
-        private readonly Dictionary<string, object?> _values = new(StringComparer.OrdinalIgnoreCase);
+    private class DiscoveryOptions : ITestFrameworkDiscoveryOptions
+    {
+        private readonly Dictionary<string, object?> _values = new(
+            StringComparer.OrdinalIgnoreCase
+        );
 
         public TValue? GetValue<TValue>(string name) =>
             _values.TryGetValue(name, out var value) && value is TValue typed ? typed : default;
@@ -254,7 +288,8 @@ public class ModuleTestDiscovererTests {
         public string ToJson() => "{}";
     }
 
-    private static IXunitTestMethod BuildTestMethod(Type testClass, string methodName) {
+    private static IXunitTestMethod BuildTestMethod(Type testClass, string methodName)
+    {
         var assembly = new XunitTestAssembly(testClass.Assembly);
         var collection = new XunitTestCollection(assembly, null, false, "Test collection");
         var xunitClass = new XunitTestClass(testClass, collection);
@@ -263,19 +298,22 @@ public class ModuleTestDiscovererTests {
         return new XunitTestMethod(xunitClass, method, []);
     }
 
-    private class FirstSample {
+    private class FirstSample
+    {
         public void SharedName() { }
 
         public void AnotherName() { }
     }
 
-    private class SecondSample {
+    private class SecondSample
+    {
         public void SharedName() { }
 
         public void AnotherName() { }
     }
 
-    private class TraitSample {
+    private class TraitSample
+    {
         [Trait("Category", "Fast")]
         public void Categorised() { }
 

@@ -4,7 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace SutProject.Tests.ParameterizedModuleTests;
 
-public class DefaultedParameterValues(string label, int size) {
+public class DefaultedParameterValues(string label, int size)
+{
     public string Label { get; } = label;
 
     public int Size { get; } = size;
@@ -25,12 +26,14 @@ public class DefaultedParameterValues(string label, int size) {
 /// behaviour.
 /// </remarks>
 [DependencyModule]
-public partial class DefaultedParameterModule : IServiceCollectionConfiguration {
+public partial class DefaultedParameterModule : IServiceCollectionConfiguration
+{
     public string Label { get; set; } = "default-label";
 
     public int Size { get; set; } = 42;
 
-    public void ConfigureServices(IServiceCollection services) {
+    public void ConfigureServices(IServiceCollection services)
+    {
         services.AddSingleton(new DefaultedParameterValues(Label, Size));
     }
 

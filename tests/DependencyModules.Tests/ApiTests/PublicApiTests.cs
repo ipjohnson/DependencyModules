@@ -19,15 +19,17 @@ namespace DependencyModules.Tests.ApiTests;
 ///     UPDATE_SNAPSHOTS=1 dotnet test tests/DependencyModules.Tests
 /// then read the diff carefully before committing it.
 /// </summary>
-public class PublicApiTests {
-
+public class PublicApiTests
+{
     [Fact]
-    public void RuntimeApi() {
+    public void RuntimeApi()
+    {
         Snapshot.Match(ApiOf(typeof(DependencyModuleAttribute)));
     }
 
     [Fact]
-    public void XUnitApi() {
+    public void XUnitApi()
+    {
         Snapshot.Match(ApiOf(typeof(ModuleTestAttribute)));
     }
 
@@ -37,8 +39,11 @@ public class PublicApiTests {
     /// <c>IModuleTestAttribute</c> is common to both.
     /// </summary>
     [Fact]
-    public void NUnitApi() {
-        Snapshot.Match(ApiOf(typeof(global::DependencyModules.NUnit.Attributes.ModuleTestAttribute)));
+    public void NUnitApi()
+    {
+        Snapshot.Match(
+            ApiOf(typeof(global::DependencyModules.NUnit.Attributes.ModuleTestAttribute))
+        );
     }
 
     /// <summary>
@@ -46,23 +51,31 @@ public class PublicApiTests {
     /// test framework dependency, which is the point of it — a change here reaches all of them.
     /// </summary>
     [Fact]
-    public void TestingApi() {
+    public void TestingApi()
+    {
         Snapshot.Match(ApiOf(typeof(Testing.Attributes.Interfaces.IMockSupportAttribute)));
     }
 
     [Fact]
-    public void NSubstituteApi() {
-        Snapshot.Match(ApiOf(typeof(global::DependencyModules.NSubstitute.NSubstituteSupportAttribute)));
+    public void NSubstituteApi()
+    {
+        Snapshot.Match(
+            ApiOf(typeof(global::DependencyModules.NSubstitute.NSubstituteSupportAttribute))
+        );
     }
 
     [Fact]
-    public void MoqApi() {
+    public void MoqApi()
+    {
         Snapshot.Match(ApiOf(typeof(global::DependencyModules.Moq.MoqSupportAttribute)));
     }
 
     [Fact]
-    public void FakeItEasyApi() {
-        Snapshot.Match(ApiOf(typeof(global::DependencyModules.FakeItEasy.FakeItEasySupportAttribute)));
+    public void FakeItEasyApi()
+    {
+        Snapshot.Match(
+            ApiOf(typeof(global::DependencyModules.FakeItEasy.FakeItEasySupportAttribute))
+        );
     }
 
     /// <summary>
@@ -72,21 +85,25 @@ public class PublicApiTests {
     /// generators on top of these base classes.
     /// </summary>
     [Fact]
-    public void SourceGeneratorApi() {
+    public void SourceGeneratorApi()
+    {
         Snapshot.Match(ApiOf(typeof(SourceGenerator.SourceGenerator)));
     }
 
     private static string ApiOf(Type typeFromAssembly) =>
         typeFromAssembly.Assembly.GeneratePublicApi(
-            new ApiGeneratorOptions {
+            new ApiGeneratorOptions
+            {
                 // Assembly-level attributes are build metadata, not API, and several of them
                 // (SourceLink, InternalsVisibleTo, TFM) change with build configuration.
-                ExcludeAttributes = [
+                ExcludeAttributes =
+                [
                     "System.Runtime.Versioning.TargetFrameworkAttribute",
                     "System.Reflection.AssemblyMetadataAttribute",
                     "System.Runtime.CompilerServices.InternalsVisibleToAttribute",
                     "System.Diagnostics.DebuggableAttribute",
-                    "System.Runtime.CompilerServices.CompilationRelaxationsAttribute"
-                ]
-            });
+                    "System.Runtime.CompilerServices.CompilationRelaxationsAttribute",
+                ],
+            }
+        );
 }

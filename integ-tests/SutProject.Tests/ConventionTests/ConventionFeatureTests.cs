@@ -14,9 +14,12 @@ namespace SutProject.Tests.ConventionTests;
 /// colliding, or — for <c>InAssemblyOf</c> — that a genuine compile-time assembly reference is what
 /// gets scanned. That is what this file is for.
 /// </remarks>
-public class ConventionFeatureTests {
-
-    private static ServiceProvider Provider(params DependencyModules.Runtime.Interfaces.IDependencyModule[] modules) {
+public class ConventionFeatureTests
+{
+    private static ServiceProvider Provider(
+        params DependencyModules.Runtime.Interfaces.IDependencyModule[] modules
+    )
+    {
         var collection = new ServiceCollection();
 
         collection.AddModules(modules);
@@ -25,8 +28,9 @@ public class ConventionFeatureTests {
     }
 
     private static IServiceCollection Collection(
-        params DependencyModules.Runtime.Interfaces.IDependencyModule[] modules) {
-
+        params DependencyModules.Runtime.Interfaces.IDependencyModule[] modules
+    )
+    {
         var collection = new ServiceCollection();
 
         collection.AddModules(modules);
@@ -35,7 +39,8 @@ public class ConventionFeatureTests {
     }
 
     [Fact]
-    public void AsSelfRegistersTheConcreteType() {
+    public void AsSelfRegistersTheConcreteType()
+    {
         var provider = Provider(new ConventionAsSelfModule());
 
         Assert.NotNull(provider.GetService<SelfShaped>());
@@ -43,7 +48,8 @@ public class ConventionFeatureTests {
     }
 
     [Fact]
-    public void AsSelfWithInterfacesSharesOneInstanceAndSkipsSystemInterfaces() {
+    public void AsSelfWithInterfacesSharesOneInstanceAndSkipsSystemInterfaces()
+    {
         var provider = Provider(new ConventionCrossWireModule());
 
         var asConcrete = provider.GetRequiredService<CrossWiredShape>();
@@ -56,7 +62,8 @@ public class ConventionFeatureTests {
     }
 
     [Fact]
-    public void AlsoAsSelfRegistersBothAndSharesOneInstance() {
+    public void AlsoAsSelfRegistersBothAndSharesOneInstance()
+    {
         var provider = Provider(new ConventionAlsoAsSelfModule());
 
         var asInterface = provider.GetRequiredService<IAlsoSelfService>();
@@ -69,7 +76,8 @@ public class ConventionFeatureTests {
     }
 
     [Fact]
-    public void WithAttributeSelectsOnlyMarkedTypes() {
+    public void WithAttributeSelectsOnlyMarkedTypes()
+    {
         var services = Provider(new ConventionAttributeFilterModule())
             .GetServices<IFiltered>()
             .Select(service => service.Name)
@@ -79,7 +87,8 @@ public class ConventionFeatureTests {
     }
 
     [Fact]
-    public void WithNameSelectsOnTheGlob() {
+    public void WithNameSelectsOnTheGlob()
+    {
         var services = Provider(new ConventionNameFilterModule())
             .GetServices<IFiltered>()
             .Select(service => service.Name)
@@ -93,7 +102,8 @@ public class ConventionFeatureTests {
     /// A concrete type with no interface, selected by namespace and name alone.
     /// </summary>
     [Fact]
-    public void RegisterAllWithFiltersRegistersTypesThatImplementNothing() {
+    public void RegisterAllWithFiltersRegistersTypesThatImplementNothing()
+    {
         var provider = Provider(new ConventionNamespaceModule());
 
         Assert.NotNull(provider.GetService<NamespaceOnlyCalculator>());
@@ -101,7 +111,8 @@ public class ConventionFeatureTests {
     }
 
     [Fact]
-    public void AsMatchingInterfaceRegistersRenamerAsIRenamer() {
+    public void AsMatchingInterfaceRegistersRenamerAsIRenamer()
+    {
         var provider = Provider(new ConventionMatchingInterfaceModule());
 
         Assert.IsType<Renamer>(provider.GetRequiredService<IRenamer>());
@@ -109,7 +120,8 @@ public class ConventionFeatureTests {
     }
 
     [Fact]
-    public void AsRegistersUnderTheNamedServiceType() {
+    public void AsRegistersUnderTheNamedServiceType()
+    {
         var provider = Provider(new ConventionAsModule());
 
         Assert.IsType<ExplicitlyRegistered>(provider.GetRequiredService<IExplicitTarget>());
@@ -117,7 +129,8 @@ public class ConventionFeatureTests {
     }
 
     [Fact]
-    public void WithKeyRegistersUnderAServiceKey() {
+    public void WithKeyRegistersUnderAServiceKey()
+    {
         var provider = Provider(new ConventionKeyModule());
 
         Assert.IsType<KeyedOne>(provider.GetRequiredKeyedService<IKeyedService>("primary"));
@@ -125,26 +138,31 @@ public class ConventionFeatureTests {
     }
 
     [Fact]
-    public void UsingTryRegistersTheServiceTypeOnce() {
+    public void UsingTryRegistersTheServiceTypeOnce()
+    {
         Assert.Single(
             Collection(new ConventionUsingModule()),
-            descriptor => descriptor.ServiceType == typeof(ITriedService));
+            descriptor => descriptor.ServiceType == typeof(ITriedService)
+        );
     }
 
     /// <summary>
     /// A type filling two roles registers as both, each with its own lifetime.
     /// </summary>
     [Fact]
-    public void ATypeMatchedThroughTwoInterfacesRegistersAsBoth() {
+    public void ATypeMatchedThroughTwoInterfacesRegistersAsBoth()
+    {
         var collection = Collection(new ConventionTwoRolesModule());
 
         Assert.Equal(
             ServiceLifetime.Singleton,
-            Assert.Single(collection, d => d.ServiceType == typeof(IFirstRole)).Lifetime);
+            Assert.Single(collection, d => d.ServiceType == typeof(IFirstRole)).Lifetime
+        );
 
         Assert.Equal(
             ServiceLifetime.Scoped,
-            Assert.Single(collection, d => d.ServiceType == typeof(ISecondRole)).Lifetime);
+            Assert.Single(collection, d => d.ServiceType == typeof(ISecondRole)).Lifetime
+        );
     }
 
     /// <summary>
@@ -152,7 +170,8 @@ public class ConventionFeatureTests {
     /// left the second silently unregistered.
     /// </summary>
     [Fact]
-    public void OneConventionRegistersEveryClosing() {
+    public void OneConventionRegistersEveryClosing()
+    {
         var provider = Provider(new ConventionClosingsModule());
 
         Assert.IsType<OrderEvents>(provider.GetRequiredService<INotification<OrderPlaced>>());
@@ -163,7 +182,8 @@ public class ConventionFeatureTests {
     /// One open generic decorator over every handler a convention registered — the MediatR shape.
     /// </summary>
     [Fact]
-    public void ADecoratorWrapsEveryConventionRegisteredHandler() {
+    public void ADecoratorWrapsEveryConventionRegisteredHandler()
+    {
         var provider = Provider(new ConventionDecoratedHandlerModule());
         var log = provider.GetRequiredService<HandlerLog>();
 
@@ -185,23 +205,30 @@ public class ConventionFeatureTests {
     /// nothing, it would register as the open generic and make the whole module undecoratable.
     /// </summary>
     [Fact]
-    public void ADecoratorIsNotRegisteredAsAService() {
+    public void ADecoratorIsNotRegisteredAsAService()
+    {
         var collection = Collection(new ConventionDecoratedHandlerModule());
 
-        Assert.DoesNotContain(collection, descriptor => descriptor.ServiceType.IsGenericTypeDefinition);
+        Assert.DoesNotContain(
+            collection,
+            descriptor => descriptor.ServiceType.IsGenericTypeDefinition
+        );
 
         Assert.Equal(
             2,
             collection.Count(descriptor =>
-                descriptor.ServiceType.IsGenericType &&
-                descriptor.ServiceType.GetGenericTypeDefinition() == typeof(IRequestHandler<,>)));
+                descriptor.ServiceType.IsGenericType
+                && descriptor.ServiceType.GetGenericTypeDefinition() == typeof(IRequestHandler<,>)
+            )
+        );
     }
 
     /// <summary>
     /// Scanning a genuinely referenced assembly, where there is no syntax to read.
     /// </summary>
     [Fact]
-    public void InAssemblyOfRegistersPublicTypesFromTheReferencedAssembly() {
+    public void InAssemblyOfRegistersPublicTypesFromTheReferencedAssembly()
+    {
         var policies = Provider(new ConventionAssemblyScanModule())
             .GetServices<IPackagePolicy>()
             .Select(policy => policy.Name)

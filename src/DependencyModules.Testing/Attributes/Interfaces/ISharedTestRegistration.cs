@@ -1,4 +1,5 @@
 using System.Reflection;
+
 namespace DependencyModules.Testing.Attributes.Interfaces;
 
 /// <summary>
@@ -33,8 +34,8 @@ namespace DependencyModules.Testing.Attributes.Interfaces;
 /// attribute to work is a rule most tests will not get.
 /// </para>
 /// </remarks>
-public interface ISharedTestRegistration {
-
+public interface ISharedTestRegistration
+{
     /// <summary>
     /// Whether what this attribute registered is pinned.
     /// </summary>

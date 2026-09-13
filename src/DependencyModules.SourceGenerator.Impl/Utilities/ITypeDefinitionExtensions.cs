@@ -2,8 +2,8 @@ using CSharpAuthor;
 
 namespace DependencyModules.SourceGenerator.Impl.Utilities;
 
-public static class ITypeDefinitionExtensions {
-
+public static class ITypeDefinitionExtensions
+{
     /// <summary>
     /// Rewrites a generic type's arguments to nothing, so it renders as <c>IRepo&lt;&gt;</c>.
     /// </summary>
@@ -19,7 +19,10 @@ public static class ITypeDefinitionExtensions {
                 generic.TypeDefinitionEnum,
                 generic.Namespace,
                 generic.Name,
-                generic.TypeArguments.Select(_ => (ITypeDefinition)TypeDefinition.Get("", "")).ToArray())
+                generic
+                    .TypeArguments.Select(_ => (ITypeDefinition)TypeDefinition.Get("", ""))
+                    .ToArray()
+            )
             : type;
 
     /// <summary>
@@ -34,19 +37,26 @@ public static class ITypeDefinitionExtensions {
     /// a type in the global namespace, which had none to begin with. They are different types and
     /// need different files, so the global namespace is named rather than left blank.
     /// </remarks>
-    public static string GetFileNameHint(this ITypeDefinition typeDefinition, string rootNamespace, string uniquePart) {
+    public static string GetFileNameHint(
+        this ITypeDefinition typeDefinition,
+        string rootNamespace,
+        string uniquePart
+    )
+    {
         var nameString = typeDefinition.Namespace;
 
-        if (nameString == rootNamespace ||
-            nameString.StartsWith(rootNamespace + ".")) {
+        if (nameString == rootNamespace || nameString.StartsWith(rootNamespace + "."))
+        {
             nameString = nameString.Substring(rootNamespace.Length);
             nameString = nameString.TrimStart('.');
         }
-        else if (string.IsNullOrWhiteSpace(nameString)) {
+        else if (string.IsNullOrWhiteSpace(nameString))
+        {
             nameString = "global";
         }
 
-        if (!string.IsNullOrWhiteSpace(nameString)) {
+        if (!string.IsNullOrWhiteSpace(nameString))
+        {
             nameString += ".";
         }
 

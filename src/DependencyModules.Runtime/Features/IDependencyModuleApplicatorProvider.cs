@@ -6,8 +6,8 @@ namespace DependencyModules.Runtime.Features;
 /// Provides a mechanism to retrieve a collection of feature applicators used for handling
 /// and applying specific features in the dependency module system.
 /// </summary>
-public interface IDependencyModuleApplicatorProvider {
-
+public interface IDependencyModuleApplicatorProvider
+{
     /// <summary>
     /// Retrieves a collection of feature applicators responsible for handling and applying
     /// specific features in the dependency module system.
@@ -16,7 +16,8 @@ public interface IDependencyModuleApplicatorProvider {
     /// An enumerable collection of objects implementing the <see cref="IFeatureApplicator"/> interface.
     /// If no feature applicators are available, an empty collection is returned.
     /// </returns>
-    IEnumerable<IFeatureApplicator> FeatureApplicators() {
+    IEnumerable<IFeatureApplicator> FeatureApplicators()
+    {
         return ArraySegment<IFeatureApplicator>.Empty;
     }
 }

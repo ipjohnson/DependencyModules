@@ -8,7 +8,8 @@ namespace DependencyModules.Runtime;
 /// <summary>
 /// Provides extension methods for adding dependency modules to the IServiceCollection.
 /// </summary>
-public static class ServiceCollectionExtensions {
+public static class ServiceCollectionExtensions
+{
     /// <summary>
     ///     Add dependency module to service collection
     /// </summary>
@@ -16,7 +17,8 @@ public static class ServiceCollectionExtensions {
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
     public static IServiceCollection AddModule<T>(this IServiceCollection services)
-        where T : IDependencyModule, new() {
+        where T : IDependencyModule, new()
+    {
         return AddModule(services, new T());
     }
 
@@ -27,19 +29,27 @@ public static class ServiceCollectionExtensions {
     /// <param name="module"></param>
     /// <returns></returns>
     // ReSharper disable once MemberCanBePrivate.Global
-    public static IServiceCollection AddModule(this IServiceCollection services, IDependencyModule module) {
+    public static IServiceCollection AddModule(
+        this IServiceCollection services,
+        IDependencyModule module
+    )
+    {
         module.PopulateServiceCollection(services);
 
         return services;
     }
-    
+
     /// <summary>
     ///     Add dependency modules to service collection
     /// </summary>
     /// <param name="services"></param>
     /// <param name="modules"></param>
     /// <returns></returns>
-    public static IServiceCollection AddModules(this IServiceCollection services, params IDependencyModule[] modules) {
+    public static IServiceCollection AddModules(
+        this IServiceCollection services,
+        params IDependencyModule[] modules
+    )
+    {
         DependencyRegistry<object>.LoadModules(services, modules);
 
         return services;
@@ -60,8 +70,14 @@ public static class ServiceCollectionExtensions {
     /// written down. To layer one on another, read the existing one and combine before calling this;
     /// the collection is right there.
     /// </remarks>
-    public static IServiceCollection AddModules(this IServiceCollection services, IModuleEnvironment? environment, params IDependencyModule[] modules) {
-        if (environment != null) {
+    public static IServiceCollection AddModules(
+        this IServiceCollection services,
+        IModuleEnvironment? environment,
+        params IDependencyModule[] modules
+    )
+    {
+        if (environment != null)
+        {
             services.RemoveAll<IModuleEnvironment>();
             services.AddSingleton(environment);
         }

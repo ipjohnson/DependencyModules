@@ -15,29 +15,36 @@ namespace DependencyModules.SourceGenerator.Impl.Models;
 /// with nothing. The map is built on first use, so a run that reports no diagnostics — the ordinary
 /// case — never walks the trees at all.
 /// </remarks>
-public sealed class SyntaxTreeLookup {
+public sealed class SyntaxTreeLookup
+{
     private readonly Compilation? _compilation;
     private Dictionary<string, SyntaxTree>? _byPath;
 
     /// <summary>A lookup that finds nothing, for callers with no compilation to hand.</summary>
     public static readonly SyntaxTreeLookup None = new(null);
 
-    public SyntaxTreeLookup(Compilation? compilation) {
+    public SyntaxTreeLookup(Compilation? compilation)
+    {
         _compilation = compilation;
     }
 
-    public SyntaxTree? Find(string filePath) {
-        if (_compilation == null || string.IsNullOrEmpty(filePath)) {
+    public SyntaxTree? Find(string filePath)
+    {
+        if (_compilation == null || string.IsNullOrEmpty(filePath))
+        {
             return null;
         }
 
-        if (_byPath == null) {
+        if (_byPath == null)
+        {
             _byPath = new Dictionary<string, SyntaxTree>();
 
-            foreach (var tree in _compilation.SyntaxTrees) {
+            foreach (var tree in _compilation.SyntaxTrees)
+            {
                 // First wins. Two trees can share a path — a linked file compiled into more than
                 // one target — and either answers the question a location asks.
-                if (!string.IsNullOrEmpty(tree.FilePath) && !_byPath.ContainsKey(tree.FilePath)) {
+                if (!string.IsNullOrEmpty(tree.FilePath) && !_byPath.ContainsKey(tree.FilePath))
+                {
                     _byPath.Add(tree.FilePath, tree);
                 }
             }

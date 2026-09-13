@@ -15,10 +15,9 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// <c>[Intercept]</c> coming back wrapped in another class's wrapper, and, with two implementations
 /// marked, every interceptor running twice per call. Neither threw.
 /// </summary>
-public class InterceptionScopeTests {
-
-    private const string Interceptor =
-        """
+public class InterceptionScopeTests
+{
+    private const string Interceptor = """
         public sealed class CountingInterceptor : IInterceptor {
             public static int Calls;
             public TResult Intercept<TResult>(InvocationContext<TResult> context) {
@@ -29,7 +28,8 @@ public class InterceptionScopeTests {
         """;
 
     [Fact]
-    public void AnUnmarkedSiblingImplementation_IsNotWrapped() {
+    public void AnUnmarkedSiblingImplementation_IsNotWrapped()
+    {
         var generated = GeneratedAssembly.Create(
             Source(
                 """
@@ -38,13 +38,20 @@ public class InterceptionScopeTests {
 
                 [SingletonService]
                 public sealed class Quiet : IGreeter { public string Greet() => "quiet"; }
-                """));
+                """
+            )
+        );
 
         var provider = generated.BuildProvider();
 
-        var resolved = ((System.Collections.IEnumerable)provider
-                .GetService(typeof(System.Collections.Generic.IEnumerable<>)
-                    .MakeGenericType(generated.Type("IGreeter")))!)
+        var resolved = (
+            (System.Collections.IEnumerable)
+                provider.GetService(
+                    typeof(System.Collections.Generic.IEnumerable<>).MakeGenericType(
+                        generated.Type("IGreeter")
+                    )
+                )!
+        )
             .Cast<object>()
             .Select(g => g.GetType().Name)
             .OrderBy(n => n)
@@ -54,7 +61,8 @@ public class InterceptionScopeTests {
     }
 
     [Fact]
-    public void TwoMarkedImplementations_EachGetTheirOwnWrapper() {
+    public void TwoMarkedImplementations_EachGetTheirOwnWrapper()
+    {
         var generated = GeneratedAssembly.Create(
             Source(
                 """
@@ -63,13 +71,20 @@ public class InterceptionScopeTests {
 
                 [SingletonService] [Intercept(typeof(CountingInterceptor))]
                 public sealed class Quiet : IGreeter { public string Greet() => "quiet"; }
-                """));
+                """
+            )
+        );
 
         var provider = generated.BuildProvider();
 
-        var resolved = ((System.Collections.IEnumerable)provider
-                .GetService(typeof(System.Collections.Generic.IEnumerable<>)
-                    .MakeGenericType(generated.Type("IGreeter")))!)
+        var resolved = (
+            (System.Collections.IEnumerable)
+                provider.GetService(
+                    typeof(System.Collections.Generic.IEnumerable<>).MakeGenericType(
+                        generated.Type("IGreeter")
+                    )
+                )!
+        )
             .Cast<object>()
             .Select(g => g.GetType().Name)
             .OrderBy(n => n)
@@ -86,7 +101,8 @@ public class InterceptionScopeTests {
     /// service that had asked for it.
     /// </summary>
     [Fact]
-    public void AnInterceptorOrderedOutsideADecorator_StillApplies() {
+    public void AnInterceptorOrderedOutsideADecorator_StillApplies()
+    {
         var generated = GeneratedAssembly.Create(
             Source(
                 """
@@ -97,7 +113,9 @@ public class InterceptionScopeTests {
                 public sealed class Bracketed(IGreeter inner) : IGreeter {
                     public string Greet() => "[" + inner.Greet() + "]";
                 }
-                """));
+                """
+            )
+        );
 
         var resolved = generated.ResolveRequired("IGreeter");
 
@@ -111,18 +129,18 @@ public class InterceptionScopeTests {
 
     private static string Source(string body) =>
         $$"""
-          using DependencyModules.Runtime.Attributes;
-          using DependencyModules.Runtime.Interception;
+            using DependencyModules.Runtime.Attributes;
+            using DependencyModules.Runtime.Interception;
 
-          namespace TestNamespace;
+            namespace TestNamespace;
 
-          public interface IGreeter { string Greet(); }
+            public interface IGreeter { string Greet(); }
 
-          {{Interceptor}}
+            {{Interceptor}}
 
-          {{body}}
+            {{body}}
 
-          [DependencyModule]
-          public partial class TestModule;
-          """;
+            [DependencyModule]
+            public partial class TestModule;
+            """;
 }

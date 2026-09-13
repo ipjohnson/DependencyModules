@@ -10,9 +10,10 @@ namespace DependencyModules.SourceGenerator;
 /// module partial and a generator built on the same base class does not.
 /// </summary>
 [Generator]
-public class SourceGenerator : BaseSourceGenerator {
-
-    protected override IEnumerable<IDependencyModuleSourceGenerator> AttributeSourceGenerators() {
+public class SourceGenerator : BaseSourceGenerator
+{
+    protected override IEnumerable<IDependencyModuleSourceGenerator> AttributeSourceGenerators()
+    {
         yield return new ServiceSourceGenerator();
         yield return new InterceptorSourceGenerator();
         yield return new global::DependencyModules.Conventions.ConventionGenerator();
@@ -23,9 +24,13 @@ public class SourceGenerator : BaseSourceGenerator {
     /// default, so that a third party building on it contributes to these modules rather than
     /// declaring every one of them a second time; this is the generator that claim belongs to.
     /// </summary>
-    protected override void SetupRootGenerator(IncrementalGeneratorInitializationContext context,
-        IncrementalValueProvider<ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)>> valuesProvider) {
-
+    protected override void SetupRootGenerator(
+        IncrementalGeneratorInitializationContext context,
+        IncrementalValueProvider<
+            ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)>
+        > valuesProvider
+    )
+    {
         DependencyModuleWriter.Register(context, valuesProvider, generateAttribute: true);
 
         // DM0021. Registered here for the same reason DM0016 is: a framework generator loaded
@@ -35,8 +40,10 @@ public class SourceGenerator : BaseSourceGenerator {
         // DM0016. Registered here rather than on the base class so that a framework generator loaded
         // alongside this one does not report the same usage twice.
         context.RegisterSourceOutput(
-            valuesProvider.Combine(AssemblyModuleAttributeDiagnostics.Collect(context))
+            valuesProvider
+                .Combine(AssemblyModuleAttributeDiagnostics.Collect(context))
                 .Combine(context.CompilationProvider),
-            AssemblyModuleAttributeDiagnostics.Report);
+            AssemblyModuleAttributeDiagnostics.Report
+        );
     }
 }

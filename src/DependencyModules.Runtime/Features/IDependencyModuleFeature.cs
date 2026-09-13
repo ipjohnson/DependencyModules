@@ -11,7 +11,8 @@ namespace DependencyModules.Runtime.Features;
 /// The feature type to be handled by the module. Represents objects or details that can be utilized
 /// to configure or apply specific functionality during service registration.
 /// </typeparam>
-public interface IDependencyModuleFeature<in TFeature> {
+public interface IDependencyModuleFeature<in TFeature>
+{
     /// <summary>
     /// Gets the order in which the dependency module feature should be applied.
     /// Features with a lower order value are handled earlier during the service collection

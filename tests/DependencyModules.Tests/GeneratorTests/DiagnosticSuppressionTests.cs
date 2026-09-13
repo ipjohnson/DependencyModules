@@ -28,23 +28,28 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// because a generator that failed has nothing to point at. Adding a code without adding it here
 /// means shipping one more diagnostic nobody can turn off where they wrote it.
 /// </summary>
-public class DiagnosticSuppressionTests {
-
+public class DiagnosticSuppressionTests
+{
     [Theory]
     [MemberData(nameof(Triggers))]
-    public void ADiagnostic_IsReportedAgainstASyntaxTree(string code, string source) {
+    public void ADiagnostic_IsReportedAgainstASyntaxTree(string code, string source)
+    {
         var result = GeneratorTestHarness.Run(source);
 
         var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == code);
 
-        Assert.True(diagnostic.Location.SourceTree != null,
-            $"{code} was reported at {diagnostic.Location.Kind} with no syntax tree, so neither " +
-            ".editorconfig nor #pragma can silence it. Location: " + diagnostic.Location);
+        Assert.True(
+            diagnostic.Location.SourceTree != null,
+            $"{code} was reported at {diagnostic.Location.Kind} with no syntax tree, so neither "
+                + ".editorconfig nor #pragma can silence it. Location: "
+                + diagnostic.Location
+        );
     }
 
     [Theory]
     [MemberData(nameof(Triggers))]
-    public void ADiagnostic_IsReportedInTheFileThatCausedIt(string code, string source) {
+    public void ADiagnostic_IsReportedInTheFileThatCausedIt(string code, string source)
+    {
         var result = GeneratorTestHarness.Run(source);
 
         var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == code);
@@ -58,282 +63,383 @@ public class DiagnosticSuppressionTests {
     /// because they are the two that were never moved and already carry a real location — they are
     /// covered by AssemblyModuleAttributeDiagnosticsTests.
     /// </summary>
-    public static IEnumerable<object[]> Triggers() {
-        yield return ["DM0002", Module("""
-                                       public interface IThing;
-                                       [SingletonService]
-                                       public abstract class Thing : IThing;
-                                       """)];
+    public static IEnumerable<object[]> Triggers()
+    {
+        yield return
+        [
+            "DM0002",
+            Module(
+                """
+                public interface IThing;
+                [SingletonService]
+                public abstract class Thing : IThing;
+                """
+            ),
+        ];
 
-        yield return ["DM0003", """
-                                using DependencyModules.Runtime.Attributes;
-                                namespace TestNamespace;
-                                [DependencyModule]
-                                public class NotPartialModule;
-                                """];
+        yield return
+        [
+            "DM0003",
+            """
+                using DependencyModules.Runtime.Attributes;
+                namespace TestNamespace;
+                [DependencyModule]
+                public class NotPartialModule;
+                """,
+        ];
 
-        yield return ["DM0012", Module("""
-                                       public interface IThing;
-                                       [SingletonService]
-                                       [IfEnvironment]
-                                       public class Thing : IThing;
-                                       """)];
+        yield return
+        [
+            "DM0012",
+            Module(
+                """
+                public interface IThing;
+                [SingletonService]
+                [IfEnvironment]
+                public class Thing : IThing;
+                """
+            ),
+        ];
 
-        yield return ["DM0014", Module("""
-                                       public interface IThing<T>;
-                                       [CrossWireService]
-                                       public class Thing<T> : IThing<T>;
-                                       """)];
+        yield return
+        [
+            "DM0014",
+            Module(
+                """
+                public interface IThing<T>;
+                [CrossWireService]
+                public class Thing<T> : IThing<T>;
+                """
+            ),
+        ];
 
-        yield return ["DM0017", """
-                                using DependencyModules.Runtime.Attributes;
-                                namespace TestNamespace;
-                                public static class Outer {
-                                    [DependencyModule]
-                                    public partial class NestedModule;
-                                }
-                                """];
+        yield return
+        [
+            "DM0017",
+            """
+                using DependencyModules.Runtime.Attributes;
+                namespace TestNamespace;
+                public static class Outer {
+                    [DependencyModule]
+                    public partial class NestedModule;
+                }
+                """,
+        ];
 
-        yield return ["DM0004", Convention("""
-                                           public interface IFoo { }
-                                           public class Foo : IFoo { }
+        yield return
+        [
+            "DM0004",
+            Convention(
+                """
+                public interface IFoo { }
+                public class Foo : IFoo { }
 
-                                           [DependencyModule]
-                                           public partial class TestModule : IConventionModule {
-                                               void IConventionModule.Conventions(IConventionDefinitions conventions) {
-                                                   conventions.RegisterAll<IFoo>().AsSingleton();
-                                                   conventions.RegisterAll<IFoo>().AsScoped();
-                                               }
-                                           }
-                                           """)];
+                [DependencyModule]
+                public partial class TestModule : IConventionModule {
+                    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                        conventions.RegisterAll<IFoo>().AsSingleton();
+                        conventions.RegisterAll<IFoo>().AsScoped();
+                    }
+                }
+                """
+            ),
+        ];
 
-        yield return ["DM0005", Convention("""
-                                           [DependencyModule]
-                                           public partial class TestModule : IConventionModule {
-                                               void IConventionModule.Conventions(IConventionDefinitions conventions) {
-                                                   conventions.RegisterAll().WithName("NothingMatchesThis").AsSelf().AsScoped();
-                                               }
-                                           }
-                                           """)];
+        yield return
+        [
+            "DM0005",
+            Convention(
+                """
+                [DependencyModule]
+                public partial class TestModule : IConventionModule {
+                    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                        conventions.RegisterAll().WithName("NothingMatchesThis").AsSelf().AsScoped();
+                    }
+                }
+                """
+            ),
+        ];
 
-        yield return ["DM0006", Convention("""
-                                           public interface IFoo { }
-                                           public class Foo : IFoo { private Foo() { } }
+        yield return
+        [
+            "DM0006",
+            Convention(
+                """
+                public interface IFoo { }
+                public class Foo : IFoo { private Foo() { } }
 
-                                           [DependencyModule]
-                                           public partial class TestModule : IConventionModule {
-                                               void IConventionModule.Conventions(IConventionDefinitions conventions) {
-                                                   conventions.RegisterAll<IFoo>().AsSingleton();
-                                               }
-                                           }
-                                           """)];
+                [DependencyModule]
+                public partial class TestModule : IConventionModule {
+                    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                        conventions.RegisterAll<IFoo>().AsSingleton();
+                    }
+                }
+                """
+            ),
+        ];
 
-        yield return ["DM0009", Convention("""
-                                           public interface IFoo { }
-                                           public class Foo : IFoo { }
+        yield return
+        [
+            "DM0009",
+            Convention(
+                """
+                public interface IFoo { }
+                public class Foo : IFoo { }
 
-                                           [DependencyModule]
-                                           public partial class TestModule : IConventionModule {
-                                               void IConventionModule.Conventions(IConventionDefinitions conventions) {
-                                                   conventions.RegisterAll<IFoo>().AsSelf().AlsoAsSelf().AsSingleton();
-                                               }
-                                           }
-                                           """)];
+                [DependencyModule]
+                public partial class TestModule : IConventionModule {
+                    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                        conventions.RegisterAll<IFoo>().AsSelf().AlsoAsSelf().AsSingleton();
+                    }
+                }
+                """
+            ),
+        ];
 
-        yield return ["DM0022", """
-                                using DependencyModules.Runtime.Attributes;
+        yield return
+        [
+            "DM0022",
+            """
+                using DependencyModules.Runtime.Attributes;
 
-                                namespace TestNamespace;
+                namespace TestNamespace;
 
-                                public interface IGreeter { string Greet(); }
+                public interface IGreeter { string Greet(); }
 
-                                [SingletonService]
-                                public class Loud : IGreeter { public string Greet() => "loud"; }
+                [SingletonService]
+                public class Loud : IGreeter { public string Greet() => "loud"; }
 
-                                [Decorator(Implementation = typeof(Loud))]
-                                public class Logged(IGreeter inner) : IGreeter {
-                                    public string Greet() => inner.Greet();
-                                }
+                [Decorator(Implementation = typeof(Loud))]
+                public class Logged(IGreeter inner) : IGreeter {
+                    public string Greet() => inner.Greet();
+                }
 
-                                [DependencyModule(GenerateFactories = true)]
-                                public partial class TestModule;
-                                """];
+                [DependencyModule(GenerateFactories = true)]
+                public partial class TestModule;
+                """,
+        ];
 
-        yield return ["DM0021", """
-                                using DependencyModules.Runtime.Attributes;
-                                using DependencyModules.Testing.Attributes;
+        yield return
+        [
+            "DM0021",
+            """
+                using DependencyModules.Runtime.Attributes;
+                using DependencyModules.Testing.Attributes;
 
-                                namespace TestNamespace;
+                namespace TestNamespace;
 
-                                public interface IThing;
+                public interface IThing;
 
-                                public class RealThing : IThing;
+                public class RealThing : IThing;
 
-                                public class Fixture {
-                                    [TestExport(typeof(IThing), Implementation = typeof(RealThing))]
-                                    public void Conflicting([Mock] IThing thing) { }
-                                }
-                                """];
+                public class Fixture {
+                    [TestExport(typeof(IThing), Implementation = typeof(RealThing))]
+                    public void Conflicting([Mock] IThing thing) { }
+                }
+                """,
+        ];
 
-        yield return ["DM0020", Convention("""
-                                           using DependencyModules.Runtime.Interception;
+        yield return
+        [
+            "DM0020",
+            Convention(
+                """
+                using DependencyModules.Runtime.Interception;
 
-                                           public interface IGreeter { string Greet(); }
+                public interface IGreeter { string Greet(); }
 
-                                           public sealed class CountingInterceptor : IInterceptor {
-                                               public TResult Intercept<TResult>(InvocationContext<TResult> context) => context.Proceed();
-                                           }
+                public sealed class CountingInterceptor : IInterceptor {
+                    public TResult Intercept<TResult>(InvocationContext<TResult> context) => context.Proceed();
+                }
 
-                                           [Intercept(typeof(CountingInterceptor))]
-                                           public sealed class Greeter : IGreeter { public string Greet() => "hi"; }
+                [Intercept(typeof(CountingInterceptor))]
+                public sealed class Greeter : IGreeter { public string Greet() => "hi"; }
 
-                                           [DependencyModule(OnlyRealm = true)]
-                                           public partial class ConventionModule : IConventionModule {
-                                               void IConventionModule.Conventions(IConventionDefinitions conventions) {
-                                                   conventions.RegisterAll<IGreeter>().AsSingleton();
-                                               }
-                                           }
-                                           """)];
+                [DependencyModule(OnlyRealm = true)]
+                public partial class ConventionModule : IConventionModule {
+                    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                        conventions.RegisterAll<IGreeter>().AsSingleton();
+                    }
+                }
+                """
+            ),
+        ];
 
-        yield return ["DM0010", Convention("""
-                                           public interface IFoo { }
-                                           public class Foo : IFoo { }
+        yield return
+        [
+            "DM0010",
+            Convention(
+                """
+                public interface IFoo { }
+                public class Foo : IFoo { }
 
-                                           [DependencyModule]
-                                           public partial class TestModule : IConventionModule {
-                                               void IConventionModule.Conventions(IConventionDefinitions conventions) {
-                                                   conventions.RegisterAll<IFoo>().AsSingleton();
-                                               }
-                                           }
-                                           """)];
+                [DependencyModule]
+                public partial class TestModule : IConventionModule {
+                    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                        conventions.RegisterAll<IFoo>().AsSingleton();
+                    }
+                }
+                """
+            ),
+        ];
 
-        yield return ["DM0011", Module("""
-                                       public interface IThing;
-                                       [SingletonService]
-                                       [IfEnvironment("Development")]
-                                       public class Thing : IThing;
-                                       """)];
+        yield return
+        [
+            "DM0011",
+            Module(
+                """
+                public interface IThing;
+                [SingletonService]
+                [IfEnvironment("Development")]
+                public class Thing : IThing;
+                """
+            ),
+        ];
 
-        yield return ["DM0007", """
-                                using DependencyModules.Runtime.Attributes;
+        yield return
+        [
+            "DM0007",
+            """
+                using DependencyModules.Runtime.Attributes;
 
-                                namespace TestNamespace;
+                namespace TestNamespace;
 
-                                public interface IThing { string Read(); }
+                public interface IThing { string Read(); }
 
-                                [SingletonService]
-                                public class Thing : IThing {
-                                    public string Read() => "";
-                                }
+                [SingletonService]
+                public class Thing : IThing {
+                    public string Read() => "";
+                }
 
-                                [Decorator(Order = 1)]
-                                public class FirstDecorator(IThing inner) : IThing {
-                                    public string Read() => inner.Read();
-                                }
+                [Decorator(Order = 1)]
+                public class FirstDecorator(IThing inner) : IThing {
+                    public string Read() => inner.Read();
+                }
 
-                                [Decorator(Order = 1)]
-                                public class SecondDecorator(IThing inner) : IThing {
-                                    public string Read() => inner.Read();
-                                }
+                [Decorator(Order = 1)]
+                public class SecondDecorator(IThing inner) : IThing {
+                    public string Read() => inner.Read();
+                }
 
-                                [DependencyModule]
-                                public partial class TestModule;
-                                """];
+                [DependencyModule]
+                public partial class TestModule;
+                """,
+        ];
 
-        yield return ["DM0013", """
-                                using DependencyModules.Runtime.Attributes;
+        yield return
+        [
+            "DM0013",
+            """
+                using DependencyModules.Runtime.Attributes;
 
-                                namespace TestNamespace;
+                namespace TestNamespace;
 
-                                public interface IStore<T> { string Read(T key); }
+                public interface IStore<T> { string Read(T key); }
 
-                                [SingletonService]
-                                public class Store<T> : IStore<T> {
-                                    public string Read(T key) => "";
-                                }
+                [SingletonService]
+                public class Store<T> : IStore<T> {
+                    public string Read(T key) => "";
+                }
 
-                                [Decorator]
-                                public class LoggingStore<T>(IStore<T> inner) : IStore<T> {
-                                    public string Read(T key) => inner.Read(key);
-                                }
+                [Decorator]
+                public class LoggingStore<T>(IStore<T> inner) : IStore<T> {
+                    public string Read(T key) => inner.Read(key);
+                }
 
-                                [DependencyModule]
-                                public partial class TestModule;
-                                """];
+                [DependencyModule]
+                public partial class TestModule;
+                """,
+        ];
 
-        yield return ["DM0008", Intercepted("""
-                                            public interface IAwkward {
-                                                bool TryGet(string key, out string value);
-                                            }
+        yield return
+        [
+            "DM0008",
+            Intercepted(
+                """
+                public interface IAwkward {
+                    bool TryGet(string key, out string value);
+                }
 
-                                            [SingletonService]
-                                            [Intercept(typeof(SyncOnlyInterceptor))]
-                                            public class Awkward : IAwkward {
-                                                public bool TryGet(string key, out string value) { value = key; return true; }
-                                            }
-                                            """)];
+                [SingletonService]
+                [Intercept(typeof(SyncOnlyInterceptor))]
+                public class Awkward : IAwkward {
+                    public bool TryGet(string key, out string value) { value = key; return true; }
+                }
+                """
+            ),
+        ];
 
-        yield return ["DM0015", Intercepted("""
-                                            public interface IAsyncOnly {
-                                                Task<string> GetAsync(string key);
-                                            }
+        yield return
+        [
+            "DM0015",
+            Intercepted(
+                """
+                public interface IAsyncOnly {
+                    Task<string> GetAsync(string key);
+                }
 
-                                            [SingletonService]
-                                            [Intercept(typeof(SyncOnlyInterceptor))]
-                                            public class AsyncOnly : IAsyncOnly {
-                                                public Task<string> GetAsync(string key) => Task.FromResult(key);
-                                            }
-                                            """)];
+                [SingletonService]
+                [Intercept(typeof(SyncOnlyInterceptor))]
+                public class AsyncOnly : IAsyncOnly {
+                    public Task<string> GetAsync(string key) => Task.FromResult(key);
+                }
+                """
+            ),
+        ];
 
-        yield return ["DM0018", """
-                                using DependencyModules.Runtime.Attributes;
-                                namespace TestNamespace;
-                                [DependencyModule]
-                                public partial class TestModule {
-                                    public int SizeLimit { get; set; }
-                                }
-                                """];
+        yield return
+        [
+            "DM0018",
+            """
+                using DependencyModules.Runtime.Attributes;
+                namespace TestNamespace;
+                [DependencyModule]
+                public partial class TestModule {
+                    public int SizeLimit { get; set; }
+                }
+                """,
+        ];
     }
 
     private static string Convention(string body) =>
         $$"""
-          using System;
-          using DependencyModules.Runtime.Attributes;
-          using DependencyModules.Runtime.Conventions;
+            using System;
+            using DependencyModules.Runtime.Attributes;
+            using DependencyModules.Runtime.Conventions;
 
-          namespace TestNamespace;
+            namespace TestNamespace;
 
-          {{body}}
-          """;
+            {{body}}
+            """;
 
     private static string Intercepted(string body) =>
         $$"""
-          using System.Threading.Tasks;
-          using DependencyModules.Runtime.Attributes;
-          using DependencyModules.Runtime.Interception;
+            using System.Threading.Tasks;
+            using DependencyModules.Runtime.Attributes;
+            using DependencyModules.Runtime.Interception;
 
-          namespace TestNamespace;
+            namespace TestNamespace;
 
-          [SingletonService]
-          public class SyncOnlyInterceptor : IInterceptor {
-              public TResult Intercept<TResult>(InvocationContext<TResult> context) => context.Proceed();
-          }
+            [SingletonService]
+            public class SyncOnlyInterceptor : IInterceptor {
+                public TResult Intercept<TResult>(InvocationContext<TResult> context) => context.Proceed();
+            }
 
-          {{body}}
+            {{body}}
 
-          [DependencyModule]
-          public partial class TestModule;
-          """;
+            [DependencyModule]
+            public partial class TestModule;
+            """;
 
     private static string Module(string body) =>
         $$"""
-          using DependencyModules.Runtime.Attributes;
+            using DependencyModules.Runtime.Attributes;
 
-          namespace TestNamespace;
+            namespace TestNamespace;
 
-          [DependencyModule]
-          public partial class TestModule;
+            [DependencyModule]
+            public partial class TestModule;
 
-          {{body}}
-          """;
+            {{body}}
+            """;
 }

@@ -3,23 +3,37 @@ using CSharpAuthor;
 namespace DependencyModules.SourceGenerator.Impl;
 
 // ReSharper disable InconsistentNaming
-public static class KnownTypes {
-    public static class Microsoft {
-        public static class DependencyInjection {
-            
+public static class KnownTypes
+{
+    public static class Microsoft
+    {
+        public static class DependencyInjection
+        {
             public const string Namespace = "Microsoft.Extensions.DependencyInjection";
 
-            public static readonly ITypeDefinition IServiceCollection =
-                TypeDefinition.Get(TypeDefinitionEnum.InterfaceDefinition, Namespace, "IServiceCollection");
-            
-            public static readonly ITypeDefinition IServiceProvider =
-                TypeDefinition.Get(TypeDefinitionEnum.InterfaceDefinition, "System", "IServiceProvider");
-            
-            public static readonly ITypeDefinition ServiceDescriptor = 
-                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "ServiceDescriptor");
-            
-            public static readonly ITypeDefinition FromKeyedServicesAttribute =
-                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "FromKeyedServicesAttribute");
+            public static readonly ITypeDefinition IServiceCollection = TypeDefinition.Get(
+                TypeDefinitionEnum.InterfaceDefinition,
+                Namespace,
+                "IServiceCollection"
+            );
+
+            public static readonly ITypeDefinition IServiceProvider = TypeDefinition.Get(
+                TypeDefinitionEnum.InterfaceDefinition,
+                "System",
+                "IServiceProvider"
+            );
+
+            public static readonly ITypeDefinition ServiceDescriptor = TypeDefinition.Get(
+                TypeDefinitionEnum.ClassDefinition,
+                Namespace,
+                "ServiceDescriptor"
+            );
+
+            public static readonly ITypeDefinition FromKeyedServicesAttribute = TypeDefinition.Get(
+                TypeDefinitionEnum.ClassDefinition,
+                Namespace,
+                "FromKeyedServicesAttribute"
+            );
 
             /// <summary>
             /// Home of the TryAdd family. Invoked statically so the generated file needs no using.
@@ -28,48 +42,82 @@ public static class KnownTypes {
                 TypeDefinition.Get(
                     TypeDefinitionEnum.ClassDefinition,
                     Namespace + ".Extensions",
-                    "ServiceCollectionDescriptorExtensions");
+                    "ServiceCollectionDescriptorExtensions"
+                );
         }
-        
-        public static class TextJson {
+
+        public static class TextJson
+        {
             public const string Namespace = "System.Text.Json.Serialization";
-            
+
             public static readonly ITypeDefinition JsonSourceGenerationOptionsAttribute =
-                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "JsonSourceGenerationOptionsAttribute");
-            
-            public static readonly ITypeDefinition IJsonTypeInfoResolver =
-                TypeDefinition.Get(TypeDefinitionEnum.InterfaceDefinition, Namespace + ".Metadata", "IJsonTypeInfoResolver");
+                TypeDefinition.Get(
+                    TypeDefinitionEnum.ClassDefinition,
+                    Namespace,
+                    "JsonSourceGenerationOptionsAttribute"
+                );
+
+            public static readonly ITypeDefinition IJsonTypeInfoResolver = TypeDefinition.Get(
+                TypeDefinitionEnum.InterfaceDefinition,
+                Namespace + ".Metadata",
+                "IJsonTypeInfoResolver"
+            );
         }
     }
 
-    public static class DependencyModules {
-        public static class Attributes {
+    public static class DependencyModules
+    {
+        public static class Attributes
+        {
             public const string Namespace = "DependencyModules.Runtime.Attributes";
 
-            public static readonly ITypeDefinition DependencyModuleAttribute =
-                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "DependencyModuleAttribute");
+            public static readonly ITypeDefinition DependencyModuleAttribute = TypeDefinition.Get(
+                TypeDefinitionEnum.ClassDefinition,
+                Namespace,
+                "DependencyModuleAttribute"
+            );
 
-            public static readonly ITypeDefinition TransientServiceAttribute =
-                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "TransientServiceAttribute");
+            public static readonly ITypeDefinition TransientServiceAttribute = TypeDefinition.Get(
+                TypeDefinitionEnum.ClassDefinition,
+                Namespace,
+                "TransientServiceAttribute"
+            );
 
-            public static readonly ITypeDefinition ScopedServiceAttribute =
-                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "ScopedServiceAttribute");
+            public static readonly ITypeDefinition ScopedServiceAttribute = TypeDefinition.Get(
+                TypeDefinitionEnum.ClassDefinition,
+                Namespace,
+                "ScopedServiceAttribute"
+            );
 
-            public static readonly ITypeDefinition SingletonServiceAttribute =
-                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "SingletonServiceAttribute");
+            public static readonly ITypeDefinition SingletonServiceAttribute = TypeDefinition.Get(
+                TypeDefinitionEnum.ClassDefinition,
+                Namespace,
+                "SingletonServiceAttribute"
+            );
 
-            public static readonly ITypeDefinition DecoratorAttribute =
-                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "DecoratorAttribute");
+            public static readonly ITypeDefinition DecoratorAttribute = TypeDefinition.Get(
+                TypeDefinitionEnum.ClassDefinition,
+                Namespace,
+                "DecoratorAttribute"
+            );
 
-            public static readonly ITypeDefinition DecorateAttribute =
-                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "DecorateAttribute");
+            public static readonly ITypeDefinition DecorateAttribute = TypeDefinition.Get(
+                TypeDefinitionEnum.ClassDefinition,
+                Namespace,
+                "DecorateAttribute"
+            );
 
-            public static readonly ITypeDefinition InterceptAttribute =
-                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "InterceptAttribute");
-            
-            public static readonly ITypeDefinition CrossWireServiceAttribute =
-                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "CrossWireServiceAttribute");
+            public static readonly ITypeDefinition InterceptAttribute = TypeDefinition.Get(
+                TypeDefinitionEnum.ClassDefinition,
+                Namespace,
+                "InterceptAttribute"
+            );
 
+            public static readonly ITypeDefinition CrossWireServiceAttribute = TypeDefinition.Get(
+                TypeDefinitionEnum.ClassDefinition,
+                Namespace,
+                "CrossWireServiceAttribute"
+            );
         }
 
         /// <summary>
@@ -77,66 +125,101 @@ public static class KnownTypes {
         /// these at run time — but DM0021 is about two of them written together, and that is a
         /// question only a compiler can answer before the test runs.
         /// </summary>
-        public static class Testing {
+        public static class Testing
+        {
             public const string Namespace = "DependencyModules.Testing.Attributes";
 
-            public static readonly ITypeDefinition MockAttribute =
-                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "MockAttribute");
+            public static readonly ITypeDefinition MockAttribute = TypeDefinition.Get(
+                TypeDefinitionEnum.ClassDefinition,
+                Namespace,
+                "MockAttribute"
+            );
 
-            public static readonly ITypeDefinition TestExportAttribute =
-                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "TestExportAttribute");
+            public static readonly ITypeDefinition TestExportAttribute = TypeDefinition.Get(
+                TypeDefinitionEnum.ClassDefinition,
+                Namespace,
+                "TestExportAttribute"
+            );
         }
 
-        public static class Interfaces {
+        public static class Interfaces
+        {
             public const string Namespace = "DependencyModules.Runtime.Interfaces";
 
             // ReSharper disable once InconsistentNaming
-            public static readonly ITypeDefinition IDependencyModule =
-                TypeDefinition.Get(TypeDefinitionEnum.InterfaceDefinition, Namespace, "IDependencyModule");
+            public static readonly ITypeDefinition IDependencyModule = TypeDefinition.Get(
+                TypeDefinitionEnum.InterfaceDefinition,
+                Namespace,
+                "IDependencyModule"
+            );
 
             // ReSharper disable once InconsistentNaming
-            public static readonly ITypeDefinition IDependencyModuleProvider =
-                TypeDefinition.Get(TypeDefinitionEnum.InterfaceDefinition, Namespace, "IDependencyModuleProvider");
+            public static readonly ITypeDefinition IDependencyModuleProvider = TypeDefinition.Get(
+                TypeDefinitionEnum.InterfaceDefinition,
+                Namespace,
+                "IDependencyModuleProvider"
+            );
 
             // ReSharper disable once InconsistentNaming
-            public static readonly ITypeDefinition IModuleEnvironment =
-                TypeDefinition.Get(TypeDefinitionEnum.InterfaceDefinition, Namespace, "IModuleEnvironment");
+            public static readonly ITypeDefinition IModuleEnvironment = TypeDefinition.Get(
+                TypeDefinitionEnum.InterfaceDefinition,
+                Namespace,
+                "IModuleEnvironment"
+            );
         }
 
-        public static class Features {
-            
+        public static class Features
+        {
             public const string Namespace = "DependencyModules.Runtime.Features";
 
             // ReSharper disable once InconsistentNaming
-            public static readonly ITypeDefinition IFeatureApplicator =
-                TypeDefinition.Get(TypeDefinitionEnum.InterfaceDefinition, Namespace, "IFeatureApplicator");
+            public static readonly ITypeDefinition IFeatureApplicator = TypeDefinition.Get(
+                TypeDefinitionEnum.InterfaceDefinition,
+                Namespace,
+                "IFeatureApplicator"
+            );
 
             // ReSharper disable once InconsistentNaming
             public static readonly ITypeDefinition IDependencyModuleApplicatorProvider =
-                TypeDefinition.Get(TypeDefinitionEnum.InterfaceDefinition, Namespace, "IDependencyModuleApplicatorProvider");
-            
+                TypeDefinition.Get(
+                    TypeDefinitionEnum.InterfaceDefinition,
+                    Namespace,
+                    "IDependencyModuleApplicatorProvider"
+                );
+
             // ReSharper disable once InconsistentNaming
-            public static readonly ITypeDefinition FeatureApplicator =
-                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "FeatureApplicator");
-
+            public static readonly ITypeDefinition FeatureApplicator = TypeDefinition.Get(
+                TypeDefinitionEnum.ClassDefinition,
+                Namespace,
+                "FeatureApplicator"
+            );
         }
-        
 
-        public static class Helpers {
+        public static class Helpers
+        {
             public const string Namespace = "DependencyModules.Runtime.Helpers";
 
-            public static readonly ITypeDefinition DecoratorHelper =
-                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "DecoratorHelper");
+            public static readonly ITypeDefinition DecoratorHelper = TypeDefinition.Get(
+                TypeDefinitionEnum.ClassDefinition,
+                Namespace,
+                "DecoratorHelper"
+            );
 
-            public static readonly ITypeDefinition DecoratorRegistration =
-                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "DecoratorRegistration");
+            public static readonly ITypeDefinition DecoratorRegistration = TypeDefinition.Get(
+                TypeDefinitionEnum.ClassDefinition,
+                Namespace,
+                "DecoratorRegistration"
+            );
 
             /// <summary>
             /// The tests a generated environment condition calls. Invoked statically, so the
             /// generated file needs no using.
             /// </summary>
-            public static readonly ITypeDefinition EnvironmentConditions =
-                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "EnvironmentConditions");
+            public static readonly ITypeDefinition EnvironmentConditions = TypeDefinition.Get(
+                TypeDefinitionEnum.ClassDefinition,
+                Namespace,
+                "EnvironmentConditions"
+            );
         }
 
         /// <summary>
@@ -146,14 +229,21 @@ public static class KnownTypes {
         /// The state and context types are generic over the member's result, so they are built per
         /// member rather than being constants.
         /// </remarks>
-        public static class Interception {
+        public static class Interception
+        {
             public const string Namespace = "DependencyModules.Runtime.Interception";
 
-            public static readonly ITypeDefinition CallerInfo =
-                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "CallerInfo");
+            public static readonly ITypeDefinition CallerInfo = TypeDefinition.Get(
+                TypeDefinitionEnum.ClassDefinition,
+                Namespace,
+                "CallerInfo"
+            );
 
-            public static readonly ITypeDefinition NoResult =
-                TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, Namespace, "NoResult");
+            public static readonly ITypeDefinition NoResult = TypeDefinition.Get(
+                TypeDefinitionEnum.ClassDefinition,
+                Namespace,
+                "NoResult"
+            );
 
             public static ITypeDefinition InvocationState(ITypeDefinition result) =>
                 Close("InvocationState", result);
@@ -175,20 +265,36 @@ public static class KnownTypes {
 
             private static ITypeDefinition Close(string name, ITypeDefinition argument) =>
                 new GenericTypeDefinition(
-                    TypeDefinitionEnum.ClassDefinition, Namespace, name, new[] { argument });
+                    TypeDefinitionEnum.ClassDefinition,
+                    Namespace,
+                    name,
+                    new[] { argument }
+                );
         }
     }
 
-    public static class System {
-        public static readonly ITypeDefinition ArgumentOutOfRangeException =
-            TypeDefinition.Get(TypeDefinitionEnum.ClassDefinition, "System", "ArgumentOutOfRangeException");
+    public static class System
+    {
+        public static readonly ITypeDefinition ArgumentOutOfRangeException = TypeDefinition.Get(
+            TypeDefinitionEnum.ClassDefinition,
+            "System",
+            "ArgumentOutOfRangeException"
+        );
 
         public static ITypeDefinition ValueTask(ITypeDefinition result) =>
             new GenericTypeDefinition(
-                TypeDefinitionEnum.ClassDefinition, "System.Threading.Tasks", "ValueTask", new[] { result });
+                TypeDefinitionEnum.ClassDefinition,
+                "System.Threading.Tasks",
+                "ValueTask",
+                new[] { result }
+            );
 
         public static ITypeDefinition AsyncEnumerable(ITypeDefinition item) =>
             new GenericTypeDefinition(
-                TypeDefinitionEnum.InterfaceDefinition, "System.Collections.Generic", "IAsyncEnumerable", new[] { item });
+                TypeDefinitionEnum.InterfaceDefinition,
+                "System.Collections.Generic",
+                "IAsyncEnumerable",
+                new[] { item }
+            );
     }
 }

@@ -14,31 +14,41 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities;
 /// implies it, and Roslyn reports a constructor constraint for a <c>struct</c>-constrained parameter
 /// even though repeating <c>new()</c> alongside it is CS0451.
 /// </remarks>
-public static class TypeParameterReader {
-
-    public static TypeParameterModel Read(ITypeParameterSymbol parameter) {
+public static class TypeParameterReader
+{
+    public static TypeParameterModel Read(ITypeParameterSymbol parameter)
+    {
         string? primary = null;
 
-        if (parameter.HasUnmanagedTypeConstraint) {
+        if (parameter.HasUnmanagedTypeConstraint)
+        {
             primary = "unmanaged";
-        } else if (parameter.HasValueTypeConstraint) {
+        }
+        else if (parameter.HasValueTypeConstraint)
+        {
             primary = "struct";
-        } else if (parameter.HasReferenceTypeConstraint) {
-            primary = parameter.ReferenceTypeConstraintNullableAnnotation == NullableAnnotation.Annotated
-                ? "class?"
-                : "class";
-        } else if (parameter.HasNotNullConstraint) {
+        }
+        else if (parameter.HasReferenceTypeConstraint)
+        {
+            primary =
+                parameter.ReferenceTypeConstraintNullableAnnotation == NullableAnnotation.Annotated
+                    ? "class?"
+                    : "class";
+        }
+        else if (parameter.HasNotNullConstraint)
+        {
             primary = "notnull";
         }
 
         var constraintTypes = new ITypeDefinition[parameter.ConstraintTypes.Length];
 
-        for (var i = 0; i < constraintTypes.Length; i++) {
+        for (var i = 0; i < constraintTypes.Length; i++)
+        {
             constraintTypes[i] = parameter.ConstraintTypes[i].GetTypeDefinition();
         }
 
-        var defaultConstructor = parameter.HasConstructorConstraint &&
-                                 primary is not ("struct" or "unmanaged");
+        var defaultConstructor =
+            parameter.HasConstructorConstraint && primary is not ("struct" or "unmanaged");
 
         return new TypeParameterModel(parameter.Name, primary, constraintTypes, defaultConstructor);
     }

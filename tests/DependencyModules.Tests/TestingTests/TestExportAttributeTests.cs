@@ -9,8 +9,8 @@ namespace DependencyModules.Tests.TestingTests;
 /// [TestExport] lets a test override a registration for the duration of that test, so the lifetime
 /// and implementation it produces have to match what was asked for.
 /// </summary>
-public class TestExportAttributeTests {
-
+public class TestExportAttributeTests
+{
     private interface IThing;
 
     private class Thing : IThing;
@@ -18,17 +18,20 @@ public class TestExportAttributeTests {
     private class OtherThing : IThing;
 
     [Fact]
-    public void DefaultsToTransient() {
+    public void DefaultsToTransient()
+    {
         Assert.Equal(ServiceLifetime.Transient, new TestExportAttribute(typeof(IThing)).Lifetime);
     }
 
     [Fact]
-    public void DefaultsToNoSeparateImplementation() {
+    public void DefaultsToNoSeparateImplementation()
+    {
         Assert.Null(new TestExportAttribute(typeof(IThing)).Implementation);
     }
 
     [Fact]
-    public void ExposesTheServiceItWasGiven() {
+    public void ExposesTheServiceItWasGiven()
+    {
         Assert.Equal(typeof(IThing), new TestExportAttribute(typeof(IThing)).Service);
     }
 
@@ -36,10 +39,12 @@ public class TestExportAttributeTests {
     [InlineData(ServiceLifetime.Singleton)]
     [InlineData(ServiceLifetime.Scoped)]
     [InlineData(ServiceLifetime.Transient)]
-    public void RegistersWithTheRequestedLifetime(ServiceLifetime lifetime) {
-        var attribute = new TestExportAttribute(typeof(IThing)) {
+    public void RegistersWithTheRequestedLifetime(ServiceLifetime lifetime)
+    {
+        var attribute = new TestExportAttribute(typeof(IThing))
+        {
             Implementation = typeof(Thing),
-            Lifetime = lifetime
+            Lifetime = lifetime,
         };
 
         var collection = Setup(attribute);
@@ -51,7 +56,8 @@ public class TestExportAttributeTests {
     }
 
     [Fact]
-    public void WithoutAnImplementation_RegistersTheServiceAsItsOwnImplementation() {
+    public void WithoutAnImplementation_RegistersTheServiceAsItsOwnImplementation()
+    {
         var collection = Setup(new TestExportAttribute(typeof(Thing)));
 
         var descriptor = Assert.Single(collection);
@@ -60,11 +66,15 @@ public class TestExportAttributeTests {
     }
 
     [Fact]
-    public void RegisteredServiceResolvesFromTheProvider() {
-        var collection = Setup(new TestExportAttribute(typeof(IThing)) {
-            Implementation = typeof(OtherThing),
-            Lifetime = ServiceLifetime.Singleton
-        });
+    public void RegisteredServiceResolvesFromTheProvider()
+    {
+        var collection = Setup(
+            new TestExportAttribute(typeof(IThing))
+            {
+                Implementation = typeof(OtherThing),
+                Lifetime = ServiceLifetime.Singleton,
+            }
+        );
 
         var provider = collection.BuildServiceProvider();
 
@@ -77,13 +87,17 @@ public class TestExportAttributeTests {
     /// the split here means re-adding a lifecycle hook has to be a decision rather than an accident.
     /// </summary>
     [Fact]
-    public void RegistersServicesWithoutTakingPartInTestStartup() {
-        Assert.IsAssignableFrom<ITestServiceSetupAttribute>(new TestExportAttribute(typeof(IThing)));
+    public void RegistersServicesWithoutTakingPartInTestStartup()
+    {
+        Assert.IsAssignableFrom<ITestServiceSetupAttribute>(
+            new TestExportAttribute(typeof(IThing))
+        );
         Assert.False(new TestExportAttribute(typeof(IThing)) is ITestStartupAttribute);
     }
 
     [Fact]
-    public void AppliesToAssembliesClassesAndMethods() {
+    public void AppliesToAssembliesClassesAndMethods()
+    {
         var usage = typeof(TestExportAttribute)
             .GetCustomAttributes(typeof(AttributeUsageAttribute), false)
             .Cast<AttributeUsageAttribute>()
@@ -98,7 +112,8 @@ public class TestExportAttributeTests {
     /// <summary>
     /// SetupServiceCollection does not read the test method, so tests supply none.
     /// </summary>
-    private static IServiceCollection Setup(TestExportAttribute attribute) {
+    private static IServiceCollection Setup(TestExportAttribute attribute)
+    {
         var collection = new ServiceCollection();
         attribute.SetupServiceCollection(null!, collection);
         return collection;

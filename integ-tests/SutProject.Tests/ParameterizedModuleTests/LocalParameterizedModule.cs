@@ -7,8 +7,7 @@ namespace SutProject.Tests.ParameterizedModuleTests;
 
 [DependencyModule]
 [ParameterizedModule("local-string", 20, C = "CValue")]
-public partial class LocalParameterizedModule : IServiceCollectionConfiguration {
-    public void ConfigureServices(IServiceCollection services) {
-        
-    }
+public partial class LocalParameterizedModule : IServiceCollectionConfiguration
+{
+    public void ConfigureServices(IServiceCollection services) { }
 }

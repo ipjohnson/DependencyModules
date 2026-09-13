@@ -1,5 +1,5 @@
-using DependencyModules.Runtime.Conventions;
 using DependencyModules.Runtime.Attributes;
+using DependencyModules.Runtime.Conventions;
 
 namespace SutProject.Tests.ConventionTests;
 
@@ -10,18 +10,21 @@ namespace SutProject.Tests.ConventionTests;
 // Direct declaration, and reach through interface inheritance.
 // ---------------------------------------------------------------------------
 
-public interface IConventionService {
+public interface IConventionService
+{
     string Name { get; }
 }
 
 /// <summary>Extends the scanned interface, so implementing it is a declared match.</summary>
 public interface IAuditedConventionService : IConventionService { }
 
-public class DirectService : IConventionService {
+public class DirectService : IConventionService
+{
     public string Name => "direct";
 }
 
-public class InheritedService : IAuditedConventionService {
+public class InheritedService : IAuditedConventionService
+{
     public string Name => "inherited";
 }
 
@@ -31,19 +34,23 @@ public class InheritedService : IAuditedConventionService {
 // through a base class and matches only with IncludeBaseClasses().
 // ---------------------------------------------------------------------------
 
-public interface IBaseClassReachService {
+public interface IBaseClassReachService
+{
     string Name { get; }
 }
 
-public class DirectReachService : IBaseClassReachService {
+public class DirectReachService : IBaseClassReachService
+{
     public string Name => "direct-reach";
 }
 
-public abstract class ReachServiceBase : IBaseClassReachService {
+public abstract class ReachServiceBase : IBaseClassReachService
+{
     public abstract string Name { get; }
 }
 
-public class ThroughBaseClass : ReachServiceBase {
+public class ThroughBaseClass : ReachServiceBase
+{
     public override string Name => "through-base";
 }
 
@@ -51,7 +58,8 @@ public class ThroughBaseClass : ReachServiceBase {
 // Open generic scanned against concrete closings.
 // ---------------------------------------------------------------------------
 
-public interface IConventionHandler<TIn, TOut> {
+public interface IConventionHandler<TIn, TOut>
+{
     TOut Handle(TIn input);
 }
 
@@ -59,15 +67,18 @@ public class CreateOrder { }
 
 public class RenameOrder { }
 
-public class OrderId {
+public class OrderId
+{
     public int Value { get; set; }
 }
 
-public class CreateOrderHandler : IConventionHandler<CreateOrder, OrderId> {
+public class CreateOrderHandler : IConventionHandler<CreateOrder, OrderId>
+{
     public OrderId Handle(CreateOrder input) => new() { Value = 1 };
 }
 
-public class RenameOrderHandler : IConventionHandler<RenameOrder, OrderId> {
+public class RenameOrderHandler : IConventionHandler<RenameOrder, OrderId>
+{
     public OrderId Handle(RenameOrder input) => new() { Value = 2 };
 }
 
@@ -75,11 +86,13 @@ public class RenameOrderHandler : IConventionHandler<RenameOrder, OrderId> {
 // A generic implementation passing its own parameter through, which registers open.
 // ---------------------------------------------------------------------------
 
-public interface IConventionCache<T> {
+public interface IConventionCache<T>
+{
     string Describe();
 }
 
-public class PassThroughCache<T> : IConventionCache<T> {
+public class PassThroughCache<T> : IConventionCache<T>
+{
     public string Describe() => "open:" + typeof(T).Name;
 }
 
@@ -88,13 +101,15 @@ public class PassThroughCache<T> : IConventionCache<T> {
 // closed construction the type actually implements.
 // ---------------------------------------------------------------------------
 
-public interface IConventionStore<T> {
+public interface IConventionStore<T>
+{
     string Describe();
 }
 
 public interface IAuditedStore<T> : IConventionStore<T> { }
 
-public class StringStore : IAuditedStore<string> {
+public class StringStore : IAuditedStore<string>
+{
     public string Describe() => "audited:string";
 }
 
@@ -102,16 +117,19 @@ public class StringStore : IAuditedStore<string> {
 // An explicit attribute always wins; the convention picks up only the unattributed type.
 // ---------------------------------------------------------------------------
 
-public interface IAttributeWinsService {
+public interface IAttributeWinsService
+{
     string Name { get; }
 }
 
 [SingletonService]
-public class AttributedService : IAttributeWinsService {
+public class AttributedService : IAttributeWinsService
+{
     public string Name => "attributed";
 }
 
-public class ByConventionService : IAttributeWinsService {
+public class ByConventionService : IAttributeWinsService
+{
     public string Name => "by-convention";
 }
 
@@ -124,8 +142,10 @@ public class ByConventionService : IAttributeWinsService {
 /// extends it.
 /// </summary>
 [DependencyModule]
-public partial class ConventionSutModule : IConventionModule {
-    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+public partial class ConventionSutModule : IConventionModule
+{
+    void IConventionModule.Conventions(IConventionDefinitions conventions)
+    {
         conventions.RegisterAll<IConventionService>().AsSingleton();
         conventions.RegisterAll(typeof(IConventionHandler<,>)).AsTransient();
         conventions.RegisterAll(typeof(IConventionCache<>)).AsScoped();
@@ -136,16 +156,20 @@ public partial class ConventionSutModule : IConventionModule {
 
 /// <summary>Base-class hop off, which is the default. Only the direct implementation matches.</summary>
 [DependencyModule]
-public partial class ConventionNoBaseClassModule : IConventionModule {
-    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+public partial class ConventionNoBaseClassModule : IConventionModule
+{
+    void IConventionModule.Conventions(IConventionDefinitions conventions)
+    {
         conventions.RegisterAll<IBaseClassReachService>().AsSingleton();
     }
 }
 
 /// <summary>The same scan with the base-class hop opted in.</summary>
 [DependencyModule]
-public partial class ConventionBaseClassModule : IConventionModule {
-    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+public partial class ConventionBaseClassModule : IConventionModule
+{
+    void IConventionModule.Conventions(IConventionDefinitions conventions)
+    {
         conventions.RegisterAll<IBaseClassReachService>().AsSingleton().IncludeBaseClasses();
     }
 }

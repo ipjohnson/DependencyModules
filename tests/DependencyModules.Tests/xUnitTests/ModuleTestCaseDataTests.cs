@@ -16,8 +16,8 @@ namespace DependencyModules.Tests.xUnitTests;
 /// count of tests produced is the only way that becomes visible, because every integration test
 /// runs through [ModuleTest] and a case that is never created is a suite that is quietly smaller.
 /// </summary>
-public class ModuleTestCaseDataTests {
-
+public class ModuleTestCaseDataTests
+{
     /// <summary>
     /// Regression test. [MemberData] resolves its member off <c>ITypeAwareDataAttribute.MemberType</c>,
     /// which xUnit back-fills in <c>ExtensibilityPointFactory.GetMethodDataAttributes</c> — a path
@@ -26,21 +26,24 @@ public class ModuleTestCaseDataTests {
     /// throwing, so the rows vanished without a diagnostic.
     /// </summary>
     [Fact]
-    public async Task MemberData_WithoutExplicitMemberType_ProducesOneTestPerRow() {
+    public async Task MemberData_WithoutExplicitMemberType_ProducesOneTestPerRow()
+    {
         var tests = await CreateTests(nameof(DataSample.FromTheoryData));
 
         Assert.Equal(2, tests.Count);
     }
 
     [Fact]
-    public async Task MemberData_ReturningObjectArrays_ProducesOneTestPerRow() {
+    public async Task MemberData_ReturningObjectArrays_ProducesOneTestPerRow()
+    {
         var tests = await CreateTests(nameof(DataSample.FromObjectArrays));
 
         Assert.Equal(2, tests.Count);
     }
 
     [Fact]
-    public async Task MemberData_ReturningTheoryDataRows_ProducesOneTestPerRow() {
+    public async Task MemberData_ReturningTheoryDataRows_ProducesOneTestPerRow()
+    {
         var tests = await CreateTests(nameof(DataSample.FromTheoryDataRows));
 
         Assert.Equal(2, tests.Count);
@@ -51,14 +54,16 @@ public class ModuleTestCaseDataTests {
     /// shape worked throughout.
     /// </summary>
     [Fact]
-    public async Task MemberData_WithExplicitMemberType_ProducesOneTestPerRow() {
+    public async Task MemberData_WithExplicitMemberType_ProducesOneTestPerRow()
+    {
         var tests = await CreateTests(nameof(DataSample.FromExplicitMemberType));
 
         Assert.Equal(2, tests.Count);
     }
 
     [Fact]
-    public async Task ClassData_ProducesOneTestPerRow() {
+    public async Task ClassData_ProducesOneTestPerRow()
+    {
         var tests = await CreateTests(nameof(DataSample.FromClassData));
 
         Assert.Equal(2, tests.Count);
@@ -68,7 +73,8 @@ public class ModuleTestCaseDataTests {
     /// The other control. [InlineData] carries its own literals and never needed the back-fill.
     /// </summary>
     [Fact]
-    public async Task InlineData_ProducesOneTestPerRow() {
+    public async Task InlineData_ProducesOneTestPerRow()
+    {
         var tests = await CreateTests(nameof(DataSample.FromInlineData));
 
         Assert.Equal(2, tests.Count);
@@ -87,7 +93,10 @@ public class ModuleTestCaseDataTests {
     [InlineData(nameof(DataSample.TheoryDataRowsWithContainerParameter))]
     [InlineData(nameof(DataSample.ClassDataWithContainerParameter))]
     [InlineData(nameof(DataSample.InlineDataWithContainerParameter))]
-    public async Task RowSupplyingFewerArgumentsThanTheMethodTakes_ProducesOneTestPerRow(string methodName) {
+    public async Task RowSupplyingFewerArgumentsThanTheMethodTakes_ProducesOneTestPerRow(
+        string methodName
+    )
+    {
         var tests = await CreateTests(methodName);
 
         Assert.Equal(2, tests.Count);
@@ -99,9 +108,11 @@ public class ModuleTestCaseDataTests {
     /// above into a green suite instead of a red one.
     /// </summary>
     [Fact]
-    public async Task DataAttributeYieldingNoRows_Fails() {
-        var exception = await Assert.ThrowsAnyAsync<Exception>(
-            async () => await CreateTests(nameof(DataSample.FromEmptySource)));
+    public async Task DataAttributeYieldingNoRows_Fails()
+    {
+        var exception = await Assert.ThrowsAnyAsync<Exception>(async () =>
+            await CreateTests(nameof(DataSample.FromEmptySource))
+        );
 
         Assert.Contains(nameof(DataSample.FromEmptySource), exception.Message);
     }
@@ -111,24 +122,30 @@ public class ModuleTestCaseDataTests {
     /// test — the guard above must not catch it.
     /// </summary>
     [Fact]
-    public async Task NoDataAttribute_ProducesOneTest() {
+    public async Task NoDataAttribute_ProducesOneTest()
+    {
         var tests = await CreateTests(nameof(DataSample.NoRows));
 
         Assert.Single(tests);
     }
 
-    private static async Task<IReadOnlyCollection<IXunitTest>> CreateTests(string methodName) {
+    private static async Task<IReadOnlyCollection<IXunitTest>> CreateTests(string methodName)
+    {
         var testMethod = BuildTestMethod(typeof(DataSample), methodName);
 
         var testCases = await new ModuleTestDiscoverer().Discover(
-            new DiscoveryOptions(), testMethod, new ModuleTestAttribute());
+            new DiscoveryOptions(),
+            testMethod,
+            new ModuleTestAttribute()
+        );
 
         var testCase = Assert.Single(testCases);
 
         return await testCase.CreateTests();
     }
 
-    private static IXunitTestMethod BuildTestMethod(Type testClass, string methodName) {
+    private static IXunitTestMethod BuildTestMethod(Type testClass, string methodName)
+    {
         var assembly = new XunitTestAssembly(testClass.Assembly);
         var collection = new XunitTestCollection(assembly, null, false, "Test collection");
         var xunitClass = new XunitTestClass(testClass, collection);
@@ -137,8 +154,11 @@ public class ModuleTestCaseDataTests {
         return new XunitTestMethod(xunitClass, method, []);
     }
 
-    private class DiscoveryOptions : ITestFrameworkDiscoveryOptions {
-        private readonly Dictionary<string, object?> _values = new(StringComparer.OrdinalIgnoreCase);
+    private class DiscoveryOptions : ITestFrameworkDiscoveryOptions
+    {
+        private readonly Dictionary<string, object?> _values = new(
+            StringComparer.OrdinalIgnoreCase
+        );
 
         public TValue? GetValue<TValue>(string name) =>
             _values.TryGetValue(name, out var value) && value is TValue typed ? typed : default;
@@ -161,10 +181,15 @@ public class ModuleTestCaseDataTests {
     // documented feature — the container supplies the rest — so the rule cannot hold here. Worth
     // noting that the guide teaches this shape without mentioning that it trips an analyzer error.
 #pragma warning disable xUnit1008, xUnit1037
-    private class DataSample {
+    private class DataSample
+    {
         public static TheoryData<string> Rows => new("first", "second");
 
-        public static IEnumerable<object[]> ObjectArrayRows => [["first"], ["second"]];
+        public static IEnumerable<object[]> ObjectArrayRows =>
+            [
+                ["first"],
+                ["second"],
+            ];
 
         public static IEnumerable<TheoryDataRow<string>> TheoryDataRows =>
             [new TheoryDataRow<string>("first"), new TheoryDataRow<string>("second")];
@@ -204,7 +229,10 @@ public class ModuleTestCaseDataTests {
         public void ObjectArraysWithContainerParameter(string value, ContainerSupplied supplied) { }
 
         [MemberData(nameof(TheoryDataRows))]
-        public void TheoryDataRowsWithContainerParameter(string value, ContainerSupplied supplied) { }
+        public void TheoryDataRowsWithContainerParameter(
+            string value,
+            ContainerSupplied supplied
+        ) { }
 
         [ClassData(typeof(SampleClassData))]
         public void ClassDataWithContainerParameter(string value, ContainerSupplied supplied) { }
@@ -221,8 +249,10 @@ public class ModuleTestCaseDataTests {
     private class ContainerSupplied { }
 #pragma warning restore xUnit1008, xUnit1037
 
-    private class SampleClassData : TheoryData<string> {
-        public SampleClassData() {
+    private class SampleClassData : TheoryData<string>
+    {
+        public SampleClassData()
+        {
             Add("first");
             Add("second");
         }

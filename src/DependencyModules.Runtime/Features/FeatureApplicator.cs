@@ -12,7 +12,9 @@ namespace DependencyModules.Runtime.Features;
 /// The type of the feature being applied, which must adhere to the constraints defined
 /// by the corresponding feature handler.
 /// </typeparam>
-public class FeatureApplicator<TFeature>(IDependencyModuleFeature<TFeature> handler) : IFeatureApplicator {
+public class FeatureApplicator<TFeature>(IDependencyModuleFeature<TFeature> handler)
+    : IFeatureApplicator
+{
     /// <summary>
     /// Gets the order of the feature applicator execution.
     /// The order determines the sequence in which feature applicators
@@ -29,7 +31,11 @@ public class FeatureApplicator<TFeature>(IDependencyModuleFeature<TFeature> hand
     /// <param name="modules">
     /// The list of dependency modules containing features to be applied.
     /// </param>
-    public void Apply(IServiceCollection serviceCollection, IReadOnlyList<IDependencyModule> modules) {
+    public void Apply(
+        IServiceCollection serviceCollection,
+        IReadOnlyList<IDependencyModule> modules
+    )
+    {
         handler.HandleFeature(serviceCollection, modules.OfType<TFeature>());
     }
 }

@@ -4,16 +4,17 @@ using CSharpAuthor;
 
 namespace DependencyModules.SourceGenerator.Impl.Models;
 
-public record AttributeArgumentValue(string Name, object? Value) {
+public record AttributeArgumentValue(string Name, object? Value)
+{
     // Value arrives as object and may be an array, which the compiler-generated record equality
     // would compare by reference. See ModelEquality for why that breaks incremental caching.
     public virtual bool Equals(AttributeArgumentValue? other) =>
-        other is not null &&
-        Name == other.Name &&
-        ModelEquality.ValueEquals(Value, other.Value);
+        other is not null && Name == other.Name && ModelEquality.ValueEquals(Value, other.Value);
 
-    public override int GetHashCode() {
-        unchecked {
+    public override int GetHashCode()
+    {
+        unchecked
+        {
             return Name.GetHashCode() * 31 + ModelEquality.ValueHashCode(Value);
         }
     }
@@ -23,18 +24,21 @@ public record AttributeModel(
     ITypeDefinition TypeDefinition,
     IReadOnlyList<AttributeArgumentValue> Arguments,
     IReadOnlyList<AttributeArgumentValue> Properties,
-    IReadOnlyList<ITypeDefinition> ImplementedInterfaces) {
-
+    IReadOnlyList<ITypeDefinition> ImplementedInterfaces
+)
+{
     // Structural equality over the list members; see ModelEquality.
     public virtual bool Equals(AttributeModel? other) =>
-        other is not null &&
-        TypeDefinition.Equals(other.TypeDefinition) &&
-        ModelEquality.ListEquals(Arguments, other.Arguments) &&
-        ModelEquality.ListEquals(Properties, other.Properties) &&
-        ModelEquality.ListEquals(ImplementedInterfaces, other.ImplementedInterfaces);
+        other is not null
+        && TypeDefinition.Equals(other.TypeDefinition)
+        && ModelEquality.ListEquals(Arguments, other.Arguments)
+        && ModelEquality.ListEquals(Properties, other.Properties)
+        && ModelEquality.ListEquals(ImplementedInterfaces, other.ImplementedInterfaces);
 
-    public override int GetHashCode() {
-        unchecked {
+    public override int GetHashCode()
+    {
+        unchecked
+        {
             var hash = TypeDefinition.GetHashCode();
             hash = hash * 31 + ModelEquality.ListHashCode(Arguments);
             hash = hash * 31 + ModelEquality.ListHashCode(Properties);
@@ -43,103 +47,123 @@ public record AttributeModel(
         }
     }
 
-
-    public IList<IOutputComponent> GetArguments() {
+    public IList<IOutputComponent> GetArguments()
+    {
         var list = new List<IOutputComponent>();
-        foreach (var argument in Arguments) {
+        foreach (var argument in Arguments)
+        {
             IOutputComponent? outputComponent = null;
 
-            if (argument.Value is IOutputComponent component) {
+            if (argument.Value is IOutputComponent component)
+            {
                 outputComponent = component;
             }
-            else if (argument.Value is Array arrayValue) {
+            else if (argument.Value is Array arrayValue)
+            {
                 var collectionSyntax = new CollectionSyntaxDeclaration();
 
-                foreach (var objectValue in arrayValue) {
-                    if (objectValue is string stringValue) {
+                foreach (var objectValue in arrayValue)
+                {
+                    if (objectValue is string stringValue)
+                    {
                         // Raw: CollectionSyntaxDeclaration quotes strings itself. Quoting here too
                         // produced ""a"" under 1.x's naive QuoteString and "\"a\"" under 2.0's
                         // escaping one - both wrong, only the second visibly so.
                         collectionSyntax.Add(stringValue);
                     }
-                    else if (argument.Value is ITypeDefinition typeDefinition) {
+                    else if (argument.Value is ITypeDefinition typeDefinition)
+                    {
                         outputComponent = SyntaxHelpers.TypeOf(typeDefinition);
                         collectionSyntax.Add(outputComponent);
                     }
-                    else if (objectValue is not null) {
+                    else if (objectValue is not null)
+                    {
                         collectionSyntax.Add(CodeOutputComponent.Get(objectValue));
                     }
                 }
-                
+
                 outputComponent = collectionSyntax;
             }
-            else if (argument.Value is string stringValue) {
-                outputComponent = CodeOutputComponent.Get(
-                    SyntaxHelpers.QuoteString(stringValue)
-                );
-            } 
-            else if (argument.Value is ITypeDefinition typeDefinition) {
+            else if (argument.Value is string stringValue)
+            {
+                outputComponent = CodeOutputComponent.Get(SyntaxHelpers.QuoteString(stringValue));
+            }
+            else if (argument.Value is ITypeDefinition typeDefinition)
+            {
                 outputComponent = SyntaxHelpers.TypeOf(typeDefinition);
             }
-            else if (argument.Value is not null) {
+            else if (argument.Value is not null)
+            {
                 outputComponent = CodeOutputComponent.Get(argument.Value);
             }
 
-            if (outputComponent != null) {
+            if (outputComponent != null)
+            {
                 list.Add(outputComponent);
             }
         }
 
         return list;
     }
-    
 
-    public IList<IOutputComponent> PropertyValues() {
+    public IList<IOutputComponent> PropertyValues()
+    {
         var list = new List<IOutputComponent>();
-        foreach (var argument in Properties) {
-
+        foreach (var argument in Properties)
+        {
             IOutputComponent? outputComponent = null;
 
-            if (argument.Value is IOutputComponent component) {
+            if (argument.Value is IOutputComponent component)
+            {
                 outputComponent = component;
             }
-            else if (argument.Value is Array arrayValue) {
+            else if (argument.Value is Array arrayValue)
+            {
                 var collectionSyntax = new CollectionSyntaxDeclaration();
 
-                foreach (var objectValue in arrayValue) {
-                    if (objectValue is string stringValue) {
+                foreach (var objectValue in arrayValue)
+                {
+                    if (objectValue is string stringValue)
+                    {
                         collectionSyntax.Add(stringValue);
                     }
-                    else if (argument.Value is ITypeDefinition typeDefinition) {
+                    else if (argument.Value is ITypeDefinition typeDefinition)
+                    {
                         outputComponent = SyntaxHelpers.TypeOf(typeDefinition);
                         collectionSyntax.Add(outputComponent);
                     }
-                    else if (objectValue is not null) {
+                    else if (objectValue is not null)
+                    {
                         collectionSyntax.Add(CodeOutputComponent.Get(objectValue));
                     }
                 }
-                
-                outputComponent = collectionSyntax;         
+
+                outputComponent = collectionSyntax;
             }
-            else if (argument.Value is string stringValue) {
+            else if (argument.Value is string stringValue)
+            {
                 outputComponent = CodeOutputComponent.Get(
                     SyntaxHelpers.QuoteString(stringValue.Trim('"'))
                 );
             }
-            else if (argument.Value is ITypeDefinition typeDefinition) {
+            else if (argument.Value is ITypeDefinition typeDefinition)
+            {
                 outputComponent = SyntaxHelpers.TypeOf(typeDefinition);
             }
-            else if (argument.Value is not null) {
-
+            else if (argument.Value is not null)
+            {
                 outputComponent = CodeOutputComponent.Get(argument.Value);
             }
-            
-            if (outputComponent != null) {
+
+            if (outputComponent != null)
+            {
                 list.Add(
                     new WrapStatement(
                         CodeOutputComponent.Get(" = "),
                         CodeOutputComponent.Get(argument.Name),
-                        outputComponent));
+                        outputComponent
+                    )
+                );
             }
         }
 
@@ -149,4 +173,5 @@ public record AttributeModel(
 
 public record AttributeClassInfo(
     ConstructorInfoModel ConstructorInfo,
-    IReadOnlyList<PropertyInfoModel> Properties);
+    IReadOnlyList<PropertyInfoModel> Properties
+);
