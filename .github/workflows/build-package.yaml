@@ -43,6 +43,14 @@ jobs:
 
       - run: dotnet restore DependencyModules.sln
 
+      # The pre-commit hook in .githooks runs this too, but a hook is local and skippable. This is
+      # what actually holds the formatting. It runs before the build so a style-only failure costs
+      # seconds rather than a full compile and test cycle.
+      - name: Check formatting
+        run: |
+          dotnet tool restore
+          dotnet csharpier check .
+
       - run: dotnet build DependencyModules.sln --no-restore --configuration Release
 
       # Runs every test suite with coverage collection and merges the results.

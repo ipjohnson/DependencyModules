@@ -1,0 +1,6 @@
+# Revisions that only moved whitespace. GitHub honours this file automatically; for local blame:
+#
+#     git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# Reformat every C# file with CSharpier
+79a2881a3fd722dd95f8aa589567003acb896678
