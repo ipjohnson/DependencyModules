@@ -13,11 +13,14 @@ namespace DependencyModules.Conventions.Models;
 /// — structurally different, same service. A key built from namespace, name and arity is equal for
 /// both, and is a string, so it costs nothing to keep in an incremental model.
 /// </remarks>
-public static class ConventionTypeKey {
-
-    public static string For(ITypeDefinition type) {
+public static class ConventionTypeKey
+{
+    public static string For(ITypeDefinition type)
+    {
         var arity = type.TypeArguments?.Count ?? 0;
-        var name = string.IsNullOrEmpty(type.Namespace) ? type.Name : type.Namespace + "." + type.Name;
+        var name = string.IsNullOrEmpty(type.Namespace)
+            ? type.Name
+            : type.Namespace + "." + type.Name;
 
         return arity == 0 ? name : name + "`" + arity;
     }
@@ -26,7 +29,8 @@ public static class ConventionTypeKey {
 /// <summary>
 /// What a convention registers each match as.
 /// </summary>
-public enum ConventionRegisterAs {
+public enum ConventionRegisterAs
+{
     /// <summary>
     /// As the service type the convention matched through. The default.
     /// </summary>
@@ -70,8 +74,8 @@ public enum ConventionRegisterAs {
 /// once per pattern rather than once per candidate.
 /// </param>
 /// <param name="Exclude">True for the <c>Without</c> form.</param>
-public record NameFilterModel(string Pattern, bool Exclude) {
-
+public record NameFilterModel(string Pattern, bool Exclude)
+{
     /// <summary>
     /// True when the pattern is matched against the full name rather than the bare type name.
     /// </summary>
@@ -87,25 +91,29 @@ public record NameFilterModel(string Pattern, bool Exclude) {
 /// <c>InNamespaceOf</c> means and what people expect of a namespace filter.
 /// </param>
 /// <param name="Exclude">True for the <c>NotIn</c> forms.</param>
-public record NamespaceFilterModel(string Namespace, bool Exact, bool Exclude) {
-
+public record NamespaceFilterModel(string Namespace, bool Exact, bool Exclude)
+{
     /// <summary>
     /// Whether a type's namespace falls inside this filter, ignoring whether it includes or
     /// excludes.
     /// </summary>
-    public bool Covers(string? candidateNamespace) {
+    public bool Covers(string? candidateNamespace)
+    {
         var value = candidateNamespace ?? "";
 
-        if (Exact) {
+        if (Exact)
+        {
             return string.Equals(value, Namespace, StringComparison.Ordinal);
         }
 
         // A prefix match has to stop at a namespace separator, or "MyApp.Order" would swallow
         // "MyApp.Ordering".
-        return value.Equals(Namespace, StringComparison.Ordinal) ||
-               (value.Length > Namespace.Length &&
-                value[Namespace.Length] == '.' &&
-                value.StartsWith(Namespace, StringComparison.Ordinal));
+        return value.Equals(Namespace, StringComparison.Ordinal)
+            || (
+                value.Length > Namespace.Length
+                && value[Namespace.Length] == '.'
+                && value.StartsWith(Namespace, StringComparison.Ordinal)
+            );
     }
 }
 
@@ -175,8 +183,9 @@ public record ConventionModel(
     IReadOnlyList<NameFilterModel>? NameFilters = null,
     ITypeDefinition? ExplicitServiceType = null,
     string? AssemblyName = null,
-    IReadOnlyList<EnvironmentConditionModel>? Conditions = null) {
-
+    IReadOnlyList<EnvironmentConditionModel>? Conditions = null
+)
+{
     /// <summary>
     /// Whether the attributes a candidate carries pass the filters.
     /// </summary>
@@ -184,15 +193,20 @@ public record ConventionModel(
     /// Requirements combine with <b>and</b>: a type has to carry every attribute asked for and none
     /// of the excluded ones. Alternatives would need an or, which no Scrutor overload offers either.
     /// </remarks>
-    public bool AttributesMatch(IReadOnlyList<string>? candidateAttributes) {
-        if (AttributeFilters == null) {
+    public bool AttributesMatch(IReadOnlyList<string>? candidateAttributes)
+    {
+        if (AttributeFilters == null)
+        {
             return true;
         }
 
-        foreach (var filter in AttributeFilters) {
-            var carried = candidateAttributes != null && candidateAttributes.Contains(filter.TypeKey);
+        foreach (var filter in AttributeFilters)
+        {
+            var carried =
+                candidateAttributes != null && candidateAttributes.Contains(filter.TypeKey);
 
-            if (carried == filter.Exclude) {
+            if (carried == filter.Exclude)
+            {
                 return false;
             }
         }
@@ -208,17 +222,22 @@ public record ConventionModel(
     /// <summary>
     /// Whether a candidate's namespace passes the filters.
     /// </summary>
-    public bool NamespaceMatches(string? candidateNamespace) {
-        if (NamespaceFilters == null) {
+    public bool NamespaceMatches(string? candidateNamespace)
+    {
+        if (NamespaceFilters == null)
+        {
             return true;
         }
 
         var included = false;
         var anyInclusion = false;
 
-        foreach (var filter in NamespaceFilters) {
-            if (filter.Exclude) {
-                if (filter.Covers(candidateNamespace)) {
+        foreach (var filter in NamespaceFilters)
+        {
+            if (filter.Exclude)
+            {
+                if (filter.Covers(candidateNamespace))
+                {
                     return false;
                 }
 
@@ -235,26 +254,28 @@ public record ConventionModel(
     // Structural equality over the filter list; a positional record would compare it by reference
     // and never hit the incremental cache. See ModelEquality.
     public virtual bool Equals(ConventionModel? other) =>
-        other is not null &&
-        Equals(ServiceType, other.ServiceType) &&
-        DefinitionKey == other.DefinitionKey &&
-        IsOpenGeneric == other.IsOpenGeneric &&
-        Lifestyle == other.Lifestyle &&
-        IncludeBaseClasses == other.IncludeBaseClasses &&
-        Location == other.Location &&
-        RegisterAs == other.RegisterAs &&
-        RegistrationType == other.RegistrationType &&
-        Equals(Key, other.Key) &&
-        ModelEquality.ListEquals(NamespaceFilters, other.NamespaceFilters) &&
-        ModelEquality.ListEquals(KeyNamespaces, other.KeyNamespaces) &&
-        ModelEquality.ListEquals(AttributeFilters, other.AttributeFilters) &&
-        ModelEquality.ListEquals(NameFilters, other.NameFilters) &&
-        Equals(ExplicitServiceType, other.ExplicitServiceType) &&
-        AssemblyName == other.AssemblyName &&
-        ModelEquality.ListEquals(Conditions, other.Conditions);
+        other is not null
+        && Equals(ServiceType, other.ServiceType)
+        && DefinitionKey == other.DefinitionKey
+        && IsOpenGeneric == other.IsOpenGeneric
+        && Lifestyle == other.Lifestyle
+        && IncludeBaseClasses == other.IncludeBaseClasses
+        && Location == other.Location
+        && RegisterAs == other.RegisterAs
+        && RegistrationType == other.RegistrationType
+        && Equals(Key, other.Key)
+        && ModelEquality.ListEquals(NamespaceFilters, other.NamespaceFilters)
+        && ModelEquality.ListEquals(KeyNamespaces, other.KeyNamespaces)
+        && ModelEquality.ListEquals(AttributeFilters, other.AttributeFilters)
+        && ModelEquality.ListEquals(NameFilters, other.NameFilters)
+        && Equals(ExplicitServiceType, other.ExplicitServiceType)
+        && AssemblyName == other.AssemblyName
+        && ModelEquality.ListEquals(Conditions, other.Conditions);
 
-    public override int GetHashCode() {
-        unchecked {
+    public override int GetHashCode()
+    {
+        unchecked
+        {
             var hash = ServiceType?.GetHashCode() ?? 0;
             hash = hash * 31 + (DefinitionKey?.GetHashCode() ?? 0);
             hash = hash * 31 + IsOpenGeneric.GetHashCode();
@@ -292,12 +313,12 @@ public record ConventionModuleModel(
     ITypeDefinition ModuleType,
     IReadOnlyList<ConventionModel> Conventions,
     IReadOnlyList<UnreadableStatementModel> Unreadable,
-
     /// <summary>
     /// Where the declaring type sits, so a diagnostic about the module itself can point at it.
     /// </summary>
-    LocationModel? Location = null) {
-
+    LocationModel? Location = null
+)
+{
     /// <summary>
     /// The sentinel for a declaration this generator does not own, matching how every other model
     /// in this codebase signals "nothing to do".
@@ -305,20 +326,23 @@ public record ConventionModuleModel(
     public static readonly ConventionModuleModel Ignore = new(
         TypeDefinition.Get("", "Ignore"),
         Array.Empty<ConventionModel>(),
-        Array.Empty<UnreadableStatementModel>());
+        Array.Empty<UnreadableStatementModel>()
+    );
 
     public bool IsIgnored => ReferenceEquals(this, Ignore) || ModuleType.Equals(Ignore.ModuleType);
 
     // Structural equality over the lists; a positional record would compare them by reference and
     // never hit the incremental cache. See ModelEquality.
     public virtual bool Equals(ConventionModuleModel? other) =>
-        other is not null &&
-        ModuleType.Equals(other.ModuleType) &&
-        ModelEquality.ListEquals(Conventions, other.Conventions) &&
-        ModelEquality.ListEquals(Unreadable, other.Unreadable);
+        other is not null
+        && ModuleType.Equals(other.ModuleType)
+        && ModelEquality.ListEquals(Conventions, other.Conventions)
+        && ModelEquality.ListEquals(Unreadable, other.Unreadable);
 
-    public override int GetHashCode() {
-        unchecked {
+    public override int GetHashCode()
+    {
+        unchecked
+        {
             var hash = ModuleType.GetHashCode();
             hash = hash * 31 + ModelEquality.ListHashCode(Conventions);
             hash = hash * 31 + ModelEquality.ListHashCode(Unreadable);

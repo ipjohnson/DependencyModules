@@ -5,8 +5,10 @@ fit together.
 
 ```csharp
 [DependencyModule]
-public partial class DataModule : IConventionModule {
-    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+public partial class DataModule : IConventionModule
+{
+    void IConventionModule.Conventions(IConventionDefinitions conventions)
+    {
         conventions.RegisterAll<IRepository>().InNamespaceOf<Marker>().AsScoped();
     }
 }

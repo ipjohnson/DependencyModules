@@ -8,22 +8,30 @@ namespace SutProject.Tests.Customization;
 /// <summary>
 /// Records which <see cref="IServiceProviderBuilderAttribute"/> actually built the container.
 /// </summary>
-public interface IProviderBuiltBy {
+public interface IProviderBuiltBy
+{
     string Scope { get; }
 }
 
-public class ProviderBuiltBy(string scope) : IProviderBuiltBy {
+public class ProviderBuiltBy(string scope) : IProviderBuiltBy
+{
     public string Scope => scope;
 }
 
 /// <summary>
 /// A builder that stamps the container with the scope it was declared at.
 /// </summary>
-public class ScopeStampingProviderAttribute(string scope) : Attribute, IServiceProviderBuilderAttribute {
+public class ScopeStampingProviderAttribute(string scope)
+    : Attribute,
+        IServiceProviderBuilderAttribute
+{
     public string Scope => scope;
 
     public IServiceProvider BuildServiceProvider(
-        ITestMethodContext testMethod, IServiceCollection serviceCollection) {
+        ITestMethodContext testMethod,
+        IServiceCollection serviceCollection
+    )
+    {
         serviceCollection.AddSingleton<IProviderBuiltBy>(new ProviderBuiltBy(scope));
 
         return serviceCollection.BuildServiceProvider();
@@ -36,16 +44,18 @@ public class ScopeStampingProviderAttribute(string scope) : Attribute, IServiceP
 /// overridden by a broader default.
 /// </summary>
 [ScopeStampingProvider("class")]
-public class ServiceProviderBuilderPrecedenceTests {
-
+public class ServiceProviderBuilderPrecedenceTests
+{
     [ModuleTest]
     [ScopeStampingProvider("method")]
-    public void MethodBeatsClass(IProviderBuiltBy builtBy) {
+    public void MethodBeatsClass(IProviderBuiltBy builtBy)
+    {
         Assert.Equal("method", builtBy.Scope);
     }
 
     [ModuleTest]
-    public void ClassAppliesWhenTheMethodDeclaresNone(IProviderBuiltBy builtBy) {
+    public void ClassAppliesWhenTheMethodDeclaresNone(IProviderBuiltBy builtBy)
+    {
         Assert.Equal("class", builtBy.Scope);
     }
 }

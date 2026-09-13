@@ -17,9 +17,10 @@ namespace DependencyModules.Tests.RuntimeTests;
 /// named after their member, because overloads would collide; argument fields are <c>_arg0</c>
 /// onwards, because a parameter named <c>Self</c> or a keyword would collide too.
 /// </remarks>
-public class InvocationPipelineTests {
-
-    public interface IWork {
+public class InvocationPipelineTests
+{
+    public interface IWork
+    {
         int Double(int value, string label);
 
         void Record(string entry);
@@ -30,7 +31,8 @@ public class InvocationPipelineTests {
     }
 
     [Fact]
-    public void SyncMember_ReturnsTheInnerResultThroughBothInterceptors() {
+    public void SyncMember_ReturnsTheInnerResultThroughBothInterceptors()
+    {
         var fixture = new Fixture();
 
         var result = fixture.Service.Double(21, "label");
@@ -43,21 +45,26 @@ public class InvocationPipelineTests {
     /// Interceptors nest: the first declared wraps the second, so it enters first and exits last.
     /// </summary>
     [Fact]
-    public void SeveralInterceptors_NestInDeclarationOrder() {
+    public void SeveralInterceptors_NestInDeclarationOrder()
+    {
         var fixture = new Fixture();
 
         fixture.Service.Double(1, "label");
 
-        Assert.Equal([
-            "first enter IWork.Double",
-            "second enter IWork.Double",
-            "second exit IWork.Double",
-            "first exit IWork.Double"
-        ], fixture.Log);
+        Assert.Equal(
+            [
+                "first enter IWork.Double",
+                "second enter IWork.Double",
+                "second exit IWork.Double",
+                "first exit IWork.Double",
+            ],
+            fixture.Log
+        );
     }
 
     [Fact]
-    public void VoidMember_RoundTripsThroughNoResult() {
+    public void VoidMember_RoundTripsThroughNoResult()
+    {
         var fixture = new Fixture();
 
         fixture.Service.Record("entry");
@@ -71,7 +78,8 @@ public class InvocationPipelineTests {
     /// through the indexer are the fields the last stage passes on.
     /// </summary>
     [Fact]
-    public void WritingAnArgument_ReplacesWhatTheImplementationReceives() {
+    public void WritingAnArgument_ReplacesWhatTheImplementationReceives()
+    {
         var fixture = new Fixture();
         fixture.First.BeforeProceed = arguments => arguments[0] = 5;
 
@@ -82,12 +90,15 @@ public class InvocationPipelineTests {
     }
 
     [Fact]
-    public void Arguments_ReadByPositionAndName() {
+    public void Arguments_ReadByPositionAndName()
+    {
         var fixture = new Fixture();
         var seen = new List<string>();
 
-        fixture.First.BeforeProceed = arguments => {
-            for (var i = 0; i < arguments.Count; i++) {
+        fixture.First.BeforeProceed = arguments =>
+        {
+            for (var i = 0; i < arguments.Count; i++)
+            {
                 seen.Add($"{arguments.NameAt(i)}={arguments[i]}");
             }
         };
@@ -98,7 +109,8 @@ public class InvocationPipelineTests {
     }
 
     [Fact]
-    public void Caller_CarriesTheInterfaceAndTheMember() {
+    public void Caller_CarriesTheInterfaceAndTheMember()
+    {
         var fixture = new Fixture();
         CallerInfo caller = default;
 
@@ -115,7 +127,8 @@ public class InvocationPipelineTests {
     /// same next stage. A mutable index would walk past it and call the implementation once.
     /// </summary>
     [Fact]
-    public void ProceedingTwice_ReEntersTheSameStage() {
+    public void ProceedingTwice_ReEntersTheSameStage()
+    {
         var fixture = new Fixture();
         fixture.First.ProceedCount = 2;
 
@@ -127,7 +140,8 @@ public class InvocationPipelineTests {
     }
 
     [Fact]
-    public void NotProceeding_SkipsTheImplementationAndEverythingBelow() {
+    public void NotProceeding_SkipsTheImplementationAndEverythingBelow()
+    {
         var fixture = new Fixture();
         fixture.First.Substitute = 7;
 
@@ -139,14 +153,17 @@ public class InvocationPipelineTests {
     }
 
     [Fact]
-    public void AnException_PropagatesThroughThePipeline() {
+    public void AnException_PropagatesThroughThePipeline()
+    {
         var fixture = new Fixture();
         fixture.Implementation.Throw = true;
 
         Assert.Throws<InvalidOperationException>(() => fixture.Service.Double(1, "label"));
 
-        Assert.Equal(["second exit IWork.Double", "first exit IWork.Double"],
-            fixture.Log.Where(entry => entry.Contains("exit")).ToArray());
+        Assert.Equal(
+            ["second exit IWork.Double", "first exit IWork.Double"],
+            fixture.Log.Where(entry => entry.Contains("exit")).ToArray()
+        );
     }
 
     /// <summary>
@@ -155,7 +172,8 @@ public class InvocationPipelineTests {
     /// has finished.
     /// </summary>
     [Fact]
-    public async Task AsyncMember_ExitsWhenTheWorkFinishesRatherThanWhenTheTaskIsHandedBack() {
+    public async Task AsyncMember_ExitsWhenTheWorkFinishesRatherThanWhenTheTaskIsHandedBack()
+    {
         var fixture = new Fixture();
         var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         fixture.Implementation.ComputeGate = gate.Task;
@@ -170,12 +188,15 @@ public class InvocationPipelineTests {
         var result = await task;
 
         Assert.Equal(42, result);
-        Assert.Equal([
-            "first enter IWork.ComputeAsync",
-            "second enter IWork.ComputeAsync",
-            "second exit IWork.ComputeAsync",
-            "first exit IWork.ComputeAsync"
-        ], fixture.Log);
+        Assert.Equal(
+            [
+                "first enter IWork.ComputeAsync",
+                "second enter IWork.ComputeAsync",
+                "second exit IWork.ComputeAsync",
+                "first exit IWork.ComputeAsync",
+            ],
+            fixture.Log
+        );
     }
 
     /// <summary>
@@ -183,33 +204,39 @@ public class InvocationPipelineTests {
     /// ordinary value would observe the construction of the iterator and nothing else.
     /// </summary>
     [Fact]
-    public async Task StreamMember_ObservesEachItemAsItIsProduced() {
+    public async Task StreamMember_ObservesEachItemAsItIsProduced()
+    {
         var fixture = new Fixture();
 
         var items = new List<int>();
 
-        await foreach (var item in fixture.Service.Stream(3)) {
+        await foreach (var item in fixture.Service.Stream(3))
+        {
             items.Add(item);
         }
 
         Assert.Equal([0, 1, 2], items);
-        Assert.Equal([
-            "first enter IWork.Stream",
-            "second enter IWork.Stream",
-            "second item 0",
-            "first item 0",
-            "second item 1",
-            "first item 1",
-            "second item 2",
-            "first item 2",
-            "second exit IWork.Stream",
-            "first exit IWork.Stream"
-        ], fixture.Log);
+        Assert.Equal(
+            [
+                "first enter IWork.Stream",
+                "second enter IWork.Stream",
+                "second item 0",
+                "first item 0",
+                "second item 1",
+                "first item 1",
+                "second item 2",
+                "first item 2",
+                "second exit IWork.Stream",
+                "first exit IWork.Stream",
+            ],
+            fixture.Log
+        );
     }
 
-    private sealed class Fixture {
-
-        public Fixture() {
+    private sealed class Fixture
+    {
+        public Fixture()
+        {
             Log = [];
             Implementation = new WorkImplementation();
             First = new TestInterceptor("first", Log);
@@ -228,23 +255,26 @@ public class InvocationPipelineTests {
         public IWork Service { get; }
     }
 
-    private sealed class WorkImplementation : IWork {
-
+    private sealed class WorkImplementation : IWork
+    {
         public List<string> Calls { get; } = [];
 
         public bool Throw { get; set; }
 
-        public int Double(int value, string label) {
+        public int Double(int value, string label)
+        {
             Calls.Add($"Double({value}, {label})");
 
-            if (Throw) {
+            if (Throw)
+            {
                 throw new InvalidOperationException("boom");
             }
 
             return value * 2;
         }
 
-        public void Record(string entry) {
+        public void Record(string entry)
+        {
             Calls.Add($"Record({entry})");
         }
 
@@ -255,7 +285,8 @@ public class InvocationPipelineTests {
         /// </summary>
         public Task ComputeGate { get; set; } = Task.CompletedTask;
 
-        public async Task<int> ComputeAsync(int value) {
+        public async Task<int> ComputeAsync(int value)
+        {
             await ComputeGate;
 
             Calls.Add($"ComputeAsync({value})");
@@ -263,8 +294,10 @@ public class InvocationPipelineTests {
             return value * 2;
         }
 
-        public async IAsyncEnumerable<int> Stream(int count) {
-            for (var i = 0; i < count; i++) {
+        public async IAsyncEnumerable<int> Stream(int count)
+        {
+            for (var i = 0; i < count; i++)
+            {
                 await Task.Yield();
 
                 yield return i;
@@ -277,8 +310,10 @@ public class InvocationPipelineTests {
     /// rather than expressed as another type, so the wrapper's typed fields stay one type.
     /// </summary>
     private sealed class TestInterceptor(string name, List<string> log)
-        : IInterceptor, IAsyncInterceptor, IAsyncEnumerableInterceptor {
-
+        : IInterceptor,
+            IAsyncInterceptor,
+            IAsyncEnumerableInterceptor
+    {
         public Action<IArguments>? BeforeProceed { get; set; }
 
         public Action<CallerInfo>? BeforeCall { get; set; }
@@ -287,56 +322,74 @@ public class InvocationPipelineTests {
 
         public object? Substitute { get; set; }
 
-        public TResult Intercept<TResult>(InvocationContext<TResult> context) {
+        public TResult Intercept<TResult>(InvocationContext<TResult> context)
+        {
             log.Add($"{name} enter {context.Caller}");
             BeforeCall?.Invoke(context.Caller);
             BeforeProceed?.Invoke(context.Arguments);
 
-            if (Substitute != null) {
+            if (Substitute != null)
+            {
                 return (TResult)Substitute;
             }
 
-            try {
+            try
+            {
                 var result = default(TResult)!;
 
-                for (var i = 0; i < ProceedCount; i++) {
+                for (var i = 0; i < ProceedCount; i++)
+                {
                     result = context.Proceed();
                 }
 
                 return result;
-            } finally {
+            }
+            finally
+            {
                 log.Add($"{name} exit {context.Caller}");
             }
         }
 
-        public async ValueTask<TResult> InterceptAsync<TResult>(AsyncInvocationContext<TResult> context) {
+        public async ValueTask<TResult> InterceptAsync<TResult>(
+            AsyncInvocationContext<TResult> context
+        )
+        {
             log.Add($"{name} enter {context.Caller}");
             BeforeCall?.Invoke(context.Caller);
             BeforeProceed?.Invoke(context.Arguments);
 
-            if (Substitute != null) {
+            if (Substitute != null)
+            {
                 return (TResult)Substitute;
             }
 
-            try {
+            try
+            {
                 var result = default(TResult)!;
 
-                for (var i = 0; i < ProceedCount; i++) {
+                for (var i = 0; i < ProceedCount; i++)
+                {
                     result = await context.ProceedAsync();
                 }
 
                 return result;
-            } finally {
+            }
+            finally
+            {
                 log.Add($"{name} exit {context.Caller}");
             }
         }
 
-        public async IAsyncEnumerable<TItem> InterceptStream<TItem>(StreamInvocationContext<TItem> context) {
+        public async IAsyncEnumerable<TItem> InterceptStream<TItem>(
+            StreamInvocationContext<TItem> context
+        )
+        {
             log.Add($"{name} enter {context.Caller}");
             BeforeCall?.Invoke(context.Caller);
             BeforeProceed?.Invoke(context.Arguments);
 
-            await foreach (var item in context.Proceed()) {
+            await foreach (var item in context.Proceed())
+            {
                 log.Add($"{name} item {item}");
 
                 yield return item;
@@ -349,7 +402,8 @@ public class InvocationPipelineTests {
     /// <summary>
     /// Stands in for generated output. Every construct here is one the generator emits.
     /// </summary>
-    private sealed class Work_Intercepted : IWork {
+    private sealed class Work_Intercepted : IWork
+    {
         private readonly IWork _inner;
         private readonly TestInterceptor _i0;
         private readonly TestInterceptor _i1;
@@ -359,42 +413,49 @@ public class InvocationPipelineTests {
         private static readonly CallerInfo Caller2 = new(typeof(IWork), "ComputeAsync");
         private static readonly CallerInfo Caller3 = new(typeof(IWork), "Stream");
 
-        public Work_Intercepted(IWork inner, TestInterceptor i0, TestInterceptor i1) {
+        public Work_Intercepted(IWork inner, TestInterceptor i0, TestInterceptor i1)
+        {
             _inner = inner;
             _i0 = i0;
             _i1 = i1;
         }
 
-        public int Double(int value, string label) {
+        public int Double(int value, string label)
+        {
             var state = new State0(this, value, label);
 
             return state.Invoke(0);
         }
 
-        public void Record(string entry) {
+        public void Record(string entry)
+        {
             var state = new State1(this, entry);
 
             state.Invoke(0);
         }
 
-        public Task<int> ComputeAsync(int value) {
+        public Task<int> ComputeAsync(int value)
+        {
             var state = new State2(this, value);
 
             return state.Invoke(0).AsTask();
         }
 
-        public IAsyncEnumerable<int> Stream(int count) {
+        public IAsyncEnumerable<int> Stream(int count)
+        {
             var state = new State3(this, count);
 
             return state.Invoke(0);
         }
 
-        private sealed class State0 : InvocationState<int> {
+        private sealed class State0 : InvocationState<int>
+        {
             private readonly Work_Intercepted _self;
             private int _arg0;
             private string _arg1;
 
-            public State0(Work_Intercepted self, int arg0, string arg1) {
+            public State0(Work_Intercepted self, int arg0, string arg1)
+            {
                 _self = self;
                 _arg0 = arg0;
                 _arg1 = arg1;
@@ -404,15 +465,19 @@ public class InvocationPipelineTests {
 
             public override int Count => 2;
 
-            public override object? this[int index] {
+            public override object? this[int index]
+            {
                 get =>
-                    index switch {
+                    index switch
+                    {
                         0 => _arg0,
                         1 => _arg1,
-                        _ => throw new ArgumentOutOfRangeException(nameof(index))
+                        _ => throw new ArgumentOutOfRangeException(nameof(index)),
                     };
-                set {
-                    switch (index) {
+                set
+                {
+                    switch (index)
+                    {
                         case 0:
                             _arg0 = (int)value!;
                             break;
@@ -426,14 +491,17 @@ public class InvocationPipelineTests {
             }
 
             public override string NameAt(int index) =>
-                index switch {
+                index switch
+                {
                     0 => "value",
                     1 => "label",
-                    _ => throw new ArgumentOutOfRangeException(nameof(index))
+                    _ => throw new ArgumentOutOfRangeException(nameof(index)),
                 };
 
-            public override int Invoke(int stage) {
-                switch (stage) {
+            public override int Invoke(int stage)
+            {
+                switch (stage)
+                {
                     case 0:
                         return _self._i0.Intercept(new InvocationContext<int>(this, 0));
                     case 1:
@@ -444,11 +512,13 @@ public class InvocationPipelineTests {
             }
         }
 
-        private sealed class State1 : InvocationState<NoResult> {
+        private sealed class State1 : InvocationState<NoResult>
+        {
             private readonly Work_Intercepted _self;
             private string _arg0;
 
-            public State1(Work_Intercepted self, string arg0) {
+            public State1(Work_Intercepted self, string arg0)
+            {
                 _self = self;
                 _arg0 = arg0;
             }
@@ -457,14 +527,18 @@ public class InvocationPipelineTests {
 
             public override int Count => 1;
 
-            public override object? this[int index] {
+            public override object? this[int index]
+            {
                 get =>
-                    index switch {
+                    index switch
+                    {
                         0 => _arg0,
-                        _ => throw new ArgumentOutOfRangeException(nameof(index))
+                        _ => throw new ArgumentOutOfRangeException(nameof(index)),
                     };
-                set {
-                    switch (index) {
+                set
+                {
+                    switch (index)
+                    {
                         case 0:
                             _arg0 = (string)value!;
                             break;
@@ -475,13 +549,16 @@ public class InvocationPipelineTests {
             }
 
             public override string NameAt(int index) =>
-                index switch {
+                index switch
+                {
                     0 => "entry",
-                    _ => throw new ArgumentOutOfRangeException(nameof(index))
+                    _ => throw new ArgumentOutOfRangeException(nameof(index)),
                 };
 
-            public override NoResult Invoke(int stage) {
-                switch (stage) {
+            public override NoResult Invoke(int stage)
+            {
+                switch (stage)
+                {
                     case 0:
                         return _self._i0.Intercept(new InvocationContext<NoResult>(this, 0));
                     case 1:
@@ -494,11 +571,13 @@ public class InvocationPipelineTests {
             }
         }
 
-        private sealed class State2 : AsyncInvocationState<int> {
+        private sealed class State2 : AsyncInvocationState<int>
+        {
             private readonly Work_Intercepted _self;
             private int _arg0;
 
-            public State2(Work_Intercepted self, int arg0) {
+            public State2(Work_Intercepted self, int arg0)
+            {
                 _self = self;
                 _arg0 = arg0;
             }
@@ -507,14 +586,18 @@ public class InvocationPipelineTests {
 
             public override int Count => 1;
 
-            public override object? this[int index] {
+            public override object? this[int index]
+            {
                 get =>
-                    index switch {
+                    index switch
+                    {
                         0 => _arg0,
-                        _ => throw new ArgumentOutOfRangeException(nameof(index))
+                        _ => throw new ArgumentOutOfRangeException(nameof(index)),
                     };
-                set {
-                    switch (index) {
+                set
+                {
+                    switch (index)
+                    {
                         case 0:
                             _arg0 = (int)value!;
                             break;
@@ -525,13 +608,16 @@ public class InvocationPipelineTests {
             }
 
             public override string NameAt(int index) =>
-                index switch {
+                index switch
+                {
                     0 => "value",
-                    _ => throw new ArgumentOutOfRangeException(nameof(index))
+                    _ => throw new ArgumentOutOfRangeException(nameof(index)),
                 };
 
-            public override ValueTask<int> Invoke(int stage) {
-                switch (stage) {
+            public override ValueTask<int> Invoke(int stage)
+            {
+                switch (stage)
+                {
                     case 0:
                         return _self._i0.InterceptAsync(new AsyncInvocationContext<int>(this, 0));
                     case 1:
@@ -542,11 +628,13 @@ public class InvocationPipelineTests {
             }
         }
 
-        private sealed class State3 : StreamInvocationState<int> {
+        private sealed class State3 : StreamInvocationState<int>
+        {
             private readonly Work_Intercepted _self;
             private int _arg0;
 
-            public State3(Work_Intercepted self, int arg0) {
+            public State3(Work_Intercepted self, int arg0)
+            {
                 _self = self;
                 _arg0 = arg0;
             }
@@ -555,14 +643,18 @@ public class InvocationPipelineTests {
 
             public override int Count => 1;
 
-            public override object? this[int index] {
+            public override object? this[int index]
+            {
                 get =>
-                    index switch {
+                    index switch
+                    {
                         0 => _arg0,
-                        _ => throw new ArgumentOutOfRangeException(nameof(index))
+                        _ => throw new ArgumentOutOfRangeException(nameof(index)),
                     };
-                set {
-                    switch (index) {
+                set
+                {
+                    switch (index)
+                    {
                         case 0:
                             _arg0 = (int)value!;
                             break;
@@ -573,13 +665,16 @@ public class InvocationPipelineTests {
             }
 
             public override string NameAt(int index) =>
-                index switch {
+                index switch
+                {
                     0 => "count",
-                    _ => throw new ArgumentOutOfRangeException(nameof(index))
+                    _ => throw new ArgumentOutOfRangeException(nameof(index)),
                 };
 
-            public override IAsyncEnumerable<int> Invoke(int stage) {
-                switch (stage) {
+            public override IAsyncEnumerable<int> Invoke(int stage)
+            {
+                switch (stage)
+                {
                     case 0:
                         return _self._i0.InterceptStream(new StreamInvocationContext<int>(this, 0));
                     case 1:

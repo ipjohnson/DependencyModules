@@ -6,7 +6,8 @@ You want to cache the results of a repository:
 
 ```csharp
 [SingletonService]
-public class SqlRepository : IRepository {
+public class SqlRepository : IRepository
+{
     public Item Get(int id) => /* a database round trip */;
 }
 ```
@@ -25,12 +26,14 @@ Write the wrapper as an ordinary class, mark it `[Decorator]`, and it takes over
 public interface IRepository { Item Get(int id); }
 
 [SingletonService]
-public class SqlRepository : IRepository {
+public class SqlRepository : IRepository
+{
     public Item Get(int id) => /* … */;
 }
 
 [Decorator]
-public class CachingRepository(IRepository inner, IMemoryCache cache) : IRepository {
+public class CachingRepository(IRepository inner, IMemoryCache cache) : IRepository
+{
     public Item Get(int id) => cache.GetOrCreate(id, _ => inner.Get(id))!;
 }
 ```
@@ -80,9 +83,10 @@ validators, written once:
 [Decorator]
 public class LoggingHandler<TRequest, TResponse>(
     IRequestHandler<TRequest, TResponse> inner, ILogger log)
-    : IRequestHandler<TRequest, TResponse> {
-
-    public TResponse Handle(TRequest request) {
+    : IRequestHandler<TRequest, TResponse>
+{
+    public TResponse Handle(TRequest request)
+    {
         log.LogInformation("handling {Request}", typeof(TRequest).Name);
         return inner.Handle(request);
     }
@@ -106,8 +110,10 @@ circuit breaker only in production:
 ```csharp
 [Decorator]
 [IfEnvironment("Development")]
-public class LoggingRepository(IRepository inner, ILogger log) : IRepository {
-    public Item Get(int id) {
+public class LoggingRepository(IRepository inner, ILogger log) : IRepository
+{
+    public Item Get(int id)
+    {
         log.LogInformation("getting {Id}", id);
         return inner.Get(id);
     }

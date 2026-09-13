@@ -21,8 +21,8 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities;
 /// compilation — against 33 ms for the one visit of every syntax node this shape replaced.
 /// </para>
 /// </remarks>
-public static class AttributeModelCollector {
-
+public static class AttributeModelCollector
+{
     /// <summary>
     /// Collects one model per declaration carrying any of <paramref name="attributeTypes"/>.
     /// </summary>
@@ -36,27 +36,34 @@ public static class AttributeModelCollector {
         ITypeDefinition[] attributeTypes,
         Func<GeneratorAttributeSyntaxContext, CancellationToken, TModel> generate,
         IEqualityComparer<TModel> comparer,
-        TModel ignored) {
-
+        TModel ignored
+    )
+    {
         IncrementalValueProvider<ImmutableArray<TModel>>? merged = null;
 
         // ForAttributeWithMetadataName takes a single name, so an attribute set needs one provider
         // each. They share the index, so several indexed lookups still cost far less than one visit
         // of every syntax node.
-        foreach (var attributeType in attributeTypes) {
+        foreach (var attributeType in attributeTypes)
+        {
             var owner = attributeType;
 
-            var provider = context.SyntaxProvider.ForAttributeWithMetadataName(
+            var provider = context
+                .SyntaxProvider.ForAttributeWithMetadataName(
                     MetadataName(owner),
                     static (node, _) => node is MemberDeclarationSyntax,
                     (syntaxContext, cancellation) =>
-                        Owned(syntaxContext, cancellation, attributeTypes, owner, generate, ignored))
+                        Owned(syntaxContext, cancellation, attributeTypes, owner, generate, ignored)
+                )
                 .WithComparer(comparer)
                 .Collect();
 
-            merged = merged == null
-                ? provider
-                : merged.Value.Combine(provider).Select(static (pair, _) => pair.Left.AddRange(pair.Right));
+            merged =
+                merged == null
+                    ? provider
+                    : merged
+                        .Value.Combine(provider)
+                        .Select(static (pair, _) => pair.Left.AddRange(pair.Right));
         }
 
         return merged!.Value;
@@ -78,12 +85,15 @@ public static class AttributeModelCollector {
         ITypeDefinition[] attributeTypes,
         ITypeDefinition owner,
         Func<GeneratorAttributeSyntaxContext, CancellationToken, TModel> generate,
-        TModel ignored) {
-
+        TModel ignored
+    )
+    {
         var present = context.TargetSymbol.GetAttributes();
 
-        foreach (var candidate in attributeTypes) {
-            if (!IsPresent(present, candidate)) {
+        foreach (var candidate in attributeTypes)
+        {
+            if (!IsPresent(present, candidate))
+            {
                 continue;
             }
 
@@ -93,11 +103,16 @@ public static class AttributeModelCollector {
         return generate(context, cancellation);
     }
 
-    private static bool IsPresent(ImmutableArray<AttributeData> present, ITypeDefinition candidate) {
-        foreach (var attribute in present) {
-            if (attribute.AttributeClass is { } attributeClass &&
-                attributeClass.Name == candidate.Name &&
-                NamespaceOf(attributeClass) == candidate.Namespace) {
+    private static bool IsPresent(ImmutableArray<AttributeData> present, ITypeDefinition candidate)
+    {
+        foreach (var attribute in present)
+        {
+            if (
+                attribute.AttributeClass is { } attributeClass
+                && attributeClass.Name == candidate.Name
+                && NamespaceOf(attributeClass) == candidate.Namespace
+            )
+            {
                 return true;
             }
         }

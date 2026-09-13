@@ -21,8 +21,9 @@ public record LocationModel(
     int StartLine,
     int StartCharacter,
     int EndLine,
-    int EndCharacter) {
-
+    int EndCharacter
+)
+{
     /// <summary>
     /// Rebuilds a reportable location. Safe to call only outside the incremental pipeline.
     /// </summary>
@@ -39,7 +40,9 @@ public record LocationModel(
             new TextSpan(SpanStart, SpanLength),
             new LinePositionSpan(
                 new LinePosition(StartLine, StartCharacter),
-                new LinePosition(EndLine, EndCharacter)));
+                new LinePosition(EndLine, EndCharacter)
+            )
+        );
 
     /// <summary>
     /// Rebuilds a reportable location against the syntax tree it came from, so that
@@ -53,10 +56,12 @@ public record LocationModel(
     /// a replayed model can carry a span from a previous version of the file. Out of bounds,
     /// <c>Location.Create</c> throws, and a generator that throws reports nothing at all.
     /// </remarks>
-    public Location ToLocation(SyntaxTreeLookup lookup) {
+    public Location ToLocation(SyntaxTreeLookup lookup)
+    {
         var tree = lookup.Find(FilePath);
 
-        if (tree == null) {
+        if (tree == null)
+        {
             return ToLocation();
         }
 
@@ -85,13 +90,15 @@ public record LocationModel(
     /// </para>
     /// </remarks>
     private static SyntaxNodeOrToken NarrowToName(SyntaxNode node) =>
-        node switch {
+        node switch
+        {
             TypeDeclarationSyntax type => type.Identifier,
             MethodDeclarationSyntax method => method.Identifier,
-            _ => node
+            _ => node,
         };
 
-    private static LocationModel From(SyntaxNodeOrToken nodeOrToken) {
+    private static LocationModel From(SyntaxNodeOrToken nodeOrToken)
+    {
         var span = nodeOrToken.GetLocation()!.GetLineSpan();
 
         return new LocationModel(
@@ -101,7 +108,8 @@ public record LocationModel(
             span.StartLinePosition.Line,
             span.StartLinePosition.Character,
             span.EndLinePosition.Line,
-            span.EndLinePosition.Character);
+            span.EndLinePosition.Character
+        );
     }
 
     /// <summary>

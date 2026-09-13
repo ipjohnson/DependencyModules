@@ -26,14 +26,21 @@ namespace DependencyModules.SourceGenerator;
 /// for — reporting that would be reporting the feature.
 /// </para>
 /// </remarks>
-internal static class TestAttributeDiagnostics {
-
-    internal static void Setup(IncrementalGeneratorInitializationContext context) {
-        var methods = context.SyntaxProvider
-            .CreateSyntaxProvider(
+internal static class TestAttributeDiagnostics
+{
+    internal static void Setup(IncrementalGeneratorInitializationContext context)
+    {
+        var methods = context
+            .SyntaxProvider.CreateSyntaxProvider(
                 static (node, _) =>
-                    node is MethodDeclarationSyntax { AttributeLists.Count: > 0, ParameterList.Parameters.Count: > 0 },
-                Read)
+                    node
+                        is MethodDeclarationSyntax
+                        {
+                            AttributeLists.Count: > 0,
+                            ParameterList.Parameters.Count: > 0
+                        },
+                Read
+            )
             .Where(static finding => finding != null)
             .Collect();
 
@@ -53,35 +60,46 @@ internal static class TestAttributeDiagnostics {
     /// </remarks>
     private record Finding(string MethodName, string ServiceName, LocationModel Location);
 
-    private static Finding? Read(GeneratorSyntaxContext syntaxContext, System.Threading.CancellationToken cancellationToken) {
+    private static Finding? Read(
+        GeneratorSyntaxContext syntaxContext,
+        System.Threading.CancellationToken cancellationToken
+    )
+    {
         var context = (SyntaxTransformContext)syntaxContext;
         var method = (MethodDeclarationSyntax)context.Node;
 
         var exported = ExportedServices(method, context, cancellationToken);
 
-        if (exported.Count == 0) {
+        if (exported.Count == 0)
+        {
             return null;
         }
 
-        foreach (var parameter in method.ParameterList.Parameters) {
+        foreach (var parameter in method.ParameterList.Parameters)
+        {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (!CarriesMock(parameter, context, cancellationToken)) {
+            if (!CarriesMock(parameter, context, cancellationToken))
+            {
                 continue;
             }
 
             var parameterType = parameter.Type?.GetTypeDefinition(context);
 
-            if (parameterType == null) {
+            if (parameterType == null)
+            {
                 continue;
             }
 
-            foreach (var service in exported) {
-                if (service.Equals(parameterType)) {
+            foreach (var service in exported)
+            {
+                if (service.Equals(parameterType))
+                {
                     return new Finding(
                         method.Identifier.ToString(),
                         service.Name,
-                        LocationModel.From(parameter));
+                        LocationModel.From(parameter)
+                    );
                 }
             }
         }
@@ -95,26 +113,37 @@ internal static class TestAttributeDiagnostics {
     private static List<ITypeDefinition> ExportedServices(
         MethodDeclarationSyntax method,
         SyntaxTransformContext context,
-        System.Threading.CancellationToken cancellationToken) {
-
+        System.Threading.CancellationToken cancellationToken
+    )
+    {
         var services = new List<ITypeDefinition>();
 
-        foreach (var attributeList in method.AttributeLists) {
-            foreach (var attribute in attributeList.Attributes) {
-                if (!AttributeTypeMatcher.Matches(
+        foreach (var attributeList in method.AttributeLists)
+        {
+            foreach (var attribute in attributeList.Attributes)
+            {
+                if (
+                    !AttributeTypeMatcher.Matches(
                         context.SemanticModel,
                         attribute,
                         KnownTypes.DependencyModules.Testing.TestExportAttribute,
-                        cancellationToken)) {
+                        cancellationToken
+                    )
+                )
+                {
                     continue;
                 }
 
                 // The service is the first positional argument: [TestExport(typeof(IFoo), ...)].
-                var first = attribute.ArgumentList?.Arguments.FirstOrDefault(
-                    argument => argument.NameEquals == null);
+                var first = attribute.ArgumentList?.Arguments.FirstOrDefault(argument =>
+                    argument.NameEquals == null
+                );
 
-                if (first?.Expression is TypeOfExpressionSyntax typeOf &&
-                    typeOf.Type.GetTypeDefinition(context) is { } service) {
+                if (
+                    first?.Expression is TypeOfExpressionSyntax typeOf
+                    && typeOf.Type.GetTypeDefinition(context) is { } service
+                )
+                {
                     services.Add(service);
                 }
             }
@@ -126,15 +155,22 @@ internal static class TestAttributeDiagnostics {
     private static bool CarriesMock(
         ParameterSyntax parameter,
         SyntaxTransformContext context,
-        System.Threading.CancellationToken cancellationToken) {
-
-        foreach (var attributeList in parameter.AttributeLists) {
-            foreach (var attribute in attributeList.Attributes) {
-                if (AttributeTypeMatcher.Matches(
+        System.Threading.CancellationToken cancellationToken
+    )
+    {
+        foreach (var attributeList in parameter.AttributeLists)
+        {
+            foreach (var attribute in attributeList.Attributes)
+            {
+                if (
+                    AttributeTypeMatcher.Matches(
                         context.SemanticModel,
                         attribute,
                         KnownTypes.DependencyModules.Testing.MockAttribute,
-                        cancellationToken)) {
+                        cancellationToken
+                    )
+                )
+                {
                     return true;
                 }
             }
@@ -145,12 +181,18 @@ internal static class TestAttributeDiagnostics {
 
     private static void Report(
         SourceProductionContext context,
-        (System.Collections.Immutable.ImmutableArray<Finding?> Findings, Compilation Compilation) data) {
-
+        (
+            System.Collections.Immutable.ImmutableArray<Finding?> Findings,
+            Compilation Compilation
+        ) data
+    )
+    {
         var lookup = new SyntaxTreeLookup(data.Compilation);
 
-        foreach (var finding in data.Findings) {
-            if (finding == null) {
+        foreach (var finding in data.Findings)
+        {
+            if (finding == null)
+            {
                 continue;
             }
 
@@ -161,7 +203,9 @@ internal static class TestAttributeDiagnostics {
                     DependencyModuleDiagnostics.MockAndTestExportOnOneMethod,
                     finding.Location.ToLocationOrNone(lookup),
                     finding.MethodName,
-                    finding.ServiceName));
+                    finding.ServiceName
+                )
+            );
         }
     }
 }

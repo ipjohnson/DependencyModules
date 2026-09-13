@@ -2,7 +2,8 @@ using CSharpAuthor;
 
 namespace DependencyModules.SourceGenerator.Impl.Models;
 
-public enum LogOutputLevel {
+public enum LogOutputLevel
+{
     Debug = 1,
     Info = 2,
     Warning = 3,
@@ -27,27 +28,33 @@ public record DependencyModuleConfigurationModel(
     BraceStyle GeneratedCodeStyle = BraceStyle.Allman
 );
 
-public class DependencyModuleConfigurationModelComparer :
-    IEqualityComparer<DependencyModuleConfigurationModel> {
-
-    public bool Equals(DependencyModuleConfigurationModel? x, DependencyModuleConfigurationModel? y) {
-        if (ReferenceEquals(x, y)) return true;
-        if (x is null) return false;
-        if (y is null) return false;
-        if (x.GetType() != y.GetType()) return false;
-        return x.RegistrationType == y.RegistrationType &&
-               x.RegisterSourceGenerator == y.RegisterSourceGenerator &&
-               x.RootNamespace == y.RootNamespace &&
-               x.ProjectDir == y.ProjectDir &&
-               x.LogOutputFolder == y.LogOutputFolder &&
-               x.AutoGenerateEntry == y.AutoGenerateEntry &&
-               x.LogOutputLevel == y.LogOutputLevel &&
-               x.GenerateFactories == y.GenerateFactories &&
-               x.ExcludeGeneratedCodeFromCoverage == y.ExcludeGeneratedCodeFromCoverage &&
-               x.GeneratedCodeStyle == y.GeneratedCodeStyle;
+public class DependencyModuleConfigurationModelComparer
+    : IEqualityComparer<DependencyModuleConfigurationModel>
+{
+    public bool Equals(DependencyModuleConfigurationModel? x, DependencyModuleConfigurationModel? y)
+    {
+        if (ReferenceEquals(x, y))
+            return true;
+        if (x is null)
+            return false;
+        if (y is null)
+            return false;
+        if (x.GetType() != y.GetType())
+            return false;
+        return x.RegistrationType == y.RegistrationType
+            && x.RegisterSourceGenerator == y.RegisterSourceGenerator
+            && x.RootNamespace == y.RootNamespace
+            && x.ProjectDir == y.ProjectDir
+            && x.LogOutputFolder == y.LogOutputFolder
+            && x.AutoGenerateEntry == y.AutoGenerateEntry
+            && x.LogOutputLevel == y.LogOutputLevel
+            && x.GenerateFactories == y.GenerateFactories
+            && x.ExcludeGeneratedCodeFromCoverage == y.ExcludeGeneratedCodeFromCoverage
+            && x.GeneratedCodeStyle == y.GeneratedCodeStyle;
     }
 
-    public int GetHashCode(DependencyModuleConfigurationModel obj) {
+    public int GetHashCode(DependencyModuleConfigurationModel obj)
+    {
         return obj.GetHashCode();
     }
 }

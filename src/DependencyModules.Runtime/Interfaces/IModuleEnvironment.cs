@@ -3,7 +3,8 @@ namespace DependencyModules.Runtime.Interfaces;
 /// <summary>
 ///     Minimal environment interface for conditional service registration.
 /// </summary>
-public interface IModuleEnvironment {
+public interface IModuleEnvironment
+{
     /// <summary>
     /// The name of the current environment (e.g. "Development", "Production").
     /// </summary>

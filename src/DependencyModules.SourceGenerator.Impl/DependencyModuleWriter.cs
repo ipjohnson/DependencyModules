@@ -8,11 +8,12 @@ using static CSharpAuthor.SyntaxHelpers;
 
 namespace DependencyModules.SourceGenerator.Impl;
 
-
-public class DependencyModuleWriter {
+public class DependencyModuleWriter
+{
     private readonly bool _generateAttribute;
 
-    public DependencyModuleWriter(bool generateAttribute) {
+    public DependencyModuleWriter(bool generateAttribute)
+    {
         _generateAttribute = generateAttribute;
     }
 
@@ -28,34 +29,49 @@ public class DependencyModuleWriter {
     /// </remarks>
     public static void Register(
         IncrementalGeneratorInitializationContext context,
-        IncrementalValueProvider<ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)>> valuesProvider,
-        bool generateAttribute) {
-
+        IncrementalValueProvider<
+            ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)>
+        > valuesProvider,
+        bool generateAttribute
+    )
+    {
         context.RegisterSourceOutput(
-            valuesProvider, new DependencyModuleWriter(generateAttribute).GenerateSource);
+            valuesProvider,
+            new DependencyModuleWriter(generateAttribute).GenerateSource
+        );
 
         context.RegisterSourceOutput(
             valuesProvider.Combine(context.CompilationProvider),
-            ModuleEntryPointDiagnostics.Report);
+            ModuleEntryPointDiagnostics.Report
+        );
     }
 
-    public void GenerateSource(SourceProductionContext context, 
-        ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> allEntryPoints) {
-
-        if (allEntryPoints.Length == 0) {
+    public void GenerateSource(
+        SourceProductionContext context,
+        ImmutableArray<(
+            ModuleEntryPointModel Left,
+            DependencyModuleConfigurationModel Right
+        )> allEntryPoints
+    )
+    {
+        if (allEntryPoints.Length == 0)
+        {
             return;
         }
-        
-        var (entryPointList, configurationModel) = 
-            EntryModelUtil.ConsolidateEntryPointModels(allEntryPoints);
 
-        foreach (var entryPointModel in entryPointList) {
+        var (entryPointList, configurationModel) = EntryModelUtil.ConsolidateEntryPointModels(
+            allEntryPoints
+        );
+
+        foreach (var entryPointModel in entryPointList)
+        {
             context.CancellationToken.ThrowIfCancellationRequested();
 
             ProcessEntryPoint(
                 context,
                 WithDelegateTarget(entryPointModel, entryPointList),
-                configurationModel);
+                configurationModel
+            );
         }
     }
 
@@ -69,52 +85,66 @@ public class DependencyModuleWriter {
     /// the emitted module changes, and a module with nothing to defer to is returned untouched.
     /// </remarks>
     private static ModuleEntryPointModel WithDelegateTarget(
-        ModuleEntryPointModel entryPointModel, IList<ModuleEntryPointModel> entryPointList) {
-
+        ModuleEntryPointModel entryPointModel,
+        IList<ModuleEntryPointModel> entryPointList
+    )
+    {
         var target = EntryModelUtil.DelegateTargetFor(entryPointModel, entryPointList);
 
-        if (target == null) {
+        if (target == null)
+        {
             return entryPointModel;
         }
 
         var modules = new List<ITypeDefinition>(entryPointModel.AdditionalModules);
 
-        if (!modules.Contains(target)) {
+        if (!modules.Contains(target))
+        {
             modules.Add(target);
         }
 
-        return entryPointModel with { AdditionalModules = modules };
+        return entryPointModel with
+        {
+            AdditionalModules = modules,
+        };
     }
 
     private void ProcessEntryPoint(
-        SourceProductionContext context, 
-        ModuleEntryPointModel entryPointModel, 
-        DependencyModuleConfigurationModel configurationModel) {
-
+        SourceProductionContext context,
+        ModuleEntryPointModel entryPointModel,
+        DependencyModuleConfigurationModel configurationModel
+    )
+    {
         // Both of these are reported by ModuleEntryPointDiagnostics, which owns the conditions.
         // Generating anyway is what makes them worth stopping for: a non-partial module produces
         // CS0260 against the developer's own declaration, and a nested one emits a same-named type
         // at namespace level that compiles and registers nothing. Either way the actionable message
         // would arrive buried under errors describing the symptom.
-        if (ModuleEntryPointDiagnostics.IsNotPartial(entryPointModel) ||
-            ModuleEntryPointDiagnostics.IsNestedInType(entryPointModel)) {
+        if (
+            ModuleEntryPointDiagnostics.IsNotPartial(entryPointModel)
+            || ModuleEntryPointDiagnostics.IsNestedInType(entryPointModel)
+        )
+        {
             return;
         }
 
-        entryPointModel = EntryModelUtil.EnsureNamespace(entryPointModel,configurationModel);
+        entryPointModel = EntryModelUtil.EnsureNamespace(entryPointModel, configurationModel);
 
         var csharpFile = new CSharpFileDefinition(entryPointModel.EntryPointType.Namespace);
 
         GenerateModuleClass(entryPointModel, csharpFile);
 
         GenerateUseMethod(entryPointModel, configurationModel, csharpFile);
-        
+
         GenerateAttribute(entryPointModel, csharpFile);
 
-        var outputContext = new OutputContext(new OutputContextOptions {
-            TypeOutputMode = TypeOutputMode.Global,
-            BraceStyle = configurationModel.GeneratedCodeStyle
-        });
+        var outputContext = new OutputContext(
+            new OutputContextOptions
+            {
+                TypeOutputMode = TypeOutputMode.Global,
+                BraceStyle = configurationModel.GeneratedCodeStyle,
+            }
+        );
 
         csharpFile.WriteOutput(outputContext);
 
@@ -124,14 +154,21 @@ public class DependencyModuleWriter {
 
         context.AddSource(
             entryPointModel.EntryPointType.GetFileNameHint(
-                configurationModel.RootNamespace, "Module"),
-            source);
+                configurationModel.RootNamespace,
+                "Module"
+            ),
+            source
+        );
     }
 
-    private void GenerateAttribute(ModuleEntryPointModel moduleEntryPoint,
-        CSharpFileDefinition csharpFile) {
+    private void GenerateAttribute(
+        ModuleEntryPointModel moduleEntryPoint,
+        CSharpFileDefinition csharpFile
+    )
+    {
         var model = moduleEntryPoint;
-        if (_generateAttribute && model.GenerateAttribute != false) {
+        if (_generateAttribute && model.GenerateAttribute != false)
+        {
             var attributeGenerator = new ModuleAttributeWriter();
 
             attributeGenerator.CreateAttributeClass(csharpFile, model);
@@ -139,45 +176,58 @@ public class DependencyModuleWriter {
     }
 
     private void GenerateUseMethod(
-        ModuleEntryPointModel entryPointModel, 
-        DependencyModuleConfigurationModel configurationModel, 
-        CSharpFileDefinition csharpFile) {
-
-        if (string.IsNullOrEmpty(entryPointModel.UseMethod)) {
+        ModuleEntryPointModel entryPointModel,
+        DependencyModuleConfigurationModel configurationModel,
+        CSharpFileDefinition csharpFile
+    )
+    {
+        if (string.IsNullOrEmpty(entryPointModel.UseMethod))
+        {
             return;
         }
-        var extensionMethod = csharpFile.AddClass($"{entryPointModel.EntryPointType.Name}Extensions");
+        var extensionMethod = csharpFile.AddClass(
+            $"{entryPointModel.EntryPointType.Name}Extensions"
+        );
 
-        extensionMethod.Modifiers = ComponentModifier.Public | ComponentModifier.Static | ComponentModifier.Partial;
-        
+        extensionMethod.Modifiers =
+            ComponentModifier.Public | ComponentModifier.Static | ComponentModifier.Partial;
+
         var method = extensionMethod.AddMethod(entryPointModel.UseMethod!);
 
         method.Modifiers = ComponentModifier.Public | ComponentModifier.Static;
         method.SetReturnType(KnownTypes.Microsoft.DependencyInjection.IServiceCollection);
 
-        var serviceProvider = method.AddParameter(KnownTypes.Microsoft.DependencyInjection.IServiceCollection, "serviceCollection");
+        var serviceProvider = method.AddParameter(
+            KnownTypes.Microsoft.DependencyInjection.IServiceCollection,
+            "serviceCollection"
+        );
         serviceProvider.This = true;
-        
+
         var parameters = new List<object>();
-        
-        foreach (var parameterInfoModel in entryPointModel.Parameters) {
-            var param = method.AddParameter(parameterInfoModel.ParameterType, parameterInfoModel.ParameterName);
-            
+
+        foreach (var parameterInfoModel in entryPointModel.Parameters)
+        {
+            var param = method.AddParameter(
+                parameterInfoModel.ParameterType,
+                parameterInfoModel.ParameterName
+            );
+
             parameters.Add(param);
         }
-        
+
         var newStatement = New(entryPointModel.EntryPointType, parameters.ToArray());
-        
+
         method.Return(serviceProvider.Invoke("AddModules", newStatement));
         method.AddUsingNamespace("DependencyModules.Runtime");
     }
-    
-    private void GenerateModuleClass(ModuleEntryPointModel model, CSharpFileDefinition csharpFile) {
+
+    private void GenerateModuleClass(ModuleEntryPointModel model, CSharpFileDefinition csharpFile)
+    {
         var classDefinition = csharpFile.AddClass(model.EntryPointType.Name);
 
         classDefinition.EnableNullable();
         classDefinition.Modifiers |= ComponentModifier.Partial;
-        
+
         SetupStaticConstructor(classDefinition);
 
         PopulateServiceCollectionMethod(classDefinition, model);
@@ -190,46 +240,66 @@ public class DependencyModuleWriter {
 
         FeatureMethod(classDefinition, model);
 
-        if ((model.ModuleFeatures & ModuleEntryPointFeatures.ShouldImplementEquals) == 
-            ModuleEntryPointFeatures.ShouldImplementEquals) {
+        if (
+            (model.ModuleFeatures & ModuleEntryPointFeatures.ShouldImplementEquals)
+            == ModuleEntryPointFeatures.ShouldImplementEquals
+        )
+        {
             EqualMethod(classDefinition, model);
 
             HashMethod(classDefinition, model);
         }
     }
 
-    private void FeatureMethod(ClassDefinition classDefinition, ModuleEntryPointModel model) {
-        if (model.Features.Count == 0) {
+    private void FeatureMethod(ClassDefinition classDefinition, ModuleEntryPointModel model)
+    {
+        if (model.Features.Count == 0)
+        {
             return;
         }
 
-        classDefinition.AddBaseType(KnownTypes.DependencyModules.Features.IDependencyModuleApplicatorProvider);
+        classDefinition.AddBaseType(
+            KnownTypes.DependencyModules.Features.IDependencyModuleApplicatorProvider
+        );
 
         var method = classDefinition.AddMethod("FeatureApplicators");
         method.SetReturnType(
-            new GenericTypeDefinition(typeof(IEnumerable<>), new []{KnownTypes.DependencyModules.Features.IFeatureApplicator}));
+            new GenericTypeDefinition(
+                typeof(IEnumerable<>),
+                new[] { KnownTypes.DependencyModules.Features.IFeatureApplicator }
+            )
+        );
 
         method.Modifiers |= ComponentModifier.Virtual | ComponentModifier.Public;
 
         method.AddLeadingTrait(CodeOutputComponent.Get("[Browsable(false)]", true));
         method.AddUsingNamespace("System.ComponentModel");
-        
-        method.InterfaceImplementation = KnownTypes.DependencyModules.Features.IDependencyModuleApplicatorProvider;
-        
-        foreach (var typeDefinition in model.Features) {
+
+        method.InterfaceImplementation = KnownTypes
+            .DependencyModules
+            .Features
+            .IDependencyModuleApplicatorProvider;
+
+        foreach (var typeDefinition in model.Features)
+        {
             method.AddIndentedStatement(
                 YieldReturn(
                     New(
-                        new GenericTypeDefinition(TypeDefinitionEnum.ClassDefinition,
-                        KnownTypes.DependencyModules.Features.FeatureApplicator.Namespace,
-                        KnownTypes.DependencyModules.Features.FeatureApplicator.Name,
-                        new []{typeDefinition}), "this")
-                    ));
+                        new GenericTypeDefinition(
+                            TypeDefinitionEnum.ClassDefinition,
+                            KnownTypes.DependencyModules.Features.FeatureApplicator.Namespace,
+                            KnownTypes.DependencyModules.Features.FeatureApplicator.Name,
+                            new[] { typeDefinition }
+                        ),
+                        "this"
+                    )
+                )
+            );
         }
     }
 
-    private void HashMethod(
-        ClassDefinition classDefinition, ModuleEntryPointModel model) {
+    private void HashMethod(ClassDefinition classDefinition, ModuleEntryPointModel model)
+    {
         var hashMethod = classDefinition.AddMethod("GetHashCode");
 
         hashMethod.Modifiers |= ComponentModifier.Override;
@@ -243,14 +313,18 @@ public class DependencyModuleWriter {
         hashMethod.Return(stableHash.ToString());
     }
 
-    private static int GetStableHashCode(string str) {
-        unchecked {
+    private static int GetStableHashCode(string str)
+    {
+        unchecked
+        {
             var hash1 = 5381;
             var hash2 = hash1;
 
-            for (var i = 0; i < str.Length && str[i] != '\0'; i += 2) {
+            for (var i = 0; i < str.Length && str[i] != '\0'; i += 2)
+            {
                 hash1 = ((hash1 << 5) + hash1) ^ str[i];
-                if (i == str.Length - 1) {
+                if (i == str.Length - 1)
+                {
                     break;
                 }
 
@@ -261,7 +335,8 @@ public class DependencyModuleWriter {
         }
     }
 
-    private void EqualMethod(ClassDefinition classDefinition, ModuleEntryPointModel model) {
+    private void EqualMethod(ClassDefinition classDefinition, ModuleEntryPointModel model)
+    {
         var equalMethod = classDefinition.AddMethod("Equals");
 
         equalMethod.Modifiers |= ComponentModifier.Override;
@@ -277,7 +352,11 @@ public class DependencyModuleWriter {
     /// every module can be sorted together. Emitted unconditionally: a module may gain decorators
     /// from a source the registrations file never saw, and returning an empty list costs nothing.
     /// </summary>
-    private void InternalGetDecoratorsMethod(ClassDefinition classDefinition, ModuleEntryPointModel model) {
+    private void InternalGetDecoratorsMethod(
+        ClassDefinition classDefinition,
+        ModuleEntryPointModel model
+    )
+    {
         var method = classDefinition.AddMethod("InternalGetDecorators");
 
         method.AddLeadingTrait(CodeOutputComponent.Get("[Browsable(false)]", true));
@@ -287,76 +366,101 @@ public class DependencyModuleWriter {
         method.SetReturnType(
             new GenericTypeDefinition(
                 typeof(IEnumerable<>),
-                new[] { KnownTypes.DependencyModules.Helpers.DecoratorRegistration }));
+                new[] { KnownTypes.DependencyModules.Helpers.DecoratorRegistration }
+            )
+        );
 
         var closedType = new GenericTypeDefinition(
-            TypeDefinitionEnum.ClassDefinition, KnownTypes.DependencyModules.Helpers.Namespace, "DependencyRegistry", new[] {
-                model.EntryPointType
-            });
+            TypeDefinitionEnum.ClassDefinition,
+            KnownTypes.DependencyModules.Helpers.Namespace,
+            "DependencyRegistry",
+            new[] { model.EntryPointType }
+        );
 
-        method.Return(new StaticInvokeStatement(closedType, "GetDecorators", new List<IOutputComponent>()) {
-            Indented = false
-        });
+        method.Return(
+            new StaticInvokeStatement(closedType, "GetDecorators", new List<IOutputComponent>())
+            {
+                Indented = false,
+            }
+        );
     }
 
-    private void InternalGetModulesMethod(ClassDefinition classDefinition, ModuleEntryPointModel model) {
+    private void InternalGetModulesMethod(
+        ClassDefinition classDefinition,
+        ModuleEntryPointModel model
+    )
+    {
         var attributeModels = FilterAttributes(model.AttributeModels);
-        
+
         var getModulesMethod = classDefinition.AddMethod("InternalGetModules");
 
         getModulesMethod.AddLeadingTrait(CodeOutputComponent.Get("[Browsable(false)]", true));
         getModulesMethod.AddUsingNamespace("System.ComponentModel");
-        
-        getModulesMethod.InterfaceImplementation = KnownTypes.DependencyModules.Interfaces.IDependencyModule;
+
+        getModulesMethod.InterfaceImplementation = KnownTypes
+            .DependencyModules
+            .Interfaces
+            .IDependencyModule;
         getModulesMethod.SetReturnType(TypeDefinition.Get(typeof(IEnumerable<object>)));
-        
+
         var parametersList = new List<IOutputComponent>();
-        
-        foreach (var additionalModule in model.AdditionalModules) {
-            if (additionalModule != null) {
+
+        foreach (var additionalModule in model.AdditionalModules)
+        {
+            if (additionalModule != null)
+            {
                 var newStatement = New(additionalModule);
 
                 parametersList.Add(newStatement);
             }
         }
-        
-        foreach (var modelAttributeModel in attributeModels) {
+
+        foreach (var modelAttributeModel in attributeModels)
+        {
             var newStatement = New(
                 modelAttributeModel.TypeDefinition,
-                modelAttributeModel.GetArguments().Select(o => (object)o).ToArray());
-            
-            foreach (var propertyValue in modelAttributeModel.PropertyValues()) {
+                modelAttributeModel.GetArguments().Select(o => (object)o).ToArray()
+            );
+
+            foreach (var propertyValue in modelAttributeModel.PropertyValues())
+            {
                 newStatement.AddInitValue(propertyValue);
             }
-            
+
             parametersList.Add(newStatement);
         }
-        
+
         var closedType = new GenericTypeDefinition(
-            TypeDefinitionEnum.ClassDefinition, KnownTypes.DependencyModules.Helpers.Namespace, "DependencyRegistry", new[] {
-                model.EntryPointType
-            });
-        
+            TypeDefinitionEnum.ClassDefinition,
+            KnownTypes.DependencyModules.Helpers.Namespace,
+            "DependencyRegistry",
+            new[] { model.EntryPointType }
+        );
+
         getModulesMethod.Return(
-            new StaticInvokeStatement(
-                closedType,
-                "GetModules",
-                parametersList.ToArray()) {
-                Indented = false
-            });
+            new StaticInvokeStatement(closedType, "GetModules", parametersList.ToArray())
+            {
+                Indented = false,
+            }
+        );
     }
 
-    private List<AttributeModel> FilterAttributes(IReadOnlyList<AttributeModel> modelAttributeModels) {
+    private List<AttributeModel> FilterAttributes(
+        IReadOnlyList<AttributeModel> modelAttributeModels
+    )
+    {
         var attributeModels = new List<AttributeModel>();
 
-        foreach (var modelAttributeModel in modelAttributeModels) {
-            if (modelAttributeModel.TypeDefinition.Name == "DependencyModuleAttribute") {
+        foreach (var modelAttributeModel in modelAttributeModels)
+        {
+            if (modelAttributeModel.TypeDefinition.Name == "DependencyModuleAttribute")
+            {
                 continue;
             }
 
             attributeModels.Add(modelAttributeModel);
         }
-        
+
         return attributeModels;
     }
 
@@ -379,77 +483,98 @@ public class DependencyModuleWriter {
     /// </remarks>
     private void InternalApplyServicesMethod(
         ClassDefinition classDefinition,
-        ModuleEntryPointModel model) {
-
+        ModuleEntryPointModel model
+    )
+    {
         var closedType = new GenericTypeDefinition(
-            TypeDefinitionEnum.ClassDefinition, KnownTypes.DependencyModules.Helpers.Namespace, "DependencyRegistry", new[] {
-                model.EntryPointType
-            });
+            TypeDefinitionEnum.ClassDefinition,
+            KnownTypes.DependencyModules.Helpers.Namespace,
+            "DependencyRegistry",
+            new[] { model.EntryPointType }
+        );
 
         ApplyServicesOverload(classDefinition, closedType, withEnvironment: false);
         ApplyServicesOverload(classDefinition, closedType, withEnvironment: true);
     }
 
     private static void ApplyServicesOverload(
-        ClassDefinition classDefinition, ITypeDefinition closedType, bool withEnvironment) {
-
+        ClassDefinition classDefinition,
+        ITypeDefinition closedType,
+        bool withEnvironment
+    )
+    {
         var loadDependenciesMethod = classDefinition.AddMethod("InternalApplyServices");
 
         loadDependenciesMethod.AddLeadingTrait(CodeOutputComponent.Get("[Browsable(false)]", true));
         loadDependenciesMethod.AddUsingNamespace("System.ComponentModel");
 
-        loadDependenciesMethod.InterfaceImplementation =
-            KnownTypes.DependencyModules.Interfaces.IDependencyModule;
+        loadDependenciesMethod.InterfaceImplementation = KnownTypes
+            .DependencyModules
+            .Interfaces
+            .IDependencyModule;
 
-        var arguments = new List<IOutputComponent> {
+        var arguments = new List<IOutputComponent>
+        {
             loadDependenciesMethod.AddParameter(
-                KnownTypes.Microsoft.DependencyInjection.IServiceCollection, "services")
+                KnownTypes.Microsoft.DependencyInjection.IServiceCollection,
+                "services"
+            ),
         };
 
-        if (withEnvironment) {
+        if (withEnvironment)
+        {
             arguments.Add(
                 loadDependenciesMethod.AddParameter(
-                    KnownTypes.DependencyModules.Interfaces.IModuleEnvironment, "environment"));
+                    KnownTypes.DependencyModules.Interfaces.IModuleEnvironment,
+                    "environment"
+                )
+            );
         }
 
         loadDependenciesMethod.AddIndentedStatement(
-            new StaticInvokeStatement(closedType, "ApplyServices", arguments) {
-                Indented = false
-            });
+            new StaticInvokeStatement(closedType, "ApplyServices", arguments) { Indented = false }
+        );
     }
 
-    private void PopulateServiceCollectionMethod(ClassDefinition classDefinition, ModuleEntryPointModel model) {
+    private void PopulateServiceCollectionMethod(
+        ClassDefinition classDefinition,
+        ModuleEntryPointModel model
+    )
+    {
         classDefinition.AddBaseType(KnownTypes.DependencyModules.Interfaces.IDependencyModule);
 
         var loadDependenciesMethod = classDefinition.AddMethod("PopulateServiceCollection");
 
-        var parameter =
-            loadDependenciesMethod.AddParameter(
-                KnownTypes.Microsoft.DependencyInjection.IServiceCollection, "services");
+        var parameter = loadDependenciesMethod.AddParameter(
+            KnownTypes.Microsoft.DependencyInjection.IServiceCollection,
+            "services"
+        );
 
         var closedType = new GenericTypeDefinition(
             TypeDefinitionEnum.ClassDefinition,
             KnownTypes.DependencyModules.Helpers.Namespace,
             "DependencyRegistry",
-            new[] {
-                model.EntryPointType
-            });
+            new[] { model.EntryPointType }
+        );
 
         loadDependenciesMethod.AddIndentedStatement(
             new StaticInvokeStatement(
                 closedType,
                 "LoadModules",
-                new IOutputComponent[] {
+                new IOutputComponent[]
+                {
                     parameter,
-                    new CodeOutputComponent("this") {
-                        Indented = false
-                    }
-                }) {
-                Indented = false
-            });
+                    new CodeOutputComponent("this") { Indented = false },
+                }
+            )
+            {
+                Indented = false,
+            }
+        );
     }
 
-    private void SetupStaticConstructor(ClassDefinition classDefinition) {
+    private void SetupStaticConstructor(ClassDefinition classDefinition)
+    {
         classDefinition.AddConstructor().Modifiers = ComponentModifier.Static;
     }
 }

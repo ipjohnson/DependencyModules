@@ -45,9 +45,10 @@ that want module models:
 
 ```csharp
 [Generator]
-public class MySourceGenerator : BaseSourceGenerator {
-
-    protected override IEnumerable<IDependencyModuleSourceGenerator> AttributeSourceGenerators() {
+public class MySourceGenerator : BaseSourceGenerator
+{
+    protected override IEnumerable<IDependencyModuleSourceGenerator> AttributeSourceGenerators()
+    {
         yield return new MyGenerator();
     }
 
@@ -62,12 +63,13 @@ match: nothing else can write those modules, so the base class writes them for y
 
 ```csharp
 [Generator]
-public class MyFrameworkGenerator : BaseSourceGenerator {
-
+public class MyFrameworkGenerator : BaseSourceGenerator
+{
     protected override ITypeDefinition[] ModuleAttributeTypes() =>
         [TypeDefinition.Get("My.Framework", "MyModuleAttribute")];
 
-    protected override IEnumerable<IDependencyModuleSourceGenerator> AttributeSourceGenerators() {
+    protected override IEnumerable<IDependencyModuleSourceGenerator> AttributeSourceGenerators()
+    {
         yield return new MyGenerator();
     }
 }
@@ -88,12 +90,12 @@ things follow from declaring your own attribute:
 provider of every discovered module paired with the configuration in effect:
 
 ```csharp
-public class MyGenerator : IDependencyModuleSourceGenerator {
-
+public class MyGenerator : IDependencyModuleSourceGenerator
+{
     public void SetupGenerator(
         IncrementalGeneratorInitializationContext context,
-        IncrementalValuesProvider<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> modules) {
-
+        IncrementalValuesProvider<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> modules)
+    {
         var candidates = context.SyntaxProvider
             .CreateSyntaxProvider(IsCandidate, GetModel)
             .Where(model => !model.IsIgnored)
@@ -108,7 +110,8 @@ For an attribute-driven mechanism, `BaseAttributeSourceGenerator<TModel>` does m
 supply the attribute types, a transform, a comparer and an ignored sentinel:
 
 ```csharp
-public class MyGenerator : BaseAttributeSourceGenerator<MyModel> {
+public class MyGenerator : BaseAttributeSourceGenerator<MyModel>
+{
     protected override IEnumerable<ITypeDefinition> AttributeTypes() => [MyAttributeType];
     protected override MyModel GenerateAttributeModel(GeneratorAttributeSyntaxContext c, CancellationToken t) => …;
     protected override IEqualityComparer<MyModel> GetComparer() => new MyModelComparer();

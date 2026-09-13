@@ -30,8 +30,8 @@ namespace DependencyModules.SourceGenerator.Impl;
 /// rather than repeating them.
 /// </para>
 /// </remarks>
-public static class ModuleEntryPointDiagnostics {
-
+public static class ModuleEntryPointDiagnostics
+{
     /// <summary>
     /// Generating into a non-partial type produces CS0260 against the developer's own declaration,
     /// which describes the symptom rather than the fix.
@@ -56,15 +56,22 @@ public static class ModuleEntryPointDiagnostics {
     /// has already answered the question this asks about.
     /// </remarks>
     public static bool ReliesOnGeneratedEquality(ModuleEntryPointModel model) =>
-        model.PropertyInfoModels.Any(p => p.IsModuleParameter) &&
-        model.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.ShouldImplementEquals);
+        model.PropertyInfoModels.Any(p => p.IsModuleParameter)
+        && model.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.ShouldImplementEquals);
 
     public static void Report(
         SourceProductionContext context,
-        (ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> Models,
-            Compilation Compilation) input) {
-
-        if (input.Models.Length == 0) {
+        (
+            ImmutableArray<(
+                ModuleEntryPointModel Left,
+                DependencyModuleConfigurationModel Right
+            )> Models,
+            Compilation Compilation
+        ) input
+    )
+    {
+        if (input.Models.Length == 0)
+        {
             return;
         }
 
@@ -74,22 +81,40 @@ public static class ModuleEntryPointDiagnostics {
 
         var lookup = new SyntaxTreeLookup(input.Compilation);
 
-        foreach (var entryPointModel in entryPointList) {
+        foreach (var entryPointModel in entryPointList)
+        {
             context.CancellationToken.ThrowIfCancellationRequested();
 
-            if (IsNotPartial(entryPointModel)) {
-                Report(context, DependencyModuleDiagnostics.ModuleMustBePartial, entryPointModel, lookup);
+            if (IsNotPartial(entryPointModel))
+            {
+                Report(
+                    context,
+                    DependencyModuleDiagnostics.ModuleMustBePartial,
+                    entryPointModel,
+                    lookup
+                );
                 continue;
             }
 
-            if (IsNestedInType(entryPointModel)) {
-                Report(context, DependencyModuleDiagnostics.ModuleCannotBeNested, entryPointModel, lookup);
+            if (IsNestedInType(entryPointModel))
+            {
+                Report(
+                    context,
+                    DependencyModuleDiagnostics.ModuleCannotBeNested,
+                    entryPointModel,
+                    lookup
+                );
                 continue;
             }
 
-            if (ReliesOnGeneratedEquality(entryPointModel)) {
-                Report(context, DependencyModuleDiagnostics.ModuleWithPropertiesShouldImplementEquals,
-                    entryPointModel, lookup);
+            if (ReliesOnGeneratedEquality(entryPointModel))
+            {
+                Report(
+                    context,
+                    DependencyModuleDiagnostics.ModuleWithPropertiesShouldImplementEquals,
+                    entryPointModel,
+                    lookup
+                );
             }
         }
     }
@@ -98,10 +123,13 @@ public static class ModuleEntryPointDiagnostics {
         SourceProductionContext context,
         DiagnosticDescriptor descriptor,
         ModuleEntryPointModel entryPointModel,
-        SyntaxTreeLookup lookup) =>
+        SyntaxTreeLookup lookup
+    ) =>
         context.ReportDiagnostic(
             Diagnostic.Create(
                 descriptor,
                 entryPointModel.Location.ToLocationOrNone(lookup),
-                entryPointModel.EntryPointType.Name));
+                entryPointModel.EntryPointType.Name
+            )
+        );
 }

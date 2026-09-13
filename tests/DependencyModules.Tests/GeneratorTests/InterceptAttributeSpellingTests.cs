@@ -17,17 +17,24 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// Interceptors are audit, authorisation, retry and metrics, which is the worst set of things to
 /// silently not run.
 /// </summary>
-public class InterceptAttributeSpellingTests {
-
+public class InterceptAttributeSpellingTests
+{
     [Theory]
     [InlineData("[Intercept(typeof(LoggingInterceptor))]")]
     [InlineData("[InterceptAttribute(typeof(LoggingInterceptor))]")]
     [InlineData("[DependencyModules.Runtime.Attributes.Intercept(typeof(LoggingInterceptor))]")]
-    [InlineData("[DependencyModules.Runtime.Attributes.InterceptAttribute(typeof(LoggingInterceptor))]")]
-    [InlineData("[global::DependencyModules.Runtime.Attributes.Intercept(typeof(LoggingInterceptor))]")]
-    [InlineData("[global::DependencyModules.Runtime.Attributes.InterceptAttribute(typeof(LoggingInterceptor))]")]
+    [InlineData(
+        "[DependencyModules.Runtime.Attributes.InterceptAttribute(typeof(LoggingInterceptor))]"
+    )]
+    [InlineData(
+        "[global::DependencyModules.Runtime.Attributes.Intercept(typeof(LoggingInterceptor))]"
+    )]
+    [InlineData(
+        "[global::DependencyModules.Runtime.Attributes.InterceptAttribute(typeof(LoggingInterceptor))]"
+    )]
     [InlineData("[Wrap(typeof(LoggingInterceptor))]")]
-    public void EverySpelling_GeneratesTheWrapper(string attribute) {
+    public void EverySpelling_GeneratesTheWrapper(string attribute)
+    {
         var result = Run(attribute).AssertNoErrors();
 
         Assert.Contains("Thing_Intercepted", string.Join(", ", result.GeneratedSources.Keys));
@@ -36,9 +43,12 @@ public class InterceptAttributeSpellingTests {
     [Theory]
     [InlineData("[Intercept(typeof(LoggingInterceptor))]")]
     [InlineData("[DependencyModules.Runtime.Attributes.Intercept(typeof(LoggingInterceptor))]")]
-    [InlineData("[global::DependencyModules.Runtime.Attributes.InterceptAttribute(typeof(LoggingInterceptor))]")]
+    [InlineData(
+        "[global::DependencyModules.Runtime.Attributes.InterceptAttribute(typeof(LoggingInterceptor))]"
+    )]
     [InlineData("[Wrap(typeof(LoggingInterceptor))]")]
-    public void EverySpelling_AppliesTheInterception(string attribute) {
+    public void EverySpelling_AppliesTheInterception(string attribute)
+    {
         var interceptors = Run(attribute).SourceContaining("Interceptors");
 
         Assert.Contains("Thing_Intercepted", interceptors);
@@ -47,28 +57,29 @@ public class InterceptAttributeSpellingTests {
     private static GeneratorResult Run(string attribute) =>
         GeneratorTestHarness.Run(
             $$"""
-              using DependencyModules.Runtime.Attributes;
-              using DependencyModules.Runtime.Interception;
-              using Wrap = DependencyModules.Runtime.Attributes.InterceptAttribute;
+            using DependencyModules.Runtime.Attributes;
+            using DependencyModules.Runtime.Interception;
+            using Wrap = DependencyModules.Runtime.Attributes.InterceptAttribute;
 
-              namespace TestNamespace;
+            namespace TestNamespace;
 
-              public interface IThing {
-                  string Read(string key);
-              }
+            public interface IThing {
+                string Read(string key);
+            }
 
-              [SingletonService]
-              public class LoggingInterceptor : IInterceptor {
-                  public TResult Intercept<TResult>(InvocationContext<TResult> context) => context.Proceed();
-              }
+            [SingletonService]
+            public class LoggingInterceptor : IInterceptor {
+                public TResult Intercept<TResult>(InvocationContext<TResult> context) => context.Proceed();
+            }
 
-              [SingletonService]
-              {{attribute}}
-              public class Thing : IThing {
-                  public string Read(string key) => key;
-              }
+            [SingletonService]
+            {{attribute}}
+            public class Thing : IThing {
+                public string Read(string key) => key;
+            }
 
-              [DependencyModule]
-              public partial class TestModule;
-              """);
+            [DependencyModule]
+            public partial class TestModule;
+            """
+        );
 }

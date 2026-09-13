@@ -17,21 +17,23 @@ namespace DependencyModules.NSubstitute;
 /// <code>
 /// [ModuleTest]
 /// [NSubstituteSupport]
-/// public void SendsTheMail(IEmailSender sender, [Mock] IAuditLog log) {
+/// public void SendsTheMail(IEmailSender sender, [Mock] IAuditLog log)
+/// {
 ///     log.Received().Write(Arg.Any&lt;string&gt;());
 /// }
 /// </code>
 /// </example>
 /// <seealso cref="NSub.Substitute"/>
 [AttributeUsage(AttributeTargets.Method | AttributeTargets.Class | AttributeTargets.Assembly)]
-public class NSubstituteSupportAttribute : Attribute, IMockSupportAttribute {
-
+public class NSubstituteSupportAttribute : Attribute, IMockSupportAttribute
+{
     /// <summary>
     /// Provides a substitute for the specified type.
     /// </summary>
     /// <param name="type">The type to substitute for.</param>
     /// <returns>A substitute implementing <paramref name="type"/>.</returns>
-    public object ProvideMock(Type type) {
+    public object ProvideMock(Type type)
+    {
         return NSub.Substitute.For([type], []);
     }
 }

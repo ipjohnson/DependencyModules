@@ -3,11 +3,12 @@ using Xunit;
 
 namespace SutProject.Tests.GenerateFactories;
 
-public class GenerateFactoryTests {
+public class GenerateFactoryTests
+{
     [ModuleTest]
     [GenerateFactoryModule]
-    public void ConstructGeneratedFactories(
-        KeyedDependency keyedDependency, IDependencyOne dep) {
+    public void ConstructGeneratedFactories(KeyedDependency keyedDependency, IDependencyOne dep)
+    {
         Assert.NotNull(keyedDependency);
         Assert.NotNull(dep);
 

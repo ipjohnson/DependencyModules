@@ -24,8 +24,10 @@ State the rule once, and let the generator find the types that fit **while it bu
 using DependencyModules.Runtime.Conventions;
 
 [DependencyModule]
-public partial class DataModule : IConventionModule {
-    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+public partial class DataModule : IConventionModule
+{
+    void IConventionModule.Conventions(IConventionDefinitions conventions)
+    {
         conventions.RegisterAll(typeof(IRequestHandler<,>)).AsTransient();
     }
 }
@@ -311,12 +313,15 @@ Use `IServiceCollectionConfiguration` for those, alongside your conventions:
 
 ```csharp
 [DependencyModule]
-public partial class DataModule : IConventionModule, IServiceCollectionConfiguration {
-    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+public partial class DataModule : IConventionModule, IServiceCollectionConfiguration
+{
+    void IConventionModule.Conventions(IConventionDefinitions conventions)
+    {
         conventions.RegisterAll<IRepository>().AsScoped();
     }
 
-    public void ConfigureServices(IServiceCollection services) {
+    public void ConfigureServices(IServiceCollection services)
+    {
         // unrestricted access to IServiceCollection, at run time
     }
 }

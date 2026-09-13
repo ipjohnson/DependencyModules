@@ -8,22 +8,23 @@ namespace SutProject.Tests.TestFramework;
 public partial class LifetimeModule { }
 
 [ScopedService(Realm = typeof(LifetimeModule))]
-public class TrackedService : IDisposable {
-
+public class TrackedService : IDisposable
+{
     private static int _next;
 
     public static readonly List<int> Disposed = [];
 
-    public TrackedService() {
+    public TrackedService()
+    {
         Id = Interlocked.Increment(ref _next);
     }
 
-    public int Id {
-        get;
-    }
+    public int Id { get; }
 
-    public void Dispose() {
-        lock (Disposed) {
+    public void Dispose()
+    {
+        lock (Disposed)
+        {
             Disposed.Add(Id);
         }
     }
@@ -46,21 +47,25 @@ public class TrackedService : IDisposable {
 /// are released together when the last row has run.
 /// </para>
 /// </remarks>
-public class ContainerLifetimeTests {
-
+public class ContainerLifetimeTests
+{
     private static readonly object Sync = new();
 
     private static readonly List<int> Seen = [];
 
     [ModuleTest(typeof(LifetimeModule))]
-    public void TheContainerOfATestThatHasRunIsDisposed(TrackedService service) => AssertEarlierDisposed(service);
+    public void TheContainerOfATestThatHasRunIsDisposed(TrackedService service) =>
+        AssertEarlierDisposed(service);
 
     [ModuleTest(typeof(LifetimeModule))]
     public void WhicheverOfTheTwoRanFirst(TrackedService service) => AssertEarlierDisposed(service);
 
-    private static void AssertEarlierDisposed(TrackedService current) {
-        lock (Sync) {
-            foreach (var earlier in Seen) {
+    private static void AssertEarlierDisposed(TrackedService current)
+    {
+        lock (Sync)
+        {
+            foreach (var earlier in Seen)
+            {
                 Assert.Contains(earlier, TrackedService.Disposed);
             }
 

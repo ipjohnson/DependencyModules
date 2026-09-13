@@ -6,10 +6,12 @@ namespace SutProject.Tests.DuplicateNames;
 /// <summary>
 /// See <see cref="FirstDuplicateNameTests"/>.
 /// </summary>
-public class SecondDuplicateNameTests {
+public class SecondDuplicateNameTests
+{
     [ModuleTest]
     [SutModule]
-    public void SharedMethodName(IDependencyOne dependency) {
+    public void SharedMethodName(IDependencyOne dependency)
+    {
         Assert.NotNull(dependency);
     }
 }

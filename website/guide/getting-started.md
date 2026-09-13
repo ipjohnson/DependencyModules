@@ -79,7 +79,8 @@ namespace MyApp;
 public interface IEmailSender { void Send(string to); }
 
 [SingletonService]
-public class SmtpEmailSender : IEmailSender {
+public class SmtpEmailSender : IEmailSender
+{
     public void Send(string to) { }
 }
 ```
@@ -104,7 +105,8 @@ If you want to add a `ConfigureServices` to that generated module, declare the p
 `[DependencyModule]` and implement `IServiceCollectionConfiguration`:
 
 ```csharp
-public partial class ApplicationModule : IServiceCollectionConfiguration {
+public partial class ApplicationModule : IServiceCollectionConfiguration
+{
     public void ConfigureServices(IServiceCollection services) =>
         services.AddHttpClient();
 }
@@ -148,7 +150,8 @@ reads as concrete rather than magic. Turn it on:
 Build, then open `obj/…/ApplicationModule.Dependencies.g.cs`. Inside it:
 
 ```csharp
-private static void ModuleDependencies(IServiceCollection services) {
+private static void ModuleDependencies(IServiceCollection services)
+{
     services.AddSingleton(typeof(MyApp.IEmailSender), typeof(MyApp.SmtpEmailSender));
 }
 ```

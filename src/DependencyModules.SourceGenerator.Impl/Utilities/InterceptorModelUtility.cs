@@ -9,8 +9,8 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities;
 /// <summary>
 /// Builds an <see cref="InterceptorModel"/> from a class carrying <c>[Intercept]</c>.
 /// </summary>
-public static class InterceptorModelUtility {
-
+public static class InterceptorModelUtility
+{
     private const string InterceptionNamespace = "DependencyModules.Runtime.Interception";
 
     /// <summary>
@@ -23,22 +23,33 @@ public static class InterceptorModelUtility {
     /// A diagnostic cannot be raised from here — the transform holds no context that can.
     /// </returns>
     public static InterceptorModel GetInterceptorModel(
-        SyntaxTransformContext context, CancellationToken cancellationToken) {
-
+        SyntaxTransformContext context,
+        CancellationToken cancellationToken
+    )
+    {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (context.Node is not TypeDeclarationSyntax typeDeclarationSyntax) {
+        if (context.Node is not TypeDeclarationSyntax typeDeclarationSyntax)
+        {
             return InterceptorModel.Ignore;
         }
 
-        var attributes = FindAttributes(typeDeclarationSyntax, context.SemanticModel, cancellationToken);
+        var attributes = FindAttributes(
+            typeDeclarationSyntax,
+            context.SemanticModel,
+            cancellationToken
+        );
 
-        if (attributes.Count == 0) {
+        if (attributes.Count == 0)
+        {
             return InterceptorModel.Ignore;
         }
 
-        if (context.SemanticModel.GetDeclaredSymbol(typeDeclarationSyntax, cancellationToken)
-            is not INamedTypeSymbol implementationSymbol) {
+        if (
+            context.SemanticModel.GetDeclaredSymbol(typeDeclarationSyntax, cancellationToken)
+            is not INamedTypeSymbol implementationSymbol
+        )
+        {
             return InterceptorModel.Ignore;
         }
 
@@ -61,37 +72,62 @@ public static class InterceptorModelUtility {
         // Every [Intercept], not the first. The attribute is AllowMultiple, so stacking them is a
         // supported way to write what one attribute can also express as a params list — and reading
         // only the first dropped every interceptor after it, with nothing to say so.
-        foreach (var attribute in attributes) {
+        foreach (var attribute in attributes)
+        {
             ReadAttribute(
-                attribute, context, cancellationToken, interceptorSymbols, ref order, ref explicitService, ref realm);
+                attribute,
+                context,
+                cancellationToken,
+                interceptorSymbols,
+                ref order,
+                ref explicitService,
+                ref realm
+            );
 
             memberKinds &= ReadMemberKinds(attribute);
         }
 
-        if (interceptorSymbols.Count == 0) {
+        if (interceptorSymbols.Count == 0)
+        {
             return InterceptorModel.Ignore;
         }
 
-        var serviceSymbol = ResolveServiceInterface(implementationSymbol, explicitService, out var unsupported);
+        var serviceSymbol = ResolveServiceInterface(
+            implementationSymbol,
+            explicitService,
+            out var unsupported
+        );
 
-        if (serviceSymbol == null) {
+        if (serviceSymbol == null)
+        {
             return Refuse(unsupported, context);
         }
 
-        if (!InterceptedMemberReader.Read(serviceSymbol, out var members, out var declarations, out unsupported)) {
+        if (
+            !InterceptedMemberReader.Read(
+                serviceSymbol,
+                out var members,
+                out var declarations,
+                out unsupported
+            )
+        )
+        {
             return Refuse(unsupported, context);
         }
 
-        if (members.Count == 0) {
+        if (members.Count == 0)
+        {
             return InterceptorModel.Refused(
-                $"'{serviceSymbol.Name}' declares nothing to intercept");
+                $"'{serviceSymbol.Name}' declares nothing to intercept"
+            );
         }
 
         members = ApplyMemberKinds(members, declarations, memberKinds);
 
         var interceptors = new List<InterceptorTypeModel>();
 
-        foreach (var (interceptorSymbol, lifestyle) in interceptorSymbols) {
+        foreach (var (interceptorSymbol, lifestyle) in interceptorSymbols)
+        {
             interceptors.Add(ReadInterceptorType(interceptorSymbol, lifestyle));
         }
 
@@ -109,9 +145,12 @@ public static class InterceptorModelUtility {
             declarations,
             order,
             TypeParameters: TypeParameterModels(implementationSymbol),
-            Realm: (realm?.GetTypeDefinition() ??
-                    RegistrationRealm(typeDeclarationSyntax, context, cancellationToken)),
-            Location: LocationModel.From(context.Node));
+            Realm: (
+                realm?.GetTypeDefinition()
+                ?? RegistrationRealm(typeDeclarationSyntax, context, cancellationToken)
+            ),
+            Location: LocationModel.From(context.Node)
+        );
     }
 
     /// <summary>
@@ -139,19 +178,30 @@ public static class InterceptorModelUtility {
     private static ITypeDefinition? RegistrationRealm(
         TypeDeclarationSyntax typeDeclarationSyntax,
         SyntaxTransformContext context,
-        CancellationToken cancellationToken) {
-
-        foreach (var attributeList in typeDeclarationSyntax.AttributeLists) {
-            foreach (var attribute in attributeList.Attributes) {
-                if (!IsServiceAttribute(attribute, context, cancellationToken)) {
+        CancellationToken cancellationToken
+    )
+    {
+        foreach (var attributeList in typeDeclarationSyntax.AttributeLists)
+        {
+            foreach (var attribute in attributeList.Attributes)
+            {
+                if (!IsServiceAttribute(attribute, context, cancellationToken))
+                {
                     continue;
                 }
 
-                foreach (var argument in attribute.ArgumentList?.Arguments ??
-                                         default(SeparatedSyntaxList<AttributeArgumentSyntax>)) {
-                    if (argument.NameEquals?.Name.ToString() == "Realm" &&
-                        argument.Expression is TypeOfExpressionSyntax realmTypeOf) {
-                        return ResolveType(realmTypeOf, context, cancellationToken)?.GetTypeDefinition();
+                foreach (
+                    var argument in attribute.ArgumentList?.Arguments
+                        ?? default(SeparatedSyntaxList<AttributeArgumentSyntax>)
+                )
+                {
+                    if (
+                        argument.NameEquals?.Name.ToString() == "Realm"
+                        && argument.Expression is TypeOfExpressionSyntax realmTypeOf
+                    )
+                    {
+                        return ResolveType(realmTypeOf, context, cancellationToken)
+                            ?.GetTypeDefinition();
                     }
                 }
             }
@@ -161,11 +211,22 @@ public static class InterceptorModelUtility {
     }
 
     private static bool IsServiceAttribute(
-        AttributeSyntax attribute, SyntaxTransformContext context, CancellationToken cancellationToken) {
-
-        foreach (var serviceAttribute in ServiceAttributeTypes) {
-            if (AttributeTypeMatcher.Matches(
-                    context.SemanticModel, attribute, serviceAttribute, cancellationToken)) {
+        AttributeSyntax attribute,
+        SyntaxTransformContext context,
+        CancellationToken cancellationToken
+    )
+    {
+        foreach (var serviceAttribute in ServiceAttributeTypes)
+        {
+            if (
+                AttributeTypeMatcher.Matches(
+                    context.SemanticModel,
+                    attribute,
+                    serviceAttribute,
+                    cancellationToken
+                )
+            )
+            {
                 return true;
             }
         }
@@ -173,11 +234,12 @@ public static class InterceptorModelUtility {
         return false;
     }
 
-    private static readonly ITypeDefinition[] ServiceAttributeTypes = {
+    private static readonly ITypeDefinition[] ServiceAttributeTypes =
+    {
         KnownTypes.DependencyModules.Attributes.SingletonServiceAttribute,
         KnownTypes.DependencyModules.Attributes.ScopedServiceAttribute,
         KnownTypes.DependencyModules.Attributes.TransientServiceAttribute,
-        KnownTypes.DependencyModules.Attributes.CrossWireServiceAttribute
+        KnownTypes.DependencyModules.Attributes.CrossWireServiceAttribute,
     };
 
     /// <summary>
@@ -189,24 +251,41 @@ public static class InterceptorModelUtility {
     /// segment of each part handles `Methods`, `InterceptedMembers.Methods` and any qualification of
     /// either.
     /// </remarks>
-    private static InterceptedMemberKinds ReadMemberKinds(AttributeSyntax attribute) {
-        foreach (var argument in attribute.ArgumentList?.Arguments ??
-                                 default(SeparatedSyntaxList<AttributeArgumentSyntax>)) {
-            if (argument.NameEquals?.Name.ToString() != "Members") {
+    private static InterceptedMemberKinds ReadMemberKinds(AttributeSyntax attribute)
+    {
+        foreach (
+            var argument in attribute.ArgumentList?.Arguments
+                ?? default(SeparatedSyntaxList<AttributeArgumentSyntax>)
+        )
+        {
+            if (argument.NameEquals?.Name.ToString() != "Members")
+            {
                 continue;
             }
 
             var kinds = InterceptedMemberKinds.None;
 
-            foreach (var part in argument.Expression.ToString().Split('|')) {
+            foreach (var part in argument.Expression.ToString().Split('|'))
+            {
                 var member = part.Substring(part.LastIndexOf('.') + 1).Trim();
 
-                switch (member) {
-                    case "Methods": kinds |= InterceptedMemberKinds.Methods; break;
-                    case "Properties": kinds |= InterceptedMemberKinds.Properties; break;
-                    case "Indexers": kinds |= InterceptedMemberKinds.Indexers; break;
-                    case "Events": kinds |= InterceptedMemberKinds.Events; break;
-                    case "All": kinds |= InterceptedMemberKinds.All; break;
+                switch (member)
+                {
+                    case "Methods":
+                        kinds |= InterceptedMemberKinds.Methods;
+                        break;
+                    case "Properties":
+                        kinds |= InterceptedMemberKinds.Properties;
+                        break;
+                    case "Indexers":
+                        kinds |= InterceptedMemberKinds.Indexers;
+                        break;
+                    case "Events":
+                        kinds |= InterceptedMemberKinds.Events;
+                        break;
+                    case "All":
+                        kinds |= InterceptedMemberKinds.All;
+                        break;
                 }
             }
 
@@ -228,46 +307,56 @@ public static class InterceptorModelUtility {
     private static IReadOnlyList<InterceptedMemberModel> ApplyMemberKinds(
         IReadOnlyList<InterceptedMemberModel> members,
         IReadOnlyList<InterceptedDeclarationModel> declarations,
-        InterceptedMemberKinds kinds) {
-
-        if (kinds == InterceptedMemberKinds.All) {
+        InterceptedMemberKinds kinds
+    )
+    {
+        if (kinds == InterceptedMemberKinds.All)
+        {
             return members;
         }
 
         var excluded = new HashSet<int>();
 
-        foreach (var declaration in declarations) {
-            if (KindOf(declaration.Kind) is var kind && (kinds & kind) != 0) {
+        foreach (var declaration in declarations)
+        {
+            if (KindOf(declaration.Kind) is var kind && (kinds & kind) != 0)
+            {
                 continue;
             }
 
             excluded.Add(declaration.First);
 
-            if (declaration.Second >= 0) {
+            if (declaration.Second >= 0)
+            {
                 excluded.Add(declaration.Second);
             }
         }
 
-        if (excluded.Count == 0) {
+        if (excluded.Count == 0)
+        {
             return members;
         }
 
         var result = new List<InterceptedMemberModel>(members.Count);
 
-        for (var index = 0; index < members.Count; index++) {
-            result.Add(excluded.Contains(index) ? members[index] with { Excluded = true } : members[index]);
+        for (var index = 0; index < members.Count; index++)
+        {
+            result.Add(
+                excluded.Contains(index) ? members[index] with { Excluded = true } : members[index]
+            );
         }
 
         return result;
     }
 
     private static InterceptedMemberKinds KindOf(DeclarationKind kind) =>
-        kind switch {
+        kind switch
+        {
             DeclarationKind.Method => InterceptedMemberKinds.Methods,
             DeclarationKind.Property => InterceptedMemberKinds.Properties,
             DeclarationKind.Indexer => InterceptedMemberKinds.Indexers,
             DeclarationKind.Event => InterceptedMemberKinds.Events,
-            _ => InterceptedMemberKinds.All
+            _ => InterceptedMemberKinds.All,
         };
 
     private static InterceptorModel Refuse(string? reason, SyntaxTransformContext context) =>
@@ -279,17 +368,23 @@ public static class InterceptorModelUtility {
     /// The interfaces an interceptor implements, which decide the members it can be placed around.
     /// </summary>
     private static InterceptorTypeModel ReadInterceptorType(
-        INamedTypeSymbol symbol, ServiceLifestyle lifestyle) {
+        INamedTypeSymbol symbol,
+        ServiceLifestyle lifestyle
+    )
+    {
         var sync = false;
         var async = false;
         var stream = false;
 
-        foreach (var implemented in symbol.AllInterfaces) {
-            if (implemented.ContainingNamespace?.ToDisplayString() != InterceptionNamespace) {
+        foreach (var implemented in symbol.AllInterfaces)
+        {
+            if (implemented.ContainingNamespace?.ToDisplayString() != InterceptionNamespace)
+            {
                 continue;
             }
 
-            switch (implemented.Name) {
+            switch (implemented.Name)
+            {
                 case "IInterceptor":
                     sync = true;
                     break;
@@ -315,11 +410,16 @@ public static class InterceptorModelUtility {
     /// when none of them matches at all is there no wrapper worth generating.
     /// </remarks>
     private static bool AnyMemberIsIntercepted(
-        IReadOnlyList<InterceptorTypeModel> interceptors, IReadOnlyList<InterceptedMemberModel> members) {
-
-        foreach (var member in members) {
-            foreach (var interceptor in interceptors) {
-                if (interceptor.CanServe(member.Kind)) {
+        IReadOnlyList<InterceptorTypeModel> interceptors,
+        IReadOnlyList<InterceptedMemberModel> members
+    )
+    {
+        foreach (var member in members)
+        {
+            foreach (var interceptor in interceptors)
+            {
+                if (interceptor.CanServe(member.Kind))
+                {
                     return true;
                 }
             }
@@ -335,9 +435,11 @@ public static class InterceptorModelUtility {
         List<(INamedTypeSymbol Symbol, ServiceLifestyle Lifestyle)> interceptors,
         ref int order,
         ref INamedTypeSymbol? explicitService,
-        ref INamedTypeSymbol? realm) {
-
-        if (attribute.ArgumentList == null) {
+        ref INamedTypeSymbol? realm
+    )
+    {
+        if (attribute.ArgumentList == null)
+        {
             return;
         }
 
@@ -346,14 +448,18 @@ public static class InterceptorModelUtility {
         // lifetime happened to be at that point in the argument list.
         var lifestyle = ReadLifetime(attribute);
 
-        foreach (var argument in attribute.ArgumentList.Arguments) {
+        foreach (var argument in attribute.ArgumentList.Arguments)
+        {
             var name = argument.NameEquals?.Name.ToString();
 
-            if (name == null) {
-                if (argument.Expression is TypeOfExpressionSyntax typeOf) {
+            if (name == null)
+            {
+                if (argument.Expression is TypeOfExpressionSyntax typeOf)
+                {
                     var symbol = ResolveType(typeOf, context, cancellationToken);
 
-                    if (symbol != null) {
+                    if (symbol != null)
+                    {
                         interceptors.Add((symbol, lifestyle));
                     }
                 }
@@ -361,19 +467,23 @@ public static class InterceptorModelUtility {
                 continue;
             }
 
-            switch (name) {
+            switch (name)
+            {
                 case "Order":
-                    if (int.TryParse(argument.Expression.ToString(), out var parsed)) {
+                    if (int.TryParse(argument.Expression.ToString(), out var parsed))
+                    {
                         order = parsed;
                     }
                     break;
                 case "Service":
-                    if (argument.Expression is TypeOfExpressionSyntax serviceTypeOf) {
+                    if (argument.Expression is TypeOfExpressionSyntax serviceTypeOf)
+                    {
                         explicitService = ResolveType(serviceTypeOf, context, cancellationToken);
                     }
                     break;
                 case "Realm":
-                    if (argument.Expression is TypeOfExpressionSyntax realmTypeOf) {
+                    if (argument.Expression is TypeOfExpressionSyntax realmTypeOf)
+                    {
                         realm = ResolveType(realmTypeOf, context, cancellationToken);
                     }
                     break;
@@ -391,17 +501,23 @@ public static class InterceptorModelUtility {
     /// last segment is the answer for `Scoped`, `ServiceLifetime.Scoped` and any qualification of
     /// it alike.
     /// </remarks>
-    private static ServiceLifestyle ReadLifetime(AttributeSyntax attribute) {
-        foreach (var argument in attribute.ArgumentList?.Arguments ??
-                                 default(SeparatedSyntaxList<AttributeArgumentSyntax>)) {
-            if (argument.NameEquals?.Name.ToString() != "Lifetime") {
+    private static ServiceLifestyle ReadLifetime(AttributeSyntax attribute)
+    {
+        foreach (
+            var argument in attribute.ArgumentList?.Arguments
+                ?? default(SeparatedSyntaxList<AttributeArgumentSyntax>)
+        )
+        {
+            if (argument.NameEquals?.Name.ToString() != "Lifetime")
+            {
                 continue;
             }
 
             var written = argument.Expression.ToString();
             var member = written.Substring(written.LastIndexOf('.') + 1).Trim();
 
-            switch (member) {
+            switch (member)
+            {
                 case "Scoped":
                     return ServiceLifestyle.Scoped;
                 case "Transient":
@@ -415,8 +531,10 @@ public static class InterceptorModelUtility {
     }
 
     private static INamedTypeSymbol? ResolveType(
-        TypeOfExpressionSyntax typeOf, SyntaxTransformContext context, CancellationToken cancellationToken) =>
-        context.SemanticModel.GetTypeInfo(typeOf.Type, cancellationToken).Type as INamedTypeSymbol;
+        TypeOfExpressionSyntax typeOf,
+        SyntaxTransformContext context,
+        CancellationToken cancellationToken
+    ) => context.SemanticModel.GetTypeInfo(typeOf.Type, cancellationToken).Type as INamedTypeSymbol;
 
     /// <summary>
     /// The interface to wrap. Interception works through an interface: a call the implementation
@@ -424,13 +542,19 @@ public static class InterceptorModelUtility {
     /// to wrap.
     /// </summary>
     private static INamedTypeSymbol? ResolveServiceInterface(
-        INamedTypeSymbol implementation, INamedTypeSymbol? explicitService, out string? unsupported) {
-
+        INamedTypeSymbol implementation,
+        INamedTypeSymbol? explicitService,
+        out string? unsupported
+    )
+    {
         unsupported = null;
 
-        if (explicitService != null) {
-            foreach (var candidate in implementation.AllInterfaces) {
-                if (SymbolEqualityComparer.Default.Equals(candidate, explicitService)) {
+        if (explicitService != null)
+        {
+            foreach (var candidate in implementation.AllInterfaces)
+            {
+                if (SymbolEqualityComparer.Default.Equals(candidate, explicitService))
+                {
                     return candidate;
                 }
             }
@@ -441,12 +565,15 @@ public static class InterceptorModelUtility {
 
         var interfaces = DeclaredInterfaces(implementation);
 
-        if (interfaces.Length == 0) {
-            unsupported = $"'{implementation.Name}' implements no interface, so there is nothing to intercept";
+        if (interfaces.Length == 0)
+        {
+            unsupported =
+                $"'{implementation.Name}' implements no interface, so there is nothing to intercept";
             return null;
         }
 
-        if (interfaces.Length > 1) {
+        if (interfaces.Length > 1)
+        {
             unsupported =
                 $"'{implementation.Name}' implements more than one interface; set Service to choose which to intercept";
             return null;
@@ -469,9 +596,14 @@ public static class InterceptorModelUtility {
     /// Not <c>AllInterfaces</c>, which flattens what the interfaces themselves extend and would
     /// report a plain <c>IDerived</c> as ambiguous with the <c>IBase</c> behind it.
     /// </remarks>
-    private static ImmutableArray<INamedTypeSymbol> DeclaredInterfaces(INamedTypeSymbol implementation) {
-        for (var type = implementation; type != null; type = type.BaseType) {
-            if (type.Interfaces.Length > 0) {
+    private static ImmutableArray<INamedTypeSymbol> DeclaredInterfaces(
+        INamedTypeSymbol implementation
+    )
+    {
+        for (var type = implementation; type != null; type = type.BaseType)
+        {
+            if (type.Interfaces.Length > 0)
+            {
                 return type.Interfaces;
             }
         }
@@ -483,28 +615,37 @@ public static class InterceptorModelUtility {
     /// The implementation's type parameters and their constraints, which the wrapper repeats so its
     /// own parameters line up with the ones the service and the implementation are closed over.
     /// </summary>
-    private static IReadOnlyList<TypeParameterModel> TypeParameterModels(INamedTypeSymbol symbol) {
-        if (symbol.TypeParameters.Length == 0) {
+    private static IReadOnlyList<TypeParameterModel> TypeParameterModels(INamedTypeSymbol symbol)
+    {
+        if (symbol.TypeParameters.Length == 0)
+        {
             return Array.Empty<TypeParameterModel>();
         }
 
         var models = new TypeParameterModel[symbol.TypeParameters.Length];
 
-        for (var i = 0; i < models.Length; i++) {
+        for (var i = 0; i < models.Length; i++)
+        {
             models[i] = TypeParameterReader.Read(symbol.TypeParameters[i]);
         }
 
         return models;
     }
 
-    private static ITypeDefinition ToTypeDefinition(INamedTypeSymbol symbol) {
+    private static ITypeDefinition ToTypeDefinition(INamedTypeSymbol symbol)
+    {
         var namespaceName = symbol.ContainingNamespace.IsGlobalNamespace
             ? ""
             : symbol.ContainingNamespace.ToDisplayString();
 
         var name = symbol.Name;
 
-        for (var containing = symbol.ContainingType; containing != null; containing = containing.ContainingType) {
+        for (
+            var containing = symbol.ContainingType;
+            containing != null;
+            containing = containing.ContainingType
+        )
+        {
             name = containing.Name + "." + name;
         }
 
@@ -527,17 +668,24 @@ public static class InterceptorModelUtility {
     private static List<AttributeSyntax> FindAttributes(
         TypeDeclarationSyntax typeDeclarationSyntax,
         SemanticModel semanticModel,
-        CancellationToken cancellationToken) {
-
+        CancellationToken cancellationToken
+    )
+    {
         var attributes = new List<AttributeSyntax>();
 
-        foreach (var attributeList in typeDeclarationSyntax.AttributeLists) {
-            foreach (var attribute in attributeList.Attributes) {
-                if (AttributeTypeMatcher.Matches(
+        foreach (var attributeList in typeDeclarationSyntax.AttributeLists)
+        {
+            foreach (var attribute in attributeList.Attributes)
+            {
+                if (
+                    AttributeTypeMatcher.Matches(
                         semanticModel,
                         attribute,
                         KnownTypes.DependencyModules.Attributes.InterceptAttribute,
-                        cancellationToken)) {
+                        cancellationToken
+                    )
+                )
+                {
                     attributes.Add(attribute);
                 }
             }

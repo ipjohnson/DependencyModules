@@ -6,21 +6,19 @@ namespace SutProject.Tests.StandardTests;
 
 [DependencyModule(OnlyRealm = true)]
 [SutModule]
-public partial class AutoRegisterModule {
-    
-}
+public partial class AutoRegisterModule { }
 
 [SingletonService(Realm = typeof(AutoRegisterModule))]
-public class InheritDependencyOne
-    (ISingletonService singletonService, IScopedService scopedService) 
-    : DependencyOne(singletonService, scopedService), IDependencyOne {
+public class InheritDependencyOne(ISingletonService singletonService, IScopedService scopedService)
+    : DependencyOne(singletonService, scopedService),
+        IDependencyOne { }
 
-}
-
-public class AutoRegistrationTest {
+public class AutoRegistrationTest
+{
     [ModuleTest]
     [AutoRegisterModule]
-    public void AutoRegisterClassWithInheritance(IDependencyOne dependencyOne) {
+    public void AutoRegisterClassWithInheritance(IDependencyOne dependencyOne)
+    {
         Assert.IsType<InheritDependencyOne>(dependencyOne);
     }
 }

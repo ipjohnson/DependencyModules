@@ -12,10 +12,11 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// The generator has to pick an identity either way. This reports that it picked, so the choice is
 /// the developer's.
 /// </summary>
-public class ModuleEqualityDiagnosticTests {
-
+public class ModuleEqualityDiagnosticTests
+{
     [Fact]
-    public void ASettableProperty_IsReported() {
+    public void ASettableProperty_IsReported()
+    {
         var result = Run("public int SizeLimit { get; set; }");
 
         var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0018");
@@ -29,28 +30,32 @@ public class ModuleEqualityDiagnosticTests {
     /// attribute never assigns it — so there is no identity question to answer and nothing to report.
     /// </summary>
     [Fact]
-    public void AnExpressionBodiedProperty_IsNotReported() {
+    public void AnExpressionBodiedProperty_IsNotReported()
+    {
         var result = Run("""public string Value => "A";""");
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0018");
     }
 
     [Fact]
-    public void AGetOnlyProperty_IsNotReported() {
+    public void AGetOnlyProperty_IsNotReported()
+    {
         var result = Run("public string Value { get; } = \"A\";");
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0018");
     }
 
     [Fact]
-    public void AStaticProperty_IsNotReported() {
+    public void AStaticProperty_IsNotReported()
+    {
         var result = Run("public static int Shared { get; set; }");
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0018");
     }
 
     [Fact]
-    public void NoPropertiesAtAll_IsNotReported() {
+    public void NoPropertiesAtAll_IsNotReported()
+    {
         var result = Run("");
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0018");
@@ -61,7 +66,8 @@ public class ModuleEqualityDiagnosticTests {
     /// The generator already stands aside when a module declares its own <c>Equals</c>.
     /// </summary>
     [Fact]
-    public void DeclaringEquals_SilencesIt() {
+    public void DeclaringEquals_SilencesIt()
+    {
         var result = Run(
             """
             public int SizeLimit { get; set; }
@@ -70,14 +76,16 @@ public class ModuleEqualityDiagnosticTests {
                 obj is TestModule other && other.SizeLimit == SizeLimit;
 
             public override int GetHashCode() => SizeLimit;
-            """);
+            """
+        );
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0018");
     }
 
     /// <summary>A record gets its equality from the language, so it never faces the question.</summary>
     [Fact]
-    public void ARecordModule_IsNotReported() {
+    public void ARecordModule_IsNotReported()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -88,7 +96,8 @@ public class ModuleEqualityDiagnosticTests {
             public partial record TestModule {
                 public int SizeLimit { get; set; }
             }
-            """);
+            """
+        );
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0018");
     }
@@ -96,13 +105,14 @@ public class ModuleEqualityDiagnosticTests {
     private static GeneratorResult Run(string body) =>
         GeneratorTestHarness.Run(
             $$"""
-              using DependencyModules.Runtime.Attributes;
+            using DependencyModules.Runtime.Attributes;
 
-              namespace TestNamespace;
+            namespace TestNamespace;
 
-              [DependencyModule]
-              public partial class TestModule {
-                  {{body}}
-              }
-              """);
+            [DependencyModule]
+            public partial class TestModule {
+                {{body}}
+            }
+            """
+        );
 }

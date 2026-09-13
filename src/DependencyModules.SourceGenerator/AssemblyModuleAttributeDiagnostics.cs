@@ -24,18 +24,20 @@ namespace DependencyModules.SourceGenerator;
 /// usage already says where to look.
 /// </para>
 /// </remarks>
-internal static class AssemblyModuleAttributeDiagnostics {
-
+internal static class AssemblyModuleAttributeDiagnostics
+{
     /// <summary>
     /// One compilation unit's assembly attributes and the namespaces in scope for them.
     /// </summary>
-    internal sealed class UnitModel : IEquatable<UnitModel> {
-
+    internal sealed class UnitModel : IEquatable<UnitModel>
+    {
         public UnitModel(
             string filePath,
             ImmutableArray<Usage> usages,
             ImmutableArray<string> fileUsings,
-            ImmutableArray<string> globalUsings) {
+            ImmutableArray<string> globalUsings
+        )
+        {
             FilePath = filePath;
             Usages = usages;
             FileUsings = fileUsings;
@@ -54,20 +56,21 @@ internal static class AssemblyModuleAttributeDiagnostics {
         public ImmutableArray<string> GlobalUsings { get; }
 
         public bool Equals(UnitModel? other) =>
-            other != null &&
-            FilePath == other.FilePath &&
-            Usages.SequenceEqual(other.Usages) &&
-            FileUsings.SequenceEqual(other.FileUsings) &&
-            GlobalUsings.SequenceEqual(other.GlobalUsings);
+            other != null
+            && FilePath == other.FilePath
+            && Usages.SequenceEqual(other.Usages)
+            && FileUsings.SequenceEqual(other.FileUsings)
+            && GlobalUsings.SequenceEqual(other.GlobalUsings);
 
         public override bool Equals(object? obj) => Equals(obj as UnitModel);
 
         public override int GetHashCode() => Usages.Length * 397 ^ FileUsings.Length;
     }
 
-    internal sealed class Usage : IEquatable<Usage> {
-
-        public Usage(string name, Location location) {
+    internal sealed class Usage : IEquatable<Usage>
+    {
+        public Usage(string name, Location location)
+        {
             Name = name;
             Location = location;
         }
@@ -86,14 +89,18 @@ internal static class AssemblyModuleAttributeDiagnostics {
     }
 
     internal static IncrementalValueProvider<ImmutableArray<UnitModel>> Collect(
-        IncrementalGeneratorInitializationContext context) =>
-        context.SyntaxProvider.CreateSyntaxProvider(
+        IncrementalGeneratorInitializationContext context
+    ) =>
+        context
+            .SyntaxProvider.CreateSyntaxProvider(
                 static (node, _) => node is CompilationUnitSyntax,
-                static (syntaxContext, cancellation) => Read(syntaxContext, cancellation))
+                static (syntaxContext, cancellation) => Read(syntaxContext, cancellation)
+            )
             .Where(static model => !model.Usages.IsEmpty || !model.GlobalUsings.IsEmpty)
             .Collect();
 
-    private static UnitModel Read(GeneratorSyntaxContext context, CancellationToken cancellation) {
+    private static UnitModel Read(GeneratorSyntaxContext context, CancellationToken cancellation)
+    {
         cancellation.ThrowIfCancellationRequested();
 
         var unit = (CompilationUnitSyntax)context.Node;
@@ -102,10 +109,12 @@ internal static class AssemblyModuleAttributeDiagnostics {
         var fileUsings = ImmutableArray.CreateBuilder<string>();
         var globalUsings = ImmutableArray.CreateBuilder<string>();
 
-        foreach (var usingDirective in unit.Usings) {
+        foreach (var usingDirective in unit.Usings)
+        {
             // An alias imports one name rather than a namespace, so it cannot bring a module
             // attribute into scope under the name this checks for.
-            if (usingDirective.Alias != null || usingDirective.Name == null) {
+            if (usingDirective.Alias != null || usingDirective.Name == null)
+            {
                 continue;
             }
 
@@ -116,14 +125,18 @@ internal static class AssemblyModuleAttributeDiagnostics {
             target.Add(usingDirective.Name.ToString());
         }
 
-        foreach (var attributeList in unit.AttributeLists) {
-            if (!attributeList.Target?.Identifier.IsKind(SyntaxKind.AssemblyKeyword) ?? true) {
+        foreach (var attributeList in unit.AttributeLists)
+        {
+            if (!attributeList.Target?.Identifier.IsKind(SyntaxKind.AssemblyKeyword) ?? true)
+            {
                 continue;
             }
 
-            foreach (var attribute in attributeList.Attributes) {
+            foreach (var attribute in attributeList.Attributes)
+            {
                 // A qualified usage already names where the attribute lives.
-                if (attribute.Name is not SimpleNameSyntax simpleName) {
+                if (attribute.Name is not SimpleNameSyntax simpleName)
+                {
                     continue;
                 }
 
@@ -135,17 +148,28 @@ internal static class AssemblyModuleAttributeDiagnostics {
             unit.SyntaxTree.FilePath,
             usages.ToImmutable(),
             fileUsings.ToImmutable(),
-            globalUsings.ToImmutable());
+            globalUsings.ToImmutable()
+        );
     }
 
     internal static void Report(
         SourceProductionContext context,
-        ((ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> Modules,
-            ImmutableArray<UnitModel> Units) Left, Compilation Right) data) {
-
+        (
+            (
+                ImmutableArray<(
+                    ModuleEntryPointModel Left,
+                    DependencyModuleConfigurationModel Right
+                )> Modules,
+                ImmutableArray<UnitModel> Units
+            ) Left,
+            Compilation Right
+        ) data
+    )
+    {
         var input = data.Left;
 
-        if (input.Units.IsDefaultOrEmpty || input.Modules.IsDefaultOrEmpty) {
+        if (input.Units.IsDefaultOrEmpty || input.Modules.IsDefaultOrEmpty)
+        {
             return;
         }
 
@@ -157,11 +181,15 @@ internal static class AssemblyModuleAttributeDiagnostics {
         // is never written by hand at the assembly level, so neither can produce this mistake.
         var modulesByName = new Dictionary<string, string>(StringComparer.Ordinal);
 
-        foreach (var (module, _) in input.Modules) {
+        foreach (var (module, _) in input.Modules)
+        {
             var moduleNamespace = module.EntryPointType.Namespace;
 
-            if (string.IsNullOrEmpty(moduleNamespace) ||
-                module.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.AutoGenerateModule)) {
+            if (
+                string.IsNullOrEmpty(moduleNamespace)
+                || module.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.AutoGenerateModule)
+            )
+            {
                 continue;
             }
 
@@ -174,8 +202,10 @@ internal static class AssemblyModuleAttributeDiagnostics {
         // by the test integration instead and are perfectly at home in any file.
         string? entryPointFile = null;
 
-        foreach (var (module, _) in input.Modules) {
-            if (module.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.AutoGenerateModule)) {
+        foreach (var (module, _) in input.Modules)
+        {
+            if (module.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.AutoGenerateModule))
+            {
                 entryPointFile = module.FileLocation;
                 break;
             }
@@ -183,14 +213,18 @@ internal static class AssemblyModuleAttributeDiagnostics {
 
         var globalUsings = new HashSet<string>(StringComparer.Ordinal);
 
-        foreach (var unit in input.Units) {
-            foreach (var globalUsing in unit.GlobalUsings) {
+        foreach (var unit in input.Units)
+        {
+            foreach (var globalUsing in unit.GlobalUsings)
+            {
                 globalUsings.Add(globalUsing);
             }
         }
 
-        foreach (var unit in input.Units) {
-            foreach (var usage in unit.Usages) {
+        foreach (var unit in input.Units)
+        {
+            foreach (var usage in unit.Usages)
+            {
                 context.CancellationToken.ThrowIfCancellationRequested();
 
                 // Written as [assembly: Foo] or [assembly: FooAttribute]; both name module Foo.
@@ -201,49 +235,71 @@ internal static class AssemblyModuleAttributeDiagnostics {
                 // takes; the exhaustive walk is only worth doing for a name that resolved to
                 // nothing, which is a build that is already red.
                 moduleNamespace ??= referenced.FindImported(
-                    usage.Name, unit.FileUsings.Concat(globalUsings));
+                    usage.Name,
+                    unit.FileUsings.Concat(globalUsings)
+                );
 
                 moduleNamespace ??= referenced.FindAnywhere(usage.Name);
 
-                if (moduleNamespace == null) {
+                if (moduleNamespace == null)
+                {
                     continue;
                 }
 
-                if (!unit.FileUsings.Contains(moduleNamespace) && !globalUsings.Contains(moduleNamespace)) {
+                if (
+                    !unit.FileUsings.Contains(moduleNamespace)
+                    && !globalUsings.Contains(moduleNamespace)
+                )
+                {
                     context.ReportDiagnostic(
                         Diagnostic.Create(
                             DependencyModuleDiagnostics.ModuleAttributeNamespaceNotImported,
                             usage.Location,
                             usage.Name,
-                            moduleNamespace));
+                            moduleNamespace
+                        )
+                    );
 
                     // It does not compile yet, so which file it belongs in is a later question.
                     continue;
                 }
 
-                if (entryPointFile != null &&
-                    !string.IsNullOrEmpty(unit.FilePath) &&
-                    !string.Equals(unit.FilePath, entryPointFile, StringComparison.Ordinal)) {
+                if (
+                    entryPointFile != null
+                    && !string.IsNullOrEmpty(unit.FilePath)
+                    && !string.Equals(unit.FilePath, entryPointFile, StringComparison.Ordinal)
+                )
+                {
                     context.ReportDiagnostic(
                         Diagnostic.Create(
                             DependencyModuleDiagnostics.AssemblyModuleAttributeNotComposed,
                             usage.Location,
                             usage.Name,
-                            System.IO.Path.GetFileName(entryPointFile)));
+                            System.IO.Path.GetFileName(entryPointFile)
+                        )
+                    );
                 }
             }
         }
     }
 
     /// <summary>The namespace of a module declared in this compilation, or null.</summary>
-    private static string? LocalModuleNamespace(Dictionary<string, string> modulesByName, string name) {
-        if (modulesByName.TryGetValue(name, out var found)) {
+    private static string? LocalModuleNamespace(
+        Dictionary<string, string> modulesByName,
+        string name
+    )
+    {
+        if (modulesByName.TryGetValue(name, out var found))
+        {
             return found;
         }
 
-        return name.EndsWith("Attribute", StringComparison.Ordinal) &&
-               modulesByName.TryGetValue(
-                   name.Substring(0, name.Length - "Attribute".Length), out found)
+        return
+            name.EndsWith("Attribute", StringComparison.Ordinal)
+            && modulesByName.TryGetValue(
+                name.Substring(0, name.Length - "Attribute".Length),
+                out found
+            )
             ? found
             : null;
     }

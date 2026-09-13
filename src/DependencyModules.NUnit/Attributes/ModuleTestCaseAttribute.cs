@@ -10,8 +10,8 @@ namespace DependencyModules.NUnit.Attributes;
 /// row returned here, so a source of rows — a member, a file, a generator — only has to implement
 /// this to become usable.
 /// </remarks>
-public interface IModuleTestDataAttribute {
-
+public interface IModuleTestDataAttribute
+{
     /// <summary>
     /// The rows to build test cases from. A row covers the leading parameters of the method; the
     /// rest are resolved from the test's container.
@@ -40,29 +40,27 @@ public interface IModuleTestDataAttribute {
 /// [ModuleTest(typeof(MyModule))]
 /// [ModuleTestCase(1, "one")]
 /// [ModuleTestCase(2, "two")]
-/// public void Converts(int number, string word, INumberFormatter formatter) {
+/// public void Converts(int number, string word, INumberFormatter formatter)
+/// {
 ///     Assert.That(formatter.Spell(number), Is.EqualTo(word));
 /// }
 /// </code>
 /// </example>
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
-public class ModuleTestCaseAttribute(params object?[] arguments) : Attribute, IModuleTestDataAttribute {
-
+public class ModuleTestCaseAttribute(params object?[] arguments)
+    : Attribute,
+        IModuleTestDataAttribute
+{
     /// <summary>
     /// The arguments for this row, covering the method's leading parameters in order.
     /// </summary>
-    public object?[] Arguments {
-        get;
-    } = arguments;
+    public object?[] Arguments { get; } = arguments;
 
     /// <summary>
     /// Overrides the name this row is reported under. Defaults to the method name followed by the
     /// row's arguments, which is what tells one row from another in a test explorer.
     /// </summary>
-    public string? TestName {
-        get;
-        set;
-    }
+    public string? TestName { get; set; }
 
     /// <inheritdoc />
     public IEnumerable<object?[]> GetRows(MethodInfo method) => [Arguments];

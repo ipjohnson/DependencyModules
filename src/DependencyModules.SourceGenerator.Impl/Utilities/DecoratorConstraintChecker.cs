@@ -21,21 +21,30 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities;
 /// which is better than a decoration going missing for a reason nothing reports.
 /// </para>
 /// </remarks>
-public static class DecoratorConstraintChecker {
-
+public static class DecoratorConstraintChecker
+{
     public static bool CanClose(
-        Compilation compilation, ITypeDefinition decoratorType, GenericTypeDefinition closedService) {
-
+        Compilation compilation,
+        ITypeDefinition decoratorType,
+        GenericTypeDefinition closedService
+    )
+    {
         var decorator = Resolve(compilation, decoratorType);
 
-        if (decorator == null || decorator.TypeParameters.Length != closedService.TypeArguments.Count) {
+        if (
+            decorator == null
+            || decorator.TypeParameters.Length != closedService.TypeArguments.Count
+        )
+        {
             return true;
         }
 
-        for (var i = 0; i < decorator.TypeParameters.Length; i++) {
+        for (var i = 0; i < decorator.TypeParameters.Length; i++)
+        {
             var argument = Resolve(compilation, closedService.TypeArguments[i]);
 
-            if (argument != null && !Satisfies(decorator.TypeParameters[i], argument)) {
+            if (argument != null && !Satisfies(decorator.TypeParameters[i], argument))
+            {
                 return false;
             }
         }
@@ -43,24 +52,33 @@ public static class DecoratorConstraintChecker {
         return true;
     }
 
-    private static bool Satisfies(ITypeParameterSymbol parameter, INamedTypeSymbol argument) {
-        if (parameter.HasReferenceTypeConstraint && !argument.IsReferenceType) {
+    private static bool Satisfies(ITypeParameterSymbol parameter, INamedTypeSymbol argument)
+    {
+        if (parameter.HasReferenceTypeConstraint && !argument.IsReferenceType)
+        {
             return false;
         }
 
-        if (parameter.HasValueTypeConstraint && !argument.IsValueType) {
+        if (parameter.HasValueTypeConstraint && !argument.IsValueType)
+        {
             return false;
         }
 
-        if (parameter.HasConstructorConstraint &&
-            !argument.InstanceConstructors.Any(
-                constructor => constructor.Parameters.Length == 0 &&
-                               constructor.DeclaredAccessibility == Accessibility.Public)) {
+        if (
+            parameter.HasConstructorConstraint
+            && !argument.InstanceConstructors.Any(constructor =>
+                constructor.Parameters.Length == 0
+                && constructor.DeclaredAccessibility == Accessibility.Public
+            )
+        )
+        {
             return false;
         }
 
-        foreach (var constraint in parameter.ConstraintTypes) {
-            if (!Implements(argument, constraint)) {
+        foreach (var constraint in parameter.ConstraintTypes)
+        {
+            if (!Implements(argument, constraint))
+            {
                 return false;
             }
         }
@@ -68,25 +86,42 @@ public static class DecoratorConstraintChecker {
         return true;
     }
 
-    private static bool Implements(INamedTypeSymbol argument, ITypeSymbol constraint) {
+    private static bool Implements(INamedTypeSymbol argument, ITypeSymbol constraint)
+    {
         // A constraint naming another type parameter cannot be checked without the whole
         // substitution, and the service's own constraints already cover the usual case.
-        if (constraint is ITypeParameterSymbol) {
+        if (constraint is ITypeParameterSymbol)
+        {
             return true;
         }
 
-        if (SymbolEqualityComparer.Default.Equals(argument, constraint)) {
+        if (SymbolEqualityComparer.Default.Equals(argument, constraint))
+        {
             return true;
         }
 
-        foreach (var implemented in argument.AllInterfaces) {
-            if (SymbolEqualityComparer.Default.Equals(implemented.OriginalDefinition, constraint.OriginalDefinition)) {
+        foreach (var implemented in argument.AllInterfaces)
+        {
+            if (
+                SymbolEqualityComparer.Default.Equals(
+                    implemented.OriginalDefinition,
+                    constraint.OriginalDefinition
+                )
+            )
+            {
                 return true;
             }
         }
 
-        for (var baseType = argument.BaseType; baseType != null; baseType = baseType.BaseType) {
-            if (SymbolEqualityComparer.Default.Equals(baseType.OriginalDefinition, constraint.OriginalDefinition)) {
+        for (var baseType = argument.BaseType; baseType != null; baseType = baseType.BaseType)
+        {
+            if (
+                SymbolEqualityComparer.Default.Equals(
+                    baseType.OriginalDefinition,
+                    constraint.OriginalDefinition
+                )
+            )
+            {
                 return true;
             }
         }
@@ -102,23 +137,40 @@ public static class DecoratorConstraintChecker {
     /// <c>GetTypeByMetadataName("int")</c> finds nothing — so a value type would look unresolvable
     /// and be allowed through, which is exactly the case this class exists to catch.
     /// </remarks>
-    private static readonly Dictionary<string, string> Aliases = new() {
-        ["bool"] = "System.Boolean", ["byte"] = "System.Byte", ["sbyte"] = "System.SByte",
-        ["char"] = "System.Char", ["decimal"] = "System.Decimal", ["double"] = "System.Double",
-        ["float"] = "System.Single", ["int"] = "System.Int32", ["uint"] = "System.UInt32",
-        ["long"] = "System.Int64", ["ulong"] = "System.UInt64", ["short"] = "System.Int16",
-        ["ushort"] = "System.UInt16", ["nint"] = "System.IntPtr", ["nuint"] = "System.UIntPtr",
-        ["object"] = "System.Object", ["string"] = "System.String",
+    private static readonly Dictionary<string, string> Aliases = new()
+    {
+        ["bool"] = "System.Boolean",
+        ["byte"] = "System.Byte",
+        ["sbyte"] = "System.SByte",
+        ["char"] = "System.Char",
+        ["decimal"] = "System.Decimal",
+        ["double"] = "System.Double",
+        ["float"] = "System.Single",
+        ["int"] = "System.Int32",
+        ["uint"] = "System.UInt32",
+        ["long"] = "System.Int64",
+        ["ulong"] = "System.UInt64",
+        ["short"] = "System.Int16",
+        ["ushort"] = "System.UInt16",
+        ["nint"] = "System.IntPtr",
+        ["nuint"] = "System.UIntPtr",
+        ["object"] = "System.Object",
+        ["string"] = "System.String",
     };
 
-    private static INamedTypeSymbol? Resolve(Compilation compilation, ITypeDefinition type) {
-        var name = string.IsNullOrEmpty(type.Namespace) ? type.Name : type.Namespace + "." + type.Name;
+    private static INamedTypeSymbol? Resolve(Compilation compilation, ITypeDefinition type)
+    {
+        var name = string.IsNullOrEmpty(type.Namespace)
+            ? type.Name
+            : type.Namespace + "." + type.Name;
 
-        if (Aliases.TryGetValue(name, out var metadataName)) {
+        if (Aliases.TryGetValue(name, out var metadataName))
+        {
             name = metadataName;
         }
 
-        if (type is GenericTypeDefinition { TypeArguments.Count: > 0 } generic) {
+        if (type is GenericTypeDefinition { TypeArguments.Count: > 0 } generic)
+        {
             name += "`" + generic.TypeArguments.Count;
         }
 

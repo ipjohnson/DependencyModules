@@ -4,15 +4,17 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace DependencyModules.SourceGenerator.Impl.Utilities;
 
-public abstract class BaseSyntaxSelector {
-        private const string _attributeString = "Attribute";
+public abstract class BaseSyntaxSelector
+{
+    private const string _attributeString = "Attribute";
     private readonly List<string> _names;
 
     public bool AutoApproveCompilationUnit { get; set; } = false;
-    
+
     public string ApproveFilter { get; set; } = "";
-    
-    protected BaseSyntaxSelector(params ITypeDefinition[] attributes) {
+
+    protected BaseSyntaxSelector(params ITypeDefinition[] attributes)
+    {
         _names = GetAttributeStrings(attributes);
     }
 
@@ -27,14 +29,20 @@ public abstract class BaseSyntaxSelector {
     /// module: no partial written, no diagnostic, and a CS0311 at the consumer's
     /// <c>AddModule&lt;T&gt;()</c> naming neither the attribute nor the omission.
     /// </remarks>
-    private List<string> GetAttributeStrings(ITypeDefinition[] attributes) {
+    private List<string> GetAttributeStrings(ITypeDefinition[] attributes)
+    {
         var returnList = new List<string>();
 
-        foreach (var attribute in attributes) {
+        foreach (var attribute in attributes)
+        {
             returnList.Add(attribute.Name);
 
-            if (attribute.Name.EndsWith(_attributeString)) {
-                var simpleName = attribute.Name.Substring(0, attribute.Name.Length - _attributeString.Length);
+            if (attribute.Name.EndsWith(_attributeString))
+            {
+                var simpleName = attribute.Name.Substring(
+                    0,
+                    attribute.Name.Length - _attributeString.Length
+                );
 
                 returnList.Add(simpleName);
             }
@@ -56,10 +64,12 @@ public abstract class BaseSyntaxSelector {
     /// regardless of which namespace it came from, so a same-named attribute from elsewhere was
     /// always a candidate and is filtered downstream as it always was.
     /// </remarks>
-    private static string LastSegment(string attributeName) {
+    private static string LastSegment(string attributeName)
+    {
         var lastDot = attributeName.LastIndexOf('.');
 
-        if (lastDot >= 0) {
+        if (lastDot >= 0)
+        {
             return attributeName.Substring(lastDot + 1);
         }
 
@@ -69,75 +79,77 @@ public abstract class BaseSyntaxSelector {
     }
 
     protected abstract bool TestForTypes(SyntaxNode node, CancellationToken token);
-    
-    public bool Where(SyntaxNode node, CancellationToken token) {
-        
-        if (!TestForTypes(node, token)) {
+
+    public bool Where(SyntaxNode node, CancellationToken token)
+    {
+        if (!TestForTypes(node, token))
+        {
             return false;
         }
 
-        if (node is MemberDeclarationSyntax memberDeclarationSyntax) {
+        if (node is MemberDeclarationSyntax memberDeclarationSyntax)
+        {
             return ProcessAttributeList(memberDeclarationSyntax.AttributeLists);
         }
 
-        if (node is CompilationUnitSyntax compilationUnitSyntax) {
-            return IsAutoApprove(compilationUnitSyntax) ||
-                   ProcessAttributeList(compilationUnitSyntax.AttributeLists);
+        if (node is CompilationUnitSyntax compilationUnitSyntax)
+        {
+            return IsAutoApprove(compilationUnitSyntax)
+                || ProcessAttributeList(compilationUnitSyntax.AttributeLists);
         }
-        
+
         var found = node.DescendantNodes()
-            .OfType<AttributeSyntax>().Any(a => _names.Contains(LastSegment(a.Name.ToString())));
-        
+            .OfType<AttributeSyntax>()
+            .Any(a => _names.Contains(LastSegment(a.Name.ToString())));
+
         return found;
     }
 
-    private bool IsAutoApprove(CompilationUnitSyntax compilationUnitSyntax) {
-        if (!AutoApproveCompilationUnit) {
+    private bool IsAutoApprove(CompilationUnitSyntax compilationUnitSyntax)
+    {
+        if (!AutoApproveCompilationUnit)
+        {
             return false;
         }
-        
-        return ApproveFilter == "" || 
-               compilationUnitSyntax.SyntaxTree.FilePath.EndsWith(ApproveFilter);
+
+        return ApproveFilter == ""
+            || compilationUnitSyntax.SyntaxTree.FilePath.EndsWith(ApproveFilter);
     }
 
-    private bool ProcessAttributeList(SyntaxList<AttributeListSyntax> attributeLists) {
+    private bool ProcessAttributeList(SyntaxList<AttributeListSyntax> attributeLists)
+    {
         var foundAttribute = false;
-        foreach (var attributeListSyntax in attributeLists) {
-            foreach (var attributeSyntax in attributeListSyntax.Attributes) {
+        foreach (var attributeListSyntax in attributeLists)
+        {
+            foreach (var attributeSyntax in attributeListSyntax.Attributes)
+            {
                 foundAttribute = _names.Contains(LastSegment(attributeSyntax.Name.ToString()));
-                    
-                if (foundAttribute) {
+
+                if (foundAttribute)
+                {
                     break;
                 }
             }
-            if (foundAttribute) {
+            if (foundAttribute)
+            {
                 break;
             }
         }
-            
+
         return foundAttribute;
     }
-
 }
 
-public class SyntaxSelector<T> : BaseSyntaxSelector where T : SyntaxNode {
-    public SyntaxSelector(params ITypeDefinition[] attributes) : base(attributes) {}
-    
-    protected override bool TestForTypes(SyntaxNode node, CancellationToken token) {
-        if (node is T) {
-            return true;
-        }
-        
-        return false;
-    }
-}
+public class SyntaxSelector<T> : BaseSyntaxSelector
+    where T : SyntaxNode
+{
+    public SyntaxSelector(params ITypeDefinition[] attributes)
+        : base(attributes) { }
 
-
-public class SyntaxSelector<T1,T2> : BaseSyntaxSelector where T1 : SyntaxNode where T2 : SyntaxNode {
-    public SyntaxSelector(params ITypeDefinition[] attributes) : base(attributes) {}
-
-    protected override bool TestForTypes(SyntaxNode node, CancellationToken token) {
-        if (node is T1 or T2) {
+    protected override bool TestForTypes(SyntaxNode node, CancellationToken token)
+    {
+        if (node is T)
+        {
             return true;
         }
 
@@ -145,11 +157,36 @@ public class SyntaxSelector<T1,T2> : BaseSyntaxSelector where T1 : SyntaxNode wh
     }
 }
 
-public class SyntaxSelector<T1,T2,T3> : BaseSyntaxSelector where T1 : SyntaxNode where T2 : SyntaxNode where T3 : SyntaxNode {
-    public SyntaxSelector(params ITypeDefinition[] attributes) : base(attributes) {}
+public class SyntaxSelector<T1, T2> : BaseSyntaxSelector
+    where T1 : SyntaxNode
+    where T2 : SyntaxNode
+{
+    public SyntaxSelector(params ITypeDefinition[] attributes)
+        : base(attributes) { }
 
-    protected override bool TestForTypes(SyntaxNode node, CancellationToken token) {
-        if (node is T1 or T2 or T3) {
+    protected override bool TestForTypes(SyntaxNode node, CancellationToken token)
+    {
+        if (node is T1 or T2)
+        {
+            return true;
+        }
+
+        return false;
+    }
+}
+
+public class SyntaxSelector<T1, T2, T3> : BaseSyntaxSelector
+    where T1 : SyntaxNode
+    where T2 : SyntaxNode
+    where T3 : SyntaxNode
+{
+    public SyntaxSelector(params ITypeDefinition[] attributes)
+        : base(attributes) { }
+
+    protected override bool TestForTypes(SyntaxNode node, CancellationToken token)
+    {
+        if (node is T1 or T2 or T3)
+        {
             return true;
         }
 

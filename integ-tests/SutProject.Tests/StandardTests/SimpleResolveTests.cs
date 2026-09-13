@@ -3,10 +3,12 @@ using Xunit;
 
 namespace SutProject.Tests.StandardTests;
 
-public class SimpleResolveTests {
+public class SimpleResolveTests
+{
     [ModuleTest]
     [SutModule]
-    public void SimpleTest(IDependencyOne dependencyOne) {
+    public void SimpleTest(IDependencyOne dependencyOne)
+    {
         Assert.NotNull(dependencyOne);
         Assert.NotNull(dependencyOne.SingletonService);
         Assert.NotNull(dependencyOne.ScopedService);
@@ -14,7 +16,11 @@ public class SimpleResolveTests {
 
     [ModuleTest]
     [SutModule]
-    public void ResolveServiceProvider(IDependencyOne dependencyOne, IServiceProvider serviceProvider) {
+    public void ResolveServiceProvider(
+        IDependencyOne dependencyOne,
+        IServiceProvider serviceProvider
+    )
+    {
         Assert.NotNull(dependencyOne);
         Assert.NotNull(serviceProvider);
     }

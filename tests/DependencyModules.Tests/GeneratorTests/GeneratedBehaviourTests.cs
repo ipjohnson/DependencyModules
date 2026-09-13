@@ -12,11 +12,14 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// These are the tests that would fail if the generator emitted well-formed code that registered
 /// the wrong thing. Asserting on the shape of generated text cannot catch that.
 /// </summary>
-public class GeneratedBehaviourTests {
-
+public class GeneratedBehaviourTests
+{
     [Fact]
-    public void SingletonService_ResolvesTheImplementation() {
-        var generated = GeneratedAssembly.Create(Module("[SingletonService] public class Thing : IThing;"));
+    public void SingletonService_ResolvesTheImplementation()
+    {
+        var generated = GeneratedAssembly.Create(
+            Module("[SingletonService] public class Thing : IThing;")
+        );
 
         var resolved = generated.ResolveRequired("IThing");
 
@@ -24,8 +27,11 @@ public class GeneratedBehaviourTests {
     }
 
     [Fact]
-    public void SingletonService_ReturnsTheSameInstanceEveryTime() {
-        var generated = GeneratedAssembly.Create(Module("[SingletonService] public class Thing : IThing;"));
+    public void SingletonService_ReturnsTheSameInstanceEveryTime()
+    {
+        var generated = GeneratedAssembly.Create(
+            Module("[SingletonService] public class Thing : IThing;")
+        );
         var provider = generated.BuildProvider();
         var serviceType = generated.Type("IThing");
 
@@ -33,8 +39,11 @@ public class GeneratedBehaviourTests {
     }
 
     [Fact]
-    public void TransientService_ReturnsANewInstanceEveryTime() {
-        var generated = GeneratedAssembly.Create(Module("[TransientService] public class Thing : IThing;"));
+    public void TransientService_ReturnsANewInstanceEveryTime()
+    {
+        var generated = GeneratedAssembly.Create(
+            Module("[TransientService] public class Thing : IThing;")
+        );
         var provider = generated.BuildProvider();
         var serviceType = generated.Type("IThing");
 
@@ -42,8 +51,11 @@ public class GeneratedBehaviourTests {
     }
 
     [Fact]
-    public void ScopedService_IsSharedWithinAScopeAndDiffersAcrossScopes() {
-        var generated = GeneratedAssembly.Create(Module("[ScopedService] public class Thing : IThing;"));
+    public void ScopedService_IsSharedWithinAScopeAndDiffersAcrossScopes()
+    {
+        var generated = GeneratedAssembly.Create(
+            Module("[ScopedService] public class Thing : IThing;")
+        );
         var provider = generated.BuildProvider();
         var serviceType = generated.Type("IThing");
 
@@ -62,19 +74,29 @@ public class GeneratedBehaviourTests {
     [InlineData("SingletonService", ServiceLifetime.Singleton)]
     [InlineData("ScopedService", ServiceLifetime.Scoped)]
     [InlineData("TransientService", ServiceLifetime.Transient)]
-    public void ServiceAttribute_RegistersTheMatchingLifetime(string attribute, ServiceLifetime expected) {
-        var generated = GeneratedAssembly.Create(Module($"[{attribute}] public class Thing : IThing;"));
+    public void ServiceAttribute_RegistersTheMatchingLifetime(
+        string attribute,
+        ServiceLifetime expected
+    )
+    {
+        var generated = GeneratedAssembly.Create(
+            Module($"[{attribute}] public class Thing : IThing;")
+        );
 
         Assert.Equal(expected, generated.Descriptor("IThing").Lifetime);
     }
 
     [Fact]
-    public void AsProperty_ResolvesUnderTheRequestedServiceTypeOnly() {
-        var generated = GeneratedAssembly.Create(Module(
-            """
-            public interface IOther;
-            [SingletonService(As = typeof(IOther))] public class Thing : IThing, IOther;
-            """));
+    public void AsProperty_ResolvesUnderTheRequestedServiceTypeOnly()
+    {
+        var generated = GeneratedAssembly.Create(
+            Module(
+                """
+                public interface IOther;
+                [SingletonService(As = typeof(IOther))] public class Thing : IThing, IOther;
+                """
+            )
+        );
 
         var provider = generated.BuildProvider();
 
@@ -83,9 +105,11 @@ public class GeneratedBehaviourTests {
     }
 
     [Fact]
-    public void KeyedService_ResolvesOnlyThroughItsKey() {
-        var generated = GeneratedAssembly.Create(Module(
-            """[SingletonService(Key = "the-key")] public class Thing : IThing;"""));
+    public void KeyedService_ResolvesOnlyThroughItsKey()
+    {
+        var generated = GeneratedAssembly.Create(
+            Module("""[SingletonService(Key = "the-key")] public class Thing : IThing;""")
+        );
 
         var provider = generated.BuildProvider();
         var serviceType = generated.Type("IThing");
@@ -95,18 +119,28 @@ public class GeneratedBehaviourTests {
     }
 
     [Fact]
-    public void KeyedServices_WithDifferentKeysResolveDifferentImplementations() {
-        var generated = GeneratedAssembly.Create(Module(
-            """
-            [SingletonService(Key = "first")] public class FirstThing : IThing;
-            [SingletonService(Key = "second")] public class SecondThing : IThing;
-            """));
+    public void KeyedServices_WithDifferentKeysResolveDifferentImplementations()
+    {
+        var generated = GeneratedAssembly.Create(
+            Module(
+                """
+                [SingletonService(Key = "first")] public class FirstThing : IThing;
+                [SingletonService(Key = "second")] public class SecondThing : IThing;
+                """
+            )
+        );
 
         var provider = generated.BuildProvider();
         var serviceType = generated.Type("IThing");
 
-        Assert.Equal(generated.Type("FirstThing"), provider.GetKeyedService(serviceType, "first")!.GetType());
-        Assert.Equal(generated.Type("SecondThing"), provider.GetKeyedService(serviceType, "second")!.GetType());
+        Assert.Equal(
+            generated.Type("FirstThing"),
+            provider.GetKeyedService(serviceType, "first")!.GetType()
+        );
+        Assert.Equal(
+            generated.Type("SecondThing"),
+            provider.GetKeyedService(serviceType, "second")!.GetType()
+        );
     }
 
     /// <summary>
@@ -114,14 +148,18 @@ public class GeneratedBehaviourTests {
     /// and through every interface it implements.
     /// </summary>
     [Fact]
-    public void CrossWireService_SharesOneInstanceAcrossAllItsInterfaces() {
-        var generated = GeneratedAssembly.Create(Module(
-            """
-            public interface IOther;
-            [CrossWireService(Lifetime = ServiceLifetime.Singleton)]
-            public class Thing : IThing, IOther;
-            """,
-            extraUsings: "using Microsoft.Extensions.DependencyInjection;"));
+    public void CrossWireService_SharesOneInstanceAcrossAllItsInterfaces()
+    {
+        var generated = GeneratedAssembly.Create(
+            Module(
+                """
+                public interface IOther;
+                [CrossWireService(Lifetime = ServiceLifetime.Singleton)]
+                public class Thing : IThing, IOther;
+                """,
+                extraUsings: "using Microsoft.Extensions.DependencyInjection;"
+            )
+        );
 
         var provider = generated.BuildProvider();
 
@@ -135,18 +173,24 @@ public class GeneratedBehaviourTests {
     }
 
     [Fact]
-    public void TryRegistration_DoesNotReplaceAnExistingRegistration() {
-        var generated = GeneratedAssembly.Create(Module(
-            "[SingletonService(Using = RegistrationType.Try)] public class Thing : IThing;"));
+    public void TryRegistration_DoesNotReplaceAnExistingRegistration()
+    {
+        var generated = GeneratedAssembly.Create(
+            Module("[SingletonService(Using = RegistrationType.Try)] public class Thing : IThing;")
+        );
 
         Assert.Equal(ServiceLifetime.Singleton, generated.Descriptor("IThing").Lifetime);
         Assert.Equal(generated.Type("Thing"), generated.ResolveRequired("IThing").GetType());
     }
 
     [Fact]
-    public void ReplaceRegistration_LeavesASingleRegistration() {
-        var generated = GeneratedAssembly.Create(Module(
-            "[SingletonService(Using = RegistrationType.Replace)] public class Thing : IThing;"));
+    public void ReplaceRegistration_LeavesASingleRegistration()
+    {
+        var generated = GeneratedAssembly.Create(
+            Module(
+                "[SingletonService(Using = RegistrationType.Replace)] public class Thing : IThing;"
+            )
+        );
 
         Assert.Single(generated.Descriptors("IThing"));
     }
@@ -159,43 +203,55 @@ public class GeneratedBehaviourTests {
     /// won. Renaming the class fixed it, and nothing said so.
     /// </summary>
     [Fact]
-    public void ReplaceRegistration_WinsEvenWhenItsTypeNameSortsFirst() {
-        var generated = GeneratedAssembly.Create(Module(
-            """
-            [SingletonService(Using = RegistrationType.Replace)] public class AaaThing : IThing;
-            [SingletonService] public class ZzzThing : IThing;
-            """));
+    public void ReplaceRegistration_WinsEvenWhenItsTypeNameSortsFirst()
+    {
+        var generated = GeneratedAssembly.Create(
+            Module(
+                """
+                [SingletonService(Using = RegistrationType.Replace)] public class AaaThing : IThing;
+                [SingletonService] public class ZzzThing : IThing;
+                """
+            )
+        );
 
         Assert.Single(generated.Descriptors("IThing"));
         Assert.Equal(generated.Type("AaaThing"), generated.ResolveRequired("IThing").GetType());
     }
 
     [Fact]
-    public void TryRegistration_DeclinesEvenWhenItsTypeNameSortsFirst() {
-        var generated = GeneratedAssembly.Create(Module(
-            """
-            [SingletonService(Using = RegistrationType.Try)] public class AaaThing : IThing;
-            [SingletonService] public class ZzzThing : IThing;
-            """));
+    public void TryRegistration_DeclinesEvenWhenItsTypeNameSortsFirst()
+    {
+        var generated = GeneratedAssembly.Create(
+            Module(
+                """
+                [SingletonService(Using = RegistrationType.Try)] public class AaaThing : IThing;
+                [SingletonService] public class ZzzThing : IThing;
+                """
+            )
+        );
 
         Assert.Single(generated.Descriptors("IThing"));
         Assert.Equal(generated.Type("ZzzThing"), generated.ResolveRequired("IThing").GetType());
     }
 
     [Fact]
-    public void ConstructorDependencies_AreInjectedFromTheContainer() {
-        var generated = GeneratedAssembly.Create(Module(
-            """
-            public interface IDependency;
+    public void ConstructorDependencies_AreInjectedFromTheContainer()
+    {
+        var generated = GeneratedAssembly.Create(
+            Module(
+                """
+                public interface IDependency;
 
-            [SingletonService] public class Dependency : IDependency;
+                [SingletonService] public class Dependency : IDependency;
 
-            [SingletonService]
-            public class Thing : IThing {
-                public IDependency Injected { get; }
-                public Thing(IDependency dependency) => Injected = dependency;
-            }
-            """));
+                [SingletonService]
+                public class Thing : IThing {
+                    public IDependency Injected { get; }
+                    public Thing(IDependency dependency) => Injected = dependency;
+                }
+                """
+            )
+        );
 
         var provider = generated.BuildProvider();
         var thing = provider.GetService(generated.Type("IThing"))!;
@@ -207,16 +263,20 @@ public class GeneratedBehaviourTests {
     }
 
     [Fact]
-    public void StaticFactory_IsInvokedToCreateTheService() {
-        var generated = GeneratedAssembly.Create(Module(
-            """
-            public class Thing : IThing {
-                public string Origin { get; private set; } = "constructor";
+    public void StaticFactory_IsInvokedToCreateTheService()
+    {
+        var generated = GeneratedAssembly.Create(
+            Module(
+                """
+                public class Thing : IThing {
+                    public string Origin { get; private set; } = "constructor";
 
-                [SingletonService]
-                public static IThing Create() => new Thing { Origin = "factory" };
-            }
-            """));
+                    [SingletonService]
+                    public static IThing Create() => new Thing { Origin = "factory" };
+                }
+                """
+            )
+        );
 
         var thing = generated.ResolveRequired("IThing");
 
@@ -224,31 +284,37 @@ public class GeneratedBehaviourTests {
     }
 
     [Fact]
-    public void StaticFactory_ReceivesItsDependenciesFromTheContainer() {
-        var generated = GeneratedAssembly.Create(Module(
-            """
-            public interface IDependency;
+    public void StaticFactory_ReceivesItsDependenciesFromTheContainer()
+    {
+        var generated = GeneratedAssembly.Create(
+            Module(
+                """
+                public interface IDependency;
 
-            [SingletonService] public class Dependency : IDependency;
+                [SingletonService] public class Dependency : IDependency;
 
-            public class Thing : IThing {
-                public IDependency? Injected { get; private set; }
+                public class Thing : IThing {
+                    public IDependency? Injected { get; private set; }
 
-                [SingletonService]
-                public static IThing Create(IDependency dependency) => new Thing { Injected = dependency };
-            }
-            """));
+                    [SingletonService]
+                    public static IThing Create(IDependency dependency) => new Thing { Injected = dependency };
+                }
+                """
+            )
+        );
 
         var provider = generated.BuildProvider();
         var thing = provider.GetService(generated.Type("IThing"))!;
 
         Assert.Same(
             provider.GetService(generated.Type("IDependency")),
-            thing.GetType().GetProperty("Injected")!.GetValue(thing));
+            thing.GetType().GetProperty("Injected")!.GetValue(thing)
+        );
     }
 
     [Fact]
-    public void OpenGenericService_ResolvesForAnyTypeArgument() {
+    public void OpenGenericService_ResolvesForAnyTypeArgument()
+    {
         var generated = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -262,7 +328,8 @@ public class GeneratedBehaviourTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         var provider = generated.BuildProvider();
         var closed = generated.Type("IGeneric`1").MakeGenericType(typeof(string));
@@ -271,7 +338,8 @@ public class GeneratedBehaviourTests {
     }
 
     [Fact]
-    public void ClosedGenericService_ResolvesForItsOwnArgumentOnly() {
+    public void ClosedGenericService_ResolvesForItsOwnArgumentOnly()
+    {
         var generated = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -285,7 +353,8 @@ public class GeneratedBehaviourTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         var provider = generated.BuildProvider();
         var generic = generated.Type("IGeneric`1");
@@ -295,27 +364,35 @@ public class GeneratedBehaviourTests {
     }
 
     [Fact]
-    public void NestedService_ResolvesThroughItsContainingType() {
-        var generated = GeneratedAssembly.Create(Module(
-            """
-            public static class Outer {
-                [SingletonService]
-                public class Inner : IThing;
-            }
-            """));
+    public void NestedService_ResolvesThroughItsContainingType()
+    {
+        var generated = GeneratedAssembly.Create(
+            Module(
+                """
+                public static class Outer {
+                    [SingletonService]
+                    public class Inner : IThing;
+                }
+                """
+            )
+        );
 
         Assert.Equal("Inner", generated.ResolveRequired("IThing").GetType().Name);
     }
 
     [Fact]
-    public void RecordService_Resolves() {
-        var generated = GeneratedAssembly.Create(Module("[SingletonService] public record ThingRecord : IThing;"));
+    public void RecordService_Resolves()
+    {
+        var generated = GeneratedAssembly.Create(
+            Module("[SingletonService] public record ThingRecord : IThing;")
+        );
 
         Assert.Equal(generated.Type("ThingRecord"), generated.ResolveRequired("IThing").GetType());
     }
 
     [Fact]
-    public void ModuleConfiguration_RunsAlongsideGeneratedRegistrations() {
+    public void ModuleConfiguration_RunsAlongsideGeneratedRegistrations()
+    {
         var generated = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -337,7 +414,8 @@ public class GeneratedBehaviourTests {
                     services.AddSingleton<IManual, Manual>();
                 }
             }
-            """);
+            """
+        );
 
         var provider = generated.BuildProvider();
 
@@ -346,7 +424,8 @@ public class GeneratedBehaviourTests {
     }
 
     [Fact]
-    public void OnlyRealm_RegistersOnlyServicesInThatRealm() {
+    public void OnlyRealm_RegistersOnlyServicesInThatRealm()
+    {
         var generated = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -365,7 +444,8 @@ public class GeneratedBehaviourTests {
             [SingletonService]
             public class OutsideRealm : IOutsideRealm;
             """,
-            "RealmModule");
+            "RealmModule"
+        );
 
         var provider = generated.BuildProvider();
 
@@ -374,7 +454,8 @@ public class GeneratedBehaviourTests {
     }
 
     [Fact]
-    public void ComposedModule_AppliesTheModulesItReferences() {
+    public void ComposedModule_AppliesTheModulesItReferences()
+    {
         var generated = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -393,13 +474,15 @@ public class GeneratedBehaviourTests {
             [BaseModule]
             public partial class ComposedModule;
             """,
-            "ComposedModule");
+            "ComposedModule"
+        );
 
         Assert.NotNull(generated.BuildProvider().GetService(generated.Type("IFromBase")));
     }
 
     [Fact]
-    public void ServiceWithNoInterface_ResolvesAsItself() {
+    public void ServiceWithNoInterface_ResolvesAsItself()
+    {
         var generated = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -411,23 +494,24 @@ public class GeneratedBehaviourTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         Assert.NotNull(generated.BuildProvider().GetService(generated.Type("Standalone")));
     }
 
     private static string Module(string body, string extraUsings = "") =>
         $$"""
-          using DependencyModules.Runtime.Attributes;
-          {{extraUsings}}
+            using DependencyModules.Runtime.Attributes;
+            {{extraUsings}}
 
-          namespace TestNamespace;
+            namespace TestNamespace;
 
-          public interface IThing;
+            public interface IThing;
 
-          {{body}}
+            {{body}}
 
-          [DependencyModule]
-          public partial class TestModule;
-          """;
+            [DependencyModule]
+            public partial class TestModule;
+            """;
 }

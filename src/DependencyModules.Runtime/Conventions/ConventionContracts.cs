@@ -16,8 +16,8 @@
 // Nothing here has behaviour or is ever executed. The generator reads the chain out of the method
 // body at compile time and emits ordinary registrations; the body itself is never called.
 
-namespace DependencyModules.Runtime.Conventions {
-
+namespace DependencyModules.Runtime.Conventions
+{
     /// <summary>
     /// Implement this on a [DependencyModule] class to register services by convention
     /// instead of attributing each one.
@@ -46,8 +46,10 @@ namespace DependencyModules.Runtime.Conventions {
     /// <example>
     /// <code>
     /// [DependencyModule]
-    /// public partial class DataModule : IConventionModule {
-    ///     void IConventionModule.Conventions(IConventionDefinitions conventions) {
+    /// public partial class DataModule : IConventionModule
+    /// {
+    ///     void IConventionModule.Conventions(IConventionDefinitions conventions)
+    ///     {
     ///         conventions.RegisterAll&lt;IRepository&gt;().AsScoped();
     ///         conventions.RegisterAll(typeof(IRequestHandler&lt;,&gt;)).AsTransient();
     ///     }
@@ -55,8 +57,8 @@ namespace DependencyModules.Runtime.Conventions {
     /// </code>
     /// </example>
     /// </remarks>
-    public interface IConventionModule {
-
+    public interface IConventionModule
+    {
         /// <summary>
         /// Declares this module's conventions. Read at compile time; never invoked.
         /// </summary>
@@ -70,8 +72,8 @@ namespace DependencyModules.Runtime.Conventions {
     /// <remarks>
     /// Nothing implements this. The calls made on it are read from source at compile time.
     /// </remarks>
-    public interface IConventionDefinitions {
-
+    public interface IConventionDefinitions
+    {
         /// <summary>
         /// Registers every type in this compilation that implements
         /// <typeparamref name="TService"/>, as <typeparamref name="TService"/>.
@@ -135,8 +137,8 @@ namespace DependencyModules.Runtime.Conventions {
     /// A lifetime is required. There is no default, because a lifetime nobody wrote down is
     /// the most expensive thing for a registration to get wrong; omitting one is DM0009.
     /// </remarks>
-    public interface IConventionRegistration {
-
+    public interface IConventionRegistration
+    {
         /// <summary>Registers the matches as singletons.</summary>
         IConventionRegistration AsSingleton();
 
@@ -255,7 +257,8 @@ namespace DependencyModules.Runtime.Conventions {
         /// </remarks>
         /// <param name="registrationType">How to add the registration.</param>
         IConventionRegistration Using(
-            global::DependencyModules.Runtime.Attributes.RegistrationType registrationType);
+            global::DependencyModules.Runtime.Attributes.RegistrationType registrationType
+        );
 
         /// <summary>
         /// Registers every match under a service key.

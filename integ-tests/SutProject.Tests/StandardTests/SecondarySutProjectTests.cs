@@ -4,10 +4,12 @@ using Xunit;
 
 namespace SutProject.Tests.StandardTests;
 
-public class SecondarySutProjectTests {
+public class SecondarySutProjectTests
+{
     [ModuleTest]
     [SecondarySutModule]
-    public void OverrideDependency(IDependencyOne dependencyOne) {
+    public void OverrideDependency(IDependencyOne dependencyOne)
+    {
         Assert.IsType<BetterDependencyOne>(dependencyOne);
     }
 }

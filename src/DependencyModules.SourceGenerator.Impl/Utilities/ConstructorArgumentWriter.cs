@@ -23,14 +23,15 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities;
 /// The decorator writer duplicated this and got the second one wrong, which is why it now lives in
 /// one place.
 /// </remarks>
-public static class ConstructorArgumentWriter {
-
+public static class ConstructorArgumentWriter
+{
     /// <summary>
     /// Arguments for every parameter.
     /// </summary>
     public static object[] Arguments(
-        ParameterDefinition serviceProvider, IReadOnlyList<ParameterInfoModel> parameters) =>
-        Arguments(serviceProvider, parameters, -1, null);
+        ParameterDefinition serviceProvider,
+        IReadOnlyList<ParameterInfoModel> parameters
+    ) => Arguments(serviceProvider, parameters, -1, null);
 
     /// <summary>
     /// Arguments for every parameter, with one supplied rather than resolved.
@@ -44,12 +45,15 @@ public static class ConstructorArgumentWriter {
         ParameterDefinition serviceProvider,
         IReadOnlyList<ParameterInfoModel> parameters,
         int suppliedIndex,
-        object? supplied) {
-
+        object? supplied
+    )
+    {
         var arguments = new List<object>(parameters.Count);
 
-        for (var i = 0; i < parameters.Count; i++) {
-            if (i == suppliedIndex && supplied != null) {
+        for (var i = 0; i < parameters.Count; i++)
+        {
+            if (i == suppliedIndex && supplied != null)
+            {
                 arguments.Add(supplied);
 
                 continue;
@@ -61,28 +65,42 @@ public static class ConstructorArgumentWriter {
         return arguments.ToArray();
     }
 
-    private static object Argument(ParameterDefinition serviceProvider, ParameterInfoModel parameter) {
-        if (parameter.ParameterType.Equals(KnownTypes.Microsoft.DependencyInjection.IServiceProvider)) {
+    private static object Argument(
+        ParameterDefinition serviceProvider,
+        ParameterInfoModel parameter
+    )
+    {
+        if (
+            parameter.ParameterType.Equals(
+                KnownTypes.Microsoft.DependencyInjection.IServiceProvider
+            )
+        )
+        {
             return serviceProvider;
         }
 
-        var keyed = parameter.Attributes.FirstOrDefault(
-            attribute => attribute.TypeDefinition.Equals(
-                KnownTypes.Microsoft.DependencyInjection.FromKeyedServicesAttribute));
+        var keyed = parameter.Attributes.FirstOrDefault(attribute =>
+            attribute.TypeDefinition.Equals(
+                KnownTypes.Microsoft.DependencyInjection.FromKeyedServicesAttribute
+            )
+        );
 
         var name = "Get";
         var arguments = new List<object>();
 
-        if (!parameter.ParameterType.IsNullable) {
+        if (!parameter.ParameterType.IsNullable)
+        {
             name += "Required";
         }
 
-        if (keyed != null) {
+        if (keyed != null)
+        {
             name += "Keyed";
 
             var key = keyed.Arguments.First().Value!;
 
-            if (key is string text) {
+            if (key is string text)
+            {
                 key = QuoteString(text);
             }
 
@@ -94,6 +112,7 @@ public static class ConstructorArgumentWriter {
         return serviceProvider.InvokeGeneric(
             name,
             new[] { parameter.ParameterType.MakeNullable(false) },
-            arguments.ToArray());
+            arguments.ToArray()
+        );
     }
 }

@@ -23,12 +23,14 @@ namespace DependencyModules.Runtime.Attributes;
 /// </example>
 /// </remarks>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-public class IfEnvironmentAttribute : Attribute {
+public class IfEnvironmentAttribute : Attribute
+{
     /// <summary>
     /// Registers the service only in the given environments.
     /// </summary>
     /// <param name="environmentNames">The environment names to register in.</param>
-    public IfEnvironmentAttribute(params string[] environmentNames) {
+    public IfEnvironmentAttribute(params string[] environmentNames)
+    {
         EnvironmentNames = environmentNames;
     }
 

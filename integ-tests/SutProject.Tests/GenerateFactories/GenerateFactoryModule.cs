@@ -9,35 +9,29 @@ public partial class GenerateFactoryModule;
 
 [SingletonService(Realm = typeof(GenerateFactoryModule))]
 public class FactoryDepOne(
-    ISingletonService? singletonService = null, 
-    IScopedService? scopedService = null) : IDependencyOne {
+    ISingletonService? singletonService = null,
+    IScopedService? scopedService = null
+) : IDependencyOne
+{
+    public ISingletonService SingletonService { get; } = singletonService!;
 
-    public ISingletonService SingletonService {
-        get;
-    } = singletonService!;
-
-    public IScopedService ScopedService {
-        get;
-    } = scopedService!;
+    public IScopedService ScopedService { get; } = scopedService!;
 }
 
 [SingletonService(Realm = typeof(GenerateFactoryModule), Key = "Keyed")]
-public class GenerateKeyed() : IKeyedRegistration {
-    public string Key {
-        get;
-    } = "Keyed";
+public class GenerateKeyed() : IKeyedRegistration
+{
+    public string Key { get; } = "Keyed";
 }
 
 [SingletonService(Realm = typeof(GenerateFactoryModule))]
-public class KeyedDependency([FromKeyedServices("Keyed")] IKeyedRegistration registration) {
-    public IKeyedRegistration Registration {
-        get;
-    } = registration;
+public class KeyedDependency([FromKeyedServices("Keyed")] IKeyedRegistration registration)
+{
+    public IKeyedRegistration Registration { get; } = registration;
 }
 
 [SingletonService(Realm = typeof(GenerateFactoryModule))]
-public class StandardConstructor {
-    public StandardConstructor(IDependencyOne dependencyOne) {
-        
-    }
+public class StandardConstructor
+{
+    public StandardConstructor(IDependencyOne dependencyOne) { }
 }

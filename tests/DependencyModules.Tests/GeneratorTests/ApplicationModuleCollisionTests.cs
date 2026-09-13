@@ -26,10 +26,11 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// The variants below are kept as a set on purpose: every one of them was reported as the trigger
 /// at some point, and only the last is.
 /// </summary>
-public class ApplicationModuleCollisionTests {
-
+public class ApplicationModuleCollisionTests
+{
     [Fact]
-    public void DeclaringApplicationModuleInTheRootNamespace_DoesNotCollide() {
+    public void DeclaringApplicationModuleInTheRootNamespace_DoesNotCollide()
+    {
         var result = Run(DeclaredModule("ConfiguredRoot"));
 
         Assert.Empty(result.DuplicateHintNames);
@@ -41,12 +42,14 @@ public class ApplicationModuleCollisionTests {
     /// the reason this shipped. Asserted separately from AssertNoErrors for that reason.
     /// </summary>
     [Fact]
-    public void DeclaringApplicationModuleInTheRootNamespace_DoesNotWarn() {
+    public void DeclaringApplicationModuleInTheRootNamespace_DoesNotWarn()
+    {
         var result = Run(DeclaredModule("ConfiguredRoot"));
 
         Assert.DoesNotContain(
             result.CompilationDiagnostics.Concat(result.GeneratorDiagnostics),
-            diagnostic => diagnostic.Id == "CS8785");
+            diagnostic => diagnostic.Id == "CS8785"
+        );
     }
 
     /// <summary>
@@ -55,7 +58,8 @@ public class ApplicationModuleCollisionTests {
     /// recognised the two as the same — this only ever failed to recognise them.
     /// </summary>
     [Fact]
-    public void TheDeclaredModuleIsTheOneGenerated() {
+    public void TheDeclaredModuleIsTheOneGenerated()
+    {
         var result = Run(DeclaredModule("ConfiguredRoot"));
 
         var module = result.SourceContaining("ApplicationModule.Module");
@@ -68,7 +72,8 @@ public class ApplicationModuleCollisionTests {
     /// surviving one carries what the project asked for.
     /// </summary>
     [Fact]
-    public void TheSurvivingModuleStillRegistersTheProjectsServices() {
+    public void TheSurvivingModuleStillRegistersTheProjectsServices()
+    {
         var result = Run(DeclaredModule("ConfiguredRoot"));
 
         Assert.Contains("Thing", result.SourceContaining("ApplicationModule.Dependencies"));
@@ -80,23 +85,33 @@ public class ApplicationModuleCollisionTests {
     /// </summary>
     [Theory]
     // A different name never collides with the generated ApplicationModule.
-    [InlineData("different name", """
-                                  namespace ConfiguredRoot;
-                                  [DependencyModules.Runtime.Attributes.DependencyModule]
-                                  public partial class CompositionModule;
-                                  """)]
+    [InlineData(
+        "different name",
+        """
+            namespace ConfiguredRoot;
+            [DependencyModules.Runtime.Attributes.DependencyModule]
+            public partial class CompositionModule;
+            """
+    )]
     // A namespace other than RootNamespace produces a different hint name.
-    [InlineData("different namespace", """
-                                       namespace SomewhereElse;
-                                       [DependencyModules.Runtime.Attributes.DependencyModule]
-                                       public partial class ApplicationModule;
-                                       """)]
+    [InlineData(
+        "different namespace",
+        """
+            namespace SomewhereElse;
+            [DependencyModules.Runtime.Attributes.DependencyModule]
+            public partial class ApplicationModule;
+            """
+    )]
     // The global namespace, likewise.
-    [InlineData("global namespace", """
-                                    [DependencyModules.Runtime.Attributes.DependencyModule]
-                                    public partial class ApplicationModule;
-                                    """)]
-    public void AShapeThatNeverCollided_StillBuildsCleanly(string variant, string declaration) {
+    [InlineData(
+        "global namespace",
+        """
+            [DependencyModules.Runtime.Attributes.DependencyModule]
+            public partial class ApplicationModule;
+            """
+    )]
+    public void AShapeThatNeverCollided_StillBuildsCleanly(string variant, string declaration)
+    {
         var result = Run(declaration);
 
         Assert.Empty(result.DuplicateHintNames);
@@ -115,22 +130,24 @@ public class ApplicationModuleCollisionTests {
     /// lose it, and this fix makes the shape work either way.
     /// </summary>
     [Fact]
-    public void AnExplicitMainWithADeclaredApplicationModule_BuildsCleanly() {
+    public void AnExplicitMainWithADeclaredApplicationModule_BuildsCleanly()
+    {
         var result = GeneratorTestHarness.Run(
-            new Dictionary<string, string> {
-                ["Program.cs"] =
-                    """
-                    namespace ConfiguredRoot;
+            new Dictionary<string, string>
+            {
+                ["Program.cs"] = """
+                namespace ConfiguredRoot;
 
-                    public static class Program {
-                        public static void Main() => System.Console.WriteLine("hello");
-                    }
-                    """,
+                public static class Program {
+                    public static void Main() => System.Console.WriteLine("hello");
+                }
+                """,
                 ["Composition.cs"] = DeclaredModule("ConfiguredRoot"),
-                ["Services.cs"] = Services
+                ["Services.cs"] = Services,
             },
             new Dictionary<string, string> { ["RootNamespace"] = "ConfiguredRoot" },
-            OutputKind.ConsoleApplication);
+            OutputKind.ConsoleApplication
+        );
 
         Assert.Empty(result.DuplicateHintNames);
         result.AssertNoErrors();
@@ -138,14 +155,13 @@ public class ApplicationModuleCollisionTests {
 
     private static string DeclaredModule(string namespaceName) =>
         $$"""
-          namespace {{namespaceName}};
+            namespace {{namespaceName}};
 
-          [DependencyModules.Runtime.Attributes.DependencyModule]
-          public partial class ApplicationModule;
-          """;
+            [DependencyModules.Runtime.Attributes.DependencyModule]
+            public partial class ApplicationModule;
+            """;
 
-    private const string Services =
-        """
+    private const string Services = """
         namespace ConfiguredRoot;
 
         public interface IThing;
@@ -156,13 +172,15 @@ public class ApplicationModuleCollisionTests {
 
     private static GeneratorResult Run(string declaration) =>
         GeneratorTestHarness.Run(
-            new Dictionary<string, string> {
+            new Dictionary<string, string>
+            {
                 // Top-level statements: this is what makes the generator emit its own
                 // ApplicationModule into RootNamespace.
                 ["Program.cs"] = """System.Console.WriteLine("hello");""",
                 ["Composition.cs"] = declaration,
-                ["Services.cs"] = Services
+                ["Services.cs"] = Services,
             },
             new Dictionary<string, string> { ["RootNamespace"] = "ConfiguredRoot" },
-            OutputKind.ConsoleApplication);
+            OutputKind.ConsoleApplication
+        );
 }

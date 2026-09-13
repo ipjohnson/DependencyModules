@@ -12,12 +12,16 @@ namespace SutProject.Tests.Moq;
 /// object, so a test can name either — and the two have to agree about which mock they mean.
 /// </summary>
 [MoqSupport]
-public class MoqAttributeTests {
-
+public class MoqAttributeTests
+{
     [ModuleTest]
     [SutModule]
-    public void MockTest([Mock] IDependencyOne dependencyOne,
-        [Mock] IScopedService scopedService, ISingletonService singletonService) {
+    public void MockTest(
+        [Mock] IDependencyOne dependencyOne,
+        [Mock] IScopedService scopedService,
+        ISingletonService singletonService
+    )
+    {
         Mock.Get(dependencyOne).Setup(x => x.SingletonService).Returns(singletonService);
         Mock.Get(dependencyOne).Setup(x => x.ScopedService).Returns(scopedService);
 
@@ -30,7 +34,8 @@ public class MoqAttributeTests {
     /// </summary>
     [ModuleTest]
     [SutModule]
-    public void UnconfiguredMembersAreLoose([Mock] IDependencyOne dependencyOne) {
+    public void UnconfiguredMembersAreLoose([Mock] IDependencyOne dependencyOne)
+    {
         Assert.Null(dependencyOne.ScopedService);
     }
 
@@ -47,7 +52,10 @@ public class MoqAttributeTests {
     [ModuleTest]
     [SutModule]
     public void MockOfTIsInjectedDirectly(
-        Mock<ISingletonService> mock, ISingletonService singletonService) {
+        Mock<ISingletonService> mock,
+        ISingletonService singletonService
+    )
+    {
         mock.Setup(x => x.GetName()).Returns("mocked");
 
         Assert.Same(mock.Object, singletonService);
@@ -61,7 +69,10 @@ public class MoqAttributeTests {
     [ModuleTest]
     [SutModule]
     public void MockOfTIsInjectedWithTheAttributeToo(
-        [Mock] Mock<ISingletonService> mock, ISingletonService singletonService) {
+        [Mock] Mock<ISingletonService> mock,
+        ISingletonService singletonService
+    )
+    {
         mock.Setup(x => x.GetName()).Returns("mocked");
 
         Assert.Same(mock.Object, singletonService);
@@ -76,7 +87,10 @@ public class MoqAttributeTests {
     [ModuleTest]
     [SutModule]
     public void ServiceUnderTestIsBuiltAgainstTheMock(
-        IDependencyOne dependencyOne, Mock<ISingletonService> singletonService) {
+        IDependencyOne dependencyOne,
+        Mock<ISingletonService> singletonService
+    )
+    {
         singletonService.Setup(x => x.GetName()).Returns("mocked");
 
         Assert.Same(singletonService.Object, dependencyOne.SingletonService);
@@ -91,7 +105,10 @@ public class MoqAttributeTests {
     [ModuleTest]
     [SutModule]
     public void TheMockAndTheInstanceAreOnePair(
-        [Mock] ISingletonService instance, Mock<ISingletonService> mock) {
+        [Mock] ISingletonService instance,
+        Mock<ISingletonService> mock
+    )
+    {
         mock.Setup(x => x.GetName()).Returns("mocked");
 
         Assert.Same(mock.Object, instance);
@@ -105,7 +122,10 @@ public class MoqAttributeTests {
     [ModuleTest]
     [SutModule]
     public void RepeatedMockParametersShareOneMock(
-        Mock<ISingletonService> first, Mock<ISingletonService> second) {
+        Mock<ISingletonService> first,
+        Mock<ISingletonService> second
+    )
+    {
         first.Setup(x => x.GetName()).Returns("mocked");
 
         Assert.Same(first, second);
@@ -122,7 +142,9 @@ public class MoqAttributeTests {
     public void DifferentServicesGetDifferentMocks(
         Mock<ISingletonService> singletonService,
         Mock<IScopedService> scopedService,
-        IDependencyOne dependencyOne) {
+        IDependencyOne dependencyOne
+    )
+    {
         Assert.Same(singletonService.Object, dependencyOne.SingletonService);
         Assert.Same(scopedService.Object, dependencyOne.ScopedService);
     }
@@ -136,7 +158,10 @@ public class MoqAttributeTests {
     [SutModule]
     [TestExport(typeof(ISingletonService), Implementation = typeof(ExportedSingletonService))]
     public void TestExportStillWinsOverAMock(
-        ISingletonService instance, Mock<ISingletonService> mock) {
+        ISingletonService instance,
+        Mock<ISingletonService> mock
+    )
+    {
         Assert.IsType<ExportedSingletonService>(instance);
         Assert.NotSame(mock.Object, instance);
     }
@@ -154,7 +179,8 @@ public class MoqAttributeTests {
     [ModuleTest]
     [SutModule]
     [TestExport(typeof(ISingletonService), Implementation = typeof(ExportedSingletonService))]
-    public void AMockOnAParameterBeatsATestExportOnTheMethod([Mock] ISingletonService service) {
+    public void AMockOnAParameterBeatsATestExportOnTheMethod([Mock] ISingletonService service)
+    {
         Assert.IsNotType<ExportedSingletonService>(service);
 
         global::Moq.Mock.Get(service).Setup(x => x.GetName()).Returns("mocked");
@@ -163,7 +189,8 @@ public class MoqAttributeTests {
     }
 #pragma warning restore DM0021
 
-    public class ExportedSingletonService : ISingletonService {
+    public class ExportedSingletonService : ISingletonService
+    {
         public string GetName() => "exported";
     }
 }
@@ -176,13 +203,17 @@ public class MoqAttributeTests {
 /// putting it on the fixture above would have changed every test there, which is the point of it.
 /// </summary>
 [MoqSupport]
-[TestExport(typeof(IScopedService), Implementation = typeof(ClassLevelTestExportTests.ExportedScopedService))]
-public class ClassLevelTestExportTests {
-
+[TestExport(
+    typeof(IScopedService),
+    Implementation = typeof(ClassLevelTestExportTests.ExportedScopedService)
+)]
+public class ClassLevelTestExportTests
+{
     /// <summary>The default, taken by any test that does not say otherwise.</summary>
     [ModuleTest]
     [SutModule]
-    public void WithoutAMockTheClassDefaultApplies(IScopedService service) {
+    public void WithoutAMockTheClassDefaultApplies(IScopedService service)
+    {
         Assert.IsType<ExportedScopedService>(service);
     }
 
@@ -192,7 +223,8 @@ public class ClassLevelTestExportTests {
     /// </summary>
     [ModuleTest]
     [SutModule]
-    public void AMockOnAParameterBeatsIt([Mock] IScopedService service) {
+    public void AMockOnAParameterBeatsIt([Mock] IScopedService service)
+    {
         Assert.IsNotType<ExportedScopedService>(service);
 
         // Reachable as a mock, which is the point - the parameter is the double, not the export.

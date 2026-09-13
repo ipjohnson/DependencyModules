@@ -18,10 +18,9 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// with a realm-scoped service; agent 08 reached it by accident through a convention, because
 /// convention registrations are always stamped with their declaring module's realm.
 /// </summary>
-public class InterceptionRealmTests {
-
-    private const string Preamble =
-        """
+public class InterceptionRealmTests
+{
+    private const string Preamble = """
         using DependencyModules.Runtime.Attributes;
         using DependencyModules.Runtime.Conventions;
         using DependencyModules.Runtime.Interception;
@@ -41,19 +40,22 @@ public class InterceptionRealmTests {
     /// registration, because a per-implementation interception is about that one registration.
     /// </summary>
     [Fact]
-    public void ARealmScopedService_WithAnUnrealmedInterception_IsInterceptedInThatRealm() {
+    public void ARealmScopedService_WithAnUnrealmedInterception_IsInterceptedInThatRealm()
+    {
         var result = Run(
-            """
-            [DependencyModule(OnlyRealm = true)]
-            public partial class RealmModule;
+                """
+                [DependencyModule(OnlyRealm = true)]
+                public partial class RealmModule;
 
-            [SingletonService(Realm = typeof(RealmModule))]
-            [Intercept(typeof(CountingInterceptor))]
-            public sealed class Greeter : IGreeter { public string Greet() => "hi"; }
+                [SingletonService(Realm = typeof(RealmModule))]
+                [Intercept(typeof(CountingInterceptor))]
+                public sealed class Greeter : IGreeter { public string Greet() => "hi"; }
 
-            [DependencyModule]
-            public partial class TestModule;
-            """).AssertNoErrors();
+                [DependencyModule]
+                public partial class TestModule;
+                """
+            )
+            .AssertNoErrors();
 
         Assert.Contains("Greeter_Intercepted", result.SourceContaining("RealmModule.Interceptors"));
     }
@@ -63,21 +65,27 @@ public class InterceptionRealmTests {
     /// wrapper to, so an applicator there is dead weight at best.
     /// </summary>
     [Fact]
-    public void ARealmScopedService_IsNotInterceptedOutsideItsRealm() {
+    public void ARealmScopedService_IsNotInterceptedOutsideItsRealm()
+    {
         var result = Run(
-            """
-            [DependencyModule(OnlyRealm = true)]
-            public partial class RealmModule;
+                """
+                [DependencyModule(OnlyRealm = true)]
+                public partial class RealmModule;
 
-            [SingletonService(Realm = typeof(RealmModule))]
-            [Intercept(typeof(CountingInterceptor))]
-            public sealed class Greeter : IGreeter { public string Greet() => "hi"; }
+                [SingletonService(Realm = typeof(RealmModule))]
+                [Intercept(typeof(CountingInterceptor))]
+                public sealed class Greeter : IGreeter { public string Greet() => "hi"; }
 
-            [DependencyModule]
-            public partial class TestModule;
-            """).AssertNoErrors();
+                [DependencyModule]
+                public partial class TestModule;
+                """
+            )
+            .AssertNoErrors();
 
-        Assert.DoesNotContain("Greeter_Intercepted", result.SourceContaining("TestModule.Interceptors"));
+        Assert.DoesNotContain(
+            "Greeter_Intercepted",
+            result.SourceContaining("TestModule.Interceptors")
+        );
     }
 
     /// <summary>
@@ -85,22 +93,28 @@ public class InterceptionRealmTests {
     /// changelog documents, and following the registration must not take it away.
     /// </summary>
     [Fact]
-    public void AnExplicitInterceptRealm_StillDecides() {
+    public void AnExplicitInterceptRealm_StillDecides()
+    {
         var result = Run(
-            """
-            [DependencyModule(OnlyRealm = true)]
-            public partial class RealmModule;
+                """
+                [DependencyModule(OnlyRealm = true)]
+                public partial class RealmModule;
 
-            [SingletonService]
-            [Intercept(typeof(CountingInterceptor), Realm = typeof(RealmModule))]
-            public sealed class Greeter : IGreeter { public string Greet() => "hi"; }
+                [SingletonService]
+                [Intercept(typeof(CountingInterceptor), Realm = typeof(RealmModule))]
+                public sealed class Greeter : IGreeter { public string Greet() => "hi"; }
 
-            [DependencyModule]
-            public partial class TestModule;
-            """).AssertNoErrors();
+                [DependencyModule]
+                public partial class TestModule;
+                """
+            )
+            .AssertNoErrors();
 
         Assert.Contains("Greeter_Intercepted", result.SourceContaining("RealmModule.Interceptors"));
-        Assert.DoesNotContain("Greeter_Intercepted", result.SourceContaining("TestModule.Interceptors"));
+        Assert.DoesNotContain(
+            "Greeter_Intercepted",
+            result.SourceContaining("TestModule.Interceptors")
+        );
     }
 
     /// <summary>
@@ -108,16 +122,19 @@ public class InterceptionRealmTests {
     /// module that is not realm-only.
     /// </summary>
     [Fact]
-    public void AnUnrealmedService_WithAnUnrealmedInterception_IsInterceptedNormally() {
+    public void AnUnrealmedService_WithAnUnrealmedInterception_IsInterceptedNormally()
+    {
         var result = Run(
-            """
-            [SingletonService]
-            [Intercept(typeof(CountingInterceptor))]
-            public sealed class Greeter : IGreeter { public string Greet() => "hi"; }
+                """
+                [SingletonService]
+                [Intercept(typeof(CountingInterceptor))]
+                public sealed class Greeter : IGreeter { public string Greet() => "hi"; }
 
-            [DependencyModule]
-            public partial class TestModule;
-            """).AssertNoErrors();
+                [DependencyModule]
+                public partial class TestModule;
+                """
+            )
+            .AssertNoErrors();
 
         Assert.Contains("Greeter_Intercepted", result.SourceContaining("TestModule.Interceptors"));
     }
@@ -139,7 +156,8 @@ public class InterceptionRealmTests {
     /// provider.
     /// </summary>
     [Fact]
-    public void AConventionRegisteredClass_InAnOnlyRealmModule_ReportsDM0020() {
+    public void AConventionRegisteredClass_InAnOnlyRealmModule_ReportsDM0020()
+    {
         var result = Run(
             """
             [Intercept(typeof(CountingInterceptor))]
@@ -151,7 +169,8 @@ public class InterceptionRealmTests {
                     conventions.RegisterAll<IGreeter>().AsSingleton();
                 }
             }
-            """);
+            """
+        );
 
         var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0020");
 
@@ -164,7 +183,8 @@ public class InterceptionRealmTests {
     /// can never run, not about every realm arrangement that looks unusual.
     /// </summary>
     [Fact]
-    public void AnInterceptionSomeModuleApplies_IsNotReported() {
+    public void AnInterceptionSomeModuleApplies_IsNotReported()
+    {
         var result = Run(
             """
             [SingletonService]
@@ -173,7 +193,8 @@ public class InterceptionRealmTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0020");
     }
@@ -183,7 +204,8 @@ public class InterceptionRealmTests {
     /// module applies it and there is nothing to report.
     /// </summary>
     [Fact]
-    public void ARealmScopedServiceFollowingItsRegistration_IsNotReported() {
+    public void ARealmScopedServiceFollowingItsRegistration_IsNotReported()
+    {
         var result = Run(
             """
             [DependencyModule(OnlyRealm = true)]
@@ -195,7 +217,8 @@ public class InterceptionRealmTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0020");
     }
@@ -205,21 +228,27 @@ public class InterceptionRealmTests {
     /// so the unrealmed interception landed on it by luck rather than by rule.
     /// </summary>
     [Fact]
-    public void AConventionRegisteredClass_InAPlainModule_IsStillIntercepted() {
+    public void AConventionRegisteredClass_InAPlainModule_IsStillIntercepted()
+    {
         var result = Run(
-            """
-            [Intercept(typeof(CountingInterceptor))]
-            public sealed class Greeter : IGreeter { public string Greet() => "hi"; }
+                """
+                [Intercept(typeof(CountingInterceptor))]
+                public sealed class Greeter : IGreeter { public string Greet() => "hi"; }
 
-            [DependencyModule]
-            public partial class ConventionModule : IConventionModule {
-                void IConventionModule.Conventions(IConventionDefinitions conventions) {
-                    conventions.RegisterAll<IGreeter>().AsSingleton();
+                [DependencyModule]
+                public partial class ConventionModule : IConventionModule {
+                    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                        conventions.RegisterAll<IGreeter>().AsSingleton();
+                    }
                 }
-            }
-            """).AssertNoErrors();
+                """
+            )
+            .AssertNoErrors();
 
-        Assert.Contains("Greeter_Intercepted", result.SourceContaining("ConventionModule.Interceptors"));
+        Assert.Contains(
+            "Greeter_Intercepted",
+            result.SourceContaining("ConventionModule.Interceptors")
+        );
     }
 
     /// <summary>
@@ -229,23 +258,28 @@ public class InterceptionRealmTests {
     /// about which module the applicator landed on.
     /// </summary>
     [Fact]
-    public void AConventionRegisteringAsSelf_StillInterceptsTheInterface() {
+    public void AConventionRegisteringAsSelf_StillInterceptsTheInterface()
+    {
         var result = Run(
-            """
-            [Intercept(typeof(CountingInterceptor))]
-            public sealed class Greeter : IGreeter { public string Greet() => "hi"; }
+                """
+                [Intercept(typeof(CountingInterceptor))]
+                public sealed class Greeter : IGreeter { public string Greet() => "hi"; }
 
-            [DependencyModule]
-            public partial class ConventionModule : IConventionModule {
-                void IConventionModule.Conventions(IConventionDefinitions conventions) {
-                    conventions.RegisterAll<IGreeter>().AsSelf().AsSingleton();
+                [DependencyModule]
+                public partial class ConventionModule : IConventionModule {
+                    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+                        conventions.RegisterAll<IGreeter>().AsSelf().AsSingleton();
+                    }
                 }
-            }
-            """).AssertNoErrors();
+                """
+            )
+            .AssertNoErrors();
 
-        Assert.Contains("Greeter_Intercepted", result.SourceContaining("ConventionModule.Interceptors"));
+        Assert.Contains(
+            "Greeter_Intercepted",
+            result.SourceContaining("ConventionModule.Interceptors")
+        );
     }
 
-    private static GeneratorResult Run(string body) =>
-        GeneratorTestHarness.Run(Preamble + body);
+    private static GeneratorResult Run(string body) => GeneratorTestHarness.Run(Preamble + body);
 }

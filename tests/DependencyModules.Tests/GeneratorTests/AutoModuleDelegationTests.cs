@@ -19,45 +19,62 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// and the runtime loads it. These tests pin both halves - that the duplicate is gone, and that
 /// <c>AddModule&lt;ApplicationModule&gt;()</c> still registers exactly what it did before.
 /// </summary>
-public class AutoModuleDelegationTests {
-
+public class AutoModuleDelegationTests
+{
     [Fact]
-    public void ApplicationModule_DoesNotRepeatTheRegistrationsOfADeclaredModule() {
-        var result = Run(TopLevelProgramWith(
-            """
-            public interface IThing;
+    public void ApplicationModule_DoesNotRepeatTheRegistrationsOfADeclaredModule()
+    {
+        var result = Run(
+            TopLevelProgramWith(
+                """
+                public interface IThing;
 
-            [SingletonService]
-            public class Thing : IThing;
+                [SingletonService]
+                public class Thing : IThing;
 
-            [DependencyModule]
-            public partial class TestModule;
-            """));
+                [DependencyModule]
+                public partial class TestModule;
+                """
+            )
+        );
 
         result.AssertNoErrors();
 
-        Assert.Contains(result.GeneratedSources.Keys, key => key.Contains("TestModule.Dependencies"));
-        Assert.DoesNotContain(result.GeneratedSources.Keys, key => key.Contains("ApplicationModule.Dependencies"));
+        Assert.Contains(
+            result.GeneratedSources.Keys,
+            key => key.Contains("TestModule.Dependencies")
+        );
+        Assert.DoesNotContain(
+            result.GeneratedSources.Keys,
+            key => key.Contains("ApplicationModule.Dependencies")
+        );
     }
 
     /// <summary>
     /// The class is still generated, and still reachable - only its registrations moved.
     /// </summary>
     [Fact]
-    public void ApplicationModule_NamesTheModuleItDefersTo() {
-        var result = Run(TopLevelProgramWith(
-            """
-            public interface IThing;
+    public void ApplicationModule_NamesTheModuleItDefersTo()
+    {
+        var result = Run(
+            TopLevelProgramWith(
+                """
+                public interface IThing;
 
-            [SingletonService]
-            public class Thing : IThing;
+                [SingletonService]
+                public class Thing : IThing;
 
-            [DependencyModule]
-            public partial class TestModule;
-            """));
+                [DependencyModule]
+                public partial class TestModule;
+                """
+            )
+        );
 
         result.AssertNoErrors();
-        Assert.Contains("new global::TestNamespace.TestModule()", result.SourceContaining("ApplicationModule.Module"));
+        Assert.Contains(
+            "new global::TestNamespace.TestModule()",
+            result.SourceContaining("ApplicationModule.Module")
+        );
     }
 
     /// <summary>
@@ -65,42 +82,56 @@ public class AutoModuleDelegationTests {
     /// same way and have to stop being duplicated the same way.
     /// </summary>
     [Fact]
-    public void ApplicationModule_DoesNotRepeatDecorationsEither() {
-        var result = Run(TopLevelProgramWith(
-            """
-            public interface IThing;
+    public void ApplicationModule_DoesNotRepeatDecorationsEither()
+    {
+        var result = Run(
+            TopLevelProgramWith(
+                """
+                public interface IThing;
 
-            [SingletonService]
-            public class Thing : IThing;
+                [SingletonService]
+                public class Thing : IThing;
 
-            [Decorator]
-            public class ThingDecorator(IThing inner) : IThing;
+                [Decorator]
+                public class ThingDecorator(IThing inner) : IThing;
 
-            [DependencyModule]
-            public partial class TestModule;
-            """));
+                [DependencyModule]
+                public partial class TestModule;
+                """
+            )
+        );
 
         result.AssertNoErrors();
 
         Assert.Contains(result.GeneratedSources.Keys, key => key.Contains("TestModule.Decorators"));
-        Assert.DoesNotContain(result.GeneratedSources.Keys, key => key.Contains("ApplicationModule.Decorators"));
+        Assert.DoesNotContain(
+            result.GeneratedSources.Keys,
+            key => key.Contains("ApplicationModule.Decorators")
+        );
     }
 
     /// <summary>
     /// With nothing to defer to, the auto module carries its own registrations exactly as before.
     /// </summary>
     [Fact]
-    public void ApplicationModule_KeepsItsRegistrationsWhenNoModuleIsDeclared() {
-        var result = Run(TopLevelProgramWith(
-            """
-            public interface IThing;
+    public void ApplicationModule_KeepsItsRegistrationsWhenNoModuleIsDeclared()
+    {
+        var result = Run(
+            TopLevelProgramWith(
+                """
+                public interface IThing;
 
-            [SingletonService]
-            public class Thing : IThing;
-            """));
+                [SingletonService]
+                public class Thing : IThing;
+                """
+            )
+        );
 
         result.AssertNoErrors();
-        Assert.Contains(result.GeneratedSources.Keys, key => key.Contains("ApplicationModule.Dependencies"));
+        Assert.Contains(
+            result.GeneratedSources.Keys,
+            key => key.Contains("ApplicationModule.Dependencies")
+        );
     }
 
     /// <summary>
@@ -108,46 +139,55 @@ public class AutoModuleDelegationTests {
     /// drop everything else. The auto module keeps its own registrations in that case.
     /// </summary>
     [Fact]
-    public void ApplicationModule_KeepsItsRegistrationsWhenTheOnlyModuleIsRealmRestricted() {
-        var result = Run(TopLevelProgramWith(
-            """
-            public interface IThing;
+    public void ApplicationModule_KeepsItsRegistrationsWhenTheOnlyModuleIsRealmRestricted()
+    {
+        var result = Run(
+            TopLevelProgramWith(
+                """
+                public interface IThing;
 
-            [SingletonService]
-            public class Thing : IThing;
+                [SingletonService]
+                public class Thing : IThing;
 
-            [DependencyModule(OnlyRealm = true)]
-            public partial class RealmModule;
-            """));
+                [DependencyModule(OnlyRealm = true)]
+                public partial class RealmModule;
+                """
+            )
+        );
 
         result.AssertNoErrors();
-        Assert.Contains(result.GeneratedSources.Keys, key => key.Contains("ApplicationModule.Dependencies"));
+        Assert.Contains(
+            result.GeneratedSources.Keys,
+            key => key.Contains("ApplicationModule.Dependencies")
+        );
     }
 
     /// <summary>
     /// The point of the whole exercise: what reaches the service collection is unchanged.
     /// </summary>
     [Fact]
-    public void ApplicationModule_RegistersTheSameServicesAsTheModuleItDefersTo() {
-        var assembly = Compile(TopLevelProgramWith(
-            """
-            public interface IThing;
+    public void ApplicationModule_RegistersTheSameServicesAsTheModuleItDefersTo()
+    {
+        var assembly = Compile(
+            TopLevelProgramWith(
+                """
+                public interface IThing;
 
-            [SingletonService]
-            public class Thing : IThing;
+                [SingletonService]
+                public class Thing : IThing;
 
-            [DependencyModule]
-            public partial class TestModule;
-            """));
+                [DependencyModule]
+                public partial class TestModule;
+                """
+            )
+        );
 
         var viaApplicationModule = Apply(assembly, "TestNamespace.ApplicationModule");
         var viaDeclaredModule = Apply(assembly, "TestNamespace.TestModule");
 
         var thing = assembly.GetType("TestNamespace.IThing")!;
 
-        Assert.Equal(
-            Describe(viaDeclaredModule, thing),
-            Describe(viaApplicationModule, thing));
+        Assert.Equal(Describe(viaDeclaredModule, thing), Describe(viaApplicationModule, thing));
 
         Assert.NotNull(viaApplicationModule.BuildServiceProvider().GetService(thing));
     }
@@ -158,20 +198,27 @@ public class AutoModuleDelegationTests {
     /// deduplication sees them as one.
     /// </summary>
     [Fact]
-    public void LoadingBothModules_RegistersEachServiceOnce() {
-        var assembly = Compile(TopLevelProgramWith(
-            """
-            public interface IThing;
+    public void LoadingBothModules_RegistersEachServiceOnce()
+    {
+        var assembly = Compile(
+            TopLevelProgramWith(
+                """
+                public interface IThing;
 
-            [SingletonService]
-            public class Thing : IThing;
+                [SingletonService]
+                public class Thing : IThing;
 
-            [DependencyModule]
-            public partial class TestModule;
-            """));
+                [DependencyModule]
+                public partial class TestModule;
+                """
+            )
+        );
 
         var both = new ServiceCollection();
-        both.AddModules(Module(assembly, "TestNamespace.ApplicationModule"), Module(assembly, "TestNamespace.TestModule"));
+        both.AddModules(
+            Module(assembly, "TestNamespace.ApplicationModule"),
+            Module(assembly, "TestNamespace.TestModule")
+        );
 
         var thing = assembly.GetType("TestNamespace.IThing")!;
 
@@ -183,9 +230,13 @@ public class AutoModuleDelegationTests {
             ", ",
             services
                 .Where(descriptor => descriptor.ServiceType == serviceType)
-                .Select(descriptor => $"{descriptor.Lifetime}:{descriptor.ImplementationType?.FullName}"));
+                .Select(descriptor =>
+                    $"{descriptor.Lifetime}:{descriptor.ImplementationType?.FullName}"
+                )
+        );
 
-    private static IServiceCollection Apply(Assembly assembly, string moduleName) {
+    private static IServiceCollection Apply(Assembly assembly, string moduleName)
+    {
         var services = new ServiceCollection();
 
         services.AddModules(Module(assembly, moduleName));
@@ -193,21 +244,26 @@ public class AutoModuleDelegationTests {
         return services;
     }
 
-    private static IDependencyModule Module(Assembly assembly, string moduleName) {
-        var type = assembly.GetType(moduleName)
-                   ?? throw new InvalidOperationException(
-                       $"No type '{moduleName}'. Present: " +
-                       string.Join(", ", assembly.GetTypes().Select(t => t.FullName)));
+    private static IDependencyModule Module(Assembly assembly, string moduleName)
+    {
+        var type =
+            assembly.GetType(moduleName)
+            ?? throw new InvalidOperationException(
+                $"No type '{moduleName}'. Present: "
+                    + string.Join(", ", assembly.GetTypes().Select(t => t.FullName))
+            );
 
         return (IDependencyModule)Activator.CreateInstance(type)!;
     }
 
-    private static Assembly Compile(IReadOnlyDictionary<string, string> sources) {
+    private static Assembly Compile(IReadOnlyDictionary<string, string> sources)
+    {
         var result = GeneratorTestHarness.Run(
             sources,
             null,
             OutputKind.ConsoleApplication,
-            assemblyName: "AutoModuleDelegation" + Interlocked.Increment(ref _counter));
+            assemblyName: "AutoModuleDelegation" + Interlocked.Increment(ref _counter)
+        );
 
         result.AssertNoErrors();
 
@@ -218,9 +274,13 @@ public class AutoModuleDelegationTests {
             emitted.Success,
             string.Join(
                 Environment.NewLine,
-                emitted.Diagnostics
-                    .Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)
-                    .Select(diagnostic => $"  {diagnostic.Id} {diagnostic.GetMessage()}")));
+                emitted
+                    .Diagnostics.Where(diagnostic =>
+                        diagnostic.Severity == DiagnosticSeverity.Error
+                    )
+                    .Select(diagnostic => $"  {diagnostic.Id} {diagnostic.GetMessage()}")
+            )
+        );
 
         return Assembly.Load(stream.ToArray());
     }
@@ -231,18 +291,17 @@ public class AutoModuleDelegationTests {
         GeneratorTestHarness.Run(sources, null, OutputKind.ConsoleApplication);
 
     private static Dictionary<string, string> TopLevelProgramWith(string services) =>
-        new() {
-            ["Program.cs"] =
-                """
+        new()
+        {
+            ["Program.cs"] = """
                 System.Console.WriteLine("hello");
                 """,
-            ["Services.cs"] =
-                $$"""
-                  using DependencyModules.Runtime.Attributes;
+            ["Services.cs"] = $$"""
+                using DependencyModules.Runtime.Attributes;
 
-                  namespace TestNamespace;
+                namespace TestNamespace;
 
-                  {{services}}
-                  """
+                {{services}}
+                """,
         };
 }

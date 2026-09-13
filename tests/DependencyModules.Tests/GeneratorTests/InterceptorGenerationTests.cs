@@ -8,11 +8,14 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// Interception verified by compiling, loading and calling the generated wrapper, since the point is
 /// what an interceptor observes and can change rather than what the emitted text looks like.
 /// </summary>
-public class InterceptorGenerationTests {
-
+public class InterceptorGenerationTests
+{
     [Fact]
-    public void InterceptedService_ResolvesAsTheGeneratedWrapper() {
-        var generated = GeneratedAssembly.Create(Source("int Sync(int a);", "public int Sync(int a) => a;"));
+    public void InterceptedService_ResolvesAsTheGeneratedWrapper()
+    {
+        var generated = GeneratedAssembly.Create(
+            Source("int Sync(int a);", "public int Sync(int a) => a;")
+        );
 
         var resolved = generated.ResolveRequired("IWork");
 
@@ -20,8 +23,11 @@ public class InterceptorGenerationTests {
     }
 
     [Fact]
-    public void SyncMethod_ReturnsTheInnerValueThroughThePipeline() {
-        var generated = GeneratedAssembly.Create(Source("int Sync(int a);", "public int Sync(int a) => a * 2;"));
+    public void SyncMethod_ReturnsTheInnerValueThroughThePipeline()
+    {
+        var generated = GeneratedAssembly.Create(
+            Source("int Sync(int a);", "public int Sync(int a) => a * 2;")
+        );
 
         var work = generated.ResolveRequired("IWork");
 
@@ -30,7 +36,8 @@ public class InterceptorGenerationTests {
     }
 
     [Fact]
-    public void VoidMethod_RunsThroughThePipeline() {
+    public void VoidMethod_RunsThroughThePipeline()
+    {
         var generated = GeneratedAssembly.Create(Source("void Run();", "public void Run() { }"));
 
         Invoke(generated.ResolveRequired("IWork"), "Run");
@@ -45,10 +52,14 @@ public class InterceptorGenerationTests {
     /// call has actually finished.
     /// </summary>
     [Fact]
-    public async Task AsyncMethod_ExitsAfterTheWorkCompletes() {
-        var generated = GeneratedAssembly.Create(Source(
-            "System.Threading.Tasks.Task<int> Compute(int a);",
-            "public async System.Threading.Tasks.Task<int> Compute(int a) { await Recorder.Gate.Task; return a * 2; }"));
+    public async Task AsyncMethod_ExitsAfterTheWorkCompletes()
+    {
+        var generated = GeneratedAssembly.Create(
+            Source(
+                "System.Threading.Tasks.Task<int> Compute(int a);",
+                "public async System.Threading.Tasks.Task<int> Compute(int a) { await Recorder.Gate.Task; return a * 2; }"
+            )
+        );
 
         var task = (Task<int>)Invoke(generated.ResolveRequired("IWork"), "Compute", 21)!;
 
@@ -64,10 +75,14 @@ public class InterceptorGenerationTests {
     }
 
     [Fact]
-    public async Task AsyncVoidMethod_RunsThroughThePipeline() {
-        var generated = GeneratedAssembly.Create(Source(
-            "System.Threading.Tasks.Task Run();",
-            "public async System.Threading.Tasks.Task Run() { await System.Threading.Tasks.Task.Delay(5); }"));
+    public async Task AsyncVoidMethod_RunsThroughThePipeline()
+    {
+        var generated = GeneratedAssembly.Create(
+            Source(
+                "System.Threading.Tasks.Task Run();",
+                "public async System.Threading.Tasks.Task Run() { await System.Threading.Tasks.Task.Delay(5); }"
+            )
+        );
 
         await (Task)Invoke(generated.ResolveRequired("IWork"), "Run")!;
 
@@ -75,10 +90,14 @@ public class InterceptorGenerationTests {
     }
 
     [Fact]
-    public async Task ValueTaskMethod_ReturnsTheInnerValue() {
-        var generated = GeneratedAssembly.Create(Source(
-            "System.Threading.Tasks.ValueTask<string> Fetch();",
-            "public async System.Threading.Tasks.ValueTask<string> Fetch() { await System.Threading.Tasks.Task.Delay(5); return \"done\"; }"));
+    public async Task ValueTaskMethod_ReturnsTheInnerValue()
+    {
+        var generated = GeneratedAssembly.Create(
+            Source(
+                "System.Threading.Tasks.ValueTask<string> Fetch();",
+                "public async System.Threading.Tasks.ValueTask<string> Fetch() { await System.Threading.Tasks.Task.Delay(5); return \"done\"; }"
+            )
+        );
 
         var result = await (ValueTask<string>)Invoke(generated.ResolveRequired("IWork"), "Fetch")!;
 
@@ -87,10 +106,14 @@ public class InterceptorGenerationTests {
     }
 
     [Fact]
-    public async Task ValueTaskWithNoResult_RunsThroughThePipeline() {
-        var generated = GeneratedAssembly.Create(Source(
-            "System.Threading.Tasks.ValueTask Save();",
-            "public async System.Threading.Tasks.ValueTask Save() { await System.Threading.Tasks.Task.Delay(5); }"));
+    public async Task ValueTaskWithNoResult_RunsThroughThePipeline()
+    {
+        var generated = GeneratedAssembly.Create(
+            Source(
+                "System.Threading.Tasks.ValueTask Save();",
+                "public async System.Threading.Tasks.ValueTask Save() { await System.Threading.Tasks.Task.Delay(5); }"
+            )
+        );
 
         await (ValueTask)Invoke(generated.ResolveRequired("IWork"), "Save")!;
 
@@ -103,18 +126,26 @@ public class InterceptorGenerationTests {
     /// item as it is produced.
     /// </summary>
     [Fact]
-    public async Task AsyncEnumerableMethod_ObservesEachItem() {
-        var generated = GeneratedAssembly.Create(Source(
-            "System.Collections.Generic.IAsyncEnumerable<int> Stream(int count);",
-            """
-            public async System.Collections.Generic.IAsyncEnumerable<int> Stream(int count) {
-                for (var i = 0; i < count; i++) { await System.Threading.Tasks.Task.Yield(); yield return i; }
-            }
-            """));
+    public async Task AsyncEnumerableMethod_ObservesEachItem()
+    {
+        var generated = GeneratedAssembly.Create(
+            Source(
+                "System.Collections.Generic.IAsyncEnumerable<int> Stream(int count);",
+                """
+                public async System.Collections.Generic.IAsyncEnumerable<int> Stream(int count) {
+                    for (var i = 0; i < count; i++) { await System.Threading.Tasks.Task.Yield(); yield return i; }
+                }
+                """
+            )
+        );
 
         var items = new List<int>();
 
-        await foreach (var item in (IAsyncEnumerable<int>)Invoke(generated.ResolveRequired("IWork"), "Stream", 3)!) {
+        await foreach (
+            var item in (IAsyncEnumerable<int>)
+                Invoke(generated.ResolveRequired("IWork"), "Stream", 3)!
+        )
+        {
             items.Add(item);
         }
 
@@ -123,10 +154,14 @@ public class InterceptorGenerationTests {
     }
 
     [Fact]
-    public void GenericMethod_ForwardsWithItsConstraints() {
-        var generated = GeneratedAssembly.Create(Source(
-            "T Pick<T>(T item) where T : class;",
-            "public T Pick<T>(T item) where T : class => item;"));
+    public void GenericMethod_ForwardsWithItsConstraints()
+    {
+        var generated = GeneratedAssembly.Create(
+            Source(
+                "T Pick<T>(T item) where T : class;",
+                "public T Pick<T>(T item) where T : class => item;"
+            )
+        );
 
         var work = generated.ResolveRequired("IWork");
         var method = work.GetType().GetMethod("Pick")!.MakeGenericMethod(typeof(string));
@@ -140,10 +175,11 @@ public class InterceptorGenerationTests {
     /// and the name matches what appears in a stack trace.
     /// </summary>
     [Fact]
-    public void Property_RoutesBothAccessorsAndReportsThemByTheirClrNames() {
-        var generated = GeneratedAssembly.Create(Source(
-            "string Name { get; set; }",
-            "public string Name { get; set; } = \"initial\";"));
+    public void Property_RoutesBothAccessorsAndReportsThemByTheirClrNames()
+    {
+        var generated = GeneratedAssembly.Create(
+            Source("string Name { get; set; }", "public string Name { get; set; } = \"initial\";")
+        );
 
         var work = generated.ResolveRequired("IWork");
         var property = work.GetType().GetProperty("Name")!;
@@ -151,12 +187,18 @@ public class InterceptorGenerationTests {
         property.SetValue(work, "assigned");
 
         Assert.Equal("assigned", property.GetValue(work));
-        Assert.Equal(["enter set_Name", "exit set_Name", "enter get_Name", "exit get_Name"], Log(generated));
+        Assert.Equal(
+            ["enter set_Name", "exit set_Name", "enter get_Name", "exit get_Name"],
+            Log(generated)
+        );
     }
 
     [Fact]
-    public void ReadOnlyProperty_DeclaresNoSetter() {
-        var generated = GeneratedAssembly.Create(Source("int Count { get; }", "public int Count => 7;"));
+    public void ReadOnlyProperty_DeclaresNoSetter()
+    {
+        var generated = GeneratedAssembly.Create(
+            Source("int Count { get; }", "public int Count => 7;")
+        );
 
         var work = generated.ResolveRequired("IWork");
         var property = work.GetType().GetProperty("Count")!;
@@ -171,10 +213,14 @@ public class InterceptorGenerationTests {
     /// and hands the task itself to the interceptor.
     /// </summary>
     [Fact]
-    public async Task PropertyReturningATask_TakesTheSyncPath() {
-        var generated = GeneratedAssembly.Create(Source(
-            "System.Threading.Tasks.Task<int> Pending { get; }",
-            "public System.Threading.Tasks.Task<int> Pending => System.Threading.Tasks.Task.FromResult(3);"));
+    public async Task PropertyReturningATask_TakesTheSyncPath()
+    {
+        var generated = GeneratedAssembly.Create(
+            Source(
+                "System.Threading.Tasks.Task<int> Pending { get; }",
+                "public System.Threading.Tasks.Task<int> Pending => System.Threading.Tasks.Task.FromResult(3);"
+            )
+        );
 
         var work = generated.ResolveRequired("IWork");
         var pending = (Task<int>)work.GetType().GetProperty("Pending")!.GetValue(work)!;
@@ -184,16 +230,20 @@ public class InterceptorGenerationTests {
     }
 
     [Fact]
-    public void Indexer_ForwardsItsIndicesAndAssignedValue() {
-        var generated = GeneratedAssembly.Create(Source(
-            "int this[int row, int column] { get; set; }",
-            """
-            private readonly System.Collections.Generic.Dictionary<string, int> _cells = new();
-            public int this[int row, int column] {
-                get => _cells.TryGetValue($"{row},{column}", out var value) ? value : -1;
-                set => _cells[$"{row},{column}"] = value;
-            }
-            """));
+    public void Indexer_ForwardsItsIndicesAndAssignedValue()
+    {
+        var generated = GeneratedAssembly.Create(
+            Source(
+                "int this[int row, int column] { get; set; }",
+                """
+                private readonly System.Collections.Generic.Dictionary<string, int> _cells = new();
+                public int this[int row, int column] {
+                    get => _cells.TryGetValue($"{row},{column}", out var value) ? value : -1;
+                    set => _cells[$"{row},{column}"] = value;
+                }
+                """
+            )
+        );
 
         var work = generated.ResolveRequired("IWork");
         var indexer = work.GetType().GetProperty("Item")!;
@@ -203,28 +253,40 @@ public class InterceptorGenerationTests {
         Assert.Equal(42, indexer.GetValue(work, [2, 3]));
         Assert.Equal(-1, indexer.GetValue(work, [9, 9]));
         Assert.Equal(
-            ["enter set_Item", "exit set_Item", "enter get_Item", "exit get_Item", "enter get_Item", "exit get_Item"],
-            Log(generated));
+            [
+                "enter set_Item",
+                "exit set_Item",
+                "enter get_Item",
+                "exit get_Item",
+                "enter get_Item",
+                "exit get_Item",
+            ],
+            Log(generated)
+        );
     }
 
     [Fact]
-    public void IndexerSetter_ExposesItsIndicesAndValueAsArguments() {
-        var generated = GeneratedAssembly.Create(Source(
-            "int this[int row] { get; set; }",
-            "public int this[int row] { get => row; set { } }",
-            """
-            public class TracingInterceptor : IInterceptor {
-                public TResult Intercept<TResult>(InvocationContext<TResult> context) {
-                    var arguments = context.Arguments;
+    public void IndexerSetter_ExposesItsIndicesAndValueAsArguments()
+    {
+        var generated = GeneratedAssembly.Create(
+            Source(
+                "int this[int row] { get; set; }",
+                "public int this[int row] { get => row; set { } }",
+                """
+                public class TracingInterceptor : IInterceptor {
+                    public TResult Intercept<TResult>(InvocationContext<TResult> context) {
+                        var arguments = context.Arguments;
 
-                    for (var i = 0; i < arguments.Count; i++) {
-                        Recorder.Entries.Add($"{arguments.NameAt(i)}={arguments[i]}");
+                        for (var i = 0; i < arguments.Count; i++) {
+                            Recorder.Entries.Add($"{arguments.NameAt(i)}={arguments[i]}");
+                        }
+
+                        return context.Proceed();
                     }
-
-                    return context.Proceed();
                 }
-            }
-            """));
+                """
+            )
+        );
 
         var work = generated.ResolveRequired("IWork");
 
@@ -234,10 +296,14 @@ public class InterceptorGenerationTests {
     }
 
     [Fact]
-    public void Event_RoutesAddAndRemove() {
-        var generated = GeneratedAssembly.Create(Source(
-            "event System.EventHandler Changed;",
-            "public event System.EventHandler Changed { add { } remove { } }"));
+    public void Event_RoutesAddAndRemove()
+    {
+        var generated = GeneratedAssembly.Create(
+            Source(
+                "event System.EventHandler Changed;",
+                "public event System.EventHandler Changed { add { } remove { } }"
+            )
+        );
 
         var work = generated.ResolveRequired("IWork");
         var changed = work.GetType().GetEvent("Changed")!;
@@ -247,64 +313,82 @@ public class InterceptorGenerationTests {
         changed.RemoveEventHandler(work, handler);
 
         Assert.Equal(
-            ["enter add_Changed", "exit add_Changed", "enter remove_Changed", "exit remove_Changed"],
-            Log(generated));
+            [
+                "enter add_Changed",
+                "exit add_Changed",
+                "enter remove_Changed",
+                "exit remove_Changed",
+            ],
+            Log(generated)
+        );
     }
 
     [Fact]
-    public void ThrowingMethod_PropagatesThroughThePipeline() {
-        var generated = GeneratedAssembly.Create(Source(
-            "void Run();",
-            "public void Run() => throw new System.InvalidOperationException(\"boom\");"));
+    public void ThrowingMethod_PropagatesThroughThePipeline()
+    {
+        var generated = GeneratedAssembly.Create(
+            Source(
+                "void Run();",
+                "public void Run() => throw new System.InvalidOperationException(\"boom\");"
+            )
+        );
 
-        var exception = Assert.Throws<System.Reflection.TargetInvocationException>(
-            () => Invoke(generated.ResolveRequired("IWork"), "Run"));
+        var exception = Assert.Throws<System.Reflection.TargetInvocationException>(() =>
+            Invoke(generated.ResolveRequired("IWork"), "Run")
+        );
 
         Assert.IsType<InvalidOperationException>(exception.InnerException);
         Assert.Equal(["enter Run", "exit Run"], Log(generated));
     }
 
     [Fact]
-    public void SeveralInterceptors_NestInDeclarationOrder() {
+    public void SeveralInterceptors_NestInDeclarationOrder()
+    {
         var generated = GeneratedAssembly.Create(
             $$"""
-              {{Preamble}}
+            {{Preamble}}
 
-              {{Tracing("First", "first")}}
+            {{Tracing("First", "first")}}
 
-              {{Tracing("Second", "second")}}
+            {{Tracing("Second", "second")}}
 
-              public interface IWork { void Run(); }
+            public interface IWork { void Run(); }
 
-              [SingletonService]
-              [Intercept(typeof(FirstInterceptor), typeof(SecondInterceptor))]
-              public class Work : IWork { public void Run() { } }
+            [SingletonService]
+            [Intercept(typeof(FirstInterceptor), typeof(SecondInterceptor))]
+            public class Work : IWork { public void Run() { } }
 
-              [DependencyModule]
-              public partial class TestModule;
-              """);
+            [DependencyModule]
+            public partial class TestModule;
+            """
+        );
 
         Invoke(generated.ResolveRequired("IWork"), "Run");
 
         Assert.Equal(
             ["enter first Run", "enter second Run", "exit second Run", "exit first Run"],
-            Log(generated));
+            Log(generated)
+        );
     }
 
     [Fact]
-    public void Caller_CarriesTheServiceTypeAndMember() {
-        var generated = GeneratedAssembly.Create(Source(
-            "void Run();",
-            "public void Run() { }",
-            """
-            public class TracingInterceptor : IInterceptor {
-                public TResult Intercept<TResult>(InvocationContext<TResult> context) {
-                    Recorder.Entries.Add(context.Caller.ToString());
-                    Recorder.Entries.Add(context.Caller.ServiceType.Name);
-                    return context.Proceed();
+    public void Caller_CarriesTheServiceTypeAndMember()
+    {
+        var generated = GeneratedAssembly.Create(
+            Source(
+                "void Run();",
+                "public void Run() { }",
+                """
+                public class TracingInterceptor : IInterceptor {
+                    public TResult Intercept<TResult>(InvocationContext<TResult> context) {
+                        Recorder.Entries.Add(context.Caller.ToString());
+                        Recorder.Entries.Add(context.Caller.ServiceType.Name);
+                        return context.Proceed();
+                    }
                 }
-            }
-            """));
+                """
+            )
+        );
 
         Invoke(generated.ResolveRequired("IWork"), "Run");
 
@@ -316,24 +400,28 @@ public class InterceptorGenerationTests {
     /// so writing one replaces the value the implementation receives.
     /// </summary>
     [Fact]
-    public void Arguments_AreReadableByNameAndReplaceable() {
-        var generated = GeneratedAssembly.Create(Source(
-            "int Sync(int a, string b);",
-            "public int Sync(int a, string b) { Recorder.Entries.Add($\"inner {a} {b}\"); return a; }",
-            """
-            public class TracingInterceptor : IInterceptor {
-                public TResult Intercept<TResult>(InvocationContext<TResult> context) {
-                    var arguments = context.Arguments;
+    public void Arguments_AreReadableByNameAndReplaceable()
+    {
+        var generated = GeneratedAssembly.Create(
+            Source(
+                "int Sync(int a, string b);",
+                "public int Sync(int a, string b) { Recorder.Entries.Add($\"inner {a} {b}\"); return a; }",
+                """
+                public class TracingInterceptor : IInterceptor {
+                    public TResult Intercept<TResult>(InvocationContext<TResult> context) {
+                        var arguments = context.Arguments;
 
-                    for (var i = 0; i < arguments.Count; i++) {
-                        Recorder.Entries.Add($"{arguments.NameAt(i)}={arguments[i]}");
+                        for (var i = 0; i < arguments.Count; i++) {
+                            Recorder.Entries.Add($"{arguments.NameAt(i)}={arguments[i]}");
+                        }
+
+                        arguments[0] = 99;
+                        return context.Proceed();
                     }
-
-                    arguments[0] = 99;
-                    return context.Proceed();
                 }
-            }
-            """));
+                """
+            )
+        );
 
         var result = Invoke(generated.ResolveRequired("IWork"), "Sync", 5, "text");
 
@@ -346,18 +434,22 @@ public class InterceptorGenerationTests {
     /// second time re-enters the same next stage rather than walking past it.
     /// </summary>
     [Fact]
-    public void ProceedingTwice_CallsTheImplementationTwice() {
-        var generated = GeneratedAssembly.Create(Source(
-            "int Sync(int a);",
-            "public int Sync(int a) { Recorder.Entries.Add(\"inner\"); return a; }",
-            """
-            public class TracingInterceptor : IInterceptor {
-                public TResult Intercept<TResult>(InvocationContext<TResult> context) {
-                    context.Proceed();
-                    return context.Proceed();
+    public void ProceedingTwice_CallsTheImplementationTwice()
+    {
+        var generated = GeneratedAssembly.Create(
+            Source(
+                "int Sync(int a);",
+                "public int Sync(int a) { Recorder.Entries.Add(\"inner\"); return a; }",
+                """
+                public class TracingInterceptor : IInterceptor {
+                    public TResult Intercept<TResult>(InvocationContext<TResult> context) {
+                        context.Proceed();
+                        return context.Proceed();
+                    }
                 }
-            }
-            """));
+                """
+            )
+        );
 
         var result = Invoke(generated.ResolveRequired("IWork"), "Sync", 5);
 
@@ -366,15 +458,19 @@ public class InterceptorGenerationTests {
     }
 
     [Fact]
-    public void NotProceeding_SkipsTheImplementation() {
-        var generated = GeneratedAssembly.Create(Source(
-            "int Sync(int a);",
-            "public int Sync(int a) { Recorder.Entries.Add(\"inner\"); return a; }",
-            """
-            public class TracingInterceptor : IInterceptor {
-                public TResult Intercept<TResult>(InvocationContext<TResult> context) => default!;
-            }
-            """));
+    public void NotProceeding_SkipsTheImplementation()
+    {
+        var generated = GeneratedAssembly.Create(
+            Source(
+                "int Sync(int a);",
+                "public int Sync(int a) { Recorder.Entries.Add(\"inner\"); return a; }",
+                """
+                public class TracingInterceptor : IInterceptor {
+                    public TResult Intercept<TResult>(InvocationContext<TResult> context) => default!;
+                }
+                """
+            )
+        );
 
         Assert.Equal(0, Invoke(generated.ResolveRequired("IWork"), "Sync", 5));
         Assert.Empty(Log(generated));
@@ -386,29 +482,31 @@ public class InterceptorGenerationTests {
     /// wrapper holds its interceptors as typed fields now, so a wrapper can only reach its own.
     /// </summary>
     [Fact]
-    public void TwoServices_DoNotCrossApplyEachOthersInterceptors() {
+    public void TwoServices_DoNotCrossApplyEachOthersInterceptors()
+    {
         var generated = GeneratedAssembly.Create(
             $$"""
-              {{Preamble}}
+            {{Preamble}}
 
-              {{Tracing("Alpha", "alpha")}}
+            {{Tracing("Alpha", "alpha")}}
 
-              {{Tracing("Beta", "beta")}}
+            {{Tracing("Beta", "beta")}}
 
-              public interface IAlpha { void Run(); }
-              public interface IBeta { void Run(); }
+            public interface IAlpha { void Run(); }
+            public interface IBeta { void Run(); }
 
-              [SingletonService]
-              [Intercept(typeof(AlphaInterceptor))]
-              public class Alpha : IAlpha { public void Run() { } }
+            [SingletonService]
+            [Intercept(typeof(AlphaInterceptor))]
+            public class Alpha : IAlpha { public void Run() { } }
 
-              [SingletonService]
-              [Intercept(typeof(BetaInterceptor))]
-              public class Beta : IBeta { public void Run() { } }
+            [SingletonService]
+            [Intercept(typeof(BetaInterceptor))]
+            public class Beta : IBeta { public void Run() { } }
 
-              [DependencyModule]
-              public partial class TestModule;
-              """);
+            [DependencyModule]
+            public partial class TestModule;
+            """
+        );
 
         var provider = generated.BuildProvider();
 
@@ -423,38 +521,40 @@ public class InterceptorGenerationTests {
     /// rest, which are forwarded untouched rather than costing the sync members their interception.
     /// </summary>
     [Fact]
-    public async Task SyncOnlyInterceptor_ServesSyncMembersAndPassesAsyncOnesThrough() {
+    public async Task SyncOnlyInterceptor_ServesSyncMembersAndPassesAsyncOnesThrough()
+    {
         var generated = GeneratedAssembly.Create(
             $$"""
-              {{Preamble}}
+            {{Preamble}}
 
-              public class SyncOnlyInterceptor : IInterceptor {
-                  public TResult Intercept<TResult>(InvocationContext<TResult> context) {
-                      Recorder.Entries.Add($"enter {context.Caller.MemberName}");
+            public class SyncOnlyInterceptor : IInterceptor {
+                public TResult Intercept<TResult>(InvocationContext<TResult> context) {
+                    Recorder.Entries.Add($"enter {context.Caller.MemberName}");
 
-                      try {
-                          return context.Proceed();
-                      } finally {
-                          Recorder.Entries.Add($"exit {context.Caller.MemberName}");
-                      }
-                  }
-              }
+                    try {
+                        return context.Proceed();
+                    } finally {
+                        Recorder.Entries.Add($"exit {context.Caller.MemberName}");
+                    }
+                }
+            }
 
-              public interface IWork {
-                  int Sync(int a);
-                  Task<int> Async(int a);
-              }
+            public interface IWork {
+                int Sync(int a);
+                Task<int> Async(int a);
+            }
 
-              [SingletonService]
-              [Intercept(typeof(SyncOnlyInterceptor))]
-              public class Work : IWork {
-                  public int Sync(int a) => a * 2;
-                  public Task<int> Async(int a) => Task.FromResult(a * 3);
-              }
+            [SingletonService]
+            [Intercept(typeof(SyncOnlyInterceptor))]
+            public class Work : IWork {
+                public int Sync(int a) => a * 2;
+                public Task<int> Async(int a) => Task.FromResult(a * 3);
+            }
 
-              [DependencyModule]
-              public partial class TestModule;
-              """);
+            [DependencyModule]
+            public partial class TestModule;
+            """
+        );
 
         var work = generated.ResolveRequired("IWork");
 
@@ -469,38 +569,40 @@ public class InterceptorGenerationTests {
     /// The mirror of the above, so neither direction is the special case.
     /// </summary>
     [Fact]
-    public async Task AsyncOnlyInterceptor_ServesAsyncMembersAndPassesSyncOnesThrough() {
+    public async Task AsyncOnlyInterceptor_ServesAsyncMembersAndPassesSyncOnesThrough()
+    {
         var generated = GeneratedAssembly.Create(
             $$"""
-              {{Preamble}}
+            {{Preamble}}
 
-              public class AsyncOnlyInterceptor : IAsyncInterceptor {
-                  public async ValueTask<TResult> InterceptAsync<TResult>(AsyncInvocationContext<TResult> context) {
-                      Recorder.Entries.Add($"enter {context.Caller.MemberName}");
+            public class AsyncOnlyInterceptor : IAsyncInterceptor {
+                public async ValueTask<TResult> InterceptAsync<TResult>(AsyncInvocationContext<TResult> context) {
+                    Recorder.Entries.Add($"enter {context.Caller.MemberName}");
 
-                      try {
-                          return await context.ProceedAsync();
-                      } finally {
-                          Recorder.Entries.Add($"exit {context.Caller.MemberName}");
-                      }
-                  }
-              }
+                    try {
+                        return await context.ProceedAsync();
+                    } finally {
+                        Recorder.Entries.Add($"exit {context.Caller.MemberName}");
+                    }
+                }
+            }
 
-              public interface IWork {
-                  int Sync(int a);
-                  Task<int> Async(int a);
-              }
+            public interface IWork {
+                int Sync(int a);
+                Task<int> Async(int a);
+            }
 
-              [SingletonService]
-              [Intercept(typeof(AsyncOnlyInterceptor))]
-              public class Work : IWork {
-                  public int Sync(int a) => a * 2;
-                  public Task<int> Async(int a) => Task.FromResult(a * 3);
-              }
+            [SingletonService]
+            [Intercept(typeof(AsyncOnlyInterceptor))]
+            public class Work : IWork {
+                public int Sync(int a) => a * 2;
+                public Task<int> Async(int a) => Task.FromResult(a * 3);
+            }
 
-              [DependencyModule]
-              public partial class TestModule;
-              """);
+            [DependencyModule]
+            public partial class TestModule;
+            """
+        );
 
         var work = generated.ResolveRequired("IWork");
 
@@ -516,40 +618,43 @@ public class InterceptorGenerationTests {
     /// walks to is its position in that pipeline rather than in the attribute.
     /// </summary>
     [Fact]
-    public void MixedInterceptors_NestOnlyThoseThatServeTheMember() {
+    public void MixedInterceptors_NestOnlyThoseThatServeTheMember()
+    {
         var generated = GeneratedAssembly.Create(
             $$"""
-              {{Preamble}}
+            {{Preamble}}
 
-              public class SyncOnlyInterceptor : IInterceptor {
-                  public TResult Intercept<TResult>(InvocationContext<TResult> context) {
-                      Recorder.Entries.Add("enter sync-only");
+            public class SyncOnlyInterceptor : IInterceptor {
+                public TResult Intercept<TResult>(InvocationContext<TResult> context) {
+                    Recorder.Entries.Add("enter sync-only");
 
-                      try {
-                          return context.Proceed();
-                      } finally {
-                          Recorder.Entries.Add("exit sync-only");
-                      }
-                  }
-              }
+                    try {
+                        return context.Proceed();
+                    } finally {
+                        Recorder.Entries.Add("exit sync-only");
+                    }
+                }
+            }
 
-              {{Tracing("Both", "both")}}
+            {{Tracing("Both", "both")}}
 
-              public interface IWork { int Sync(int a); }
+            public interface IWork { int Sync(int a); }
 
-              [SingletonService]
-              [Intercept(typeof(SyncOnlyInterceptor), typeof(BothInterceptor))]
-              public class Work : IWork { public int Sync(int a) => a; }
+            [SingletonService]
+            [Intercept(typeof(SyncOnlyInterceptor), typeof(BothInterceptor))]
+            public class Work : IWork { public int Sync(int a) => a; }
 
-              [DependencyModule]
-              public partial class TestModule;
-              """);
+            [DependencyModule]
+            public partial class TestModule;
+            """
+        );
 
         Invoke(generated.ResolveRequired("IWork"), "Sync", 1);
 
         Assert.Equal(
             ["enter sync-only", "enter both Sync", "exit both Sync", "exit sync-only"],
-            Log(generated));
+            Log(generated)
+        );
     }
 
     /// <summary>
@@ -557,24 +662,26 @@ public class InterceptorGenerationTests {
     /// service resolves as the implementation registered it.
     /// </summary>
     [Fact]
-    public void InterceptorThatServesNothing_GeneratesNoWrapper() {
+    public void InterceptorThatServesNothing_GeneratesNoWrapper()
+    {
         var generated = GeneratedAssembly.Create(
             $$"""
-              {{Preamble}}
+            {{Preamble}}
 
-              public class SyncOnlyInterceptor : IInterceptor {
-                  public TResult Intercept<TResult>(InvocationContext<TResult> context) => context.Proceed();
-              }
+            public class SyncOnlyInterceptor : IInterceptor {
+                public TResult Intercept<TResult>(InvocationContext<TResult> context) => context.Proceed();
+            }
 
-              public interface IWork { Task<int> Async(int a); }
+            public interface IWork { Task<int> Async(int a); }
 
-              [SingletonService]
-              [Intercept(typeof(SyncOnlyInterceptor))]
-              public class Work : IWork { public Task<int> Async(int a) => Task.FromResult(a); }
+            [SingletonService]
+            [Intercept(typeof(SyncOnlyInterceptor))]
+            public class Work : IWork { public Task<int> Async(int a) => Task.FromResult(a); }
 
-              [DependencyModule]
-              public partial class TestModule;
-              """);
+            [DependencyModule]
+            public partial class TestModule;
+            """
+        );
 
         var resolved = generated.ResolveRequired("IWork");
 
@@ -588,8 +695,11 @@ public class InterceptorGenerationTests {
     /// and an open generic implementation type is what the container does accept.
     /// </summary>
     [Fact]
-    public void GenericImplementation_IsIntercepted() {
-        var result = GeneratorTestHarness.Run(GenericRepo("public class Repo<T> : IRepo<T> { public void Run() { } }"));
+    public void GenericImplementation_IsIntercepted()
+    {
+        var result = GeneratorTestHarness.Run(
+            GenericRepo("public class Repo<T> : IRepo<T> { public void Run() { } }")
+        );
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0008");
         Assert.Contains(result.GeneratedSources.Keys, key => key.Contains("Repo_Intercepted"));
@@ -600,10 +710,15 @@ public class InterceptorGenerationTests {
     /// generic implementation type and close it per construction.
     /// </summary>
     [Fact]
-    public void GenericImplementation_EmitsAGenericWrapper() {
-        var result = GeneratorTestHarness.Run(GenericRepo("public class Repo<T> : IRepo<T> { public void Run() { } }"));
+    public void GenericImplementation_EmitsAGenericWrapper()
+    {
+        var result = GeneratorTestHarness.Run(
+            GenericRepo("public class Repo<T> : IRepo<T> { public void Run() { } }")
+        );
 
-        var wrapper = Assert.Single(result.GeneratedSources, pair => pair.Key.Contains("Repo_Intercepted")).Value;
+        var wrapper = Assert
+            .Single(result.GeneratedSources, pair => pair.Key.Contains("Repo_Intercepted"))
+            .Value;
 
         Assert.Contains("class Repo_Intercepted<T>", wrapper);
 
@@ -618,10 +733,15 @@ public class InterceptorGenerationTests {
     /// `T` is in scope at the registration.
     /// </summary>
     [Fact]
-    public void GenericImplementation_RegistersAsAnOpenGenericImplementation() {
-        var result = GeneratorTestHarness.Run(GenericRepo("public class Repo<T> : IRepo<T> { public void Run() { } }"));
+    public void GenericImplementation_RegistersAsAnOpenGenericImplementation()
+    {
+        var result = GeneratorTestHarness.Run(
+            GenericRepo("public class Repo<T> : IRepo<T> { public void Run() { } }")
+        );
 
-        var registration = Assert.Single(result.GeneratedSources, pair => pair.Key.Contains("Interceptors")).Value;
+        var registration = Assert
+            .Single(result.GeneratedSources, pair => pair.Key.Contains("Interceptors"))
+            .Value;
 
         Assert.Contains("InterceptOpenGeneric", registration);
         Assert.Contains("typeof(global::TestNamespace.IRepo<>)", registration);
@@ -633,15 +753,20 @@ public class InterceptorGenerationTests {
     /// what it wraps.
     /// </summary>
     [Fact]
-    public void ConstrainedGenericImplementation_RepeatsTheConstraints() {
+    public void ConstrainedGenericImplementation_RepeatsTheConstraints()
+    {
         var result = GeneratorTestHarness.Run(
             GenericRepo(
                 "public class Repo<T> : IRepo<T> where T : class, IMarker, new() { public void Run() { } }",
-                supporting: "public interface IMarker;"));
+                supporting: "public interface IMarker;"
+            )
+        );
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0008");
 
-        var wrapper = Assert.Single(result.GeneratedSources, pair => pair.Key.Contains("Repo_Intercepted")).Value;
+        var wrapper = Assert
+            .Single(result.GeneratedSources, pair => pair.Key.Contains("Repo_Intercepted"))
+            .Value;
 
         Assert.Contains("where T : class, global::TestNamespace.IMarker, new()", wrapper);
     }
@@ -652,11 +777,17 @@ public class InterceptorGenerationTests {
     /// reader has to drop it rather than pass it through.
     /// </summary>
     [Fact]
-    public void StructConstrainedGeneric_DoesNotRepeatTheDefaultConstructor() {
+    public void StructConstrainedGeneric_DoesNotRepeatTheDefaultConstructor()
+    {
         var result = GeneratorTestHarness.Run(
-            GenericRepo("public class Repo<T> : IRepo<T> where T : struct { public void Run() { } }"));
+            GenericRepo(
+                "public class Repo<T> : IRepo<T> where T : struct { public void Run() { } }"
+            )
+        );
 
-        var wrapper = Assert.Single(result.GeneratedSources, pair => pair.Key.Contains("Repo_Intercepted")).Value;
+        var wrapper = Assert
+            .Single(result.GeneratedSources, pair => pair.Key.Contains("Repo_Intercepted"))
+            .Value;
 
         Assert.Contains("where T : struct", wrapper);
         Assert.DoesNotContain("new()", wrapper);
@@ -666,15 +797,18 @@ public class InterceptorGenerationTests {
     /// And the constrained wrapper is not merely well-formed text: it compiles, loads and runs.
     /// </summary>
     [Fact]
-    public void ConstrainedGenericImplementation_ResolvesAndIntercepts() {
+    public void ConstrainedGenericImplementation_ResolvesAndIntercepts()
+    {
         var generated = GeneratedAssembly.Create(
             GenericRepo(
                 "public class Repo<T> : IRepo<T> where T : class, IMarker, new() { public void Run() { } }",
                 supporting: """
-                            public interface IMarker;
+                public interface IMarker;
 
-                            public class Marked : IMarker;
-                            """));
+                public class Marked : IMarker;
+                """
+            )
+        );
 
         var closed = generated.Type("IRepo`1").MakeGenericType(generated.Type("Marked"));
         var resolved = generated.BuildProvider().GetService(closed);
@@ -689,21 +823,21 @@ public class InterceptorGenerationTests {
     /// </summary>
     private static string GenericRepo(string implementation, string supporting = "") =>
         $$"""
-          {{Preamble}}
+            {{Preamble}}
 
-          {{Tracing("Tracing", "tracing")}}
+            {{Tracing("Tracing", "tracing")}}
 
-          public interface IRepo<T> { void Run(); }
+            public interface IRepo<T> { void Run(); }
 
-          {{supporting}}
+            {{supporting}}
 
-          [SingletonService]
-          [Intercept(typeof(TracingInterceptor))]
-          {{implementation}}
+            [SingletonService]
+            [Intercept(typeof(TracingInterceptor))]
+            {{implementation}}
 
-          [DependencyModule]
-          public partial class TestModule;
-          """;
+            [DependencyModule]
+            public partial class TestModule;
+            """;
 
     /// <summary>
     /// A closed construction of a generic service, which is the answer to the refusal above. The
@@ -711,27 +845,31 @@ public class InterceptorGenerationTests {
     /// it that way too — interception used to disagree and report that the class implemented none.
     /// </summary>
     [Fact]
-    public void ClosedConstructionOfAGenericService_IsIntercepted() {
+    public void ClosedConstructionOfAGenericService_IsIntercepted()
+    {
         var generated = GeneratedAssembly.Create(
             $$"""
-              {{Preamble}}
+            {{Preamble}}
 
-              {{Tracing("Tracing", "tracing")}}
+            {{Tracing("Tracing", "tracing")}}
 
-              public interface IRepo<T> { string Name(); }
+            public interface IRepo<T> { string Name(); }
 
-              public class Repo<T> : IRepo<T> { public string Name() => "repo"; }
+            public class Repo<T> : IRepo<T> { public string Name() => "repo"; }
 
-              [SingletonService]
-              [Intercept(typeof(TracingInterceptor))]
-              public class StringRepo : Repo<string> { }
+            [SingletonService]
+            [Intercept(typeof(TracingInterceptor))]
+            public class StringRepo : Repo<string> { }
 
-              [DependencyModule]
-              public partial class TestModule;
-              """);
+            [DependencyModule]
+            public partial class TestModule;
+            """
+        );
 
         var provider = generated.BuildProvider();
-        var resolved = provider.GetService(generated.Type("IRepo`1").MakeGenericType(typeof(string)))!;
+        var resolved = provider.GetService(
+            generated.Type("IRepo`1").MakeGenericType(typeof(string))
+        )!;
 
         Assert.EndsWith("_Intercepted", resolved.GetType().Name);
         Assert.Equal("repo", resolved.GetType().GetMethod("Name")!.Invoke(resolved, null));
@@ -739,22 +877,24 @@ public class InterceptorGenerationTests {
     }
 
     [Fact]
-    public void RefParameter_ReportsDM0008() {
+    public void RefParameter_ReportsDM0008()
+    {
         var result = GeneratorTestHarness.Run(
             $$"""
-              {{Preamble}}
+            {{Preamble}}
 
-              {{Tracing("Tracing", "tracing")}}
+            {{Tracing("Tracing", "tracing")}}
 
-              public interface IWork { void Run(ref int a); }
+            public interface IWork { void Run(ref int a); }
 
-              [SingletonService]
-              [Intercept(typeof(TracingInterceptor))]
-              public class Work : IWork { public void Run(ref int a) { } }
+            [SingletonService]
+            [Intercept(typeof(TracingInterceptor))]
+            public class Work : IWork { public void Run(ref int a) { } }
 
-              [DependencyModule]
-              public partial class TestModule;
-              """);
+            [DependencyModule]
+            public partial class TestModule;
+            """
+        );
 
         var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0008");
 
@@ -762,20 +902,22 @@ public class InterceptorGenerationTests {
     }
 
     [Fact]
-    public void ServiceWithNoInterface_ReportsDM0008() {
+    public void ServiceWithNoInterface_ReportsDM0008()
+    {
         var result = GeneratorTestHarness.Run(
             $$"""
-              {{Preamble}}
+            {{Preamble}}
 
-              {{Tracing("Tracing", "tracing")}}
+            {{Tracing("Tracing", "tracing")}}
 
-              [SingletonService]
-              [Intercept(typeof(TracingInterceptor))]
-              public class Standalone { public void Run() { } }
+            [SingletonService]
+            [Intercept(typeof(TracingInterceptor))]
+            public class Standalone { public void Run() { } }
 
-              [DependencyModule]
-              public partial class TestModule;
-              """);
+            [DependencyModule]
+            public partial class TestModule;
+            """
+        );
 
         var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0008");
 
@@ -784,23 +926,25 @@ public class InterceptorGenerationTests {
     }
 
     [Fact]
-    public void ServiceWithSeveralInterfaces_ReportsDM0008() {
+    public void ServiceWithSeveralInterfaces_ReportsDM0008()
+    {
         var result = GeneratorTestHarness.Run(
             $$"""
-              {{Preamble}}
+            {{Preamble}}
 
-              {{Tracing("Tracing", "tracing")}}
+            {{Tracing("Tracing", "tracing")}}
 
-              public interface IOne { void Run(); }
-              public interface ITwo { void Walk(); }
+            public interface IOne { void Run(); }
+            public interface ITwo { void Walk(); }
 
-              [SingletonService]
-              [Intercept(typeof(TracingInterceptor))]
-              public class Both : IOne, ITwo { public void Run() { } public void Walk() { } }
+            [SingletonService]
+            [Intercept(typeof(TracingInterceptor))]
+            public class Both : IOne, ITwo { public void Run() { } public void Walk() { } }
 
-              [DependencyModule]
-              public partial class TestModule;
-              """);
+            [DependencyModule]
+            public partial class TestModule;
+            """
+        );
 
         var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0008");
 
@@ -820,8 +964,7 @@ public class InterceptorGenerationTests {
     private static object? Invoke(object target, string method, params object?[] arguments) =>
         target.GetType().GetMethod(method)!.Invoke(target, arguments);
 
-    private const string Preamble =
-        """
+    private const string Preamble = """
         using DependencyModules.Runtime.Attributes;
         using DependencyModules.Runtime.Interception;
         using System.Collections.Generic;
@@ -846,60 +989,65 @@ public class InterceptorGenerationTests {
     /// </summary>
     private static string Tracing(string prefix, string label) =>
         $$"""
-          public class {{prefix}}Interceptor : IInterceptor, IAsyncInterceptor, IAsyncEnumerableInterceptor {
-              public TResult Intercept<TResult>(InvocationContext<TResult> context) {
-                  Recorder.Entries.Add($"enter {{label}} {context.Caller.MemberName}");
+            public class {{prefix}}Interceptor : IInterceptor, IAsyncInterceptor, IAsyncEnumerableInterceptor {
+                public TResult Intercept<TResult>(InvocationContext<TResult> context) {
+                    Recorder.Entries.Add($"enter {{label}} {context.Caller.MemberName}");
 
-                  try {
-                      return context.Proceed();
-                  } finally {
-                      Recorder.Entries.Add($"exit {{label}} {context.Caller.MemberName}");
-                  }
-              }
+                    try {
+                        return context.Proceed();
+                    } finally {
+                        Recorder.Entries.Add($"exit {{label}} {context.Caller.MemberName}");
+                    }
+                }
 
-              public async ValueTask<TResult> InterceptAsync<TResult>(AsyncInvocationContext<TResult> context) {
-                  Recorder.Entries.Add($"enter {{label}} {context.Caller.MemberName}");
+                public async ValueTask<TResult> InterceptAsync<TResult>(AsyncInvocationContext<TResult> context) {
+                    Recorder.Entries.Add($"enter {{label}} {context.Caller.MemberName}");
 
-                  try {
-                      return await context.ProceedAsync();
-                  } finally {
-                      Recorder.Entries.Add($"exit {{label}} {context.Caller.MemberName}");
-                  }
-              }
+                    try {
+                        return await context.ProceedAsync();
+                    } finally {
+                        Recorder.Entries.Add($"exit {{label}} {context.Caller.MemberName}");
+                    }
+                }
 
-              public async IAsyncEnumerable<TItem> InterceptStream<TItem>(StreamInvocationContext<TItem> context) {
-                  Recorder.Entries.Add($"enter {{label}} {context.Caller.MemberName}");
+                public async IAsyncEnumerable<TItem> InterceptStream<TItem>(StreamInvocationContext<TItem> context) {
+                    Recorder.Entries.Add($"enter {{label}} {context.Caller.MemberName}");
 
-                  await foreach (var item in context.Proceed()) {
-                      Recorder.Entries.Add($"item {item}");
+                    await foreach (var item in context.Proceed()) {
+                        Recorder.Entries.Add($"item {item}");
 
-                      yield return item;
-                  }
+                        yield return item;
+                    }
 
-                  Recorder.Entries.Add($"exit {{label}} {context.Caller.MemberName}");
-              }
-          }
-          """;
+                    Recorder.Entries.Add($"exit {{label}} {context.Caller.MemberName}");
+                }
+            }
+            """;
 
     /// <summary>
     /// The default interceptor logs without a label, so the single-interceptor tests read as
     /// "enter Sync" rather than repeating which interceptor produced the entry.
     /// </summary>
-    private static readonly string DefaultInterceptor = Tracing("Tracing", "").Replace(" {context.Caller", "{context.Caller");
+    private static readonly string DefaultInterceptor = Tracing("Tracing", "")
+        .Replace(" {context.Caller", "{context.Caller");
 
-    private static string Source(string interfaceMember, string implementation, string? interceptor = null) =>
+    private static string Source(
+        string interfaceMember,
+        string implementation,
+        string? interceptor = null
+    ) =>
         $$"""
-          {{Preamble}}
+            {{Preamble}}
 
-          {{interceptor ?? DefaultInterceptor}}
+            {{interceptor ?? DefaultInterceptor}}
 
-          public interface IWork { {{interfaceMember}} }
+            public interface IWork { {{interfaceMember}} }
 
-          [SingletonService]
-          [Intercept(typeof(TracingInterceptor))]
-          public class Work : IWork { {{implementation}} }
+            [SingletonService]
+            [Intercept(typeof(TracingInterceptor))]
+            public class Work : IWork { {{implementation}} }
 
-          [DependencyModule]
-          public partial class TestModule;
-          """;
+            [DependencyModule]
+            public partial class TestModule;
+            """;
 }

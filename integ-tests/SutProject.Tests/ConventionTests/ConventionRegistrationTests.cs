@@ -15,28 +15,34 @@ namespace SutProject.Tests.ConventionTests;
 /// colliding. That is what this file is for.
 /// </remarks>
 [ConventionSutModule]
-public class ConventionRegistrationTests {
-
+public class ConventionRegistrationTests
+{
     [ModuleTest]
-    public void RegistersTypeDeclaringTheInterfaceDirectly(IEnumerable<IConventionService> services) {
+    public void RegistersTypeDeclaringTheInterfaceDirectly(IEnumerable<IConventionService> services)
+    {
         Assert.Contains(services, service => service.Name == "direct");
     }
 
     [ModuleTest]
     public void RegistersTypeReachingTheInterfaceThroughInterfaceInheritance(
-        IEnumerable<IConventionService> services) {
+        IEnumerable<IConventionService> services
+    )
+    {
         Assert.Contains(services, service => service.Name == "inherited");
     }
 
     [ModuleTest]
-    public void RegistersExactlyTheTwoMatchingTypes(IEnumerable<IConventionService> services) {
+    public void RegistersExactlyTheTwoMatchingTypes(IEnumerable<IConventionService> services)
+    {
         Assert.Equal(
             new[] { "direct", "inherited" },
-            services.Select(service => service.Name).OrderBy(name => name).ToArray());
+            services.Select(service => service.Name).OrderBy(name => name).ToArray()
+        );
     }
 
     [ModuleTest]
-    public void RegistersTheDeclaredLifetime(IConventionService first, IConventionService second) {
+    public void RegistersTheDeclaredLifetime(IConventionService first, IConventionService second)
+    {
         // Declared AsSingleton, so one instance serves both parameters.
         Assert.Same(first, second);
     }
@@ -52,8 +58,9 @@ public class ConventionRegistrationTests {
     [ModuleTest]
     public void ClosesAnOpenGenericAgainstEachImplementation(
         IConventionHandler<CreateOrder, OrderId> create,
-        IConventionHandler<RenameOrder, OrderId> rename) {
-
+        IConventionHandler<RenameOrder, OrderId> rename
+    )
+    {
         Assert.IsType<CreateOrderHandler>(create);
         Assert.IsType<RenameOrderHandler>(rename);
 
@@ -67,8 +74,10 @@ public class ConventionRegistrationTests {
     /// </summary>
     [ModuleTest]
     public void RegistersAGenericImplementationAsAnOpenGeneric(
-        IConventionCache<int> ints, IConventionCache<string> strings) {
-
+        IConventionCache<int> ints,
+        IConventionCache<string> strings
+    )
+    {
         Assert.IsType<PassThroughCache<int>>(ints);
         Assert.IsType<PassThroughCache<string>>(strings);
 
@@ -81,14 +90,18 @@ public class ConventionRegistrationTests {
     /// construction: StringStore declares IAuditedStore&lt;string&gt;, never IConventionStore&lt;string&gt;.
     /// </summary>
     [ModuleTest]
-    public void ClosesAnOpenGenericReachedThroughInterfaceInheritance(IConventionStore<string> store) {
+    public void ClosesAnOpenGenericReachedThroughInterfaceInheritance(
+        IConventionStore<string> store
+    )
+    {
         Assert.IsType<StringStore>(store);
         Assert.Equal("audited:string", store.Describe());
     }
 
     /// <summary>An open generic convention registers nothing for a construction nobody implements.</summary>
     [ModuleTest]
-    public void DoesNotRegisterAnUnimplementedConstruction(IServiceProvider provider) {
+    public void DoesNotRegisterAnUnimplementedConstruction(IServiceProvider provider)
+    {
         Assert.Null(provider.GetService<IConventionStore<int>>());
         Assert.Null(provider.GetService<IConventionHandler<CreateOrder, CreateOrder>>());
     }
@@ -99,8 +112,9 @@ public class ConventionRegistrationTests {
 
     [ModuleTest]
     public void AnExplicitAttributeStillRegistersAlongsideTheConvention(
-        IEnumerable<IAttributeWinsService> services) {
-
+        IEnumerable<IAttributeWinsService> services
+    )
+    {
         var names = services.Select(service => service.Name).OrderBy(name => name).ToArray();
 
         Assert.Equal(new[] { "attributed", "by-convention" }, names);
@@ -108,8 +122,10 @@ public class ConventionRegistrationTests {
 
     [ModuleTest]
     public void TheAttributedTypeKeepsItsOwnLifetime(
-        IEnumerable<IAttributeWinsService> first, IEnumerable<IAttributeWinsService> second) {
-
+        IEnumerable<IAttributeWinsService> first,
+        IEnumerable<IAttributeWinsService> second
+    )
+    {
         // The attribute declared Singleton and the convention declared Transient. The attributed
         // type is registered once, by its attribute, so it survives across resolutions while the
         // convention-registered one does not.
@@ -128,21 +144,25 @@ public class ConventionRegistrationTests {
 /// <summary>
 /// The base-class hop, proven from both sides against the same interface.
 /// </summary>
-public class ConventionBaseClassReachTests {
-
+public class ConventionBaseClassReachTests
+{
     [ModuleTest]
     [ConventionNoBaseClassModule]
-    public void ABaseClassHopIsNotMatchedByDefault(IEnumerable<IBaseClassReachService> services) {
+    public void ABaseClassHopIsNotMatchedByDefault(IEnumerable<IBaseClassReachService> services)
+    {
         Assert.Equal(
             new[] { "direct-reach" },
-            services.Select(service => service.Name).OrderBy(name => name).ToArray());
+            services.Select(service => service.Name).OrderBy(name => name).ToArray()
+        );
     }
 
     [ModuleTest]
     [ConventionBaseClassModule]
-    public void ABaseClassHopIsMatchedWhenOptedIn(IEnumerable<IBaseClassReachService> services) {
+    public void ABaseClassHopIsMatchedWhenOptedIn(IEnumerable<IBaseClassReachService> services)
+    {
         Assert.Equal(
             new[] { "direct-reach", "through-base" },
-            services.Select(service => service.Name).OrderBy(name => name).ToArray());
+            services.Select(service => service.Name).OrderBy(name => name).ToArray()
+        );
     }
 }

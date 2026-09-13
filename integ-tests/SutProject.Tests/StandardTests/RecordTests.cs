@@ -3,25 +3,30 @@ using Xunit;
 
 namespace SutProject.Tests.StandardTests;
 
-public class RecordServiceTests {
+public class RecordServiceTests
+{
     [ModuleTest]
     [SutModule]
-    public void ResolveRecordService(IRecordService recordService) {
+    public void ResolveRecordService(IRecordService recordService)
+    {
         Assert.NotNull(recordService);
         Assert.Equal("RecordService", recordService.GetName());
     }
 
     [ModuleTest]
     [SutModule]
-    public void RecordServiceIsSingleton(IRecordService first, IRecordService second) {
+    public void RecordServiceIsSingleton(IRecordService first, IRecordService second)
+    {
         Assert.Same(first, second);
     }
 }
 
-public class RecordModuleTests {
+public class RecordModuleTests
+{
     [ModuleTest]
     [RecordModule]
-    public void ResolveServiceFromRecordModule(IRecordModuleService service) {
+    public void ResolveServiceFromRecordModule(IRecordModuleService service)
+    {
         Assert.NotNull(service);
         Assert.Equal("FromRecordModule", service.Value);
     }

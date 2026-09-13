@@ -7,33 +7,38 @@ using Xunit;
 namespace SutProject.Tests.FactoryTests;
 
 [DependencyModule(OnlyRealm = true)]
-public partial class FactoryModule {
+public partial class FactoryModule { }
 
-}
-
-public static class FactoryClass {
-
+public static class FactoryClass
+{
     [SingletonService(Realm = typeof(FactoryModule))]
     public static IDependencyOne FactoryService(
-        ISingletonService singletonService, IScopedService scopedService) {
+        ISingletonService singletonService,
+        IScopedService scopedService
+    )
+    {
         return new DependencyOne(singletonService, scopedService);
     }
 
     [SingletonService(Realm = typeof(FactoryModule))]
-    public static ISingletonService SingletonService(IServiceProvider serviceProvider) {
+    public static ISingletonService SingletonService(IServiceProvider serviceProvider)
+    {
         return new SingletonService();
     }
 
     [ScopedService(Realm = typeof(FactoryModule))]
-    public static IScopedService ScopedService() {
+    public static IScopedService ScopedService()
+    {
         return new ScopedService();
     }
 }
 
-public class SimpleFactoryTests {
+public class SimpleFactoryTests
+{
     [ModuleTest]
     [FactoryModule]
-    public void FactoryTest(IDependencyOne dependencyOne) {
+    public void FactoryTest(IDependencyOne dependencyOne)
+    {
         Assert.NotNull(dependencyOne);
     }
 }

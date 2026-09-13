@@ -16,26 +16,34 @@ namespace DependencyModules.SourceGenerator;
 /// generated rather than written. Everything that path already handles — lifetime preservation, the
 /// three descriptor shapes, global ordering — applies without change.
 /// </remarks>
-public class InterceptorSourceGenerator : BaseAttributeSourceGenerator<InterceptorModel> {
+public class InterceptorSourceGenerator : BaseAttributeSourceGenerator<InterceptorModel>
+{
     private readonly IEqualityComparer<InterceptorModel> _comparer = new InterceptorModelComparer();
 
-    private static readonly ITypeDefinition[] _attributeTypes = {
-        KnownTypes.DependencyModules.Attributes.InterceptAttribute
+    private static readonly ITypeDefinition[] _attributeTypes =
+    {
+        KnownTypes.DependencyModules.Attributes.InterceptAttribute,
     };
 
     protected override string LoggerName => "InterceptorSourceGenerator";
 
-    protected override IEnumerable<ITypeDefinition> AttributeTypes() {
+    protected override IEnumerable<ITypeDefinition> AttributeTypes()
+    {
         return _attributeTypes;
     }
 
     protected override InterceptorModel IgnoredModel => InterceptorModel.Ignore;
 
-    protected override IEqualityComparer<InterceptorModel> GetComparer() {
+    protected override IEqualityComparer<InterceptorModel> GetComparer()
+    {
         return _comparer;
     }
 
-    protected override InterceptorModel GenerateAttributeModel(GeneratorAttributeSyntaxContext context, CancellationToken cancellationToken) {
+    protected override InterceptorModel GenerateAttributeModel(
+        GeneratorAttributeSyntaxContext context,
+        CancellationToken cancellationToken
+    )
+    {
         // A refusal travels on the model so the output stage, which owns the diagnostic context, can
         // report it. Reporting from the transform is not possible.
         return InterceptorModelUtility.GetInterceptorModel(context, cancellationToken);
@@ -43,36 +51,55 @@ public class InterceptorSourceGenerator : BaseAttributeSourceGenerator<Intercept
 
     protected override void GenerateSourceOutput(
         SourceProductionContext context,
-        (ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> Left,
-            ImmutableArray<InterceptorModel> Right) inputData,
-        FileLogger logger) {
-
-        if (inputData.Left.Length == 0 || inputData.Right.Length == 0) {
+        (
+            ImmutableArray<(
+                ModuleEntryPointModel Left,
+                DependencyModuleConfigurationModel Right
+            )> Left,
+            ImmutableArray<InterceptorModel> Right
+        ) inputData,
+        FileLogger logger
+    )
+    {
+        if (inputData.Left.Length == 0 || inputData.Right.Length == 0)
+        {
             return;
         }
 
-        var (entryPointList, configurationModel) = EntryModelUtil.ConsolidateEntryPointModels(inputData.Left);
+        var (entryPointList, configurationModel) = EntryModelUtil.ConsolidateEntryPointModels(
+            inputData.Left
+        );
 
         // Filtering only; ReportUnsupported's explanations live in ReportDiagnostics, which shares
         // the same predicate.
         var usable = Usable(inputData.Right);
 
-        if (usable.Count == 0) {
+        if (usable.Count == 0)
+        {
             return;
         }
 
         var writer = new InterceptorFileWriter();
 
-        foreach (var model in usable) {
+        foreach (var model in usable)
+        {
             context.CancellationToken.ThrowIfCancellationRequested();
 
             var wrapperName = $"{model.ImplementationType.Name.Replace(".", "_")}_Intercepted";
 
-            logger.Info($"Generating '{wrapperName}' for '{model.ServiceType}' with {model.Members.Count} member(s).");
+            logger.Info(
+                $"Generating '{wrapperName}' for '{model.ServiceType}' with {model.Members.Count} member(s)."
+            );
 
             context.AddSource(
                 $"{wrapperName}.g.cs",
-                writer.Write(model, wrapperName, model.ImplementationType.Namespace, configurationModel));
+                writer.Write(
+                    model,
+                    wrapperName,
+                    model.ImplementationType.Namespace,
+                    configurationModel
+                )
+            );
         }
 
         // One registration file per module, carrying the interceptions that belong to that module.
@@ -80,16 +107,23 @@ public class InterceptorSourceGenerator : BaseAttributeSourceGenerator<Intercept
         // applicators for interceptions that named no realm and had nothing to do with it, which
         // either wrapped an unrelated service or — when the leaked interceptor needed a dependency
         // the isolated container did not have — threw while building the provider.
-        foreach (var entryPointModel in EntryModelUtil.RegistrationTargets(entryPointList)) {
+        foreach (var entryPointModel in EntryModelUtil.RegistrationTargets(entryPointList))
+        {
             var registrationWriter = new InterceptorRegistrationWriter();
 
             context.AddSource(
-                EntryModelUtil.EnsureNamespace(entryPointModel, configurationModel)
-                    .EntryPointType.GetFileNameHint(configurationModel.RootNamespace, "Interceptors"),
+                EntryModelUtil
+                    .EnsureNamespace(entryPointModel, configurationModel)
+                    .EntryPointType.GetFileNameHint(
+                        configurationModel.RootNamespace,
+                        "Interceptors"
+                    ),
                 registrationWriter.Write(
                     EntryModelUtil.EnsureNamespace(entryPointModel, configurationModel),
                     configurationModel,
-                    ForModule(usable, entryPointModel)));
+                    ForModule(usable, entryPointModel)
+                )
+            );
         }
     }
 
@@ -102,21 +136,27 @@ public class InterceptorSourceGenerator : BaseAttributeSourceGenerator<Intercept
     /// realm-only.
     /// </remarks>
     private static IReadOnlyList<InterceptorModel> ForModule(
-        IReadOnlyList<InterceptorModel> models, ModuleEntryPointModel entryPointModel) {
-
+        IReadOnlyList<InterceptorModel> models,
+        ModuleEntryPointModel entryPointModel
+    )
+    {
         var onlyRealm = entryPointModel.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.OnlyRealm);
         var selected = new List<InterceptorModel>();
 
-        foreach (var model in models) {
-            if (model.Realm != null) {
-                if (model.Realm.Equals(entryPointModel.EntryPointType)) {
+        foreach (var model in models)
+        {
+            if (model.Realm != null)
+            {
+                if (model.Realm.Equals(entryPointModel.EntryPointType))
+                {
                     selected.Add(model);
                 }
 
                 continue;
             }
 
-            if (!onlyRealm) {
+            if (!onlyRealm)
+            {
                 selected.Add(model);
             }
         }
@@ -132,15 +172,19 @@ public class InterceptorSourceGenerator : BaseAttributeSourceGenerator<Intercept
     /// interceptor able to serve it — a wrapper for the second would forward every call untouched.
     /// Both are explained by <see cref="ReportDiagnostics"/>; this only decides what to write.
     /// </remarks>
-    private static IReadOnlyList<InterceptorModel> Usable(ImmutableArray<InterceptorModel> models) {
+    private static IReadOnlyList<InterceptorModel> Usable(ImmutableArray<InterceptorModel> models)
+    {
         var usable = new List<InterceptorModel>();
 
-        foreach (var model in models) {
-            if (model.Refusal != null || model.IsIgnored || model.Members.Count == 0) {
+        foreach (var model in models)
+        {
+            if (model.Refusal != null || model.IsIgnored || model.Members.Count == 0)
+            {
                 continue;
             }
 
-            if (!ServesAnyMember(model)) {
+            if (!ServesAnyMember(model))
+            {
                 continue;
             }
 
@@ -153,8 +197,9 @@ public class InterceptorSourceGenerator : BaseAttributeSourceGenerator<Intercept
     /// <summary>Whether any member has an interceptor that can serve it.</summary>
     private static bool ServesAnyMember(InterceptorModel model) =>
         model.Members.Any(member =>
-            !member.Excluded &&
-            model.Interceptors.Any(interceptor => interceptor.CanServe(member.Kind)));
+            !member.Excluded
+            && model.Interceptors.Any(interceptor => interceptor.CanServe(member.Kind))
+        );
 
     /// <summary>
     /// Why an interception was refused, or is quietly absent from members it was applied to.
@@ -163,32 +208,45 @@ public class InterceptorSourceGenerator : BaseAttributeSourceGenerator<Intercept
     /// Reported apart from emission so the locations carry their syntax tree, which is what lets
     /// one of these be silenced where it is written rather than only across the whole project.
     /// </remarks>
-    protected override void ReportDiagnostics(SourceProductionContext context,
-        (ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> Left,
-            ImmutableArray<InterceptorModel> Right) data,
+    protected override void ReportDiagnostics(
+        SourceProductionContext context,
+        (
+            ImmutableArray<(
+                ModuleEntryPointModel Left,
+                DependencyModuleConfigurationModel Right
+            )> Left,
+            ImmutableArray<InterceptorModel> Right
+        ) data,
         SyntaxTreeLookup lookup,
-        FileLogger logger) {
-
-        if (data.Left.Length == 0 || data.Right.Length == 0) {
+        FileLogger logger
+    )
+    {
+        if (data.Left.Length == 0 || data.Right.Length == 0)
+        {
             return;
         }
 
-        foreach (var model in data.Right) {
+        foreach (var model in data.Right)
+        {
             context.CancellationToken.ThrowIfCancellationRequested();
 
-            if (model.Refusal != null) {
+            if (model.Refusal != null)
+            {
                 logger.Error($"Cannot intercept: {model.Refusal.Message}");
 
                 context.ReportDiagnostic(
                     Diagnostic.Create(
                         DependencyModuleDiagnostics.CannotIntercept,
                         model.Location?.ToLocationOrNone(lookup) ?? Location.None,
-                        model.Refusal.Message));
+                        model.Refusal.Message
+                    )
+                );
 
                 continue;
             }
 
-            if (model.IsIgnored || model.Members.Count == 0) {
+            if (model.IsIgnored || model.Members.Count == 0)
+            {
                 continue;
             }
 
@@ -217,46 +275,59 @@ public class InterceptorSourceGenerator : BaseAttributeSourceGenerator<Intercept
     /// </remarks>
     private static void ReportUnappliedInterceptions(
         SourceProductionContext context,
-        ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> entryPoints,
+        ImmutableArray<(
+            ModuleEntryPointModel Left,
+            DependencyModuleConfigurationModel Right
+        )> entryPoints,
         IReadOnlyList<InterceptorModel> usable,
         SyntaxTreeLookup lookup,
-        FileLogger logger) {
-
-        if (usable.Count == 0) {
+        FileLogger logger
+    )
+    {
+        if (usable.Count == 0)
+        {
             return;
         }
 
         var (entryPointList, _) = EntryModelUtil.ConsolidateEntryPointModels(entryPoints);
         var targets = EntryModelUtil.RegistrationTargets(entryPointList).ToArray();
 
-        if (targets.Length == 0) {
+        if (targets.Length == 0)
+        {
             return;
         }
 
         var applied = new HashSet<ITypeDefinition>();
 
-        foreach (var entryPointModel in targets) {
-            foreach (var model in ForModule(usable, entryPointModel)) {
+        foreach (var entryPointModel in targets)
+        {
+            foreach (var model in ForModule(usable, entryPointModel))
+            {
                 applied.Add(model.ImplementationType);
             }
         }
 
-        foreach (var model in usable) {
+        foreach (var model in usable)
+        {
             context.CancellationToken.ThrowIfCancellationRequested();
 
-            if (applied.Contains(model.ImplementationType)) {
+            if (applied.Contains(model.ImplementationType))
+            {
                 continue;
             }
 
             logger.Error(
-                $"No module applies the interception on '{model.ImplementationType.Name}', " +
-                "so its interceptors never run.");
+                $"No module applies the interception on '{model.ImplementationType.Name}', "
+                    + "so its interceptors never run."
+            );
 
             context.ReportDiagnostic(
                 Diagnostic.Create(
                     DependencyModuleDiagnostics.InterceptionAppliedByNoModule,
                     model.Location?.ToLocationOrNone(lookup) ?? Location.None,
-                    model.ImplementationType.Name));
+                    model.ImplementationType.Name
+                )
+            );
         }
     }
 
@@ -273,19 +344,30 @@ public class InterceptorSourceGenerator : BaseAttributeSourceGenerator<Intercept
     /// than one per member.
     /// </remarks>
     private static void ReportUnservedMembers(
-        SourceProductionContext context, InterceptorModel model, SyntaxTreeLookup lookup,
-        FileLogger logger) {
-
-        foreach (var interceptor in model.Interceptors) {
-            foreach (var kind in new[] {
-                         InterceptorKind.Sync, InterceptorKind.Async, InterceptorKind.Stream
-                     }) {
-
-                if (interceptor.CanServe(kind)) {
+        SourceProductionContext context,
+        InterceptorModel model,
+        SyntaxTreeLookup lookup,
+        FileLogger logger
+    )
+    {
+        foreach (var interceptor in model.Interceptors)
+        {
+            foreach (
+                var kind in new[]
+                {
+                    InterceptorKind.Sync,
+                    InterceptorKind.Async,
+                    InterceptorKind.Stream,
+                }
+            )
+            {
+                if (interceptor.CanServe(kind))
+                {
                     continue;
                 }
 
-                var unserved = model.Members
+                var unserved = model
+                    .Members
                     // An excluded member was never meant to be served, so an interceptor not
                     // covering it is not the omission DM0015 is about.
                     .Where(member => !member.Excluded && member.Kind == kind)
@@ -294,13 +376,15 @@ public class InterceptorSourceGenerator : BaseAttributeSourceGenerator<Intercept
                     .OrderBy(name => name, StringComparer.Ordinal)
                     .ToArray();
 
-                if (unserved.Length == 0) {
+                if (unserved.Length == 0)
+                {
                     continue;
                 }
 
                 logger.Error(
-                    $"'{interceptor.Type.Name}' does not implement {InterfaceFor(kind)}, so it is not " +
-                    $"applied to {string.Join(", ", unserved)} on '{model.ServiceType.Name}'.");
+                    $"'{interceptor.Type.Name}' does not implement {InterfaceFor(kind)}, so it is not "
+                        + $"applied to {string.Join(", ", unserved)} on '{model.ServiceType.Name}'."
+                );
 
                 context.ReportDiagnostic(
                     Diagnostic.Create(
@@ -310,22 +394,26 @@ public class InterceptorSourceGenerator : BaseAttributeSourceGenerator<Intercept
                         InterfaceFor(kind),
                         DescriptionFor(kind),
                         model.ServiceType.Name,
-                        string.Join(", ", unserved)));
+                        string.Join(", ", unserved)
+                    )
+                );
             }
         }
     }
 
     private static string InterfaceFor(InterceptorKind kind) =>
-        kind switch {
+        kind switch
+        {
             InterceptorKind.Async => "IAsyncInterceptor",
             InterceptorKind.Stream => "IAsyncEnumerableInterceptor",
-            _ => "IInterceptor"
+            _ => "IInterceptor",
         };
 
     private static string DescriptionFor(InterceptorKind kind) =>
-        kind switch {
+        kind switch
+        {
             InterceptorKind.Async => "the members returning a task",
             InterceptorKind.Stream => "the members returning an async stream",
-            _ => "the members returning a value directly"
+            _ => "the members returning a value directly",
         };
 }

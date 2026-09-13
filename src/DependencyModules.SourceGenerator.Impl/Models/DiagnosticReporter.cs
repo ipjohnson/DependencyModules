@@ -21,14 +21,16 @@ namespace DependencyModules.SourceGenerator.Impl.Models;
 /// <see cref="IsSilent"/> first lets a caller skip building a message it is about to discard.
 /// </para>
 /// </remarks>
-public sealed class DiagnosticReporter {
+public sealed class DiagnosticReporter
+{
     private readonly Action<Diagnostic>? _sink;
     private readonly SyntaxTreeLookup _lookup;
 
     /// <summary>A reporter that discards everything.</summary>
     public static readonly DiagnosticReporter Silent = new(null, SyntaxTreeLookup.None);
 
-    public DiagnosticReporter(Action<Diagnostic>? sink, SyntaxTreeLookup lookup) {
+    public DiagnosticReporter(Action<Diagnostic>? sink, SyntaxTreeLookup lookup)
+    {
         _sink = sink;
         _lookup = lookup;
     }
@@ -36,22 +38,36 @@ public sealed class DiagnosticReporter {
     /// <summary>True when nothing is listening, so there is no point composing a message.</summary>
     public bool IsSilent => _sink == null;
 
-    public void Report(DiagnosticDescriptor descriptor, LocationModel? location, params object?[] messageArgs) {
-        if (_sink == null) {
+    public void Report(
+        DiagnosticDescriptor descriptor,
+        LocationModel? location,
+        params object?[] messageArgs
+    )
+    {
+        if (_sink == null)
+        {
             return;
         }
 
-        _sink(Diagnostic.Create(
-            descriptor,
-            location?.ToLocationOrNone(_lookup) ?? Location.None,
-            messageArgs));
+        _sink(
+            Diagnostic.Create(
+                descriptor,
+                location?.ToLocationOrNone(_lookup) ?? Location.None,
+                messageArgs
+            )
+        );
     }
 
     /// <summary>
     /// Reports at a location that is already resolved — one read straight from syntax rather than
     /// carried through a model.
     /// </summary>
-    public void Report(DiagnosticDescriptor descriptor, Location location, params object?[] messageArgs) {
+    public void Report(
+        DiagnosticDescriptor descriptor,
+        Location location,
+        params object?[] messageArgs
+    )
+    {
         _sink?.Invoke(Diagnostic.Create(descriptor, location, messageArgs));
     }
 

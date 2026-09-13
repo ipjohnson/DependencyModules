@@ -10,7 +10,8 @@ namespace DependencyModules.Testing.Attributes.Interfaces;
 /// their precedence. This can be used in frameworks, test cases, or other
 /// systems requiring deterministic or prioritized execution flows.
 /// </remarks>
-public interface IOrderedAttribute {
+public interface IOrderedAttribute
+{
     /// <summary>
     /// Represents the execution or processing order assigned to an object or component.
     /// This property is used to specify the precedence or priority of the object

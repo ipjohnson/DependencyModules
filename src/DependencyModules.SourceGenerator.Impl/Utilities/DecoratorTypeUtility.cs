@@ -14,41 +14,53 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities;
 /// a decorator taking <c>IValidator&lt;TReq&gt;</c> resolves <c>IValidator&lt;CreateOrder&gt;</c>
 /// rather than something the compiler would reject.
 /// </remarks>
-public static class DecoratorTypeUtility {
-
+public static class DecoratorTypeUtility
+{
     /// <summary>
     /// The decoration to emit for one closed registration, or null when the decorator cannot be
     /// closed over it.
     /// </summary>
-    public static DecoratorModel? Close(DecoratorModel decorator, GenericTypeDefinition closedService) {
-        if (!decorator.CanMonomorphise) {
+    public static DecoratorModel? Close(
+        DecoratorModel decorator,
+        GenericTypeDefinition closedService
+    )
+    {
+        if (!decorator.CanMonomorphise)
+        {
             return null;
         }
 
         var parameterNames = TypeParameterNames(decorator);
 
-        if (parameterNames == null || parameterNames.Count != closedService.TypeArguments.Count) {
+        if (parameterNames == null || parameterNames.Count != closedService.TypeArguments.Count)
+        {
             return null;
         }
 
         var substitutions = new Dictionary<string, ITypeDefinition>(parameterNames.Count);
 
-        for (var i = 0; i < parameterNames.Count; i++) {
+        for (var i = 0; i < parameterNames.Count; i++)
+        {
             substitutions[parameterNames[i]] = closedService.TypeArguments[i];
         }
 
         var parameters = new List<ParameterInfoModel>(decorator.Constructor!.Parameters.Count);
 
-        foreach (var parameter in decorator.Constructor.Parameters) {
-            parameters.Add(parameter with {
-                ParameterType = Substitute(parameter.ParameterType, substitutions)
-            });
+        foreach (var parameter in decorator.Constructor.Parameters)
+        {
+            parameters.Add(
+                parameter with
+                {
+                    ParameterType = Substitute(parameter.ParameterType, substitutions),
+                }
+            );
         }
 
-        return decorator with {
+        return decorator with
+        {
             ServiceType = closedService,
             DecoratorType = CloseDecorator(decorator.DecoratorType, closedService.TypeArguments),
-            Constructor = new ConstructorInfoModel(parameters)
+            Constructor = new ConstructorInfoModel(parameters),
         };
     }
 
@@ -64,17 +76,21 @@ public static class DecoratorTypeUtility {
     /// Safe only because <see cref="DecoratorModel.TypeParametersMatchService"/> is true, which is
     /// what guarantees these names are also the decorator's own parameters, in the same order.
     /// </remarks>
-    private static IReadOnlyList<string>? TypeParameterNames(DecoratorModel decorator) {
+    private static IReadOnlyList<string>? TypeParameterNames(DecoratorModel decorator)
+    {
         var inner = decorator.Constructor!.Parameters[decorator.InnerParameterIndex].ParameterType;
 
-        if (inner is not GenericTypeDefinition generic || generic.TypeArguments.Count == 0) {
+        if (inner is not GenericTypeDefinition generic || generic.TypeArguments.Count == 0)
+        {
             return null;
         }
 
         var names = new List<string>(generic.TypeArguments.Count);
 
-        foreach (var argument in generic.TypeArguments) {
-            if (string.IsNullOrEmpty(argument.Name)) {
+        foreach (var argument in generic.TypeArguments)
+        {
+            if (string.IsNullOrEmpty(argument.Name))
+            {
                 return null;
             }
 
@@ -85,32 +101,48 @@ public static class DecoratorTypeUtility {
     }
 
     private static ITypeDefinition CloseDecorator(
-        ITypeDefinition decoratorType, IReadOnlyList<ITypeDefinition> typeArguments) =>
+        ITypeDefinition decoratorType,
+        IReadOnlyList<ITypeDefinition> typeArguments
+    ) =>
         decoratorType is GenericTypeDefinition generic
             ? new GenericTypeDefinition(
-                generic.TypeDefinitionEnum, generic.Namespace, generic.Name, typeArguments.ToArray())
+                generic.TypeDefinitionEnum,
+                generic.Namespace,
+                generic.Name,
+                typeArguments.ToArray()
+            )
             : decoratorType;
 
     /// <summary>
     /// Replaces type parameters with the arguments the registration closed them over, at any depth.
     /// </summary>
     private static ITypeDefinition Substitute(
-        ITypeDefinition type, Dictionary<string, ITypeDefinition> substitutions) {
-
-        if (type is GenericTypeDefinition generic) {
+        ITypeDefinition type,
+        Dictionary<string, ITypeDefinition> substitutions
+    )
+    {
+        if (type is GenericTypeDefinition generic)
+        {
             var arguments = new ITypeDefinition[generic.TypeArguments.Count];
 
-            for (var i = 0; i < arguments.Length; i++) {
+            for (var i = 0; i < arguments.Length; i++)
+            {
                 arguments[i] = Substitute(generic.TypeArguments[i], substitutions);
             }
 
             return new GenericTypeDefinition(
-                generic.TypeDefinitionEnum, generic.Namespace, generic.Name, arguments);
+                generic.TypeDefinitionEnum,
+                generic.Namespace,
+                generic.Name,
+                arguments
+            );
         }
 
         // A type parameter has no namespace; anything with one is an ordinary type and is left alone
         // even if it shares a name with a parameter.
-        return string.IsNullOrEmpty(type.Namespace) && substitutions.TryGetValue(type.Name, out var closed)
+        return
+            string.IsNullOrEmpty(type.Namespace)
+            && substitutions.TryGetValue(type.Name, out var closed)
             ? closed
             : type;
     }

@@ -26,8 +26,8 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities;
 /// node in the compilation must not do.
 /// </para>
 /// </remarks>
-public static class AttributeTypeMatcher {
-
+public static class AttributeTypeMatcher
+{
     /// <summary>
     /// Whether <paramref name="attributeSyntax"/> resolves to <paramref name="attributeType"/>.
     /// </summary>
@@ -40,11 +40,13 @@ public static class AttributeTypeMatcher {
         SemanticModel semanticModel,
         AttributeSyntax attributeSyntax,
         ITypeDefinition attributeType,
-        CancellationToken cancellationToken) {
-
+        CancellationToken cancellationToken
+    )
+    {
         var symbol = Resolve(semanticModel, attributeSyntax, cancellationToken);
 
-        if (symbol == null) {
+        if (symbol == null)
+        {
             return MatchesAsWritten(attributeSyntax, attributeType);
         }
 
@@ -60,30 +62,43 @@ public static class AttributeTypeMatcher {
     /// argument list that does not match any overload still names the attribute unambiguously.
     /// </remarks>
     private static INamedTypeSymbol? Resolve(
-        SemanticModel semanticModel, AttributeSyntax attributeSyntax, CancellationToken cancellationToken) {
-
+        SemanticModel semanticModel,
+        AttributeSyntax attributeSyntax,
+        CancellationToken cancellationToken
+    )
+    {
         var symbolInfo = semanticModel.GetSymbolInfo(attributeSyntax, cancellationToken);
 
-        if (symbolInfo.Symbol?.ContainingType is { } containingType) {
+        if (symbolInfo.Symbol?.ContainingType is { } containingType)
+        {
             return containingType;
         }
 
-        if (symbolInfo.CandidateSymbols.Length > 0 &&
-            symbolInfo.CandidateSymbols[0].ContainingType is { } candidateType) {
+        if (
+            symbolInfo.CandidateSymbols.Length > 0
+            && symbolInfo.CandidateSymbols[0].ContainingType is { } candidateType
+        )
+        {
             return candidateType;
         }
 
-        return semanticModel.GetTypeInfo(attributeSyntax, cancellationToken).Type as INamedTypeSymbol;
+        return semanticModel.GetTypeInfo(attributeSyntax, cancellationToken).Type
+            as INamedTypeSymbol;
     }
 
     /// <summary>
     /// The old comparison, kept only for the unresolvable case.
     /// </summary>
-    private static bool MatchesAsWritten(AttributeSyntax attributeSyntax, ITypeDefinition attributeType) {
+    private static bool MatchesAsWritten(
+        AttributeSyntax attributeSyntax,
+        ITypeDefinition attributeType
+    )
+    {
         var written = attributeSyntax.Name.ToString();
         var lastDot = written.LastIndexOf('.');
 
-        if (lastDot >= 0) {
+        if (lastDot >= 0)
+        {
             written = written.Substring(lastDot + 1);
         }
 

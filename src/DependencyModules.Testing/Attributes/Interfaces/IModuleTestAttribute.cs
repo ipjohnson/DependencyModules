@@ -12,12 +12,10 @@ namespace DependencyModules.Testing.Attributes.Interfaces;
 /// Implemented by the integrations, not by test authors. A test names its modules through the
 /// <c>[ModuleTest]</c> attribute of whichever framework it is written against.
 /// </remarks>
-public interface IModuleTestAttribute {
-
+public interface IModuleTestAttribute
+{
     /// <summary>
     /// The module types to load, in declaration order. Empty when a test names none.
     /// </summary>
-    Type[] ModuleTypes {
-        get;
-    }
+    Type[] ModuleTypes { get; }
 }

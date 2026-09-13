@@ -10,10 +10,12 @@ dotnet add package DependencyModules.xUnit
 ```csharp
 using DependencyModules.xUnit.Attributes;
 
-public class WeatherTests {
+public class WeatherTests
+{
     [ModuleTest]
     [ApplicationModule]
-    public void GetForecast(Weather weather) {
+    public void GetForecast(Weather weather)
+    {
         var forecast = weather.GetWeatherForecast().ToArray();
 
         Assert.Equal(5, forecast.Length);
@@ -89,7 +91,8 @@ implementing `IDataAttribute`. Row arguments come first, injected ones after:
 [ModuleTest]
 [InlineData("one")]
 [InlineData("two")]
-public void MultipleRows(string value, ITemperatureProvider provider) {
+public void MultipleRows(string value, ITemperatureProvider provider)
+{
     Assert.NotNull(value);       // from [InlineData]
     Assert.NotNull(provider);    // from the container
 }
@@ -119,7 +122,8 @@ green.
 `TheoryDataRow`'s own metadata is honoured per row, so a single row can skip or carry its own traits:
 
 ```csharp
-public static TheoryData<string> Cases => new() {
+public static TheoryData<string> Cases => new()
+{
     new TheoryDataRow<string>("ok"),
     new TheoryDataRow<string>("broken") { Skip = "pending #412" },
 };
@@ -136,7 +140,8 @@ test:
 
 ```csharp
 [ModuleTest]
-public void KnowsWhatItIs(ITestCaseInfo testCase) {
+public void KnowsWhatItIs(ITestCaseInfo testCase)
+{
     IXunitTestMethod method = testCase.TestMethod;
 
     Assert.Equal(nameof(KnowsWhatItIs), method.MethodName);
@@ -167,10 +172,12 @@ a different container:
 
 ```csharp
 [AttributeUsage(AttributeTargets.Method | AttributeTargets.Class | AttributeTargets.Assembly)]
-public class ValidatingProviderAttribute : Attribute, IServiceProviderBuilderAttribute {
+public class ValidatingProviderAttribute : Attribute, IServiceProviderBuilderAttribute
+{
     public IServiceProvider BuildServiceProvider(
         ITestMethodContext testMethod, IServiceCollection serviceCollection) =>
-        serviceCollection.BuildServiceProvider(new ServiceProviderOptions {
+        serviceCollection.BuildServiceProvider(new ServiceProviderOptions
+        {
             ValidateScopes = true,
             ValidateOnBuild = true,
         });

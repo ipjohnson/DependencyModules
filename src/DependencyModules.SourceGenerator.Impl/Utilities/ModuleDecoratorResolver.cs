@@ -18,8 +18,8 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities;
 /// <c>new</c> for it, and emitting one is what makes the decoration survive publishing.
 /// </para>
 /// </remarks>
-public static class ModuleDecoratorResolver {
-
+public static class ModuleDecoratorResolver
+{
     /// <summary>
     /// A resolved decorator, or the reason it could not be.
     /// </summary>
@@ -35,11 +35,15 @@ public static class ModuleDecoratorResolver {
     public static IReadOnlyList<Resolution> Resolve(
         ModuleEntryPointModel entryPointModel,
         Compilation compilation,
-        CancellationToken cancellationToken) {
-
+        CancellationToken cancellationToken
+    )
+    {
         var resolutions = new List<Resolution>();
 
-        foreach (var decorator in DecoratorModelUtility.GetModuleDeclaredDecorators(entryPointModel)) {
+        foreach (
+            var decorator in DecoratorModelUtility.GetModuleDeclaredDecorators(entryPointModel)
+        )
+        {
             cancellationToken.ThrowIfCancellationRequested();
 
             resolutions.Add(Resolve(decorator, compilation));
@@ -48,32 +52,44 @@ public static class ModuleDecoratorResolver {
         return resolutions;
     }
 
-    private static Resolution Resolve(DecoratorModel decorator, Compilation compilation) {
+    private static Resolution Resolve(DecoratorModel decorator, Compilation compilation)
+    {
         var symbol = Find(compilation, decorator.DecoratorType);
 
-        if (symbol == null) {
+        if (symbol == null)
+        {
             return new Resolution(
-                decorator, "its type could not be resolved from this compilation or its references");
+                decorator,
+                "its type could not be resolved from this compilation or its references"
+            );
         }
 
         var constructor = SymbolConstructorReader.Read(symbol);
 
-        if (constructor == null) {
+        if (constructor == null)
+        {
             return new Resolution(decorator, "it has no public constructor");
         }
 
         var innerIndex = IndexOfInner(constructor, decorator.ServiceType);
 
-        if (innerIndex < 0) {
+        if (innerIndex < 0)
+        {
             return new Resolution(
                 decorator,
-                $"no constructor parameter takes '{decorator.ServiceType.Name}', so there is nowhere " +
-                "to pass the instance being wrapped");
+                $"no constructor parameter takes '{decorator.ServiceType.Name}', so there is nowhere "
+                    + "to pass the instance being wrapped"
+            );
         }
 
         return new Resolution(
-            decorator with { Constructor = constructor, InnerParameterIndex = innerIndex },
-            null);
+            decorator with
+            {
+                Constructor = constructor,
+                InnerParameterIndex = innerIndex,
+            },
+            null
+        );
     }
 
     /// <summary>
@@ -86,13 +102,18 @@ public static class ModuleDecoratorResolver {
     /// parameter type keeps its names, because closing the decorator over a registration reads the
     /// type parameter order back off it.
     /// </remarks>
-    private static int IndexOfInner(ConstructorInfoModel constructor, ITypeDefinition serviceType) {
+    private static int IndexOfInner(ConstructorInfoModel constructor, ITypeDefinition serviceType)
+    {
         var wanted = serviceType.ToUnboundGeneric();
 
-        for (var i = 0; i < constructor.Parameters.Count; i++) {
+        for (var i = 0; i < constructor.Parameters.Count; i++)
+        {
             var parameterType = constructor.Parameters[i].ParameterType.MakeNullable(false);
 
-            if (parameterType.Equals(serviceType) || parameterType.ToUnboundGeneric().Equals(wanted)) {
+            if (
+                parameterType.Equals(serviceType) || parameterType.ToUnboundGeneric().Equals(wanted)
+            )
+            {
                 return i;
             }
         }
@@ -107,10 +128,14 @@ public static class ModuleDecoratorResolver {
     /// A generic decorator arrives with its arguments blanked, because an unbound generic is what a
     /// <c>typeof</c> can carry — so the metadata name needs the arity back on it.
     /// </remarks>
-    private static INamedTypeSymbol? Find(Compilation compilation, ITypeDefinition type) {
-        var name = string.IsNullOrEmpty(type.Namespace) ? type.Name : type.Namespace + "." + type.Name;
+    private static INamedTypeSymbol? Find(Compilation compilation, ITypeDefinition type)
+    {
+        var name = string.IsNullOrEmpty(type.Namespace)
+            ? type.Name
+            : type.Namespace + "." + type.Name;
 
-        if (type is GenericTypeDefinition { TypeArguments.Count: > 0 } generic) {
+        if (type is GenericTypeDefinition { TypeArguments.Count: > 0 } generic)
+        {
             name += "`" + generic.TypeArguments.Count;
         }
 

@@ -17,14 +17,15 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// Accessibility is judged from where the generated attribute sits: same assembly, different type.
 /// So internal reaches it and private does not, and an unmodified property is private by default.
 /// </summary>
-public class ModuleParameterAccessibilityTests {
-
+public class ModuleParameterAccessibilityTests
+{
     [Theory]
     [InlineData("private int SizeLimit { get; set; }")]
     [InlineData("protected int SizeLimit { get; set; }")]
     [InlineData("private protected int SizeLimit { get; set; }")]
     [InlineData("int SizeLimit { get; set; }")]
-    public void APropertyTheAttributeCannotReach_CompilesCleanly(string property) {
+    public void APropertyTheAttributeCannotReach_CompilesCleanly(string property)
+    {
         Run(property).AssertNoErrors();
     }
 
@@ -33,7 +34,8 @@ public class ModuleParameterAccessibilityTests {
     [InlineData("protected int SizeLimit { get; set; }")]
     [InlineData("private protected int SizeLimit { get; set; }")]
     [InlineData("int SizeLimit { get; set; }")]
-    public void APropertyTheAttributeCannotReach_IsNotCopiedOntoIt(string property) {
+    public void APropertyTheAttributeCannotReach_IsNotCopiedOntoIt(string property)
+    {
         var attribute = Run(property).SourceContaining("TestModule.Module");
 
         Assert.DoesNotContain("SizeLimit", attribute);
@@ -48,7 +50,8 @@ public class ModuleParameterAccessibilityTests {
     [InlineData("protected int SizeLimit { get; set; }")]
     [InlineData("private protected int SizeLimit { get; set; }")]
     [InlineData("int SizeLimit { get; set; }")]
-    public void APropertyTheAttributeCannotReach_IsNotReportedAsDM0018(string property) {
+    public void APropertyTheAttributeCannotReach_IsNotReportedAsDM0018(string property)
+    {
         var result = Run(property);
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0018");
@@ -62,7 +65,8 @@ public class ModuleParameterAccessibilityTests {
     [InlineData("public int SizeLimit { get; set; }")]
     [InlineData("internal int SizeLimit { get; set; }")]
     [InlineData("protected internal int SizeLimit { get; set; }")]
-    public void AReachableProperty_IsStillAParameter(string property) {
+    public void AReachableProperty_IsStillAParameter(string property)
+    {
         var result = Run(property).AssertNoErrors();
 
         Assert.Contains("SizeLimit", result.SourceContaining("TestModule.Module"));
@@ -72,13 +76,14 @@ public class ModuleParameterAccessibilityTests {
     private static GeneratorResult Run(string body) =>
         GeneratorTestHarness.Run(
             $$"""
-              using DependencyModules.Runtime.Attributes;
+            using DependencyModules.Runtime.Attributes;
 
-              namespace TestNamespace;
+            namespace TestNamespace;
 
-              [DependencyModule]
-              public partial class TestModule {
-                  {{body}}
-              }
-              """);
+            [DependencyModule]
+            public partial class TestModule {
+                {{body}}
+            }
+            """
+        );
 }

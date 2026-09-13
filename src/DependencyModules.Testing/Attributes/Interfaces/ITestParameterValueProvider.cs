@@ -15,8 +15,8 @@ namespace DependencyModules.Testing.Attributes.Interfaces;
 /// runs before the container is built, so a parameter can change what the service under test is
 /// constructed with, not merely what the test itself ends up holding.
 /// </remarks>
-public interface ITestParameterValueProvider {
-
+public interface ITestParameterValueProvider
+{
     /// <summary>
     /// Adds whatever services are needed to supply this parameter.
     /// </summary>
@@ -24,7 +24,10 @@ public interface ITestParameterValueProvider {
     /// <param name="serviceCollection">The collection backing the test's container.</param>
     /// <param name="parameter">The parameter being supplied.</param>
     void SetupServiceCollection(
-        ITestMethodContext testMethod, IServiceCollection serviceCollection, ParameterInfo parameter);
+        ITestMethodContext testMethod,
+        IServiceCollection serviceCollection,
+        ParameterInfo parameter
+    );
 
     /// <summary>
     /// Produces the value to pass for this parameter.
@@ -37,5 +40,8 @@ public interface ITestParameterValueProvider {
     /// that the parameter is resolved from the container like any other.
     /// </returns>
     Task<object?> GetParameterValueAsync(
-        ITestMethodContext testMethod, IServiceProvider serviceProvider, ParameterInfo parameter);
+        ITestMethodContext testMethod,
+        IServiceProvider serviceProvider,
+        ParameterInfo parameter
+    );
 }

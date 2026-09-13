@@ -3,7 +3,8 @@ namespace DependencyModules.SourceGenerator.Impl.Models;
 /// <summary>
 /// What an environment condition tests.
 /// </summary>
-public enum EnvironmentConditionKind {
+public enum EnvironmentConditionKind
+{
     /// <summary>
     /// The environment's name, against one or more accepted names.
     /// </summary>
@@ -41,18 +42,21 @@ public record EnvironmentConditionModel(
     EnvironmentConditionKind Kind,
     bool Negate,
     string? Key,
-    IReadOnlyList<string> Values) {
-
+    IReadOnlyList<string> Values
+)
+{
     // Structural equality over Values; see ModelEquality.
     public virtual bool Equals(EnvironmentConditionModel? other) =>
-        other is not null &&
-        Kind == other.Kind &&
-        Negate == other.Negate &&
-        Key == other.Key &&
-        ModelEquality.ListEquals(Values, other.Values);
+        other is not null
+        && Kind == other.Kind
+        && Negate == other.Negate
+        && Key == other.Key
+        && ModelEquality.ListEquals(Values, other.Values);
 
-    public override int GetHashCode() {
-        unchecked {
+    public override int GetHashCode()
+    {
+        unchecked
+        {
             var hash = (int)Kind;
             hash = hash * 31 + Negate.GetHashCode();
             hash = hash * 31 + (Key?.GetHashCode() ?? 0);

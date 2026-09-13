@@ -8,10 +8,11 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// handlers, factories, and module composition. Each asserts that the generator produces output
 /// that compiles, which is the property most easily broken by a change to the writers.
 /// </summary>
-public class GeneratorFeatureTests {
-
+public class GeneratorFeatureTests
+{
     [Fact]
-    public void OnlyRealm_RegistersOnlyServicesMarkedForThatRealm() {
+    public void OnlyRealm_RegistersOnlyServicesMarkedForThatRealm()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -29,7 +30,8 @@ public class GeneratorFeatureTests {
 
             [SingletonService]
             public class OutsideRealm : IOutsideRealm;
-            """);
+            """
+        );
 
         result.AssertNoErrors();
         var generated = result.SourceContaining("Dependencies");
@@ -39,7 +41,8 @@ public class GeneratorFeatureTests {
     }
 
     [Fact]
-    public void ModuleWithoutOnlyRealm_RegistersUnmarkedServices() {
+    public void ModuleWithoutOnlyRealm_RegistersUnmarkedServices()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -53,14 +56,16 @@ public class GeneratorFeatureTests {
 
             [DependencyModule]
             public partial class OpenModule;
-            """);
+            """
+        );
 
         result.AssertNoErrors();
         Assert.Contains("Thing", result.SourceContaining("Dependencies"));
     }
 
     [Fact]
-    public void GenerateUseMethod_EmitsTheNamedMethod() {
+    public void GenerateUseMethod_EmitsTheNamedMethod()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -74,14 +79,16 @@ public class GeneratorFeatureTests {
 
             [SingletonService(Realm = typeof(UseMethodModule))]
             public class RealmService;
-            """);
+            """
+        );
 
         result.AssertNoErrors();
         Assert.Contains("UseTestModule", result.SourceContaining(".Module.g.cs"));
     }
 
     [Fact]
-    public void GenerateAttributeFalse_SuppressesTheModuleAttribute() {
+    public void GenerateAttributeFalse_SuppressesTheModuleAttribute()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -95,14 +102,19 @@ public class GeneratorFeatureTests {
 
             [DependencyModule(GenerateAttribute = false)]
             public partial class NoAttributeModule;
-            """);
+            """
+        );
 
         result.AssertNoErrors();
-        Assert.DoesNotContain("class NoAttributeModuleAttribute", result.SourceContaining(".Module.g.cs"));
+        Assert.DoesNotContain(
+            "class NoAttributeModuleAttribute",
+            result.SourceContaining(".Module.g.cs")
+        );
     }
 
     [Fact]
-    public void ModuleImplementingAFeature_EmitsAFeatureApplicator() {
+    public void ModuleImplementingAFeature_EmitsAFeatureApplicator()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using System.Collections.Generic;
@@ -121,7 +133,8 @@ public class GeneratorFeatureTests {
                 public void HandleFeature(IServiceCollection collection, IEnumerable<IModuleFeatureValue> feature) {
                 }
             }
-            """);
+            """
+        );
 
         result.AssertNoErrors();
         var generated = result.SourceContaining(".Module.g.cs");
@@ -131,7 +144,8 @@ public class GeneratorFeatureTests {
     }
 
     [Fact]
-    public void ModuleImplementingConfiguration_StillGeneratesRegistrations() {
+    public void ModuleImplementingConfiguration_StillGeneratesRegistrations()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -153,14 +167,16 @@ public class GeneratorFeatureTests {
                 public void ConfigureDecorators(IServiceCollection services) {
                 }
             }
-            """);
+            """
+        );
 
         result.AssertNoErrors();
         Assert.Contains("AddSingleton", result.SourceContaining("Dependencies"));
     }
 
     [Fact]
-    public void ModuleWithConstructorParameters_PutsThemOnTheGeneratedAttribute() {
+    public void ModuleWithConstructorParameters_PutsThemOnTheGeneratedAttribute()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -169,7 +185,8 @@ public class GeneratorFeatureTests {
 
             [DependencyModule]
             public partial class ParameterizedModule(bool someFlag, string name);
-            """);
+            """
+        );
 
         result.AssertNoErrors();
         var generated = result.SourceContaining(".Module.g.cs");
@@ -179,7 +196,8 @@ public class GeneratorFeatureTests {
     }
 
     [Fact]
-    public void ModuleWithSettableProperties_PutsThemOnTheGeneratedAttribute() {
+    public void ModuleWithSettableProperties_PutsThemOnTheGeneratedAttribute()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -191,7 +209,8 @@ public class GeneratorFeatureTests {
                 public string Settable { get; set; } = "";
                 public string ReadOnly { get; } = "";
             }
-            """);
+            """
+        );
 
         result.AssertNoErrors();
         var generated = result.SourceContaining(".Module.g.cs");
@@ -201,7 +220,8 @@ public class GeneratorFeatureTests {
     }
 
     [Fact]
-    public void ModuleApplyingAnotherModule_CompilesAndReferencesIt() {
+    public void ModuleApplyingAnotherModule_CompilesAndReferencesIt()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -219,14 +239,16 @@ public class GeneratorFeatureTests {
             [DependencyModule]
             [BaseModule]
             public partial class ComposedModule;
-            """);
+            """
+        );
 
         result.AssertNoErrors();
         Assert.Contains("BaseModuleAttribute", result.SourceContaining("ComposedModule.Module"));
     }
 
     [Fact]
-    public void FactoryWithParameters_EmitsAFactoryRegistration() {
+    public void FactoryWithParameters_EmitsAFactoryRegistration()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -248,7 +270,8 @@ public class GeneratorFeatureTests {
 
             [DependencyModule]
             public partial class FactoryModule;
-            """);
+            """
+        );
 
         result.AssertNoErrors();
         var generated = result.SourceContaining("Dependencies");
@@ -258,7 +281,8 @@ public class GeneratorFeatureTests {
     }
 
     [Fact]
-    public void ServiceWithConstructorDependencies_Compiles() {
+    public void ServiceWithConstructorDependencies_Compiles()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -278,7 +302,8 @@ public class GeneratorFeatureTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         result.AssertNoErrors();
         Assert.Contains("Second", result.SourceContaining("Dependencies"));
@@ -289,7 +314,8 @@ public class GeneratorFeatureTests {
     /// what [CrossWireService] is for, and [SingletonService(As = ...)] selects a specific one.
     /// </summary>
     [Fact]
-    public void ServiceImplementingSeveralInterfaces_RegistersTheFirstOne() {
+    public void ServiceImplementingSeveralInterfaces_RegistersTheFirstOne()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -304,7 +330,8 @@ public class GeneratorFeatureTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         result.AssertNoErrors();
         var generated = result.SourceContaining("Dependencies");
@@ -314,7 +341,8 @@ public class GeneratorFeatureTests {
     }
 
     [Fact]
-    public void CrossWireService_RegistersTheImplementationAndItsInterfaces() {
+    public void CrossWireService_RegistersTheImplementationAndItsInterfaces()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -329,7 +357,8 @@ public class GeneratorFeatureTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         result.AssertNoErrors();
         var generated = result.SourceContaining("Dependencies");
@@ -340,7 +369,8 @@ public class GeneratorFeatureTests {
     }
 
     [Fact]
-    public void ModuleLevelRegistrationType_AppliesToItsServices() {
+    public void ModuleLevelRegistrationType_AppliesToItsServices()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -354,14 +384,16 @@ public class GeneratorFeatureTests {
 
             [DependencyModule(Using = RegistrationType.Try)]
             public partial class TryModule;
-            """);
+            """
+        );
 
         result.AssertNoErrors();
         Assert.Contains("TryAdd", result.SourceContaining("Dependencies"));
     }
 
     [Fact]
-    public void SeveralModulesInOneCompilation_EachGetTheirOwnFiles() {
+    public void SeveralModulesInOneCompilation_EachGetTheirOwnFiles()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -378,7 +410,8 @@ public class GeneratorFeatureTests {
 
             [DependencyModule]
             public partial class SecondModule;
-            """);
+            """
+        );
 
         result.AssertNoErrors();
 
@@ -387,7 +420,8 @@ public class GeneratorFeatureTests {
     }
 
     [Fact]
-    public void ModuleInANestedNamespace_GeneratesIntoThatNamespace() {
+    public void ModuleInANestedNamespace_GeneratesIntoThatNamespace()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -401,14 +435,16 @@ public class GeneratorFeatureTests {
 
             [DependencyModule]
             public partial class NestedModule;
-            """);
+            """
+        );
 
         result.AssertNoErrors();
         Assert.Contains("namespace Outer.Inner", result.SourceContaining(".Module.g.cs"));
     }
 
     [Fact]
-    public void ServiceWithNoInterfaces_RegistersItselfAsTheServiceType() {
+    public void ServiceWithNoInterfaces_RegistersItselfAsTheServiceType()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -420,14 +456,16 @@ public class GeneratorFeatureTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         result.AssertNoErrors();
         Assert.Contains("Standalone", result.SourceContaining("Dependencies"));
     }
 
     [Fact]
-    public void ModuleThatOverridesEquals_KeepsTheDeveloperImplementation() {
+    public void ModuleThatOverridesEquals_KeepsTheDeveloperImplementation()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -447,14 +485,19 @@ public class GeneratorFeatureTests {
 
                 public override int GetHashCode() => Key.GetHashCode();
             }
-            """);
+            """
+        );
 
         result.AssertNoErrors();
-        Assert.DoesNotContain("public override bool Equals", result.SourceContaining(".Module.g.cs"));
+        Assert.DoesNotContain(
+            "public override bool Equals",
+            result.SourceContaining(".Module.g.cs")
+        );
     }
 
     [Fact]
-    public void ScopedAndTransientFactories_AreSupported() {
+    public void ScopedAndTransientFactories_AreSupported()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -474,7 +517,8 @@ public class GeneratorFeatureTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         result.AssertNoErrors();
         var generated = result.SourceContaining("Dependencies");

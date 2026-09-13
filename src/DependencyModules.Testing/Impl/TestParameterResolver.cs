@@ -20,16 +20,19 @@ namespace DependencyModules.Testing.Impl;
 /// <see cref="ResolveArgumentsAsync"/> once there is a provider to resolve from. One instance belongs
 /// to one container: a data-driven test that builds a container per row wants a resolver per row too.
 /// </remarks>
-public sealed class TestParameterResolver {
+public sealed class TestParameterResolver
+{
     private readonly ITestMethodContext _testMethod;
-    private readonly Dictionary<ParameterInfo, List<ITestParameterValueProvider>> _valueProviders = new();
+    private readonly Dictionary<ParameterInfo, List<ITestParameterValueProvider>> _valueProviders =
+        new();
     private bool _setupRan;
 
     /// <summary>
     /// Creates a resolver for one test method and one container.
     /// </summary>
     /// <param name="testMethod">The test whose parameters are being supplied.</param>
-    public TestParameterResolver(ITestMethodContext testMethod) {
+    public TestParameterResolver(ITestMethodContext testMethod)
+    {
         _testMethod = testMethod;
     }
 
@@ -42,13 +45,19 @@ public sealed class TestParameterResolver {
     /// constructed against it — rather than the test being handed a double nothing else can see.
     /// </remarks>
     /// <param name="serviceCollection">The collection backing the test's container.</param>
-    public void SetupServiceCollection(IServiceCollection serviceCollection) {
-        foreach (var parameterInfo in _testMethod.Method.GetParameters()) {
-            var providers = parameterInfo.GetCustomAttributes().OfType<ITestParameterValueProvider>().ToList();
+    public void SetupServiceCollection(IServiceCollection serviceCollection)
+    {
+        foreach (var parameterInfo in _testMethod.Method.GetParameters())
+        {
+            var providers = parameterInfo
+                .GetCustomAttributes()
+                .OfType<ITestParameterValueProvider>()
+                .ToList();
 
             _valueProviders.Add(parameterInfo, providers);
 
-            foreach (var valueProvider in providers) {
+            foreach (var valueProvider in providers)
+            {
                 valueProvider.SetupServiceCollection(_testMethod, serviceCollection, parameterInfo);
             }
         }
@@ -76,17 +85,24 @@ public sealed class TestParameterResolver {
     /// would quietly skip every parameter attribute, so a <c>[Mock]</c> parameter would hand back the
     /// real service instead of a substitute.
     /// </exception>
-    public async Task<object?[]> ResolveArgumentsAsync(IServiceProvider serviceProvider, object?[] data) {
-        if (!_setupRan) {
+    public async Task<object?[]> ResolveArgumentsAsync(
+        IServiceProvider serviceProvider,
+        object?[] data
+    )
+    {
+        if (!_setupRan)
+        {
             throw new InvalidOperationException(
-                $"{nameof(SetupServiceCollection)} must be called before {nameof(ResolveArgumentsAsync)}, " +
-                "while the service collection can still be added to.");
+                $"{nameof(SetupServiceCollection)} must be called before {nameof(ResolveArgumentsAsync)}, "
+                    + "while the service collection can still be added to."
+            );
         }
 
         var parameterList = _testMethod.Method.GetParameters();
         var arguments = new List<object?>(data);
 
-        for (var i = data.Length; i < parameterList.Length; i++) {
+        for (var i = data.Length; i < parameterList.Length; i++)
+        {
             var parameterInfo = parameterList[i];
 
             var value = await ResolveFromParameterProviders(parameterInfo, serviceProvider);
@@ -103,15 +119,25 @@ public sealed class TestParameterResolver {
     /// because a test asking for the container itself cannot be resolved from it.
     /// </remarks>
     private async Task<object?> ResolveFromParameterProviders(
-        ParameterInfo parameterInfo, IServiceProvider serviceProvider) {
-        if (parameterInfo.ParameterType == typeof(IServiceProvider)) {
+        ParameterInfo parameterInfo,
+        IServiceProvider serviceProvider
+    )
+    {
+        if (parameterInfo.ParameterType == typeof(IServiceProvider))
+        {
             return serviceProvider;
         }
 
-        foreach (var valueProvider in _valueProviders[parameterInfo]) {
-            var value = await valueProvider.GetParameterValueAsync(_testMethod, serviceProvider, parameterInfo);
+        foreach (var valueProvider in _valueProviders[parameterInfo])
+        {
+            var value = await valueProvider.GetParameterValueAsync(
+                _testMethod,
+                serviceProvider,
+                parameterInfo
+            );
 
-            if (value != null) {
+            if (value != null)
+            {
                 return value;
             }
         }
@@ -119,15 +145,26 @@ public sealed class TestParameterResolver {
         return null;
     }
 
-    private object? ResolveFromContainer(ParameterInfo parameterInfo, IServiceProvider serviceProvider) {
+    private object? ResolveFromContainer(
+        ParameterInfo parameterInfo,
+        IServiceProvider serviceProvider
+    )
+    {
         var keyedServicesAttribute = parameterInfo.GetCustomAttribute<FromKeyedServicesAttribute>();
 
-        if (keyedServicesAttribute != null && serviceProvider is IKeyedServiceProvider keyedServiceProvider) {
-            return keyedServiceProvider.GetKeyedService(parameterInfo.ParameterType, keyedServicesAttribute.Key);
+        if (
+            keyedServicesAttribute != null
+            && serviceProvider is IKeyedServiceProvider keyedServiceProvider
+        )
+        {
+            return keyedServiceProvider.GetKeyedService(
+                parameterInfo.ParameterType,
+                keyedServicesAttribute.Key
+            );
         }
 
         return serviceProvider.GetService(parameterInfo.ParameterType)
-               ?? ConstructValueFromType(parameterInfo, serviceProvider);
+            ?? ConstructValueFromType(parameterInfo, serviceProvider);
     }
 
     /// <summary>
@@ -138,15 +175,25 @@ public sealed class TestParameterResolver {
     /// An <see cref="IInjectValueAttribute"/> on the parameter supplies the constructor arguments the
     /// container cannot work out for itself. The last one on the parameter wins.
     /// </remarks>
-    private static object? ConstructValueFromType(ParameterInfo parameterInfo, IServiceProvider serviceProvider) {
+    private static object? ConstructValueFromType(
+        ParameterInfo parameterInfo,
+        IServiceProvider serviceProvider
+    )
+    {
         object[] parameterValues = [];
 
-        foreach (var attribute in parameterInfo.GetCustomAttributes()) {
-            if (attribute is IInjectValueAttribute injectValueAttribute) {
+        foreach (var attribute in parameterInfo.GetCustomAttributes())
+        {
+            if (attribute is IInjectValueAttribute injectValueAttribute)
+            {
                 parameterValues = injectValueAttribute.ProvideValue(serviceProvider, parameterInfo);
             }
         }
 
-        return ActivatorUtilities.CreateInstance(serviceProvider, parameterInfo.ParameterType, parameterValues);
+        return ActivatorUtilities.CreateInstance(
+            serviceProvider,
+            parameterInfo.ParameterType,
+            parameterValues
+        );
     }
 }

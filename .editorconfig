@@ -1,0 +1,53 @@
+root = true
+
+# CSharpier is what enforces the layout below; this file exists so an IDE reaches the same answer
+# while you type, rather than reformatting to its own defaults and losing the change at the next
+# commit. CSharpier reads indent_style, indent_size, max_line_length and end_of_line from here, so
+# those four are shared settings rather than a second opinion. Everything else describes what
+# CSharpier already does and is not configurable in it.
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{json,yaml,yml,md}]
+indent_size = 2
+
+[*.md]
+# Two trailing spaces is a line break in Markdown.
+trim_trailing_whitespace = false
+
+[*.{csproj,props,targets}]
+# Not formatted by CSharpier — see .csharpierignore.
+indent_size = 4
+
+[*.cs]
+max_line_length = 100
+
+# Allman. This is the one CSharpier does not offer a choice about, and the reason the repo moved
+# off K&R: matching the formatter is cheaper than arguing with it.
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+csharp_new_line_before_members_in_object_initializers = true
+csharp_new_line_before_members_in_anonymous_types = true
+csharp_new_line_between_query_expression_clauses = true
+
+csharp_indent_case_contents = true
+csharp_indent_switch_labels = true
+csharp_indent_labels = one_less_than_current
+
+csharp_space_after_cast = false
+csharp_space_after_keywords_in_control_flow_statements = true
+csharp_space_between_method_declaration_parameter_list_parentheses = false
+csharp_space_between_method_call_parameter_list_parentheses = false
+csharp_space_before_colon_in_inheritance_clause = true
+csharp_space_after_colon_in_inheritance_clause = true
+csharp_space_around_binary_operators = before_and_after
+
+csharp_preserve_single_line_statements = false
+csharp_preserve_single_line_blocks = true

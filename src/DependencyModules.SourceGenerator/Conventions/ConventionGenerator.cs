@@ -1,6 +1,6 @@
-using CSharpAuthor;
 using System.Collections.Immutable;
 using System.Text;
+using CSharpAuthor;
 using DependencyModules.Conventions.Models;
 using DependencyModules.Conventions.Utilities;
 using DependencyModules.SourceGenerator.Impl;
@@ -15,7 +15,10 @@ namespace DependencyModules.Conventions;
 /// A module-level <c>[Decorate]</c> after its decorator's constructor has been looked up.
 /// </summary>
 public record ResolvedModuleDecorator(
-    ITypeDefinition ModuleType, DecoratorModel Model, string? Reason);
+    ITypeDefinition ModuleType,
+    DecoratorModel Model,
+    string? Reason
+);
 
 /// <summary>
 /// The module-level decorations, and the compilation they were resolved from.
@@ -31,8 +34,10 @@ public record ResolvedModuleDecorator(
 /// only symbols can answer.
 /// </remarks>
 public record ModuleDecorators(
-    EquatableList<ResolvedModuleDecorator> Resolved, Compilation Compilation) {
-
+    EquatableList<ResolvedModuleDecorator> Resolved,
+    Compilation Compilation
+)
+{
     public virtual bool Equals(ModuleDecorators? other) =>
         other is not null && Resolved.Equals(other.Resolved);
 
@@ -55,14 +60,18 @@ public record ModuleDecorators(
 /// stamp of everything that can change what a name binds to, which took the per-keystroke cost from
 /// 11–39 ms at 2,000 classes to a flat ~11 ms, and the convention half of that to ~2.4 ms.
 /// </remarks>
-public class ConventionGenerator : IDependencyModuleSourceGenerator {
-
+public class ConventionGenerator : IDependencyModuleSourceGenerator
+{
     private const string LoggerName = "ConventionSourceGenerator";
 
     public void SetupGenerator(
         IncrementalGeneratorInitializationContext context,
-        IncrementalValuesProvider<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> incrementalValueProvider) {
-
+        IncrementalValuesProvider<(
+            ModuleEntryPointModel Left,
+            DependencyModuleConfigurationModel Right
+        )> incrementalValueProvider
+    )
+    {
         // The contracts used to be emitted here through RegisterPostInitializationOutput. They now
         // live in DependencyModules.Runtime, which is what lets them be public — and public is what
         // retires the explicit implementation requirement and the CS0436 between two assemblies that
@@ -75,11 +84,12 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
         // Lambdas rather than method groups: SyntaxTransformContext converts implicitly from
         // GeneratorSyntaxContext, but a method group conversion will not apply a user-defined
         // conversion to a parameter.
-        var conventionModules = context.SyntaxProvider
-            .CreateSyntaxProvider(
+        var conventionModules = context
+            .SyntaxProvider.CreateSyntaxProvider(
                 ConventionModelUtility.IsConventionModuleCandidate,
                 (syntaxContext, cancellation) =>
-                    ConventionModelUtility.GetConventionModuleModel(syntaxContext, cancellation))
+                    ConventionModelUtility.GetConventionModuleModel(syntaxContext, cancellation)
+            )
             .Where(model => !model.IsIgnored)
             .Collect();
 
@@ -93,9 +103,11 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
             context,
             new[] { KnownTypes.DependencyModules.Attributes.DecoratorAttribute },
             static (syntaxContext, cancellation) =>
-                DecoratorModelUtility.GetDecoratorModel(syntaxContext, cancellation) ?? DecoratorModel.Ignore,
+                DecoratorModelUtility.GetDecoratorModel(syntaxContext, cancellation)
+                ?? DecoratorModel.Ignore,
             new DecoratorModelComparer(),
-            DecoratorModel.Ignore);
+            DecoratorModel.Ignore
+        );
 
         // The registrations the *attributes* made. Decoration needs them and the convention ones in
         // the same place: a generic decorator is closed over the type arguments a registration used,
@@ -103,44 +115,66 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
         // up emitted from two stages that could not see each other.
         var attributeServices = AttributeModelCollector.Collect(
             context,
-            new[] {
+            new[]
+            {
                 KnownTypes.DependencyModules.Attributes.TransientServiceAttribute,
                 KnownTypes.DependencyModules.Attributes.ScopedServiceAttribute,
                 KnownTypes.DependencyModules.Attributes.SingletonServiceAttribute,
-                KnownTypes.DependencyModules.Attributes.CrossWireServiceAttribute
+                KnownTypes.DependencyModules.Attributes.CrossWireServiceAttribute,
             },
             static (syntaxContext, cancellation) =>
-                ServiceModelUtility.GetServiceModel(syntaxContext, cancellation) ?? ServiceModel.Ignore,
+                ServiceModelUtility.GetServiceModel(syntaxContext, cancellation)
+                ?? ServiceModel.Ignore,
             new ServiceModelComparer(),
-            ServiceModel.Ignore);
+            ServiceModel.Ignore
+        );
 
         // [Decorate] on a module names its decorator by typeof(), so the constructor has to be
         // looked up from the compilation. Resolved here rather than in the output stage: the
         // compilation changes on every keystroke, and combining it into the output would re-emit
         // everything every time. The result is compared by value, so an unchanged lookup propagates
         // nothing — the same shape the metadata scan below uses, and for the same reason.
-        var moduleDecorators = incrementalValueProvider.Collect()
+        var moduleDecorators = incrementalValueProvider
+            .Collect()
             .Combine(context.CompilationProvider)
-            .Select((pair, cancellation) => {
-                var resolved = new List<ResolvedModuleDecorator>();
+            .Select(
+                (pair, cancellation) =>
+                {
+                    var resolved = new List<ResolvedModuleDecorator>();
 
-                foreach (var (entryPoint, _) in pair.Left) {
-                    foreach (var resolution in
-                             ModuleDecoratorResolver.Resolve(entryPoint, pair.Right, cancellation)) {
-                        resolved.Add(new ResolvedModuleDecorator(
-                            entryPoint.EntryPointType, resolution.Model, resolution.Reason));
+                    foreach (var (entryPoint, _) in pair.Left)
+                    {
+                        foreach (
+                            var resolution in ModuleDecoratorResolver.Resolve(
+                                entryPoint,
+                                pair.Right,
+                                cancellation
+                            )
+                        )
+                        {
+                            resolved.Add(
+                                new ResolvedModuleDecorator(
+                                    entryPoint.EntryPointType,
+                                    resolution.Model,
+                                    resolution.Reason
+                                )
+                            );
+                        }
                     }
+
+                    return new ModuleDecorators(
+                        new EquatableList<ResolvedModuleDecorator>(resolved),
+                        pair.Right
+                    );
                 }
+            );
 
-                return new ModuleDecorators(
-                    new EquatableList<ResolvedModuleDecorator>(resolved), pair.Right);
-            });
-
-        var candidates = context.SyntaxProvider
-            .CreateSyntaxProvider(
+        var candidates = context
+            .SyntaxProvider.CreateSyntaxProvider(
                 ConventionCandidateUtility.IsCandidate,
                 (syntaxContext, cancellation) =>
-                    ConventionCandidateCache.GetOrAdd(syntaxContext, cancellation))
+                    ConventionCandidateCache.GetOrAdd(syntaxContext, cancellation)
+            )
             .Where(model => !model.IsIgnored)
             .Collect();
 
@@ -152,11 +186,15 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
         // case and costs nothing.
         var metadataCandidates = conventionModules
             .Combine(context.CompilationProvider)
-            .Select((pair, cancellation) =>
-                new EquatableList<ConventionCandidateModel>(
-                    MetadataCandidateUtility.Collect(pair.Left, pair.Right, cancellation)));
+            .Select(
+                (pair, cancellation) =>
+                    new EquatableList<ConventionCandidateModel>(
+                        MetadataCandidateUtility.Collect(pair.Left, pair.Right, cancellation)
+                    )
+            );
 
-        var everything = incrementalValueProvider.Collect()
+        var everything = incrementalValueProvider
+            .Collect()
             .Combine(conventionModules)
             .Combine(candidates)
             .Combine(metadataCandidates)
@@ -180,19 +218,38 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
         // The cost is that matching runs twice, once per output. The emitting pass is silent, so
         // nothing composes a diagnostic message it is about to discard, and this pass writes no
         // source.
-        context.RegisterSourceOutput(everything.Combine(context.CompilationProvider), ReportDiagnostics);
+        context.RegisterSourceOutput(
+            everything.Combine(context.CompilationProvider),
+            ReportDiagnostics
+        );
     }
 
     private void GenerateSourceOutput(
         SourceProductionContext context,
-        ((((((ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> Left,
-            ImmutableArray<ConventionModuleModel> Right) Left,
-            ImmutableArray<ConventionCandidateModel> Right) Left,
-            EquatableList<ConventionCandidateModel> Right) Left,
-            ImmutableArray<DecoratorModel> Right) Left,
-            ImmutableArray<ServiceModel> Right) Left,
-            ModuleDecorators Right) data) {
-
+        (
+            (
+                (
+                    (
+                        (
+                            (
+                                ImmutableArray<(
+                                    ModuleEntryPointModel Left,
+                                    DependencyModuleConfigurationModel Right
+                                )> Left,
+                                ImmutableArray<ConventionModuleModel> Right
+                            ) Left,
+                            ImmutableArray<ConventionCandidateModel> Right
+                        ) Left,
+                        EquatableList<ConventionCandidateModel> Right
+                    ) Left,
+                    ImmutableArray<DecoratorModel> Right
+                ) Left,
+                ImmutableArray<ServiceModel> Right
+            ) Left,
+            ModuleDecorators Right
+        ) data
+    )
+    {
         var entryPoints = data.Left.Left.Left.Left.Left.Left;
         var conventionModules = data.Left.Left.Left.Left.Left.Right;
         var decorators = data.Left.Left.Right;
@@ -201,13 +258,15 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
 
         // In-compilation candidates and metadata candidates travel together; a convention sees one
         // source or the other, decided by whether it named an assembly.
-        var candidates = data.Left.Left.Left.Left.Right.Length == 0
-            ? (IReadOnlyList<ConventionCandidateModel>)data.Left.Left.Left.Right
-            : data.Left.Left.Left.Left.Right.Concat(data.Left.Left.Left.Right).ToArray();
+        var candidates =
+            data.Left.Left.Left.Left.Right.Length == 0
+                ? (IReadOnlyList<ConventionCandidateModel>)data.Left.Left.Left.Right
+                : data.Left.Left.Left.Left.Right.Concat(data.Left.Left.Left.Right).ToArray();
 
         // Decoration runs whether or not anything declares a convention, so the early-out is on
         // entry points alone.
-        if (entryPoints.Length == 0) {
+        if (entryPoints.Length == 0)
+        {
             return;
         }
 
@@ -216,16 +275,30 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
         FileLogger.Wrap(
             LoggerName,
             configuration,
-            logger => Generate(
-                context, entryPoints, conventionModules, candidates, decorators, attributeServices,
-                moduleDecorators, DiagnosticReporter.Silent, emit: true, logger),
+            logger =>
+                Generate(
+                    context,
+                    entryPoints,
+                    conventionModules,
+                    candidates,
+                    decorators,
+                    attributeServices,
+                    moduleDecorators,
+                    DiagnosticReporter.Silent,
+                    emit: true,
+                    logger
+                ),
             // Surfaced as a build error rather than discarded, matching the attribute generators. A
             // generator that fails quietly produces a green build with no registrations.
-            exception => context.ReportDiagnostic(
-                Diagnostic.Create(
-                    DependencyModuleDiagnostics.GeneratorFailure,
-                    Location.None,
-                    $"{exception.GetType().Name}: {exception.Message}")));
+            exception =>
+                context.ReportDiagnostic(
+                    Diagnostic.Create(
+                        DependencyModuleDiagnostics.GeneratorFailure,
+                        Location.None,
+                        $"{exception.GetType().Name}: {exception.Message}"
+                    )
+                )
+        );
     }
 
     /// <summary>
@@ -233,46 +306,85 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
     /// </summary>
     private void ReportDiagnostics(
         SourceProductionContext context,
-        (((((((ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> Left,
-            ImmutableArray<ConventionModuleModel> Right) Left,
-            ImmutableArray<ConventionCandidateModel> Right) Left,
-            EquatableList<ConventionCandidateModel> Right) Left,
-            ImmutableArray<DecoratorModel> Right) Left,
-            ImmutableArray<ServiceModel> Right) Left,
-            ModuleDecorators Right) Left,
-            Compilation Right) data) {
-
+        (
+            (
+                (
+                    (
+                        (
+                            (
+                                (
+                                    ImmutableArray<(
+                                        ModuleEntryPointModel Left,
+                                        DependencyModuleConfigurationModel Right
+                                    )> Left,
+                                    ImmutableArray<ConventionModuleModel> Right
+                                ) Left,
+                                ImmutableArray<ConventionCandidateModel> Right
+                            ) Left,
+                            EquatableList<ConventionCandidateModel> Right
+                        ) Left,
+                        ImmutableArray<DecoratorModel> Right
+                    ) Left,
+                    ImmutableArray<ServiceModel> Right
+                ) Left,
+                ModuleDecorators Right
+            ) Left,
+            Compilation Right
+        ) data
+    )
+    {
         var models = data.Left;
         var entryPoints = models.Left.Left.Left.Left.Left.Left;
 
-        if (entryPoints.Length == 0) {
+        if (entryPoints.Length == 0)
+        {
             return;
         }
 
-        var candidates = models.Left.Left.Left.Left.Right.Length == 0
-            ? (IReadOnlyList<ConventionCandidateModel>)models.Left.Left.Left.Right
-            : models.Left.Left.Left.Left.Right.Concat(models.Left.Left.Left.Right).ToArray();
+        var candidates =
+            models.Left.Left.Left.Left.Right.Length == 0
+                ? (IReadOnlyList<ConventionCandidateModel>)models.Left.Left.Left.Right
+                : models.Left.Left.Left.Left.Right.Concat(models.Left.Left.Left.Right).ToArray();
 
         var configuration = entryPoints.First().Right;
-        var report = new DiagnosticReporter(context.ReportDiagnostic, new SyntaxTreeLookup(data.Right));
+        var report = new DiagnosticReporter(
+            context.ReportDiagnostic,
+            new SyntaxTreeLookup(data.Right)
+        );
 
         FileLogger.Wrap(
             LoggerName,
             configuration,
-            logger => Generate(
-                context, entryPoints, models.Left.Left.Left.Left.Left.Right, candidates,
-                models.Left.Left.Right, models.Left.Right, models.Right,
-                report, emit: false, logger),
-            exception => context.ReportDiagnostic(
-                Diagnostic.Create(
-                    DependencyModuleDiagnostics.GeneratorFailure,
-                    Location.None,
-                    $"{exception.GetType().Name}: {exception.Message}")));
+            logger =>
+                Generate(
+                    context,
+                    entryPoints,
+                    models.Left.Left.Left.Left.Left.Right,
+                    candidates,
+                    models.Left.Left.Right,
+                    models.Left.Right,
+                    models.Right,
+                    report,
+                    emit: false,
+                    logger
+                ),
+            exception =>
+                context.ReportDiagnostic(
+                    Diagnostic.Create(
+                        DependencyModuleDiagnostics.GeneratorFailure,
+                        Location.None,
+                        $"{exception.GetType().Name}: {exception.Message}"
+                    )
+                )
+        );
     }
 
     private void Generate(
         SourceProductionContext context,
-        ImmutableArray<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> entryPoints,
+        ImmutableArray<(
+            ModuleEntryPointModel Left,
+            DependencyModuleConfigurationModel Right
+        )> entryPoints,
         ImmutableArray<ConventionModuleModel> conventionModules,
         IReadOnlyList<ConventionCandidateModel> candidates,
         ImmutableArray<DecoratorModel> decorators,
@@ -280,13 +392,17 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
         ModuleDecorators moduleDecorators,
         DiagnosticReporter report,
         bool emit,
-        FileLogger logger) {
-
-        var (entryPointList, configurationModel) = EntryModelUtil.ConsolidateEntryPointModels(entryPoints);
+        FileLogger logger
+    )
+    {
+        var (entryPointList, configurationModel) = EntryModelUtil.ConsolidateEntryPointModels(
+            entryPoints
+        );
 
         logger.Info(
-            $"Discovered {conventionModules.Length} convention module(s) and " +
-            $"{candidates.Count} candidate type(s).");
+            $"Discovered {conventionModules.Length} convention module(s) and "
+                + $"{candidates.Count} candidate type(s)."
+        );
 
         var claimed = new HashSet<ConventionModuleModel>();
 
@@ -294,19 +410,32 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
         // and convention registrations are emitted once rather than alongside an identical copy on
         // the module it defers to. It can never be a convention module itself - IConventionModule is
         // implemented by hand - so nothing here goes unclaimed as a result.
-        foreach (var entryPointModel in EntryModelUtil.RegistrationTargets(entryPointList)) {
+        foreach (var entryPointModel in EntryModelUtil.RegistrationTargets(entryPointList))
+        {
             context.CancellationToken.ThrowIfCancellationRequested();
 
-            var conventionModule = conventionModules.FirstOrDefault(
-                module => module.ModuleType.Equals(entryPointModel.EntryPointType));
+            var conventionModule = conventionModules.FirstOrDefault(module =>
+                module.ModuleType.Equals(entryPointModel.EntryPointType)
+            );
 
-            if (conventionModule != null) {
+            if (conventionModule != null)
+            {
                 claimed.Add(conventionModule);
             }
 
             GenerateForModule(
-                context, entryPointModel, configurationModel, conventionModule, candidates, decorators,
-                attributeServices, moduleDecorators, report, emit, logger);
+                context,
+                entryPointModel,
+                configurationModel,
+                conventionModule,
+                candidates,
+                decorators,
+                attributeServices,
+                moduleDecorators,
+                report,
+                emit,
+                logger
+            );
         }
 
         ReportUnclaimedModules(report, conventionModules, claimed, logger);
@@ -323,23 +452,38 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
         ModuleDecorators moduleDecorators,
         DiagnosticReporter report,
         bool emit,
-        FileLogger logger) {
-
+        FileLogger logger
+    )
+    {
         var withNamespace = EntryModelUtil.EnsureNamespace(entryPointModel, configurationModel);
 
-        var serviceModels = conventionModule == null
-            ? Array.Empty<ServiceModel>()
-            : ConventionMatcher.Match(
-                withNamespace, conventionModule, candidates, report, logger);
+        var serviceModels =
+            conventionModule == null
+                ? Array.Empty<ServiceModel>()
+                : ConventionMatcher.Match(
+                    withNamespace,
+                    conventionModule,
+                    candidates,
+                    report,
+                    logger
+                );
 
         // Every registration this compilation makes, however it was declared. This is the whole
         // point of the single stage: a generic decorator is expanded once, against all of them.
         WriteDecorators(
-            context, withNamespace, configurationModel,
-            ServiceTypes(attributeServices, serviceModels), decorators, moduleDecorators,
-            report, emit, logger);
+            context,
+            withNamespace,
+            configurationModel,
+            ServiceTypes(attributeServices, serviceModels),
+            decorators,
+            moduleDecorators,
+            report,
+            emit,
+            logger
+        );
 
-        if (serviceModels.Count == 0 || !emit) {
+        if (serviceModels.Count == 0 || !emit)
+        {
             return;
         }
 
@@ -352,27 +496,37 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
 
         context.AddSource(
             withNamespace.EntryPointType.GetFileNameHint(
-                configurationModel.RootNamespace, "ConventionDependencies"),
-            output);
+                configurationModel.RootNamespace,
+                "ConventionDependencies"
+            ),
+            output
+        );
     }
 
     /// <summary>
     /// Every service type the compilation registers, in the closed form it registers it as.
     /// </summary>
     private static IReadOnlyList<ITypeDefinition> ServiceTypes(
-        ImmutableArray<ServiceModel> attributeServices, IReadOnlyList<ServiceModel> conventionServices) {
-
+        ImmutableArray<ServiceModel> attributeServices,
+        IReadOnlyList<ServiceModel> conventionServices
+    )
+    {
         var seen = new HashSet<ITypeDefinition>();
         var ordered = new List<ITypeDefinition>();
 
-        void Add(IEnumerable<ServiceModel> models) {
-            foreach (var model in models) {
-                if (model.Equals(ServiceModel.Ignore)) {
+        void Add(IEnumerable<ServiceModel> models)
+        {
+            foreach (var model in models)
+            {
+                if (model.Equals(ServiceModel.Ignore))
+                {
                     continue;
                 }
 
-                foreach (var registration in model.Registrations) {
-                    if (seen.Add(registration.ServiceType)) {
+                foreach (var registration in model.Registrations)
+                {
+                    if (seen.Add(registration.ServiceType))
+                    {
                         ordered.Add(registration.ServiceType);
                     }
                 }
@@ -409,11 +563,19 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
         ModuleDecorators moduleDecorators,
         DiagnosticReporter report,
         bool emit,
-        FileLogger logger) {
+        FileLogger logger
+    )
+    {
+        var decorators = CollectDecorators(
+            report,
+            entryPointModel,
+            declared,
+            moduleDecorators,
+            logger
+        );
 
-        var decorators = CollectDecorators(report, entryPointModel, declared, moduleDecorators, logger);
-
-        if (decorators.Count == 0) {
+        if (decorators.Count == 0)
+        {
             return;
         }
 
@@ -423,14 +585,24 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
             out var refusedForOpenGenericRegistration,
             canClose: (decoratorType, closedService) =>
                 DecoratorConstraintChecker.CanClose(
-                    moduleDecorators.Compilation, decoratorType, closedService));
+                    moduleDecorators.Compilation,
+                    decoratorType,
+                    closedService
+                )
+        );
 
         ReportOpenGenericDecoration(report, refusedForOpenGenericRegistration, logger);
 
         ReportImplementationUnderFactories(
-            report, decorators, entryPointModel, configurationModel, logger);
+            report,
+            decorators,
+            entryPointModel,
+            configurationModel,
+            logger
+        );
 
-        if (expanded.Count == 0 || !emit) {
+        if (expanded.Count == 0 || !emit)
+        {
             return;
         }
 
@@ -440,8 +612,11 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
 
         context.AddSource(
             entryPointModel.EntryPointType.GetFileNameHint(
-                configurationModel.RootNamespace, "Decorators"),
-            output);
+                configurationModel.RootNamespace,
+                "Decorators"
+            ),
+            output
+        );
     }
 
     /// <summary>
@@ -453,26 +628,32 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
         ModuleEntryPointModel entryPointModel,
         ImmutableArray<DecoratorModel> declared,
         ModuleDecorators moduleDecorators,
-        FileLogger logger) {
-
+        FileLogger logger
+    )
+    {
         var decorators = new List<DecoratorModel>();
 
-        foreach (var decorator in declared) {
-            if (decorator.IsIgnored) {
+        foreach (var decorator in declared)
+        {
+            if (decorator.IsIgnored)
+            {
                 continue;
             }
 
             // A realm-scoped decorator belongs only to its realm. An unscoped one belongs to every
             // module that is not realm-only, matching how service registrations behave.
-            if (decorator.Realm != null) {
-                if (decorator.Realm.Equals(entryPointModel.EntryPointType)) {
+            if (decorator.Realm != null)
+            {
+                if (decorator.Realm.Equals(entryPointModel.EntryPointType))
+                {
                     decorators.Add(decorator);
                 }
 
                 continue;
             }
 
-            if (!entryPointModel.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.OnlyRealm)) {
+            if (!entryPointModel.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.OnlyRealm))
+            {
                 decorators.Add(decorator);
             }
         }
@@ -480,15 +661,19 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
         // [Decorate] carries two type names and nothing else, so its decorator's constructor is
         // looked up rather than read from a declaration — the only route for one declared in a
         // referenced assembly, which is the case the module-level form exists for.
-        foreach (var resolution in moduleDecorators.Resolved) {
-            if (!resolution.ModuleType.Equals(entryPointModel.EntryPointType)) {
+        foreach (var resolution in moduleDecorators.Resolved)
+        {
+            if (!resolution.ModuleType.Equals(entryPointModel.EntryPointType))
+            {
                 continue;
             }
 
-            if (resolution.Reason != null) {
+            if (resolution.Reason != null)
+            {
                 logger.Error(
-                    $"'{resolution.Model.DecoratorType.Name}' cannot be constructed by generated " +
-                    $"code: {resolution.Reason}.");
+                    $"'{resolution.Model.DecoratorType.Name}' cannot be constructed by generated "
+                        + $"code: {resolution.Reason}."
+                );
             }
 
             decorators.Add(resolution.Model);
@@ -514,27 +699,37 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
         IReadOnlyList<DecoratorModel> decorators,
         ModuleEntryPointModel entryPointModel,
         DependencyModuleConfigurationModel configurationModel,
-        FileLogger logger) {
-
-        if (!entryPointModel.GenerateFactories.GetValueOrDefault(configurationModel.GenerateFactories)) {
+        FileLogger logger
+    )
+    {
+        if (
+            !entryPointModel.GenerateFactories.GetValueOrDefault(
+                configurationModel.GenerateFactories
+            )
+        )
+        {
             return;
         }
 
-        foreach (var decorator in decorators) {
-            if (decorator.Implementation == null) {
+        foreach (var decorator in decorators)
+        {
+            if (decorator.Implementation == null)
+            {
                 continue;
             }
 
             logger.Error(
-                $"'{decorator.DecoratorType.Name}' names an implementation, which generated " +
-                "factories cannot be told apart by.");
+                $"'{decorator.DecoratorType.Name}' names an implementation, which generated "
+                    + "factories cannot be told apart by."
+            );
 
             report.Report(
                 DependencyModuleDiagnostics.DecoratorImplementationNeedsTypeRegistration,
                 decorator.Location,
                 decorator.DecoratorType.Name,
                 decorator.Implementation.Name,
-                decorator.ServiceType.Name);
+                decorator.ServiceType.Name
+            );
         }
     }
 
@@ -550,21 +745,25 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
     private static void ReportOpenGenericDecoration(
         DiagnosticReporter report,
         IReadOnlyList<DecoratorModel> refused,
-        FileLogger logger) {
-
-        foreach (var decorator in refused) {
+        FileLogger logger
+    )
+    {
+        foreach (var decorator in refused)
+        {
             var serviceName = decorator.ServiceType.Name;
             var decoratorName = decorator.DecoratorType.Name;
 
             logger.Error(
-                $"'{decoratorName}' cannot decorate '{serviceName}' because it is registered as an " +
-                "open generic.");
+                $"'{decoratorName}' cannot decorate '{serviceName}' because it is registered as an "
+                    + "open generic."
+            );
 
             report.Report(
                 DependencyModuleDiagnostics.OpenGenericCannotBeDecorated,
                 decorator.Location,
                 serviceName,
-                decoratorName);
+                decoratorName
+            );
         }
     }
 
@@ -573,18 +772,27 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
     /// reported rather than resolved arbitrarily.
     /// </summary>
     private static void ReportAmbiguousOrdering(
-        DiagnosticReporter report, IReadOnlyList<DecoratorModel> decorators, FileLogger logger) {
-
-        for (var i = 0; i < decorators.Count; i++) {
-            for (var j = i + 1; j < decorators.Count; j++) {
-                if (decorators[i].Order != decorators[j].Order ||
-                    !decorators[i].ServiceType.Equals(decorators[j].ServiceType)) {
+        DiagnosticReporter report,
+        IReadOnlyList<DecoratorModel> decorators,
+        FileLogger logger
+    )
+    {
+        for (var i = 0; i < decorators.Count; i++)
+        {
+            for (var j = i + 1; j < decorators.Count; j++)
+            {
+                if (
+                    decorators[i].Order != decorators[j].Order
+                    || !decorators[i].ServiceType.Equals(decorators[j].ServiceType)
+                )
+                {
                     continue;
                 }
 
                 logger.Error(
-                    $"'{decorators[i].DecoratorType.Name}' and '{decorators[j].DecoratorType.Name}' both " +
-                    $"decorate '{decorators[i].ServiceType.Name}' with order {decorators[i].Order}.");
+                    $"'{decorators[i].DecoratorType.Name}' and '{decorators[j].DecoratorType.Name}' both "
+                        + $"decorate '{decorators[i].ServiceType.Name}' with order {decorators[i].Order}."
+                );
 
                 report.Report(
                     DependencyModuleDiagnostics.AmbiguousDecoratorOrder,
@@ -592,7 +800,8 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
                     decorators[i].DecoratorType.Name,
                     decorators[j].DecoratorType.Name,
                     decorators[i].ServiceType.Name,
-                    decorators[i].Order);
+                    decorators[i].Order
+                );
             }
         }
     }
@@ -608,10 +817,13 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
         DiagnosticReporter report,
         ImmutableArray<ConventionModuleModel> conventionModules,
         HashSet<ConventionModuleModel> claimed,
-        FileLogger logger) {
-
-        foreach (var conventionModule in conventionModules) {
-            if (claimed.Contains(conventionModule)) {
+        FileLogger logger
+    )
+    {
+        foreach (var conventionModule in conventionModules)
+        {
+            if (claimed.Contains(conventionModule))
+            {
                 continue;
             }
 
@@ -623,7 +835,8 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator {
                 DependencyModuleDiagnostics.ConventionCannotBeRead,
                 conventionModule.Location,
                 "the declaring type is not marked with [DependencyModule], so it registers nothing",
-                name);
+                name
+            );
         }
     }
 }

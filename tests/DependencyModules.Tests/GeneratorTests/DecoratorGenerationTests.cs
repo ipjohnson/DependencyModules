@@ -10,30 +10,38 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// Decoration verified by resolving from a real container built from generated code, rather than by
 /// matching the generated text. The registrations are the point; their shape is not.
 /// </summary>
-public class DecoratorGenerationTests {
-
+public class DecoratorGenerationTests
+{
     [Fact]
-    public void Decorator_WrapsTheRegisteredImplementation() {
-        var generated = GeneratedAssembly.Create(Module(
-            """
-            [Decorator]
-            public class LoudGreeter(IGreeter inner) : IGreeter {
-                public string Greet() => inner.Greet().ToUpperInvariant();
-            }
-            """));
+    public void Decorator_WrapsTheRegisteredImplementation()
+    {
+        var generated = GeneratedAssembly.Create(
+            Module(
+                """
+                [Decorator]
+                public class LoudGreeter(IGreeter inner) : IGreeter {
+                    public string Greet() => inner.Greet().ToUpperInvariant();
+                }
+                """
+            )
+        );
 
         Assert.Equal("HELLO", Greet(generated));
     }
 
     [Fact]
-    public void Decorator_PreservesTheServiceLifetime() {
-        var generated = GeneratedAssembly.Create(Module(
-            """
-            [Decorator]
-            public class LoudGreeter(IGreeter inner) : IGreeter {
-                public string Greet() => inner.Greet();
-            }
-            """));
+    public void Decorator_PreservesTheServiceLifetime()
+    {
+        var generated = GeneratedAssembly.Create(
+            Module(
+                """
+                [Decorator]
+                public class LoudGreeter(IGreeter inner) : IGreeter {
+                    public string Greet() => inner.Greet();
+                }
+                """
+            )
+        );
 
         Assert.Equal(ServiceLifetime.Singleton, generated.Descriptor("IGreeter").Lifetime);
     }
@@ -42,43 +50,52 @@ public class DecoratorGenerationTests {
     /// Lower order sits closer to the implementation, so the higher-order decorator is outermost.
     /// </summary>
     [Fact]
-    public void Decorators_NestByAscendingOrder() {
-        var generated = GeneratedAssembly.Create(Module(
-            """
-            [Decorator(Order = 10)]
-            public class InnerGreeter(IGreeter inner) : IGreeter {
-                public string Greet() => $"inner({inner.Greet()})";
-            }
+    public void Decorators_NestByAscendingOrder()
+    {
+        var generated = GeneratedAssembly.Create(
+            Module(
+                """
+                [Decorator(Order = 10)]
+                public class InnerGreeter(IGreeter inner) : IGreeter {
+                    public string Greet() => $"inner({inner.Greet()})";
+                }
 
-            [Decorator(Order = 20)]
-            public class OuterGreeter(IGreeter inner) : IGreeter {
-                public string Greet() => $"outer({inner.Greet()})";
-            }
-            """));
+                [Decorator(Order = 20)]
+                public class OuterGreeter(IGreeter inner) : IGreeter {
+                    public string Greet() => $"outer({inner.Greet()})";
+                }
+                """
+            )
+        );
 
         Assert.Equal("outer(inner(hello))", Greet(generated));
     }
 
     [Fact]
-    public void Decorator_ReceivesItsOwnDependencies() {
-        var generated = GeneratedAssembly.Create(Module(
-            """
-            public interface IPrefix { string Value { get; } }
+    public void Decorator_ReceivesItsOwnDependencies()
+    {
+        var generated = GeneratedAssembly.Create(
+            Module(
+                """
+                public interface IPrefix { string Value { get; } }
 
-            [SingletonService]
-            public class Prefix : IPrefix { public string Value => "pre"; }
+                [SingletonService]
+                public class Prefix : IPrefix { public string Value => "pre"; }
 
-            [Decorator]
-            public class PrefixedGreeter(IGreeter inner, IPrefix prefix) : IGreeter {
-                public string Greet() => $"{prefix.Value}-{inner.Greet()}";
-            }
-            """));
+                [Decorator]
+                public class PrefixedGreeter(IGreeter inner, IPrefix prefix) : IGreeter {
+                    public string Greet() => $"{prefix.Value}-{inner.Greet()}";
+                }
+                """
+            )
+        );
 
         Assert.Equal("pre-hello", Greet(generated));
     }
 
     [Fact]
-    public void OpenGenericDecorator_WrapsEveryClosedRegistration() {
+    public void OpenGenericDecorator_WrapsEveryClosedRegistration()
+    {
         var generated = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -100,15 +117,20 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         var provider = generated.BuildProvider();
         var handler = generated.Type("IHandler`1");
 
-        Assert.Equal("validated(string)",
-            Invoke(provider.GetService(handler.MakeGenericType(typeof(string)))!, "Handle"));
-        Assert.Equal("validated(int)",
-            Invoke(provider.GetService(handler.MakeGenericType(typeof(int)))!, "Handle"));
+        Assert.Equal(
+            "validated(string)",
+            Invoke(provider.GetService(handler.MakeGenericType(typeof(string)))!, "Handle")
+        );
+        Assert.Equal(
+            "validated(int)",
+            Invoke(provider.GetService(handler.MakeGenericType(typeof(int)))!, "Handle")
+        );
     }
 
     /// <summary>
@@ -126,7 +148,8 @@ public class DecoratorGenerationTests {
     /// </para>
     /// </remarks>
     [Fact]
-    public void OpenGenericRegistration_IsNotDecorated() {
+    public void OpenGenericRegistration_IsNotDecorated()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -145,7 +168,8 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         // Nothing is emitted for it, so the registration stands undecorated rather than the
         // provider throwing when it is built.
@@ -153,14 +177,16 @@ public class DecoratorGenerationTests {
 
         Assert.DoesNotContain(
             result.GeneratedSources,
-            source => source.Key.Contains("Decorators") && source.Value.Contains("LoggingRepo"));
+            source => source.Key.Contains("Decorators") && source.Value.Contains("LoggingRepo")
+        );
     }
 
     /// <summary>
     /// The way through, end to end: a closed construction of the generic service is decorated.
     /// </summary>
     [Fact]
-    public void ClosedConstructionOfAGenericService_IsDecorated() {
+    public void ClosedConstructionOfAGenericService_IsDecorated()
+    {
         var generated = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -181,16 +207,20 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         var provider = generated.BuildProvider();
-        var resolved = provider.GetService(generated.Type("IRepo`1").MakeGenericType(typeof(string)))!;
+        var resolved = provider.GetService(
+            generated.Type("IRepo`1").MakeGenericType(typeof(string))
+        )!;
 
         Assert.Equal("logged(repo)", Invoke(resolved, "Name"));
     }
 
     [Fact]
-    public void ModuleLevelDecorate_WrapsAServiceTheModuleDoesNotDeclare() {
+    public void ModuleLevelDecorate_WrapsAServiceTheModuleDoesNotDeclare()
+    {
         var generated = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -209,26 +239,32 @@ public class DecoratorGenerationTests {
             [DependencyModule]
             [Decorate(typeof(IGreeter), typeof(LoudGreeter))]
             public partial class TestModule;
-            """);
-
-        Assert.Equal("HELLO", Greet(generated));
-    }
-
-    [Fact]
-    public void Decorator_WithExplicitService_UsesIt() {
-        var generated = GeneratedAssembly.Create(Module(
             """
-            [Decorator(Service = typeof(IGreeter))]
-            public class LoudGreeter(IGreeter inner) : IGreeter {
-                public string Greet() => inner.Greet().ToUpperInvariant();
-            }
-            """));
+        );
 
         Assert.Equal("HELLO", Greet(generated));
     }
 
     [Fact]
-    public void NoDecorator_LeavesTheServiceAlone() {
+    public void Decorator_WithExplicitService_UsesIt()
+    {
+        var generated = GeneratedAssembly.Create(
+            Module(
+                """
+                [Decorator(Service = typeof(IGreeter))]
+                public class LoudGreeter(IGreeter inner) : IGreeter {
+                    public string Greet() => inner.Greet().ToUpperInvariant();
+                }
+                """
+            )
+        );
+
+        Assert.Equal("HELLO", Greet(generated));
+    }
+
+    [Fact]
+    public void NoDecorator_LeavesTheServiceAlone()
+    {
         var generated = GeneratedAssembly.Create(Module(""));
 
         Assert.Equal("hello", Greet(generated));
@@ -238,19 +274,23 @@ public class DecoratorGenerationTests {
     /// Two decorators of one service with the same order would nest in an order nobody declared.
     /// </summary>
     [Fact]
-    public void DecoratorsSharingAnOrder_ReportDM0007() {
-        var result = GeneratorTestHarness.Run(Module(
-            """
-            [Decorator(Order = 5)]
-            public class FirstGreeter(IGreeter inner) : IGreeter {
-                public string Greet() => inner.Greet();
-            }
+    public void DecoratorsSharingAnOrder_ReportDM0007()
+    {
+        var result = GeneratorTestHarness.Run(
+            Module(
+                """
+                [Decorator(Order = 5)]
+                public class FirstGreeter(IGreeter inner) : IGreeter {
+                    public string Greet() => inner.Greet();
+                }
 
-            [Decorator(Order = 5)]
-            public class SecondGreeter(IGreeter inner) : IGreeter {
-                public string Greet() => inner.Greet();
-            }
-            """));
+                [Decorator(Order = 5)]
+                public class SecondGreeter(IGreeter inner) : IGreeter {
+                    public string Greet() => inner.Greet();
+                }
+                """
+            )
+        );
 
         var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0007");
 
@@ -259,19 +299,23 @@ public class DecoratorGenerationTests {
     }
 
     [Fact]
-    public void DecoratorsWithDistinctOrders_ReportNothing() {
-        var result = GeneratorTestHarness.Run(Module(
-            """
-            [Decorator(Order = 1)]
-            public class FirstGreeter(IGreeter inner) : IGreeter {
-                public string Greet() => inner.Greet();
-            }
+    public void DecoratorsWithDistinctOrders_ReportNothing()
+    {
+        var result = GeneratorTestHarness.Run(
+            Module(
+                """
+                [Decorator(Order = 1)]
+                public class FirstGreeter(IGreeter inner) : IGreeter {
+                    public string Greet() => inner.Greet();
+                }
 
-            [Decorator(Order = 2)]
-            public class SecondGreeter(IGreeter inner) : IGreeter {
-                public string Greet() => inner.Greet();
-            }
-            """));
+                [Decorator(Order = 2)]
+                public class SecondGreeter(IGreeter inner) : IGreeter {
+                    public string Greet() => inner.Greet();
+                }
+                """
+            )
+        );
 
         result.AssertNoErrors();
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0007");
@@ -288,8 +332,10 @@ public class DecoratorGenerationTests {
     [InlineData("Development", "HELLO")]
     [InlineData("Production", "hello")]
     public void Decorator_AppliesOnlyWhenItsEnvironmentConditionHolds(
-        string environmentName, string expected) {
-
+        string environmentName,
+        string expected
+    )
+    {
         var generated = GeneratedAssembly.Create(
             Module(
                 """
@@ -298,8 +344,10 @@ public class DecoratorGenerationTests {
                 public class LoudGreeter(IGreeter inner) : IGreeter {
                     public string Greet() => inner.Greet().ToUpperInvariant();
                 }
-                """),
-            environment: new ModuleEnvironment(environmentName));
+                """
+            ),
+            environment: new ModuleEnvironment(environmentName)
+        );
 
         Assert.Equal(expected, Greet(generated));
     }
@@ -307,7 +355,8 @@ public class DecoratorGenerationTests {
     [Theory]
     [InlineData("on", "HELLO")]
     [InlineData("off", "hello")]
-    public void Decorator_HonoursValueConditions(string flag, string expected) {
+    public void Decorator_HonoursValueConditions(string flag, string expected)
+    {
         var generated = GeneratedAssembly.Create(
             Module(
                 """
@@ -316,8 +365,10 @@ public class DecoratorGenerationTests {
                 public class LoudGreeter(IGreeter inner) : IGreeter {
                     public string Greet() => inner.Greet().ToUpperInvariant();
                 }
-                """),
-            environment: new ModuleEnvironment(false, "Development") { { "LOUD", flag } });
+                """
+            ),
+            environment: new ModuleEnvironment(false, "Development") { { "LOUD", flag } }
+        );
 
         Assert.Equal(expected, Greet(generated));
     }
@@ -326,7 +377,8 @@ public class DecoratorGenerationTests {
     /// A condition changes whether a decorator applies, never where it sits in the nesting.
     /// </summary>
     [Fact]
-    public void Decorator_ConditionDoesNotDisturbOrdering() {
+    public void Decorator_ConditionDoesNotDisturbOrdering()
+    {
         var generated = GeneratedAssembly.Create(
             Module(
                 """
@@ -340,8 +392,10 @@ public class DecoratorGenerationTests {
                 public class Outer(IGreeter inner) : IGreeter {
                     public string Greet() => "outer(" + inner.Greet() + ")";
                 }
-                """),
-            environment: new ModuleEnvironment("Development"));
+                """
+            ),
+            environment: new ModuleEnvironment("Development")
+        );
 
         Assert.Equal("outer(inner(hello))", Greet(generated));
     }
@@ -351,7 +405,8 @@ public class DecoratorGenerationTests {
     /// the whole chain going with it.
     /// </summary>
     [Fact]
-    public void Decorator_UnconditionalOneSurvivesWhenAConditionalOneDoesNot() {
+    public void Decorator_UnconditionalOneSurvivesWhenAConditionalOneDoesNot()
+    {
         var generated = GeneratedAssembly.Create(
             Module(
                 """
@@ -365,8 +420,10 @@ public class DecoratorGenerationTests {
                 public class Outer(IGreeter inner) : IGreeter {
                     public string Greet() => "outer(" + inner.Greet() + ")";
                 }
-                """),
-            environment: new ModuleEnvironment("Production"));
+                """
+            ),
+            environment: new ModuleEnvironment("Production")
+        );
 
         Assert.Equal("outer(hello)", Greet(generated));
     }
@@ -376,28 +433,30 @@ public class DecoratorGenerationTests {
 
     /// <summary>Calls Handle on a resolved handler with a fresh request.</summary>
     private static void Handle(object handler, GeneratedAssembly assembly) =>
-        handler.GetType().GetMethod("Handle")!.Invoke(
-            handler, new[] { System.Activator.CreateInstance(assembly.Type("Create")) });
+        handler
+            .GetType()
+            .GetMethod("Handle")!
+            .Invoke(handler, new[] { System.Activator.CreateInstance(assembly.Type("Create")) });
 
     private static string Invoke(object target, string method) =>
         (string)target.GetType().GetMethod(method)!.Invoke(target, null)!;
 
     private static string Module(string body) =>
         $$"""
-          using DependencyModules.Runtime.Attributes;
+            using DependencyModules.Runtime.Attributes;
 
-          namespace TestNamespace;
+            namespace TestNamespace;
 
-          public interface IGreeter { string Greet(); }
+            public interface IGreeter { string Greet(); }
 
-          [SingletonService]
-          public class Greeter : IGreeter { public string Greet() => "hello"; }
+            [SingletonService]
+            public class Greeter : IGreeter { public string Greet() => "hello"; }
 
-          {{body}}
+            {{body}}
 
-          [DependencyModule]
-          public partial class TestModule;
-          """;
+            [DependencyModule]
+            public partial class TestModule;
+            """;
 
     /// <summary>
     /// A decorator's own dependencies are resolved on the terms each parameter declares.
@@ -416,7 +475,8 @@ public class DecoratorGenerationTests {
     /// </para>
     /// </remarks>
     [Fact]
-    public void Decorator_ResolvesAKeyedDependencyFromTheKeyItDeclares() {
+    public void Decorator_ResolvesAKeyedDependencyFromTheKeyItDeclares()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -448,7 +508,8 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         var greeter = assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter"));
 
@@ -460,7 +521,8 @@ public class DecoratorGenerationTests {
     /// A nullable dependency the container does not have resolves to null rather than throwing.
     /// </summary>
     [Fact]
-    public void Decorator_ResolvesAnOptionalDependencyToNull() {
+    public void Decorator_ResolvesAnOptionalDependencyToNull()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -481,7 +543,8 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         var greeter = assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter"));
 
@@ -502,7 +565,8 @@ public class DecoratorGenerationTests {
     /// parameter was resolved on the terms it declares.
     /// </remarks>
     [Fact]
-    public void ModuleLevelDecorate_ConstructsTheDecoratorFromItsResolvedConstructor() {
+    public void ModuleLevelDecorate_ConstructsTheDecoratorFromItsResolvedConstructor()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -533,7 +597,8 @@ public class DecoratorGenerationTests {
             [DependencyModule]
             [Decorate(typeof(IGreeter), typeof(StampedGreeter))]
             public partial class TestModule;
-            """);
+            """
+        );
 
         var greeter = assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter"));
 
@@ -549,7 +614,8 @@ public class DecoratorGenerationTests {
     /// published application.
     /// </remarks>
     [Fact]
-    public void ModuleLevelDecorate_WithNoPublicConstructor_IsNotDecorated() {
+    public void ModuleLevelDecorate_WithNoPublicConstructor_IsNotDecorated()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -570,7 +636,8 @@ public class DecoratorGenerationTests {
             [DependencyModule]
             [Decorate(typeof(IGreeter), typeof(HiddenGreeter))]
             public partial class TestModule;
-            """);
+            """
+        );
 
         // Generated code constructs the decorator, so a private constructor means there is nothing
         // to emit. The build stays green and the service resolves undecorated.
@@ -578,7 +645,8 @@ public class DecoratorGenerationTests {
 
         Assert.DoesNotContain(
             result.GeneratedSources,
-            source => source.Value.Contains("new global::TestNamespace.HiddenGreeter"));
+            source => source.Value.Contains("new global::TestNamespace.HiddenGreeter")
+        );
     }
 
     // ------------------------------------------------------------------------------------------
@@ -587,8 +655,7 @@ public class DecoratorGenerationTests {
     // exercises DecoratorTypeUtility.Close as much as it does the emission.
     // ------------------------------------------------------------------------------------------
 
-    private const string HandlerPreamble =
-        """
+    private const string HandlerPreamble = """
         using DependencyModules.Runtime.Attributes;
         using Microsoft.Extensions.DependencyInjection;
 
@@ -621,41 +688,46 @@ public class DecoratorGenerationTests {
     /// decorator resolves the unkeyed registration, which is the right type and the wrong instance.
     /// </remarks>
     [Fact]
-    public void GenericDecorator_KeyedDependencySurvivesTypeSubstitution() {
+    public void GenericDecorator_KeyedDependencySurvivesTypeSubstitution()
+    {
         var assembly = GeneratedAssembly.Create(
-            HandlerPreamble +
-            """
-            public interface IStamp { string Value { get; } }
+            HandlerPreamble
+                + """
+                public interface IStamp { string Value { get; } }
 
-            [SingletonService]
-            public class DefaultStamp : IStamp { public string Value => "?"; }
+                [SingletonService]
+                public class DefaultStamp : IStamp { public string Value => "?"; }
 
-            [SingletonService(Key = "quiet")]
-            public class QuietStamp : IStamp { public string Value => "."; }
+                [SingletonService(Key = "quiet")]
+                public class QuietStamp : IStamp { public string Value => "."; }
 
-            [Decorator]
-            public class StampedHandler<TRequest, TResponse>(
-                IHandler<TRequest, TResponse> inner,
-                [FromKeyedServices("quiet")] IStamp stamp) : IHandler<TRequest, TResponse> {
+                [Decorator]
+                public class StampedHandler<TRequest, TResponse>(
+                    IHandler<TRequest, TResponse> inner,
+                    [FromKeyedServices("quiet")] IStamp stamp) : IHandler<TRequest, TResponse> {
 
-                public TResponse Handle(TRequest request) {
-                    Log.Lines.Add(stamp.Value);
-                    return inner.Handle(request);
+                    public TResponse Handle(TRequest request) {
+                        Log.Lines.Add(stamp.Value);
+                        return inner.Handle(request);
+                    }
                 }
-            }
 
-            public static class Log { public static System.Collections.Generic.List<string> Lines = new(); }
+                public static class Log { public static System.Collections.Generic.List<string> Lines = new(); }
 
-            [DependencyModule]
-            public partial class TestModule;
-            """);
+                [DependencyModule]
+                public partial class TestModule;
+                """
+        );
 
         var provider = assembly.BuildProvider();
         var handler = assembly.Type("IHandler`2");
 
         Handle(
-            provider.GetRequiredService(handler.MakeGenericType(assembly.Type("Create"), assembly.Type("Id")))!,
-            assembly);
+            provider.GetRequiredService(
+                handler.MakeGenericType(assembly.Type("Create"), assembly.Type("Id"))
+            )!,
+            assembly
+        );
 
         var lines = (System.Collections.Generic.List<string>)
             assembly.Type("Log").GetField("Lines")!.GetValue(null)!;
@@ -667,29 +739,34 @@ public class DecoratorGenerationTests {
     /// A generic decorator's optional dependency resolves to null rather than throwing.
     /// </summary>
     [Fact]
-    public void GenericDecorator_OptionalDependencyResolvesToNull() {
+    public void GenericDecorator_OptionalDependencyResolvesToNull()
+    {
         var assembly = GeneratedAssembly.Create(
-            HandlerPreamble +
-            """
-            public interface IAudit { }
+            HandlerPreamble
+                + """
+                public interface IAudit { }
 
-            [Decorator]
-            public class AuditedHandler<TRequest, TResponse>(
-                IHandler<TRequest, TResponse> inner, IAudit? audit) : IHandler<TRequest, TResponse> {
+                [Decorator]
+                public class AuditedHandler<TRequest, TResponse>(
+                    IHandler<TRequest, TResponse> inner, IAudit? audit) : IHandler<TRequest, TResponse> {
 
-                public bool Audited => audit != null;
+                    public bool Audited => audit != null;
 
-                public TResponse Handle(TRequest request) => inner.Handle(request);
-            }
+                    public TResponse Handle(TRequest request) => inner.Handle(request);
+                }
 
-            [DependencyModule]
-            public partial class TestModule;
-            """);
+                [DependencyModule]
+                public partial class TestModule;
+                """
+        );
 
         var handler = assembly.Type("IHandler`2");
 
-        var resolved = assembly.BuildProvider().GetRequiredService(
-            handler.MakeGenericType(assembly.Type("Create"), assembly.Type("Id")));
+        var resolved = assembly
+            .BuildProvider()
+            .GetRequiredService(
+                handler.MakeGenericType(assembly.Type("Create"), assembly.Type("Id"))
+            );
 
         Assert.False((bool)resolved.GetType().GetProperty("Audited")!.GetValue(resolved)!);
     }
@@ -703,33 +780,38 @@ public class DecoratorGenerationTests {
     /// compile, which is the failure this pins.
     /// </remarks>
     [Fact]
-    public void GenericDecorator_ClosesADependencyOverItsOwnTypeParameters() {
+    public void GenericDecorator_ClosesADependencyOverItsOwnTypeParameters()
+    {
         var assembly = GeneratedAssembly.Create(
-            HandlerPreamble +
-            """
-            public interface IValidator<T> { string Name { get; } }
+            HandlerPreamble
+                + """
+                public interface IValidator<T> { string Name { get; } }
 
-            [SingletonService]
-            public class CreateValidator : IValidator<Create> { public string Name => "create"; }
+                [SingletonService]
+                public class CreateValidator : IValidator<Create> { public string Name => "create"; }
 
-            [Decorator]
-            public class ValidatedHandler<TRequest, TResponse>(
-                IHandler<TRequest, TResponse> inner,
-                IValidator<TRequest> validator) : IHandler<TRequest, TResponse> {
+                [Decorator]
+                public class ValidatedHandler<TRequest, TResponse>(
+                    IHandler<TRequest, TResponse> inner,
+                    IValidator<TRequest> validator) : IHandler<TRequest, TResponse> {
 
-                public string ValidatorName => validator.Name;
+                    public string ValidatorName => validator.Name;
 
-                public TResponse Handle(TRequest request) => inner.Handle(request);
-            }
+                    public TResponse Handle(TRequest request) => inner.Handle(request);
+                }
 
-            [DependencyModule]
-            public partial class TestModule;
-            """);
+                [DependencyModule]
+                public partial class TestModule;
+                """
+        );
 
         var handler = assembly.Type("IHandler`2");
 
-        var resolved = assembly.BuildProvider().GetRequiredService(
-            handler.MakeGenericType(assembly.Type("Create"), assembly.Type("Id")));
+        var resolved = assembly
+            .BuildProvider()
+            .GetRequiredService(
+                handler.MakeGenericType(assembly.Type("Create"), assembly.Type("Id"))
+            );
 
         Assert.Equal("create", resolved.GetType().GetProperty("ValidatorName")!.GetValue(resolved));
     }
@@ -743,32 +825,36 @@ public class DecoratorGenerationTests {
     /// shape rather than the outcome: the emitted call must name the closed decorator.
     /// </remarks>
     [Fact]
-    public void GenericDecorator_ClosesOverAValueTypeArgument() {
+    public void GenericDecorator_ClosesOverAValueTypeArgument()
+    {
         var result = GeneratorTestHarness.Run(
-            HandlerPreamble +
-            """
-            [Decorator]
-            public class LoggingHandler<TRequest, TResponse>(
-                IHandler<TRequest, TResponse> inner) : IHandler<TRequest, TResponse> {
+            HandlerPreamble
+                + """
+                [Decorator]
+                public class LoggingHandler<TRequest, TResponse>(
+                    IHandler<TRequest, TResponse> inner) : IHandler<TRequest, TResponse> {
 
-                public TResponse Handle(TRequest request) => inner.Handle(request);
-            }
+                    public TResponse Handle(TRequest request) => inner.Handle(request);
+                }
 
-            [DependencyModule]
-            public partial class TestModule;
-            """);
+                [DependencyModule]
+                public partial class TestModule;
+                """
+        );
 
         Assert.Empty(result.Errors);
 
-        var decorators = Assert.Single(
-            result.GeneratedSources, source => source.Key.Contains("Decorators")).Value;
+        var decorators = Assert
+            .Single(result.GeneratedSources, source => source.Key.Contains("Decorators"))
+            .Value;
 
         // One closed call per registration, each naming the decorator closed over the same
         // arguments — including the value-type one, which is the instantiation Native AOT cannot
         // produce at run time and the reason the open-generic call had to go.
         Assert.True(
             System.Text.RegularExpressions.Regex.Matches(decorators, "Decorate<").Count == 2,
-            "expected one closed Decorate call per registration, got:\n" + decorators);
+            "expected one closed Decorate call per registration, got:\n" + decorators
+        );
 
         // Nothing is closed at run time any more.
         Assert.DoesNotContain("IHandler<,>", decorators);
@@ -778,34 +864,39 @@ public class DecoratorGenerationTests {
     /// Two generic decorators over one service nest in their declared order.
     /// </summary>
     [Fact]
-    public void GenericDecorators_StackInOrder() {
+    public void GenericDecorators_StackInOrder()
+    {
         var assembly = GeneratedAssembly.Create(
-            HandlerPreamble +
-            """
-            public static class Log { public static System.Collections.Generic.List<string> Lines = new(); }
+            HandlerPreamble
+                + """
+                public static class Log { public static System.Collections.Generic.List<string> Lines = new(); }
 
-            [Decorator(Order = 1)]
-            public class InnerMost<TRequest, TResponse>(
-                IHandler<TRequest, TResponse> inner) : IHandler<TRequest, TResponse> {
-                public TResponse Handle(TRequest r) { Log.Lines.Add("inner"); return inner.Handle(r); }
-            }
+                [Decorator(Order = 1)]
+                public class InnerMost<TRequest, TResponse>(
+                    IHandler<TRequest, TResponse> inner) : IHandler<TRequest, TResponse> {
+                    public TResponse Handle(TRequest r) { Log.Lines.Add("inner"); return inner.Handle(r); }
+                }
 
-            [Decorator(Order = 2)]
-            public class OuterMost<TRequest, TResponse>(
-                IHandler<TRequest, TResponse> inner) : IHandler<TRequest, TResponse> {
-                public TResponse Handle(TRequest r) { Log.Lines.Add("outer"); return inner.Handle(r); }
-            }
+                [Decorator(Order = 2)]
+                public class OuterMost<TRequest, TResponse>(
+                    IHandler<TRequest, TResponse> inner) : IHandler<TRequest, TResponse> {
+                    public TResponse Handle(TRequest r) { Log.Lines.Add("outer"); return inner.Handle(r); }
+                }
 
-            [DependencyModule]
-            public partial class TestModule;
-            """);
+                [DependencyModule]
+                public partial class TestModule;
+                """
+        );
 
         var provider = assembly.BuildProvider();
         var handler = assembly.Type("IHandler`2");
 
         Handle(
-            provider.GetRequiredService(handler.MakeGenericType(assembly.Type("Create"), assembly.Type("Id")))!,
-            assembly);
+            provider.GetRequiredService(
+                handler.MakeGenericType(assembly.Type("Create"), assembly.Type("Id"))
+            )!,
+            assembly
+        );
 
         var lines = (System.Collections.Generic.List<string>)
             assembly.Type("Log").GetField("Lines")!.GetValue(null)!;
@@ -825,7 +916,8 @@ public class DecoratorGenerationTests {
     /// the build.
     /// </remarks>
     [Fact]
-    public void GenericDecorator_RegisteredByBothPaths_IsAppliedOnce() {
+    public void GenericDecorator_RegisteredByBothPaths_IsAppliedOnce()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -864,13 +956,16 @@ public class DecoratorGenerationTests {
                     conventions.RegisterAll(typeof(IHandler<,>)).AsSingleton();
                 }
             }
-            """);
+            """
+        );
 
         var provider = assembly.BuildProvider();
-        var handler = assembly.Type("IHandler`2")
+        var handler = assembly
+            .Type("IHandler`2")
             .MakeGenericType(assembly.Type("Create"), assembly.Type("Id"));
 
-        foreach (var service in (System.Collections.IEnumerable)provider.GetServices(handler)) {
+        foreach (var service in (System.Collections.IEnumerable)provider.GetServices(handler))
+        {
             Handle(service!, assembly);
         }
 
@@ -896,7 +991,8 @@ public class DecoratorGenerationTests {
     /// different way than the author asked for, which nothing would report.
     /// </remarks>
     [Fact]
-    public void Decorator_HonoursTheConstructorItMarked() {
+    public void Decorator_HonoursTheConstructorItMarked()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -927,10 +1023,13 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
-        Assert.Equal("hello:marked", Invoke(
-            assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet"));
+        Assert.Equal(
+            "hello:marked",
+            Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet")
+        );
     }
 
     /// <summary>
@@ -941,7 +1040,8 @@ public class DecoratorGenerationTests {
     /// Resolving it would work by accident on Microsoft's container and is wrong in principle.
     /// </remarks>
     [Fact]
-    public void Decorator_TakingTheProviderGetsTheProvider() {
+    public void Decorator_TakingTheProviderGetsTheProvider()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using System;
@@ -966,10 +1066,13 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
-        Assert.Equal("hello!", Invoke(
-            assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet"));
+        Assert.Equal(
+            "hello!",
+            Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet")
+        );
     }
 
     /// <summary>
@@ -981,7 +1084,8 @@ public class DecoratorGenerationTests {
     /// working, which looks like the service moved rather than broke.
     /// </remarks>
     [Fact]
-    public void Decorator_KeyedRegistrationKeepsItsKey() {
+    public void Decorator_KeyedRegistrationKeepsItsKey()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -1001,12 +1105,16 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         var provider = assembly.BuildProvider();
         var greeter = assembly.Type("IGreeter");
 
-        Assert.Equal("GOOD DAY", Invoke(provider.GetRequiredKeyedService(greeter, "formal"), "Greet"));
+        Assert.Equal(
+            "GOOD DAY",
+            Invoke(provider.GetRequiredKeyedService(greeter, "formal"), "Greet")
+        );
         Assert.Null(provider.GetService(greeter));
     }
 
@@ -1019,7 +1127,8 @@ public class DecoratorGenerationTests {
     /// that does not compile, which is the failure mode this pins.
     /// </remarks>
     [Fact]
-    public void GenericDecorator_ClosesOverANestedTypeArgument() {
+    public void GenericDecorator_ClosesOverANestedTypeArgument()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using System.Collections.Generic;
@@ -1046,10 +1155,15 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
-        var handler = assembly.Type("IHandler`2").MakeGenericType(
-            typeof(List<>).MakeGenericType(assembly.Type("Create")), assembly.Type("Id"));
+        var handler = assembly
+            .Type("IHandler`2")
+            .MakeGenericType(
+                typeof(List<>).MakeGenericType(assembly.Type("Create")),
+                assembly.Type("Id")
+            );
 
         var resolved = assembly.BuildProvider().GetRequiredService(handler);
 
@@ -1064,7 +1178,8 @@ public class DecoratorGenerationTests {
     /// registration. Emitting for a construction nothing registers would be dead code at best.
     /// </remarks>
     [Fact]
-    public void GenericDecorator_DecoratesOnlyTheRegisteredClosings() {
+    public void GenericDecorator_DecoratesOnlyTheRegisteredClosings()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -1088,12 +1203,14 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         Assert.Empty(result.Errors);
 
-        var decorators = Assert.Single(
-            result.GeneratedSources, source => source.Key.Contains("Decorators")).Value;
+        var decorators = Assert
+            .Single(result.GeneratedSources, source => source.Key.Contains("Decorators"))
+            .Value;
 
         Assert.Contains("Registered", decorators);
         Assert.DoesNotContain("NeverRegistered", decorators);
@@ -1103,7 +1220,8 @@ public class DecoratorGenerationTests {
     /// A generic decorator keeps the lifetime each registration declared.
     /// </summary>
     [Fact]
-    public void GenericDecorator_PreservesEachRegistrationsLifetime() {
+    public void GenericDecorator_PreservesEachRegistrationsLifetime()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -1128,17 +1246,20 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         var handler = assembly.Type("IHandler`1");
 
         var singleton = Assert.Single(
             assembly.Services,
-            d => d.ServiceType == handler.MakeGenericType(assembly.Type("A")));
+            d => d.ServiceType == handler.MakeGenericType(assembly.Type("A"))
+        );
 
         var transient = Assert.Single(
             assembly.Services,
-            d => d.ServiceType == handler.MakeGenericType(assembly.Type("B")));
+            d => d.ServiceType == handler.MakeGenericType(assembly.Type("B"))
+        );
 
         Assert.Equal(ServiceLifetime.Singleton, singleton.Lifetime);
         Assert.Equal(ServiceLifetime.Transient, transient.Lifetime);
@@ -1153,7 +1274,8 @@ public class DecoratorGenerationTests {
     /// produced.
     /// </remarks>
     [Fact]
-    public void GenericDecorator_LeavesTheInnerOwnedByTheContainer() {
+    public void GenericDecorator_LeavesTheInnerOwnedByTheContainer()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using System;
@@ -1180,12 +1302,14 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         var provider = assembly.BuildProvider();
         var handler = assembly.Type("IHandler`1").MakeGenericType(assembly.Type("A"));
 
-        using (var scope = provider.CreateScope()) {
+        using (var scope = provider.CreateScope())
+        {
             Assert.Equal("a", Invoke(scope.ServiceProvider.GetRequiredService(handler), "Handle"));
         }
 
@@ -1196,7 +1320,8 @@ public class DecoratorGenerationTests {
     /// A decorator scoped to a realm decorates only that module's registrations.
     /// </summary>
     [Fact]
-    public void Decorator_ScopedToARealm_DecoratesOnlyThatModule() {
+    public void Decorator_ScopedToARealm_DecoratesOnlyThatModule()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -1219,10 +1344,13 @@ public class DecoratorGenerationTests {
             [DependencyModule(OnlyRealm = true)]
             public partial class PlainModule;
             """,
-            moduleName: "DecoratedModule");
+            moduleName: "DecoratedModule"
+        );
 
-        Assert.Equal("HELLO", Invoke(
-            assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet"));
+        Assert.Equal(
+            "HELLO",
+            Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet")
+        );
     }
 
     /// <summary>
@@ -1237,8 +1365,10 @@ public class DecoratorGenerationTests {
     [InlineData("Development", "HELLO")]
     [InlineData("Production", "hello")]
     public void Decorator_WithAnEnvironmentCondition_AppliesOnlyWhenItHolds(
-        string environment, string expected) {
-
+        string environment,
+        string expected
+    )
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -1259,17 +1389,21 @@ public class DecoratorGenerationTests {
             [DependencyModule]
             public partial class TestModule;
             """,
-            environment: new ModuleEnvironment(environment));
+            environment: new ModuleEnvironment(environment)
+        );
 
-        Assert.Equal(expected, Invoke(
-            assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet"));
+        Assert.Equal(
+            expected,
+            Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet")
+        );
     }
 
     /// <summary>
     /// Every implementation behind one service is decorated, not just the last registered.
     /// </summary>
     [Fact]
-    public void Decorator_WrapsEveryImplementationOfTheService() {
+    public void Decorator_WrapsEveryImplementationOfTheService()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -1291,10 +1425,13 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
-        var all = ((System.Collections.IEnumerable)assembly.BuildProvider()
-                .GetServices(assembly.Type("IGreeter")))
+        var all = (
+            (System.Collections.IEnumerable)
+                assembly.BuildProvider().GetServices(assembly.Type("IGreeter"))
+        )
             .Cast<object>()
             .Select(service => Invoke(service, "Greet"))
             .ToArray();
@@ -1311,7 +1448,8 @@ public class DecoratorGenerationTests {
     /// asserts that the second sees what the first produced.
     /// </remarks>
     [Fact]
-    public void Decorator_AndInterceptor_BothWrapTheService() {
+    public void Decorator_AndInterceptor_BothWrapTheService()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -1342,10 +1480,13 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         var greeted = Invoke(
-            assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet");
+            assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")),
+            "Greet"
+        );
 
         var lines = (System.Collections.Generic.List<string>)
             assembly.Type("Log").GetField("Lines")!.GetValue(null)!;
@@ -1364,7 +1505,8 @@ public class DecoratorGenerationTests {
     /// service type is the implementation.
     /// </remarks>
     [Fact]
-    public void Decorator_OverAConventionRegisteredAsSelf() {
+    public void Decorator_OverAConventionRegisteredAsSelf()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -1387,10 +1529,13 @@ public class DecoratorGenerationTests {
                     conventions.RegisterAll<IMarker>().AsSelf().AsSingleton();
                 }
             }
-            """);
+            """
+        );
 
-        Assert.Equal("WORK", Invoke(
-            assembly.BuildProvider().GetRequiredService(assembly.Type("Worker")), "Work"));
+        Assert.Equal(
+            "WORK",
+            Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("Worker")), "Work")
+        );
     }
 
     /// <summary>
@@ -1410,7 +1555,8 @@ public class DecoratorGenerationTests {
     /// </para>
     /// </remarks>
     [Fact]
-    public void ModuleLevelDecorate_CanNameAGenericDecorator() {
+    public void ModuleLevelDecorate_CanNameAGenericDecorator()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -1436,15 +1582,26 @@ public class DecoratorGenerationTests {
             [DependencyModule]
             [Decorate(typeof(IHandler<>), typeof(LoudHandler<>))]
             public partial class TestModule;
-            """);
+            """
+        );
 
         var provider = assembly.BuildProvider();
         var handler = assembly.Type("IHandler`1");
 
-        Assert.Equal("A", Invoke(
-            provider.GetRequiredService(handler.MakeGenericType(assembly.Type("A"))), "Handle"));
-        Assert.Equal("B", Invoke(
-            provider.GetRequiredService(handler.MakeGenericType(assembly.Type("B"))), "Handle"));
+        Assert.Equal(
+            "A",
+            Invoke(
+                provider.GetRequiredService(handler.MakeGenericType(assembly.Type("A"))),
+                "Handle"
+            )
+        );
+        Assert.Equal(
+            "B",
+            Invoke(
+                provider.GetRequiredService(handler.MakeGenericType(assembly.Type("B"))),
+                "Handle"
+            )
+        );
     }
 
     // ------------------------------------------------------------------------------------------
@@ -1453,7 +1610,8 @@ public class DecoratorGenerationTests {
 
     /// <summary>The wrapped service does not have to be the first constructor parameter.</summary>
     [Fact]
-    public void Decorator_InnerParameterNeedNotComeFirst() {
+    public void Decorator_InnerParameterNeedNotComeFirst()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -1475,15 +1633,19 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
-        Assert.Equal("hello!", Invoke(
-            assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet"));
+        Assert.Equal(
+            "hello!",
+            Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet")
+        );
     }
 
     /// <summary>A record decorator is constructed through its primary constructor.</summary>
     [Fact]
-    public void Decorator_DeclaredAsARecord() {
+    public void Decorator_DeclaredAsARecord()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -1502,15 +1664,19 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
-        Assert.Equal("HELLO", Invoke(
-            assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet"));
+        Assert.Equal(
+            "HELLO",
+            Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet")
+        );
     }
 
     /// <summary>A decorator nested inside another type is named correctly in the emitted new.</summary>
     [Fact]
-    public void Decorator_NestedInsideAnotherType() {
+    public void Decorator_NestedInsideAnotherType()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -1531,10 +1697,13 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
-        Assert.Equal("HELLO", Invoke(
-            assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet"));
+        Assert.Equal(
+            "HELLO",
+            Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet")
+        );
     }
 
     /// <summary>A decorator whose inner parameter is nullable still finds it.</summary>
@@ -1544,7 +1713,8 @@ public class DecoratorGenerationTests {
     /// the decoration is dropped with nothing said.
     /// </remarks>
     [Fact]
-    public void Decorator_WithANullableInnerParameter() {
+    public void Decorator_WithANullableInnerParameter()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -1563,10 +1733,13 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
-        Assert.Equal("HELLO", Invoke(
-            assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet"));
+        Assert.Equal(
+            "HELLO",
+            Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet")
+        );
     }
 
     /// <summary>
@@ -1579,7 +1752,8 @@ public class DecoratorGenerationTests {
     /// wrong way round, which compiles whenever the two types happen to be compatible.
     /// </remarks>
     [Fact]
-    public void GenericDecorator_WithReorderedTypeParameters_IsNotEmitted() {
+    public void GenericDecorator_WithReorderedTypeParameters_IsNotEmitted()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -1605,20 +1779,23 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         Assert.Empty(result.Errors);
 
         Assert.DoesNotContain(
             result.GeneratedSources,
-            source => source.Value.Contains("new global::TestNamespace.Swapped"));
+            source => source.Value.Contains("new global::TestNamespace.Swapped")
+        );
     }
 
     /// <summary>
     /// A generic decorator with fewer type parameters than the service has arguments is not emitted.
     /// </summary>
     [Fact]
-    public void GenericDecorator_WithMismatchedArity_IsNotEmitted() {
+    public void GenericDecorator_WithMismatchedArity_IsNotEmitted()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -1641,14 +1818,16 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         Assert.Empty(result.Errors);
     }
 
     /// <summary>A cross-wired registration is a factory descriptor, and decorates like one.</summary>
     [Fact]
-    public void Decorator_OverACrossWiredRegistration() {
+    public void Decorator_OverACrossWiredRegistration()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -1667,14 +1846,21 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         var provider = assembly.BuildProvider();
 
-        Assert.Equal("HELLO", Invoke(provider.GetRequiredService(assembly.Type("IGreeter")), "Greet"));
+        Assert.Equal(
+            "HELLO",
+            Invoke(provider.GetRequiredService(assembly.Type("IGreeter")), "Greet")
+        );
 
         // The implementation stays resolvable as itself, undecorated — that is what cross-wiring is.
-        Assert.Equal("hello", Invoke(provider.GetRequiredService(assembly.Type("Greeter")), "Greet"));
+        Assert.Equal(
+            "hello",
+            Invoke(provider.GetRequiredService(assembly.Type("Greeter")), "Greet")
+        );
     }
 
     /// <summary>
@@ -1682,7 +1868,8 @@ public class DecoratorGenerationTests {
     /// convention.
     /// </summary>
     [Fact]
-    public void GenericDecorator_OverConventionRegistrations_WithAGenericDependency() {
+    public void GenericDecorator_OverConventionRegistrations_WithAGenericDependency()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -1712,11 +1899,15 @@ public class DecoratorGenerationTests {
                     conventions.RegisterAll(typeof(IHandler<>)).AsSingleton();
                 }
             }
-            """);
+            """
+        );
 
         var handler = assembly.Type("IHandler`1").MakeGenericType(assembly.Type("A"));
 
-        Assert.Equal("[A]a", Invoke(assembly.BuildProvider().GetRequiredService(handler), "Handle"));
+        Assert.Equal(
+            "[A]a",
+            Invoke(assembly.BuildProvider().GetRequiredService(handler), "Handle")
+        );
     }
 
     /// <summary>
@@ -1729,7 +1920,8 @@ public class DecoratorGenerationTests {
     /// decorator's side effects happening twice per call and nothing else.
     /// </remarks>
     [Fact]
-    public void Decorator_WithTwoModulesInTheCompilation_IsAppliedOnce() {
+    public void Decorator_WithTwoModulesInTheCompilation_IsAppliedOnce()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -1753,7 +1945,8 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class OtherModule;
-            """);
+            """
+        );
 
         Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet");
 
@@ -1766,7 +1959,8 @@ public class DecoratorGenerationTests {
     /// between two decorators and a nesting order nobody declared.
     /// </remarks>
     [Fact]
-    public void Decorators_SharingAnOrder_AreReported() {
+    public void Decorators_SharingAnOrder_AreReported()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -1786,7 +1980,8 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         var reported = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0007");
 
@@ -1802,7 +1997,8 @@ public class DecoratorGenerationTests {
     /// through — so this pins that the ordering applies across both rather than within each.
     /// </remarks>
     [Fact]
-    public void GenericAndNonGenericDecorators_NestByOrder() {
+    public void GenericAndNonGenericDecorators_NestByOrder()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -1830,7 +2026,8 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         var handler = assembly.Type("IHandler`1").MakeGenericType(assembly.Type("A"));
 
@@ -1844,7 +2041,8 @@ public class DecoratorGenerationTests {
 
     /// <summary>An unscoped decorator does not reach a realm-only module.</summary>
     [Fact]
-    public void Decorator_Unscoped_DoesNotReachARealmOnlyModule() {
+    public void Decorator_Unscoped_DoesNotReachARealmOnlyModule()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -1864,15 +2062,19 @@ public class DecoratorGenerationTests {
             [DependencyModule(OnlyRealm = true)]
             public partial class RealmModule;
             """,
-            moduleName: "RealmModule");
+            moduleName: "RealmModule"
+        );
 
-        Assert.Equal("hello", Invoke(
-            assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet"));
+        Assert.Equal(
+            "hello",
+            Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet")
+        );
     }
 
     /// <summary>A convention registering matches under a key is decorated under that key.</summary>
     [Fact]
-    public void Decorator_OverAKeyedConventionRegistration() {
+    public void Decorator_OverAKeyedConventionRegistration()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -1896,7 +2098,8 @@ public class DecoratorGenerationTests {
                     conventions.RegisterAll<IGreeter>().WithKey("loud").AsSingleton();
                 }
             }
-            """);
+            """
+        );
 
         var provider = assembly.BuildProvider();
         var greeter = assembly.Type("IGreeter");
@@ -1914,7 +2117,8 @@ public class DecoratorGenerationTests {
     /// promises has to survive the rewrite.
     /// </remarks>
     [Fact]
-    public void Decorator_OverAConventionRegisteredAsSelfWithInterfaces() {
+    public void Decorator_OverAConventionRegisteredAsSelfWithInterfaces()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -1937,19 +2141,27 @@ public class DecoratorGenerationTests {
                     conventions.RegisterAll<IGreeter>().AsSelfWithInterfaces().AsSingleton();
                 }
             }
-            """);
+            """
+        );
 
         var provider = assembly.BuildProvider();
 
-        Assert.Equal("HELLO", Invoke(provider.GetRequiredService(assembly.Type("IGreeter")), "Greet"));
+        Assert.Equal(
+            "HELLO",
+            Invoke(provider.GetRequiredService(assembly.Type("IGreeter")), "Greet")
+        );
 
         // The implementation itself stays undecorated, which is what cross-wiring means.
-        Assert.Equal("hello", Invoke(provider.GetRequiredService(assembly.Type("Greeter")), "Greet"));
+        Assert.Equal(
+            "hello",
+            Invoke(provider.GetRequiredService(assembly.Type("Greeter")), "Greet")
+        );
     }
 
     /// <summary>A decorator with no matching registration emits nothing and breaks nothing.</summary>
     [Fact]
-    public void Decorator_WithNothingToDecorate_EmitsNothing() {
+    public void Decorator_WithNothingToDecorate_EmitsNothing()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -1965,7 +2177,8 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         Assert.Empty(result.Errors);
     }
@@ -1980,7 +2193,8 @@ public class DecoratorGenerationTests {
     /// for two declarations that are each perfectly legal.
     /// </remarks>
     [Fact]
-    public void GenericDecorator_ConstrainedToReferenceTypes_SkipsValueTypeClosings() {
+    public void GenericDecorator_ConstrainedToReferenceTypes_SkipsValueTypeClosings()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -2004,7 +2218,8 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         Assert.Empty(result.Errors);
     }
@@ -2013,7 +2228,8 @@ public class DecoratorGenerationTests {
     /// A constraint the closing does satisfy still emits.
     /// </summary>
     [Fact]
-    public void GenericDecorator_ConstrainedToAnInterface_EmitsForSatisfyingClosings() {
+    public void GenericDecorator_ConstrainedToAnInterface_EmitsForSatisfyingClosings()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -2036,11 +2252,15 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         var handler = assembly.Type("IHandler`1").MakeGenericType(assembly.Type("Thing"));
 
-        Assert.Equal("THING", Invoke(assembly.BuildProvider().GetRequiredService(handler), "Handle"));
+        Assert.Equal(
+            "THING",
+            Invoke(assembly.BuildProvider().GetRequiredService(handler), "Handle")
+        );
     }
 
     /// <summary>
@@ -2052,7 +2272,8 @@ public class DecoratorGenerationTests {
     /// it wins over inference rather than being one more candidate.
     /// </remarks>
     [Fact]
-    public void Decorator_WithAnExplicitService_DecoratesThatOne() {
+    public void Decorator_WithAnExplicitService_DecoratesThatOne()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -2076,19 +2297,24 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         var provider = assembly.BuildProvider();
 
         Assert.Equal("BYE", Invoke(provider.GetRequiredService(assembly.Type("IFarewell")), "Bye"));
 
         // The other interface it implements is not decorated.
-        Assert.Equal("hello", Invoke(provider.GetRequiredService(assembly.Type("IGreeter")), "Greet"));
+        Assert.Equal(
+            "hello",
+            Invoke(provider.GetRequiredService(assembly.Type("IGreeter")), "Greet")
+        );
     }
 
     /// <summary>A registration declared with Try is still decorated.</summary>
     [Fact]
-    public void Decorator_OverATryRegistration() {
+    public void Decorator_OverATryRegistration()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -2107,10 +2333,13 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
-        Assert.Equal("HELLO", Invoke(
-            assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet"));
+        Assert.Equal(
+            "HELLO",
+            Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet")
+        );
     }
 
     /// <summary>A decorator reaching the service through a base class is still a decorator.</summary>
@@ -2119,7 +2348,8 @@ public class DecoratorGenerationTests {
     /// directly-written interfaces count, this stops being recognised and is silently not applied.
     /// </remarks>
     [Fact]
-    public void Decorator_ImplementingTheServiceThroughABaseClass() {
+    public void Decorator_ImplementingTheServiceThroughABaseClass()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -2140,7 +2370,8 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         Assert.Empty(result.Errors);
     }
@@ -2150,8 +2381,10 @@ public class DecoratorGenerationTests {
     [InlineData("Development", "A")]
     [InlineData("Production", "a")]
     public void GenericDecorator_WithAnEnvironmentCondition_GuardsEachClosing(
-        string environment, string expected) {
-
+        string environment,
+        string expected
+    )
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -2178,11 +2411,15 @@ public class DecoratorGenerationTests {
             [DependencyModule]
             public partial class TestModule;
             """,
-            environment: new ModuleEnvironment(environment));
+            environment: new ModuleEnvironment(environment)
+        );
 
         var handler = assembly.Type("IHandler`1").MakeGenericType(assembly.Type("A"));
 
-        Assert.Equal(expected, Invoke(assembly.BuildProvider().GetRequiredService(handler), "Handle"));
+        Assert.Equal(
+            expected,
+            Invoke(assembly.BuildProvider().GetRequiredService(handler), "Handle")
+        );
     }
 
     /// <summary>Two closings of one generic service each get their own decoration.</summary>
@@ -2191,7 +2428,8 @@ public class DecoratorGenerationTests {
     /// seen first.
     /// </remarks>
     [Fact]
-    public void GenericDecorator_OverTwoClosingsOfOneService() {
+    public void GenericDecorator_OverTwoClosingsOfOneService()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -2216,20 +2454,32 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         var provider = assembly.BuildProvider();
         var handler = assembly.Type("IHandler`1");
 
-        Assert.Equal("MULTI", Invoke(
-            provider.GetRequiredService(handler.MakeGenericType(assembly.Type("A"))), "Handle"));
-        Assert.Equal("MULTI", Invoke(
-            provider.GetRequiredService(handler.MakeGenericType(assembly.Type("B"))), "Handle"));
+        Assert.Equal(
+            "MULTI",
+            Invoke(
+                provider.GetRequiredService(handler.MakeGenericType(assembly.Type("A"))),
+                "Handle"
+            )
+        );
+        Assert.Equal(
+            "MULTI",
+            Invoke(
+                provider.GetRequiredService(handler.MakeGenericType(assembly.Type("B"))),
+                "Handle"
+            )
+        );
     }
 
     /// <summary>A deeply nested type argument is substituted at every level.</summary>
     [Fact]
-    public void GenericDecorator_ClosesOverADeeplyNestedTypeArgument() {
+    public void GenericDecorator_ClosesOverADeeplyNestedTypeArgument()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using System.Collections.Generic;
@@ -2253,18 +2503,27 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
-        var handler = assembly.Type("IHandler`1").MakeGenericType(
-            typeof(IReadOnlyList<>).MakeGenericType(
-                typeof(Dictionary<,>).MakeGenericType(typeof(string), assembly.Type("Create"))));
+        var handler = assembly
+            .Type("IHandler`1")
+            .MakeGenericType(
+                typeof(IReadOnlyList<>).MakeGenericType(
+                    typeof(Dictionary<,>).MakeGenericType(typeof(string), assembly.Type("Create"))
+                )
+            );
 
-        Assert.Equal("DEEP", Invoke(assembly.BuildProvider().GetRequiredService(handler), "Handle"));
+        Assert.Equal(
+            "DEEP",
+            Invoke(assembly.BuildProvider().GetRequiredService(handler), "Handle")
+        );
     }
 
     /// <summary>Three type parameters are substituted in order.</summary>
     [Fact]
-    public void GenericDecorator_WithThreeTypeParameters() {
+    public void GenericDecorator_WithThreeTypeParameters()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -2287,17 +2546,20 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
-        var pipe = assembly.Type("IPipe`3").MakeGenericType(
-            assembly.Type("In"), assembly.Type("Via"), assembly.Type("Out"));
+        var pipe = assembly
+            .Type("IPipe`3")
+            .MakeGenericType(assembly.Type("In"), assembly.Type("Via"), assembly.Type("Out"));
 
         Assert.Equal("PIPE", Invoke(assembly.BuildProvider().GetRequiredService(pipe), "Run"));
     }
 
     /// <summary>A keyed registration with a keyed dependency on the decorator.</summary>
     [Fact]
-    public void Decorator_KeyedRegistrationAndKeyedDependency() {
+    public void Decorator_KeyedRegistrationAndKeyedDependency()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -2327,15 +2589,24 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
-        Assert.Equal("good day.", Invoke(
-            assembly.BuildProvider().GetRequiredKeyedService(assembly.Type("IGreeter"), "formal"), "Greet"));
+        Assert.Equal(
+            "good day.",
+            Invoke(
+                assembly
+                    .BuildProvider()
+                    .GetRequiredKeyedService(assembly.Type("IGreeter"), "formal"),
+                "Greet"
+            )
+        );
     }
 
     /// <summary>A decorator can depend on the module environment.</summary>
     [Fact]
-    public void Decorator_DependingOnTheModuleEnvironment() {
+    public void Decorator_DependingOnTheModuleEnvironment()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime;
@@ -2357,15 +2628,19 @@ public class DecoratorGenerationTests {
             [DependencyModule]
             public partial class TestModule;
             """,
-            environment: new ModuleEnvironment("Staging"));
+            environment: new ModuleEnvironment("Staging")
+        );
 
-        Assert.Equal("hello:env", Invoke(
-            assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet"));
+        Assert.Equal(
+            "hello:env",
+            Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet")
+        );
     }
 
     /// <summary>A TryEnumerable registration is decorated.</summary>
     [Fact]
-    public void Decorator_OverATryEnumerableRegistration() {
+    public void Decorator_OverATryEnumerableRegistration()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -2384,15 +2659,19 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
-        Assert.Equal("HELLO", Invoke(
-            assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet"));
+        Assert.Equal(
+            "HELLO",
+            Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet")
+        );
     }
 
     /// <summary>A convention reaching the interface through a base class is decorated.</summary>
     [Fact]
-    public void Decorator_OverAConventionUsingIncludeBaseClasses() {
+    public void Decorator_OverAConventionUsingIncludeBaseClasses()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -2417,15 +2696,19 @@ public class DecoratorGenerationTests {
                     conventions.RegisterAll<IGreeter>().IncludeBaseClasses().AsSingleton();
                 }
             }
-            """);
+            """
+        );
 
-        Assert.Equal("HELLO", Invoke(
-            assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet"));
+        Assert.Equal(
+            "HELLO",
+            Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet")
+        );
     }
 
     /// <summary>Interception over a closed construction of a generic service.</summary>
     [Fact]
-    public void Interceptor_OverAClosedGenericService() {
+    public void Interceptor_OverAClosedGenericService()
+    {
         var assembly = GeneratedAssembly.Create(
             """
             using DependencyModules.Runtime.Attributes;
@@ -2453,7 +2736,8 @@ public class DecoratorGenerationTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         var handler = assembly.Type("IHandler`1").MakeGenericType(assembly.Type("A"));
 

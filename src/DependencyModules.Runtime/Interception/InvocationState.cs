@@ -12,7 +12,8 @@ namespace DependencyModules.Runtime.Interception;
 /// <see cref="InvocationContext{TResult}"/> is a struct pointing at one of these plus a stage index,
 /// so proceeding is a virtual call rather than a closure allocation and a <c>Func</c> per interceptor.
 /// </remarks>
-public abstract class InvocationState : IArguments {
+public abstract class InvocationState : IArguments
+{
     /// <summary>
     /// The member being invoked.
     /// </summary>
@@ -34,7 +35,8 @@ public abstract class InvocationState : IArguments {
 /// <typeparam name="TResult">
 /// The member's return type, or <see cref="NoResult"/> when it returns void.
 /// </typeparam>
-public abstract class InvocationState<TResult> : InvocationState {
+public abstract class InvocationState<TResult> : InvocationState
+{
     /// <summary>
     /// Runs the pipeline from <paramref name="stage"/> onwards.
     /// </summary>
@@ -51,7 +53,8 @@ public abstract class InvocationState<TResult> : InvocationState {
 /// <typeparam name="TResult">
 /// The type the task produces, or <see cref="NoResult"/> for a task with no result.
 /// </typeparam>
-public abstract class AsyncInvocationState<TResult> : InvocationState {
+public abstract class AsyncInvocationState<TResult> : InvocationState
+{
     /// <summary>
     /// Runs the pipeline from <paramref name="stage"/> onwards.
     /// </summary>
@@ -66,7 +69,8 @@ public abstract class AsyncInvocationState<TResult> : InvocationState {
 /// Invocation state for a member returning an async stream.
 /// </summary>
 /// <typeparam name="TItem">The type the stream yields.</typeparam>
-public abstract class StreamInvocationState<TItem> : InvocationState {
+public abstract class StreamInvocationState<TItem> : InvocationState
+{
     /// <summary>
     /// Runs the pipeline from <paramref name="stage"/> onwards.
     /// </summary>

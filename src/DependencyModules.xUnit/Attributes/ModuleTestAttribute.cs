@@ -21,8 +21,8 @@ namespace DependencyModules.xUnit.Attributes;
 /// </example>
 [XunitTestCaseDiscoverer(typeof(ModuleTestDiscoverer))]
 [AttributeUsage(AttributeTargets.Method)]
-public class ModuleTestAttribute : FactAttribute, IModuleTestAttribute {
-
+public class ModuleTestAttribute : FactAttribute, IModuleTestAttribute
+{
     /// <summary>
     /// Marks a test method, taking no modules.
     /// </summary>
@@ -34,9 +34,9 @@ public class ModuleTestAttribute : FactAttribute, IModuleTestAttribute {
     /// </remarks>
     public ModuleTestAttribute(
         [CallerFilePath] string? sourceFilePath = null,
-        [CallerLineNumber] int sourceLineNumber = -1)
-        : base(sourceFilePath, sourceLineNumber) =>
-        ModuleTypes = [];
+        [CallerLineNumber] int sourceLineNumber = -1
+    )
+        : base(sourceFilePath, sourceLineNumber) => ModuleTypes = [];
 
     /// <summary>
     /// Marks a test method and names one module to configure the test's container with.
@@ -50,9 +50,9 @@ public class ModuleTestAttribute : FactAttribute, IModuleTestAttribute {
     public ModuleTestAttribute(
         Type module,
         [CallerFilePath] string? sourceFilePath = null,
-        [CallerLineNumber] int sourceLineNumber = -1)
-        : base(sourceFilePath, sourceLineNumber) =>
-        ModuleTypes = [module];
+        [CallerLineNumber] int sourceLineNumber = -1
+    )
+        : base(sourceFilePath, sourceLineNumber) => ModuleTypes = [module];
 
     /// <summary>
     /// Marks a test method and names several modules to configure the test's container with.
@@ -63,8 +63,7 @@ public class ModuleTestAttribute : FactAttribute, IModuleTestAttribute {
     /// still runs and still reports correctly; only navigation from a test explorer back to the
     /// source is unavailable. Naming one module, or none, takes an overload that does capture it.
     /// </remarks>
-    public ModuleTestAttribute(params Type[] modules) =>
-        ModuleTypes = modules;
+    public ModuleTestAttribute(params Type[] modules) => ModuleTypes = modules;
 
     /// <summary>
     /// Gets an array of module types associated with the test method decorated with
@@ -78,7 +77,5 @@ public class ModuleTestAttribute : FactAttribute, IModuleTestAttribute {
     /// Declared by <see cref="IModuleTestAttribute"/>, so the module loading itself is shared with
     /// every other test framework integration rather than reading this attribute by name.
     /// </remarks>
-    public Type[] ModuleTypes {
-        get;
-    }
+    public Type[] ModuleTypes { get; }
 }

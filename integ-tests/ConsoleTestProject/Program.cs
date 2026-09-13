@@ -16,4 +16,3 @@ var container = serviceCollection.BuildServiceProvider();
 container.GetRequiredService<TestExport>();
 
 SutProject.SutModule.Run();
-

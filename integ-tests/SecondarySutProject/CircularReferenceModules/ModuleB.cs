@@ -4,5 +4,4 @@ namespace SecondarySutProject.CircularReferenceModules;
 
 [DependencyModule]
 [ModuleA]
-public partial class ModuleB {
-}
+public partial class ModuleB { }

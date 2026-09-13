@@ -2,12 +2,14 @@ using DependencyModules.Runtime.Attributes;
 
 namespace SutProject.Tests.StandardTests;
 
-public interface IRecordModuleService {
+public interface IRecordModuleService
+{
     string Value { get; }
 }
 
 [SingletonService(Realm = typeof(RecordModule))]
-public class RecordModuleService : IRecordModuleService {
+public class RecordModuleService : IRecordModuleService
+{
     public string Value => "FromRecordModule";
 }
 

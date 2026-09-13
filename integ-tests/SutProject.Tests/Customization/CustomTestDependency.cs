@@ -1,9 +1,5 @@
 namespace SutProject.Tests.Customization;
 
-public interface ICustomTestDependency {
-    
-}
+public interface ICustomTestDependency { }
 
-public class CustomTestDependency : ICustomTestDependency {
-    
-}
+public class CustomTestDependency : ICustomTestDependency { }

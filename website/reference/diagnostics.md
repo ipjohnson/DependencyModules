@@ -235,7 +235,8 @@ public class AuditInterceptor : IInterceptor { … }      // sync only
 
 [SingletonService]
 [Intercept(typeof(AuditInterceptor))]
-public class Orders : IOrders {
+public class Orders : IOrders
+{
     public int Count(string customer) { … }             // audited
     public Task<int> CountAsync(string customer) { … }  // DM0015 — not audited
 }
@@ -298,7 +299,8 @@ while the nested declaration never implemented `IDependencyModule` — a green b
 nothing.
 
 ```csharp
-public static class Outer {
+public static class Outer
+{
     [DependencyModule]
     public partial class NestedModule;   // DM0017
 }
@@ -322,7 +324,8 @@ silently.
 
 ```csharp
 [DependencyModule]
-public partial class CacheModule : IServiceCollectionConfiguration {
+public partial class CacheModule : IServiceCollectionConfiguration
+{
     public int SizeLimit { get; set; }              // DM0018
     public void ConfigureServices(IServiceCollection services) =>
         services.AddSingleton(new CacheSettings(SizeLimit));
@@ -401,7 +404,8 @@ The case that reaches here is a realm-only module registering the class *by conv
 public class Greeter : IGreeter { … }
 
 [DependencyModule(OnlyRealm = true)]
-public partial class GreetingModule : IConventionModule {
+public partial class GreetingModule : IConventionModule
+{
     void IConventionModule.Conventions(IConventionDefinitions conventions) =>
         conventions.RegisterAll<IGreeter>().AsSingleton();
 }
@@ -440,8 +444,8 @@ under it, and one test overriding that for one argument is what having both scop
 
 ```csharp
 [TestExport(typeof(IClock), Implementation = typeof(SystemClock))]   // the fixture default
-public class ExpiryTests {
-
+public class ExpiryTests
+{
     [ModuleTest]
     public void UsesTheRealClock(IClock clock) { }                   // SystemClock
 

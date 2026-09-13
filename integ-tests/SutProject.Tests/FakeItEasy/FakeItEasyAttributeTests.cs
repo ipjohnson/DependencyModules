@@ -10,12 +10,16 @@ namespace SutProject.Tests.FakeItEasy;
 /// The same scenario as the NSubstitute and Moq tests, so the three can be read against each other.
 /// </summary>
 [FakeItEasySupport]
-public class FakeItEasyAttributeTests {
-
+public class FakeItEasyAttributeTests
+{
     [ModuleTest]
     [SutModule]
-    public void MockTest([Mock] IDependencyOne dependencyOne,
-        [Mock] IScopedService scopedService, ISingletonService singletonService) {
+    public void MockTest(
+        [Mock] IDependencyOne dependencyOne,
+        [Mock] IScopedService scopedService,
+        ISingletonService singletonService
+    )
+    {
         A.CallTo(() => dependencyOne.SingletonService).Returns(singletonService);
         A.CallTo(() => dependencyOne.ScopedService).Returns(scopedService);
 
@@ -28,7 +32,8 @@ public class FakeItEasyAttributeTests {
     /// </summary>
     [ModuleTest]
     [SutModule]
-    public void TheInjectedInstanceIsTheFake([Mock] IDependencyOne dependencyOne) {
+    public void TheInjectedInstanceIsTheFake([Mock] IDependencyOne dependencyOne)
+    {
         Assert.True(Fake.GetFakeManager(dependencyOne) is not null);
     }
 }

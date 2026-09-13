@@ -22,12 +22,14 @@ namespace DependencyModules.Runtime.Attributes;
 /// </example>
 /// </remarks>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
-public class IfEnvironmentValueAttribute : Attribute {
+public class IfEnvironmentValueAttribute : Attribute
+{
     /// <summary>
     /// Registers the service only when the environment has any value for <paramref name="key"/>.
     /// </summary>
     /// <param name="key">The key that has to be present.</param>
-    public IfEnvironmentValueAttribute(string key) {
+    public IfEnvironmentValueAttribute(string key)
+    {
         Key = key;
     }
 
@@ -37,7 +39,8 @@ public class IfEnvironmentValueAttribute : Attribute {
     /// </summary>
     /// <param name="key">The key to read.</param>
     /// <param name="value">The value it has to equal.</param>
-    public IfEnvironmentValueAttribute(string key, string value) {
+    public IfEnvironmentValueAttribute(string key, string value)
+    {
         Key = key;
         Value = value;
     }

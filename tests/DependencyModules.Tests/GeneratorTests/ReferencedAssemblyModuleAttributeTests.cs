@@ -16,10 +16,9 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// its DM0019 example — <c>using MyApp.Library;</c> above <c>[assembly: LibraryModule]</c> — and it
 /// did not fire, because both codes were built only from the modules declared in this compilation.
 /// </summary>
-public class ReferencedAssemblyModuleAttributeTests {
-
-    private const string LibrarySource =
-        """
+public class ReferencedAssemblyModuleAttributeTests
+{
+    private const string LibrarySource = """
         using DependencyModules.Runtime.Attributes;
 
         namespace ThePackage.Composition;
@@ -38,13 +37,15 @@ public class ReferencedAssemblyModuleAttributeTests {
     /// file the generated ApplicationModule was not built from, so nothing reads it.
     /// </summary>
     [Fact]
-    public void AnAssemblyAttributeOutsideTheEntryPointFile_ReportsDM0019() {
+    public void AnAssemblyAttributeOutsideTheEntryPointFile_ReportsDM0019()
+    {
         var result = Run(
             bootstrap: """
-                       using ThePackage.Composition;
+            using ThePackage.Composition;
 
-                       [assembly: LibraryModule]
-                       """);
+            [assembly: LibraryModule]
+            """
+        );
 
         var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0019");
 
@@ -53,14 +54,16 @@ public class ReferencedAssemblyModuleAttributeTests {
     }
 
     [Fact]
-    public void AnAssemblyAttributeInTheEntryPointFile_IsSilent() {
+    public void AnAssemblyAttributeInTheEntryPointFile_IsSilent()
+    {
         var result = Run(
             bootstrap: null,
             programExtra: """
-                          using ThePackage.Composition;
+            using ThePackage.Composition;
 
-                          [assembly: LibraryModule]
-                          """);
+            [assembly: LibraryModule]
+            """
+        );
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0019");
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0016");
@@ -72,7 +75,8 @@ public class ReferencedAssemblyModuleAttributeTests {
     /// turns that into the one-line fix.
     /// </summary>
     [Fact]
-    public void AnAssemblyAttributeWithoutItsNamespaceImported_ReportsDM0016() {
+    public void AnAssemblyAttributeWithoutItsNamespaceImported_ReportsDM0016()
+    {
         var result = Run(bootstrap: "[assembly: LibraryModule]");
 
         var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0016");
@@ -86,7 +90,8 @@ public class ReferencedAssemblyModuleAttributeTests {
     /// the in-compilation path already reports in.
     /// </summary>
     [Fact]
-    public void AnAssemblyAttributeWithoutItsNamespaceImported_DoesNotAlsoReportDM0019() {
+    public void AnAssemblyAttributeWithoutItsNamespaceImported_DoesNotAlsoReportDM0019()
+    {
         var result = Run(bootstrap: "[assembly: LibraryModule]");
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0019");
@@ -96,12 +101,15 @@ public class ReferencedAssemblyModuleAttributeTests {
     /// A global using satisfies the import wherever it is written, exactly as for a local module.
     /// </summary>
     [Fact]
-    public void AGlobalUsingSatisfiesTheImport() {
+    public void AGlobalUsingSatisfiesTheImport()
+    {
         var result = Run(
             bootstrap: "[assembly: LibraryModule]",
-            extraFiles: new Dictionary<string, string> {
-                ["Usings.cs"] = "global using ThePackage.Composition;"
-            });
+            extraFiles: new Dictionary<string, string>
+            {
+                ["Usings.cs"] = "global using ThePackage.Composition;",
+            }
+        );
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0016");
         Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0019");
@@ -113,18 +121,25 @@ public class ReferencedAssemblyModuleAttributeTests {
     /// the same shape, and that is where these attributes are supposed to live in their own file.
     /// </summary>
     [Fact]
-    public void AClassLibrary_IsSilent() {
-        var library = GeneratorTestHarness.CompileLibrary(LibrarySource, "TheModulePackage", runGenerator: true);
+    public void AClassLibrary_IsSilent()
+    {
+        var library = GeneratorTestHarness.CompileLibrary(
+            LibrarySource,
+            "TheModulePackage",
+            runGenerator: true
+        );
 
         var result = GeneratorTestHarness.Run(
-            new Dictionary<string, string> {
+            new Dictionary<string, string>
+            {
                 ["Bootstrap.cs"] = """
-                                   using ThePackage.Composition;
+                using ThePackage.Composition;
 
-                                   [assembly: LibraryModule]
-                                   """
+                [assembly: LibraryModule]
+                """,
             },
-            additionalReferences: [library.Reference]);
+            additionalReferences: [library.Reference]
+        );
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0019");
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0016");
@@ -135,7 +150,8 @@ public class ReferencedAssemblyModuleAttributeTests {
     /// what keeps this from reporting on every unrelated assembly-level attribute in the project.
     /// </summary>
     [Fact]
-    public void AnAttributeThatNamesNoModule_IsSilent() {
+    public void AnAttributeThatNamesNoModule_IsSilent()
+    {
         var result = Run(bootstrap: "[assembly: System.CLSCompliant(true)]");
 
         Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0016");
@@ -145,27 +161,36 @@ public class ReferencedAssemblyModuleAttributeTests {
     private static GeneratorResult Run(
         string? bootstrap,
         string? programExtra = null,
-        IReadOnlyDictionary<string, string>? extraFiles = null) {
+        IReadOnlyDictionary<string, string>? extraFiles = null
+    )
+    {
+        var library = GeneratorTestHarness.CompileLibrary(
+            LibrarySource,
+            "TheModulePackage",
+            runGenerator: true
+        );
 
-        var library = GeneratorTestHarness.CompileLibrary(LibrarySource, "TheModulePackage", runGenerator: true);
-
-        var sources = new Dictionary<string, string> {
+        var sources = new Dictionary<string, string>
+        {
             // Top-level statements, so an ApplicationModule is generated and there is an entry
             // point file for DM0019 to measure against.
-            ["Program.cs"] = (programExtra ?? "") + "\nSystem.Console.WriteLine(\"hello\");"
+            ["Program.cs"] = (programExtra ?? "") + "\nSystem.Console.WriteLine(\"hello\");",
         };
 
-        if (bootstrap != null) {
+        if (bootstrap != null)
+        {
             sources["Bootstrap.cs"] = bootstrap;
         }
 
-        foreach (var extra in extraFiles ?? new Dictionary<string, string>()) {
+        foreach (var extra in extraFiles ?? new Dictionary<string, string>())
+        {
             sources[extra.Key] = extra.Value;
         }
 
         return GeneratorTestHarness.Run(
             sources,
             outputKind: OutputKind.ConsoleApplication,
-            additionalReferences: [library.Reference]);
+            additionalReferences: [library.Reference]
+        );
     }
 }

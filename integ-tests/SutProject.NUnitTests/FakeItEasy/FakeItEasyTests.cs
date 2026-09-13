@@ -10,14 +10,16 @@ namespace SutProject.NUnitTests.FakeItEasy;
 /// The FakeItEasy package, unchanged, against NUnit.
 /// </summary>
 [FakeItEasySupport]
-public class FakeItEasyTests {
-
+public class FakeItEasyTests
+{
     [ModuleTest]
     [SutModule]
     public void MockTest(
         [Mock] IDependencyOne dependencyOne,
         [Mock] IScopedService scopedService,
-        ISingletonService singletonService) {
+        ISingletonService singletonService
+    )
+    {
         A.CallTo(() => dependencyOne.SingletonService).Returns(singletonService);
         A.CallTo(() => dependencyOne.ScopedService).Returns(scopedService);
 
@@ -28,7 +30,8 @@ public class FakeItEasyTests {
     /// <summary>The injected fake is the thing you configure, unlike Moq — no unwrapping step.</summary>
     [ModuleTest]
     [SutModule]
-    public void TheInjectedInstanceIsTheFake([Mock] IDependencyOne dependencyOne) {
+    public void TheInjectedInstanceIsTheFake([Mock] IDependencyOne dependencyOne)
+    {
         Assert.That(Fake.GetFakeManager(dependencyOne), Is.Not.Null);
     }
 }

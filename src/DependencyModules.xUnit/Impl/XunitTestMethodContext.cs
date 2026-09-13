@@ -14,14 +14,12 @@ namespace DependencyModules.xUnit.Impl;
 /// <c>if (testMethod is IXunitTestMethodContext xunit)</c> reaches the full model — unique ID, merged
 /// traits, generic resolution, the test class and its collection.
 /// </remarks>
-public interface IXunitTestMethodContext : ITestMethodContext {
-
+public interface IXunitTestMethodContext : ITestMethodContext
+{
     /// <summary>
     /// xUnit's own model of the test method.
     /// </summary>
-    IXunitTestMethod XunitTestMethod {
-        get;
-    }
+    IXunitTestMethod XunitTestMethod { get; }
 }
 
 /// <summary>
@@ -34,15 +32,12 @@ public interface IXunitTestMethodContext : ITestMethodContext {
 /// </remarks>
 internal sealed class XunitTestMethodContext(
     IXunitTestMethod testMethod,
-    IReadOnlyList<Attribute> attributes) : IXunitTestMethodContext {
-
-    public IXunitTestMethod XunitTestMethod {
-        get;
-    } = testMethod;
+    IReadOnlyList<Attribute> attributes
+) : IXunitTestMethodContext
+{
+    public IXunitTestMethod XunitTestMethod { get; } = testMethod;
 
     public MethodInfo Method => XunitTestMethod.Method;
 
-    public IReadOnlyList<Attribute> Attributes {
-        get;
-    } = attributes;
+    public IReadOnlyList<Attribute> Attributes { get; } = attributes;
 }

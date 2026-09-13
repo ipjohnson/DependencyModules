@@ -12,10 +12,11 @@ namespace DependencyModules.Tests.GeneratorTests;
 ///     UPDATE_SNAPSHOTS=1 dotnet test tests/DependencyModules.Tests
 /// then review the diff under tests/DependencyModules.Tests/Snapshots.
 /// </summary>
-public class ModuleGenerationSnapshotTests {
-
+public class ModuleGenerationSnapshotTests
+{
     [Fact]
-    public void SimpleModule() {
+    public void SimpleModule()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -29,7 +30,8 @@ public class ModuleGenerationSnapshotTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         result.AssertNoErrors();
         Snapshot.Match(result.ToSnapshot());
@@ -45,7 +47,8 @@ public class ModuleGenerationSnapshotTests {
     /// descriptor and the conditional registration is the override.
     /// </summary>
     [Fact]
-    public void ModuleWithEnvironmentConditions() {
+    public void ModuleWithEnvironmentConditions()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -73,14 +76,16 @@ public class ModuleGenerationSnapshotTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         result.AssertNoErrors();
         Snapshot.Match(result.ToSnapshot());
     }
 
     [Fact]
-    public void ModuleWithAllServiceLifetimes() {
+    public void ModuleWithAllServiceLifetimes()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -102,14 +107,16 @@ public class ModuleGenerationSnapshotTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         result.AssertNoErrors();
         Snapshot.Match(result.ToSnapshot());
     }
 
     [Fact]
-    public void ModuleWithConstructorParametersAndProperties() {
+    public void ModuleWithConstructorParametersAndProperties()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -130,14 +137,16 @@ public class ModuleGenerationSnapshotTests {
                 public void ConfigureServices(IServiceCollection services) {
                 }
             }
-            """);
+            """
+        );
 
         result.AssertNoErrors();
         Snapshot.Match(result.ToSnapshot());
     }
 
     [Fact]
-    public void KeyedAndAsRegistrations() {
+    public void KeyedAndAsRegistrations()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -155,14 +164,16 @@ public class ModuleGenerationSnapshotTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         result.AssertNoErrors();
         Snapshot.Match(result.ToSnapshot());
     }
 
     [Fact]
-    public void RegistrationTypeVariants() {
+    public void RegistrationTypeVariants()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -184,14 +195,16 @@ public class ModuleGenerationSnapshotTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         result.AssertNoErrors();
         Snapshot.Match(result.ToSnapshot());
     }
 
     [Fact]
-    public void RecordModule() {
+    public void RecordModule()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -205,14 +218,16 @@ public class ModuleGenerationSnapshotTests {
 
             [DependencyModule]
             public partial record TestModule;
-            """);
+            """
+        );
 
         result.AssertNoErrors();
         Snapshot.Match(result.ToSnapshot());
     }
 
     [Fact]
-    public void GenericServiceRegistrations() {
+    public void GenericServiceRegistrations()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -229,14 +244,16 @@ public class ModuleGenerationSnapshotTests {
 
             [DependencyModule]
             public partial class TestModule;
-            """);
+            """
+        );
 
         result.AssertNoErrors();
         Snapshot.Match(result.ToSnapshot());
     }
 
     [Fact]
-    public void ModuleWithCoverageExclusionDisabled() {
+    public void ModuleWithCoverageExclusionDisabled()
+    {
         var result = GeneratorTestHarness.Run(
             """
             using DependencyModules.Runtime.Attributes;
@@ -251,7 +268,8 @@ public class ModuleGenerationSnapshotTests {
             [DependencyModule]
             public partial class TestModule;
             """,
-            new Dictionary<string, string> { ["ExcludeGeneratedCodeFromCoverage"] = "false" });
+            new Dictionary<string, string> { ["ExcludeGeneratedCodeFromCoverage"] = "false" }
+        );
 
         result.AssertNoErrors();
         Snapshot.Match(result.ToSnapshot());

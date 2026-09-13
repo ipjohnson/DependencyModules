@@ -11,8 +11,8 @@ namespace DependencyModules.Testing.Attributes.Interfaces;
 ///
 /// Applies to a method, a class or an assembly, and is found by walking that chain.
 /// </remarks>
-public interface ITestStartupAttribute {
-
+public interface ITestStartupAttribute
+{
     /// <summary>
     /// Performs whatever asynchronous setup the test needs — seeding a store, opening a connection,
     /// priming a cache.

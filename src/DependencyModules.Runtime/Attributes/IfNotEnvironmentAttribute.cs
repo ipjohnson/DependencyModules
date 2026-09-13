@@ -15,12 +15,14 @@ namespace DependencyModules.Runtime.Attributes;
 /// </example>
 /// </remarks>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-public class IfNotEnvironmentAttribute : Attribute {
+public class IfNotEnvironmentAttribute : Attribute
+{
     /// <summary>
     /// Registers the service except in the given environments.
     /// </summary>
     /// <param name="environmentNames">The environment names to exclude.</param>
-    public IfNotEnvironmentAttribute(params string[] environmentNames) {
+    public IfNotEnvironmentAttribute(params string[] environmentNames)
+    {
         EnvironmentNames = environmentNames;
     }
 

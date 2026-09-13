@@ -11,13 +11,15 @@ namespace DependencyModules.Runtime.Attributes;
 ///
 /// <code>
 /// [Decorator(Order = 100)]
-/// public class CachingRepository(IRepository inner, IMemoryCache cache) : IRepository {
+/// public class CachingRepository(IRepository inner, IMemoryCache cache) : IRepository
+/// {
 ///     public Item Get(int id) => cache.GetOrCreate(id, _ => inner.Get(id))!;
 /// }
 /// </code>
 /// </remarks>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-public class DecoratorAttribute : Attribute {
+public class DecoratorAttribute : Attribute
+{
     /// <summary>
     /// Controls how decorators nest. Lower values are applied first and therefore sit closer to the
     /// implementation; higher values wrap them.

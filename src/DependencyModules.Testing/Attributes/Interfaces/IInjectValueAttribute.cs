@@ -7,7 +7,8 @@ namespace DependencyModules.Testing.Attributes.Interfaces;
 /// This attribute is only applicable when the type is not registered with DI
 /// rather it's instantiated using ActivatorUtilities.CreateInstance
 /// </summary>
-public interface IInjectValueAttribute {
+public interface IInjectValueAttribute
+{
     /// <summary>
     /// Provides predefined values to method parameters during runtime. This method
     /// is part of the dependency injection process and retrieves values based on

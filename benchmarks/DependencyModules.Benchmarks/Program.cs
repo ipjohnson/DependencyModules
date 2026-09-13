@@ -44,15 +44,18 @@ namespace DependencyModules.Benchmarks;
 /// </item>
 /// </list>
 /// </remarks>
-public static class Program {
-
+public static class Program
+{
     private const int Runs = 15;
 
-    public static void Main() {
+    public static void Main()
+    {
         Console.WriteLine(
-            $"TieredCompilation={Environment.GetEnvironmentVariable("DOTNET_TieredCompilation") ?? "(default, results will drift)"}");
+            $"TieredCompilation={Environment.GetEnvironmentVariable("DOTNET_TieredCompilation") ?? "(default, results will drift)"}"
+        );
 
-        for (var i = 0; i < 20; i++) {
+        for (var i = 0; i < 20; i++)
+        {
             ColdRun(BuildSources(400, 100));
         }
 
@@ -60,12 +63,16 @@ public static class Program {
         Console.WriteLine("classes  implementing   cold ms   after one edit ms");
         Console.WriteLine("---------------------------------------------------");
 
-        foreach (var total in new[] { 500, 2000 }) {
-            foreach (var implementing in new[] { 0, total / 4, total }) {
+        foreach (var total in new[] { 500, 2000 })
+        {
+            foreach (var implementing in new[] { 0, total / 4, total })
+            {
                 var cold = Median(() => ColdRun(BuildSources(total, implementing)));
                 var incremental = Median(() => IncrementalRun(total, implementing));
 
-                Console.WriteLine($"{total,7}  {implementing,12}  {cold,8:F1}  {incremental,18:F1}");
+                Console.WriteLine(
+                    $"{total, 7}  {implementing, 12}  {cold, 8:F1}  {incremental, 18:F1}"
+                );
             }
         }
 
@@ -74,10 +81,12 @@ public static class Program {
         FrameworkStack(2000);
     }
 
-    private static double Median(Func<double> measure) {
+    private static double Median(Func<double> measure)
+    {
         var timings = new List<double>(Runs);
 
-        for (var run = 0; run < Runs; run++) {
+        for (var run = 0; run < Runs; run++)
+        {
             timings.Add(measure());
         }
 
@@ -95,19 +104,21 @@ public static class Program {
     /// what a consuming project loads is this one plus one per framework. Measured rather than
     /// assumed, because it is the cost every such framework imposes on every build.
     /// </remarks>
-    private class ExtensionShapedGenerator(string attributeName) : BaseSourceGenerator {
-
+    private class ExtensionShapedGenerator(string attributeName) : BaseSourceGenerator
+    {
         protected override ITypeDefinition[] ModuleAttributeTypes() =>
             new[] { TypeDefinition.Get("Bench.Framework", attributeName) };
 
-        protected override IEnumerable<IDependencyModuleSourceGenerator> AttributeSourceGenerators() {
+        protected override IEnumerable<IDependencyModuleSourceGenerator> AttributeSourceGenerators()
+        {
             yield return new FrameworkAttributeGenerator();
         }
     }
 
-    private class FrameworkAttributeGenerator : IDependencyModuleSourceGenerator {
-
-        private static readonly ITypeDefinition[] _attributes = {
+    private class FrameworkAttributeGenerator : IDependencyModuleSourceGenerator
+    {
+        private static readonly ITypeDefinition[] _attributes =
+        {
             TypeDefinition.Get("Bench.Framework", "EndpointAttribute"),
             TypeDefinition.Get("Bench.Framework", "HandlerAttribute"),
             TypeDefinition.Get("Bench.Framework", "JobAttribute"),
@@ -115,55 +126,71 @@ public static class Program {
 
         public void SetupGenerator(
             IncrementalGeneratorInitializationContext context,
-            IncrementalValuesProvider<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> incrementalValueProvider) {
-
+            IncrementalValuesProvider<(
+                ModuleEntryPointModel Left,
+                DependencyModuleConfigurationModel Right
+            )> incrementalValueProvider
+        )
+        {
             var models = AttributeModelCollector.Collect(
                 context,
                 _attributes,
                 static (syntaxContext, cancellation) =>
-                    ServiceModelUtility.GetServiceModel(syntaxContext, cancellation) ?? ServiceModel.Ignore,
+                    ServiceModelUtility.GetServiceModel(syntaxContext, cancellation)
+                    ?? ServiceModel.Ignore,
                 new ServiceModelComparer(),
-                ServiceModel.Ignore);
+                ServiceModel.Ignore
+            );
 
             context.RegisterSourceOutput(
                 incrementalValueProvider.Collect().Combine(models),
-                static (productionContext, data) => { });
+                static (productionContext, data) => { }
+            );
         }
     }
 
-    private static void FrameworkStack(int total) {
+    private static void FrameworkStack(int total)
+    {
         Console.WriteLine();
         Console.WriteLine("analyzers loaded                          cold ms   after one edit ms");
         Console.WriteLine("--------------------------------------------------------------------");
 
-        for (var frameworks = 0; frameworks <= 3; frameworks++) {
+        for (var frameworks = 0; frameworks <= 3; frameworks++)
+        {
             var count = frameworks;
 
             var cold = Median(() => Run(BuildSources(total, total / 4), count, cold: true));
             var incremental = Median(() => Run(BuildSources(total, total / 4), count, cold: false));
 
-            var label = count == 0
-                ? "DependencyModules only"
-                : $"DependencyModules + {count} framework generator(s)";
+            var label =
+                count == 0
+                    ? "DependencyModules only"
+                    : $"DependencyModules + {count} framework generator(s)";
 
-            Console.WriteLine($"{label,-40} {cold,8:F1} {incremental,18:F1}");
+            Console.WriteLine($"{label, -40} {cold, 8:F1} {incremental, 18:F1}");
         }
     }
 
-    private static double Run(string[] sources, int frameworks, bool cold) {
+    private static double Run(string[] sources, int frameworks, bool cold)
+    {
         var compilation = Compile(sources);
 
-        var generators = new List<ISourceGenerator> {
-            new SourceGenerator.SourceGenerator().AsSourceGenerator()
+        var generators = new List<ISourceGenerator>
+        {
+            new SourceGenerator.SourceGenerator().AsSourceGenerator(),
         };
 
-        for (var i = 0; i < frameworks; i++) {
-            generators.Add(new ExtensionShapedGenerator($"Framework{i}Attribute").AsSourceGenerator());
+        for (var i = 0; i < frameworks; i++)
+        {
+            generators.Add(
+                new ExtensionShapedGenerator($"Framework{i}Attribute").AsSourceGenerator()
+            );
         }
 
         GeneratorDriver driver = CSharpGeneratorDriver.Create(generators);
 
-        if (cold) {
+        if (cold)
+        {
             return Time(() => driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out _));
         }
 
@@ -173,17 +200,20 @@ public static class Program {
 
         var edited = compilation.ReplaceSyntaxTree(
             compilation.SyntaxTrees.ElementAt(1),
-            CSharpSyntaxTree.ParseText(sources[1].Replace("_seed = 0", "_seed = 42"), options));
+            CSharpSyntaxTree.ParseText(sources[1].Replace("_seed = 0", "_seed = 42"), options)
+        );
 
         return Time(() => driver.RunGeneratorsAndUpdateCompilation(edited, out _, out _));
     }
 
-    private static double ColdRun(string[] sources) {
+    private static double ColdRun(string[] sources)
+    {
         var compilation = Compile(sources);
 
         // A fresh driver each run: reusing one would measure the incremental cache instead.
         var driver = CSharpGeneratorDriver.Create(
-            new SourceGenerator.SourceGenerator().AsSourceGenerator());
+            new SourceGenerator.SourceGenerator().AsSourceGenerator()
+        );
 
         return Time(() => driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out _));
     }
@@ -191,25 +221,29 @@ public static class Program {
     /// <summary>
     /// The second run of one driver, after editing a method body in a single file.
     /// </summary>
-    private static double IncrementalRun(int total, int implementing) {
+    private static double IncrementalRun(int total, int implementing)
+    {
         var sources = BuildSources(total, implementing);
         var options = new CSharpParseOptions(LanguageVersion.Latest);
         var compilation = Compile(sources);
 
         GeneratorDriver driver = CSharpGeneratorDriver.Create(
-            new SourceGenerator.SourceGenerator().AsSourceGenerator());
+            new SourceGenerator.SourceGenerator().AsSourceGenerator()
+        );
 
         driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out _);
 
         // Only the edited tree is replaced; the other N-1 keep their identity and should stay cached.
         var edited = compilation.ReplaceSyntaxTree(
             compilation.SyntaxTrees.ElementAt(1),
-            CSharpSyntaxTree.ParseText(sources[1].Replace("_seed = 0", "_seed = 42"), options));
+            CSharpSyntaxTree.ParseText(sources[1].Replace("_seed = 0", "_seed = 42"), options)
+        );
 
         return Time(() => driver.RunGeneratorsAndUpdateCompilation(edited, out _, out _));
     }
 
-    private static double Time(Action action) {
+    private static double Time(Action action)
+    {
         GC.Collect();
         GC.WaitForPendingFinalizers();
 
@@ -220,25 +254,30 @@ public static class Program {
         return (Stopwatch.GetTimestamp() - start) * 1000.0 / Stopwatch.Frequency;
     }
 
-    private static CSharpCompilation Compile(string[] sources) {
+    private static CSharpCompilation Compile(string[] sources)
+    {
         var options = new CSharpParseOptions(LanguageVersion.Latest);
 
         return CSharpCompilation.Create(
             "BenchAssembly",
             sources.Select(source => CSharpSyntaxTree.ParseText(source, options)),
             References,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
+        );
     }
 
-    private static string[] BuildSources(int total, int implementing) {
+    private static string[] BuildSources(int total, int implementing)
+    {
         var trees = new string[total + 2];
 
         trees[0] = "namespace BenchNamespace; public interface IMarker { }";
 
-        for (var i = 0; i < total; i++) {
-            trees[i + 1] = i < implementing
-                ? $"namespace BenchNamespace; public class Implementing{i} : IMarker {{{Body(i)}}}"
-                : $"namespace BenchNamespace; public class Plain{i} {{{Body(i)}}}";
+        for (var i = 0; i < total; i++)
+        {
+            trees[i + 1] =
+                i < implementing
+                    ? $"namespace BenchNamespace; public class Implementing{i} : IMarker {{{Body(i)}}}"
+                    : $"namespace BenchNamespace; public class Plain{i} {{{Body(i)}}}";
         }
 
         var builder = new StringBuilder();
@@ -248,7 +287,9 @@ public static class Program {
         builder.AppendLine("namespace BenchNamespace;");
         builder.AppendLine("[DependencyModule]");
         builder.AppendLine("public partial class BenchModule : IConventionModule {");
-        builder.AppendLine("    void IConventionModule.Conventions(IConventionDefinitions conventions) {");
+        builder.AppendLine(
+            "    void IConventionModule.Conventions(IConventionDefinitions conventions) {"
+        );
         builder.AppendLine("        conventions.RegisterAll<IMarker>().AsScoped();");
         builder.AppendLine("    }");
         builder.AppendLine("}");
@@ -258,7 +299,8 @@ public static class Program {
         return trees;
     }
 
-    private static string Body(int i) => $$"""
+    private static string Body(int i) =>
+        $$"""
 
         private readonly int _seed = {{i}};
         public int Value => _seed;
@@ -270,14 +312,18 @@ public static class Program {
 
     private static readonly MetadataReference[] References = BuildReferences();
 
-    private static MetadataReference[] BuildReferences() {
+    private static MetadataReference[] BuildReferences()
+    {
         // Touched so the runtime and DI assemblies are loaded before the sweep below.
         _ = typeof(IServiceCollection);
         _ = typeof(Runtime.ModuleEnvironment);
 
-        return AppDomain.CurrentDomain.GetAssemblies()
+        return AppDomain
+            .CurrentDomain.GetAssemblies()
             .Where(assembly => !assembly.IsDynamic && !string.IsNullOrEmpty(assembly.Location))
-            .Select(assembly => (MetadataReference)MetadataReference.CreateFromFile(assembly.Location))
+            .Select(assembly =>
+                (MetadataReference)MetadataReference.CreateFromFile(assembly.Location)
+            )
             .ToArray();
     }
 }

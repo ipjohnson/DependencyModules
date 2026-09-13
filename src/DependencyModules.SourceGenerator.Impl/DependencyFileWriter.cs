@@ -8,7 +8,8 @@ using static CSharpAuthor.SyntaxHelpers;
 
 namespace DependencyModules.SourceGenerator.Impl;
 
-public class DependencyFileWriter {
+public class DependencyFileWriter
+{
     private readonly FileLogger _logger;
     private readonly bool _coverageAttributeOnMethod;
 
@@ -21,7 +22,8 @@ public class DependencyFileWriter {
     /// own the class-level attribute; every other file contributing to the same partial has to apply
     /// it per member, which is what DecoratorFileWriter already does.
     /// </param>
-    public DependencyFileWriter(FileLogger logger, bool coverageAttributeOnMethod = false) {
+    public DependencyFileWriter(FileLogger logger, bool coverageAttributeOnMethod = false)
+    {
         _logger = logger;
         _coverageAttributeOnMethod = coverageAttributeOnMethod;
     }
@@ -30,28 +32,40 @@ public class DependencyFileWriter {
         ModuleEntryPointModel entryPointModel,
         DependencyModuleConfigurationModel configurationModel,
         IEnumerable<ServiceModel> serviceModels,
-        string uniqueId) {
-
-        if (entryPointModel.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.AutoGenerateModule) &&
-            string.IsNullOrEmpty(entryPointModel.EntryPointType.Namespace)) {
-            entryPointModel = entryPointModel with {
-                EntryPointType = TypeDefinition.Get(configurationModel.RootNamespace, entryPointModel.EntryPointType.Name)
+        string uniqueId
+    )
+    {
+        if (
+            entryPointModel.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.AutoGenerateModule)
+            && string.IsNullOrEmpty(entryPointModel.EntryPointType.Namespace)
+        )
+        {
+            entryPointModel = entryPointModel with
+            {
+                EntryPointType = TypeDefinition.Get(
+                    configurationModel.RootNamespace,
+                    entryPointModel.EntryPointType.Name
+                ),
             };
         }
 
         _interceptedServiceTypes = InterceptedServiceTypes(serviceModels);
 
-        _logger.Info($"Generating Dependencies for {entryPointModel.EntryPointType.Namespace}.{entryPointModel.EntryPointType.Namespace}");
+        _logger.Info(
+            $"Generating Dependencies for {entryPointModel.EntryPointType.Namespace}.{entryPointModel.EntryPointType.Namespace}"
+        );
 
         var csharpFile = new CSharpFileDefinition(entryPointModel.EntryPointType.Namespace);
 
         GenerateClass(entryPointModel, configurationModel, serviceModels, csharpFile, uniqueId);
 
         var output = new OutputContext(
-            new OutputContextOptions {
+            new OutputContextOptions
+            {
                 TypeOutputMode = TypeOutputMode.Global,
-                BraceStyle = configurationModel.GeneratedCodeStyle
-            });
+                BraceStyle = configurationModel.GeneratedCodeStyle,
+            }
+        );
 
         csharpFile.WriteOutput(output);
 
@@ -62,12 +76,14 @@ public class DependencyFileWriter {
         return result;
     }
 
-    private void GenerateClass(ModuleEntryPointModel entryPointModel,
+    private void GenerateClass(
+        ModuleEntryPointModel entryPointModel,
         DependencyModuleConfigurationModel configurationModel,
         IEnumerable<ServiceModel> serviceModels,
         CSharpFileDefinition csharpFile,
-        string uniqueId) {
-
+        string uniqueId
+    )
+    {
         var classDefinition = csharpFile.AddClass(entryPointModel.EntryPointType.Name);
 
         // Asked for by name because qualification cannot replace it: the registrations call
@@ -86,45 +102,68 @@ public class DependencyFileWriter {
         // writers already do this; the registrations file is where the annotations actually land.
         classDefinition.EnableNullable();
 
-        if (configurationModel.ExcludeGeneratedCodeFromCoverage && !_coverageAttributeOnMethod) {
+        if (configurationModel.ExcludeGeneratedCodeFromCoverage && !_coverageAttributeOnMethod)
+        {
             classDefinition.AddAttribute(
-                TypeDefinition.Get("System.Diagnostics.CodeAnalysis", "ExcludeFromCodeCoverage"));
+                TypeDefinition.Get("System.Diagnostics.CodeAnalysis", "ExcludeFromCodeCoverage")
+            );
         }
 
-        var methodName =
-            GenerateDependencyMethod(entryPointModel, configurationModel, serviceModels, classDefinition, uniqueId);
+        var methodName = GenerateDependencyMethod(
+            entryPointModel,
+            configurationModel,
+            serviceModels,
+            classDefinition,
+            uniqueId
+        );
 
         CreateInvokeStatement(entryPointModel, methodName, classDefinition, uniqueId);
     }
 
-    private void CreateInvokeStatement(ModuleEntryPointModel entryPointModel, string methodName, ClassDefinition classDefinition, string uniqueId) {
+    private void CreateInvokeStatement(
+        ModuleEntryPointModel entryPointModel,
+        string methodName,
+        ClassDefinition classDefinition,
+        string uniqueId
+    )
+    {
         var lowerName = uniqueId.ToLower() + "Field";
 
         var field = classDefinition.AddField(typeof(int), lowerName);
 
         field.Modifiers |= ComponentModifier.Private | ComponentModifier.Static;
-        field.AddAttribute(TypeDefinition.Get("System.Diagnostics.CodeAnalysis", "DynamicDependency"), $"nameof({methodName})");
+        field.AddAttribute(
+            TypeDefinition.Get("System.Diagnostics.CodeAnalysis", "DynamicDependency"),
+            $"nameof({methodName})"
+        );
 
         var closedType = new GenericTypeDefinition(
-            TypeDefinitionEnum.ClassDefinition, KnownTypes.DependencyModules.Helpers.Namespace, "DependencyRegistry", new[] {
-                entryPointModel.EntryPointType
-            });
+            TypeDefinitionEnum.ClassDefinition,
+            KnownTypes.DependencyModules.Helpers.Namespace,
+            "DependencyRegistry",
+            new[] { entryPointModel.EntryPointType }
+        );
 
-        var invokeStatement = new StaticInvokeStatement(closedType, "Add", new List<IOutputComponent> {
-            CodeOutputComponent.Get(methodName)
-        }) {
-            Indented = false
+        var invokeStatement = new StaticInvokeStatement(
+            closedType,
+            "Add",
+            new List<IOutputComponent> { CodeOutputComponent.Get(methodName) }
+        )
+        {
+            Indented = false,
         };
 
         field.InitializeValue = invokeStatement;
     }
 
-    private string GenerateDependencyMethod(ModuleEntryPointModel entryPointModel,
+    private string GenerateDependencyMethod(
+        ModuleEntryPointModel entryPointModel,
         DependencyModuleConfigurationModel configurationModel,
         IEnumerable<ServiceModel> serviceModels,
         ClassDefinition classDefinition,
-        string uniqueId) {
-
+        string uniqueId
+    )
+    {
         classDefinition.AddUsingNamespace("Microsoft.Extensions.DependencyInjection.Extensions");
 
         var method = classDefinition.AddMethod(uniqueId + "Dependencies");
@@ -134,11 +173,16 @@ public class DependencyFileWriter {
         // The glue factories GenerateGlueFactory may add are not covered here. They exist only for
         // [Factory] registrations, which the attribute path produces and the convention path — the
         // only caller that sets this — cannot.
-        if (configurationModel.ExcludeGeneratedCodeFromCoverage && _coverageAttributeOnMethod) {
+        if (configurationModel.ExcludeGeneratedCodeFromCoverage && _coverageAttributeOnMethod)
+        {
             method.AddAttribute(
-                TypeDefinition.Get("System.Diagnostics.CodeAnalysis", "ExcludeFromCodeCoverage"));
+                TypeDefinition.Get("System.Diagnostics.CodeAnalysis", "ExcludeFromCodeCoverage")
+            );
         }
-        var services = method.AddParameter(KnownTypes.Microsoft.DependencyInjection.IServiceCollection, "services");
+        var services = method.AddParameter(
+            KnownTypes.Microsoft.DependencyInjection.IServiceCollection,
+            "services"
+        );
 
         var stringBuilder = new StringBuilder();
 
@@ -150,51 +194,75 @@ public class DependencyFileWriter {
         // without conditions generates exactly the method it always has and its Add call still
         // binds to the RegistryFunc overload.
         var environment = sortedServiceModels.Any(model => model.Conditions is { Count: > 0 })
-            ? method.AddParameter(KnownTypes.DependencyModules.Interfaces.IModuleEnvironment, "environment")
+            ? method.AddParameter(
+                KnownTypes.DependencyModules.Interfaces.IModuleEnvironment,
+                "environment"
+            )
             : null;
 
-        foreach (var serviceModel in sortedServiceModels) {
-            if (serviceModel.Equals(ServiceModel.Ignore)) {
+        foreach (var serviceModel in sortedServiceModels)
+        {
+            if (serviceModel.Equals(ServiceModel.Ignore))
+            {
                 continue;
             }
 
-            if ((serviceModel.Features & RegistrationFeature.AutoRegisterSourceGenerator) ==
-                RegistrationFeature.AutoRegisterSourceGenerator && !autoRegisterGenerators) {
+            if (
+                (serviceModel.Features & RegistrationFeature.AutoRegisterSourceGenerator)
+                    == RegistrationFeature.AutoRegisterSourceGenerator
+                && !autoRegisterGenerators
+            )
+            {
                 continue;
             }
 
             // One guard around everything the service registers. The attributes are declared on the
             // class, so every registration it produces shares them.
-            var block = environment != null && serviceModel.Conditions is { Count: > 0 } conditions
-                ? method.If(CodeOutputComponent.Get(BuildCondition(conditions, environment.Name)))
-                : (BaseBlockDefinition)method;
+            var block =
+                environment != null && serviceModel.Conditions is { Count: > 0 } conditions
+                    ? method.If(
+                        CodeOutputComponent.Get(BuildCondition(conditions, environment.Name))
+                    )
+                    : (BaseBlockDefinition)method;
 
             var crossWire = false;
 
-            foreach (var registrationModel in serviceModel.Registrations) {
+            foreach (var registrationModel in serviceModel.Registrations)
+            {
                 // skip registrations not for this realm
-                if (registrationModel.Realm != null) {
-                    if (!registrationModel.Realm.Equals(entryPointModel.EntryPointType)) {
+                if (registrationModel.Realm != null)
+                {
+                    if (!registrationModel.Realm.Equals(entryPointModel.EntryPointType))
+                    {
                         continue;
                     }
                 }
                 else if (
-                    (entryPointModel.ModuleFeatures & ModuleEntryPointFeatures.OnlyRealm) ==
-                    ModuleEntryPointFeatures.OnlyRealm) {
+                    (entryPointModel.ModuleFeatures & ModuleEntryPointFeatures.OnlyRealm)
+                    == ModuleEntryPointFeatures.OnlyRealm
+                )
+                {
                     continue;
                 }
 
-                if (registrationModel.Namespaces != null) {
-                    foreach (var namespaceString in registrationModel.Namespaces) {
+                if (registrationModel.Namespaces != null)
+                {
+                    foreach (var namespaceString in registrationModel.Namespaces)
+                    {
                         classDefinition.AddUsingNamespace(namespaceString);
                     }
                 }
 
                 crossWire |= registrationModel.CrossWire.GetValueOrDefault(false);
 
-                var registrationType = GetRegistrationType(entryPointModel, configurationModel, registrationModel);
+                var registrationType = GetRegistrationType(
+                    entryPointModel,
+                    configurationModel,
+                    registrationModel
+                );
 
-                switch (registrationType) {
+                switch (registrationType)
+                {
                     case RegistrationType.Add:
                     case RegistrationType.Try:
                         HandleTryAndAddRegistrationTypes(
@@ -207,7 +275,8 @@ public class DependencyFileWriter {
                             serviceModel,
                             block,
                             services,
-                            uniqueId);
+                            uniqueId
+                        );
                         break;
 
                     case RegistrationType.Replace:
@@ -221,13 +290,15 @@ public class DependencyFileWriter {
                             serviceModel,
                             block,
                             services,
-                            uniqueId);
+                            uniqueId
+                        );
 
                         break;
                 }
             }
 
-            if (crossWire) {
+            if (crossWire)
+            {
                 CrossWireRegisterImplementation(
                     configurationModel,
                     entryPointModel,
@@ -235,7 +306,8 @@ public class DependencyFileWriter {
                     block,
                     services,
                     serviceModel,
-                    uniqueId);
+                    uniqueId
+                );
             }
         }
 
@@ -245,8 +317,9 @@ public class DependencyFileWriter {
     // Shared with DecoratorFileWriter through EnvironmentConditionWriter, so a service and a
     // decorator carrying the same attributes cannot end up testing them differently.
     private static string BuildCondition(
-        IReadOnlyList<EnvironmentConditionModel> conditions, string environmentParameter) =>
-        EnvironmentConditionWriter.BuildCondition(conditions, environmentParameter);
+        IReadOnlyList<EnvironmentConditionModel> conditions,
+        string environmentParameter
+    ) => EnvironmentConditionWriter.BuildCondition(conditions, environmentParameter);
 
     private void CrossWireRegisterImplementation(
         DependencyModuleConfigurationModel configurationModel,
@@ -255,12 +328,16 @@ public class DependencyFileWriter {
         BaseBlockDefinition block,
         ParameterDefinition services,
         ServiceModel serviceModel,
-        string uniqueId) {
-        var registrationModel =
-            serviceModel.Registrations.First(r => r.CrossWire.GetValueOrDefault(false));
+        string uniqueId
+    )
+    {
+        var registrationModel = serviceModel.Registrations.First(r =>
+            r.CrossWire.GetValueOrDefault(false)
+        );
 
         var invokeMethod = "";
-        switch (registrationModel.RegistrationType.GetValueOrDefault(RegistrationType.Add)) {
+        switch (registrationModel.RegistrationType.GetValueOrDefault(RegistrationType.Add))
+        {
             case RegistrationType.Add:
                 invokeMethod = "Add";
                 break;
@@ -275,31 +352,39 @@ public class DependencyFileWriter {
                 break;
         }
 
-        var parameters = new List<object> {
-            TypeOf(serviceModel.ImplementationType)
-        };
+        var parameters = new List<object> { TypeOf(serviceModel.ImplementationType) };
 
-        if (registrationModel.Key != null) {
+        if (registrationModel.Key != null)
+        {
             parameters.Add(registrationModel.Key);
         }
 
-        if (serviceModel.Factory == null) {
-            if (serviceModel.FactoryOutput != null) {
+        if (serviceModel.Factory == null)
+        {
+            if (serviceModel.FactoryOutput != null)
+            {
                 parameters.Add(serviceModel.FactoryOutput);
             }
-            else if (serviceModel is { Constructor: not null, ImplementationType: not GenericTypeDefinition } &&
-                     ShouldGenerateFactory(serviceModel, entryPointModel, configurationModel)) {
+            else if (
+                serviceModel
+                    is { Constructor: not null, ImplementationType: not GenericTypeDefinition }
+                && ShouldGenerateFactory(serviceModel, entryPointModel, configurationModel)
+            )
+            {
                 parameters.Add(GenerateNewFactory(serviceModel, registrationModel));
             }
-            else {
+            else
+            {
                 parameters.Add(TypeOf(serviceModel.ImplementationType));
             }
         }
-        else {
+        else
+        {
             AddFactoryParameter(serviceModel, classDefinition, parameters, uniqueId);
         }
 
-        switch (registrationModel.Lifestyle) {
+        switch (registrationModel.Lifestyle)
+        {
             case ServiceLifestyle.Transient:
                 parameters.Add(CodeOutputComponent.Get("ServiceLifetime.Transient"));
                 break;
@@ -313,16 +398,12 @@ public class DependencyFileWriter {
                 throw new ArgumentOutOfRangeException();
         }
 
-        var serviceDescriptor =
-            New(
-                KnownTypes.Microsoft.DependencyInjection.ServiceDescriptor,
-                parameters.ToArray());
+        var serviceDescriptor = New(
+            KnownTypes.Microsoft.DependencyInjection.ServiceDescriptor,
+            parameters.ToArray()
+        );
 
-        block.AddIndentedStatement(
-            services.Invoke(
-                invokeMethod,
-                serviceDescriptor
-            ));
+        block.AddIndentedStatement(services.Invoke(invokeMethod, serviceDescriptor));
     }
 
     /// <summary>
@@ -344,9 +425,12 @@ public class DependencyFileWriter {
     private bool ShouldGenerateFactory(
         ServiceModel serviceModel,
         ModuleEntryPointModel entryPointModel,
-        DependencyModuleConfigurationModel configurationModel) =>
-        !IsInterceptedServiceType(serviceModel) &&
-        entryPointModel.GenerateFactories.GetValueOrDefault(configurationModel.GenerateFactories);
+        DependencyModuleConfigurationModel configurationModel
+    ) =>
+        !IsInterceptedServiceType(serviceModel)
+        && entryPointModel.GenerateFactories.GetValueOrDefault(
+            configurationModel.GenerateFactories
+        );
 
     /// <summary>
     /// Whether any registration of this service is one interception has to be able to pick out.
@@ -359,18 +443,25 @@ public class DependencyFileWriter {
     /// from the registration being wrapped, and it came back wearing another class's wrapper.
     /// </remarks>
     private bool IsInterceptedServiceType(ServiceModel serviceModel) =>
-        serviceModel.Registrations.Any(
-            registration => _interceptedServiceTypes.Contains(registration.ServiceType));
+        serviceModel.Registrations.Any(registration =>
+            _interceptedServiceTypes.Contains(registration.ServiceType)
+        );
 
-    private static HashSet<ITypeDefinition> InterceptedServiceTypes(IEnumerable<ServiceModel> serviceModels) {
+    private static HashSet<ITypeDefinition> InterceptedServiceTypes(
+        IEnumerable<ServiceModel> serviceModels
+    )
+    {
         var types = new HashSet<ITypeDefinition>();
 
-        foreach (var serviceModel in serviceModels) {
-            if (!serviceModel.Features.HasFlag(RegistrationFeature.Intercepted)) {
+        foreach (var serviceModel in serviceModels)
+        {
+            if (!serviceModel.Features.HasFlag(RegistrationFeature.Intercepted))
+            {
                 continue;
             }
 
-            foreach (var registration in serviceModel.Registrations) {
+            foreach (var registration in serviceModel.Registrations)
+            {
                 types.Add(registration.ServiceType);
             }
         }
@@ -380,59 +471,85 @@ public class DependencyFileWriter {
 
     private HashSet<ITypeDefinition> _interceptedServiceTypes = new();
 
-    private static object GenerateNewFactory(ServiceModel serviceModel, ServiceRegistrationModel registrationModel) {
-        var parameter =
-            new ParameterDefinition(KnownTypes.Microsoft.DependencyInjection.IServiceProvider, "provider");
+    private static object GenerateNewFactory(
+        ServiceModel serviceModel,
+        ServiceRegistrationModel registrationModel
+    )
+    {
+        var parameter = new ParameterDefinition(
+            KnownTypes.Microsoft.DependencyInjection.IServiceProvider,
+            "provider"
+        );
 
-        var providerParameters = registrationModel.Key == null ? "provider => " : "(provider, _) => ";
+        var providerParameters =
+            registrationModel.Key == null ? "provider => " : "(provider, _) => ";
         var provider = CodeOutputComponent.Get(providerParameters);
 
         var newStatement = New(
             serviceModel.ImplementationType,
-            GetArgumentsForParameterList(parameter, serviceModel.Constructor!.Parameters));
+            GetArgumentsForParameterList(parameter, serviceModel.Constructor!.Parameters)
+        );
 
         return new WrapStatement(newStatement, provider, null);
     }
 
-    private void HandleTryEnumerableAndReplaceRegistrationType(DependencyModuleConfigurationModel configurationModel, ModuleEntryPointModel entryPointModel, ClassDefinition classDefinition,
+    private void HandleTryEnumerableAndReplaceRegistrationType(
+        DependencyModuleConfigurationModel configurationModel,
+        ModuleEntryPointModel entryPointModel,
+        ClassDefinition classDefinition,
         RegistrationType registrationType,
         ServiceRegistrationModel registrationModel,
         ServiceModel serviceModel,
         BaseBlockDefinition block,
-        ParameterDefinition services, string uniqueId) {
+        ParameterDefinition services,
+        string uniqueId
+    )
+    {
         var invokeMethod =
             registrationType == RegistrationType.Replace ? "Replace" : "TryAddEnumerable";
 
-        var parameters = new List<object> {
-            TypeOf(registrationModel.ServiceType)
-        };
+        var parameters = new List<object> { TypeOf(registrationModel.ServiceType) };
 
-        if (registrationModel.Key != null) {
+        if (registrationModel.Key != null)
+        {
             parameters.Add(registrationModel.Key);
         }
 
-        if (registrationModel.CrossWire == true) {
+        if (registrationModel.CrossWire == true)
+        {
             AddCrossWireParameter(serviceModel, registrationModel, parameters);
         }
-        else if (serviceModel.Factory == null) {
-            if (serviceModel.FactoryOutput != null) {
-                var factoryOutput = serviceModel.FactoryOutput?.Invoke(serviceModel, registrationModel);
+        else if (serviceModel.Factory == null)
+        {
+            if (serviceModel.FactoryOutput != null)
+            {
+                var factoryOutput = serviceModel.FactoryOutput?.Invoke(
+                    serviceModel,
+                    registrationModel
+                );
 
                 parameters.Add(factoryOutput ?? TypeOf(serviceModel.ImplementationType));
             }
-            else if (serviceModel is { Constructor: not null, ImplementationType: not GenericTypeDefinition } &&
-                     ShouldGenerateFactory(serviceModel, entryPointModel, configurationModel)) {
+            else if (
+                serviceModel
+                    is { Constructor: not null, ImplementationType: not GenericTypeDefinition }
+                && ShouldGenerateFactory(serviceModel, entryPointModel, configurationModel)
+            )
+            {
                 parameters.Add(GenerateNewFactory(serviceModel, registrationModel));
             }
-            else {
+            else
+            {
                 parameters.Add(TypeOf(serviceModel.ImplementationType));
             }
         }
-        else {
+        else
+        {
             AddFactoryParameter(serviceModel, classDefinition, parameters, uniqueId);
         }
 
-        switch (registrationModel.Lifestyle) {
+        switch (registrationModel.Lifestyle)
+        {
             case ServiceLifestyle.Transient:
                 parameters.Add(CodeOutputComponent.Get("ServiceLifetime.Transient"));
                 break;
@@ -446,38 +563,43 @@ public class DependencyFileWriter {
                 throw new ArgumentOutOfRangeException();
         }
 
-        var serviceDescriptor =
-            New(
-                KnownTypes.Microsoft.DependencyInjection.ServiceDescriptor,
-                parameters.ToArray());
+        var serviceDescriptor = New(
+            KnownTypes.Microsoft.DependencyInjection.ServiceDescriptor,
+            parameters.ToArray()
+        );
 
-        block.AddIndentedStatement(
-            services.Invoke(
-                invokeMethod,
-                serviceDescriptor
-            ));
+        block.AddIndentedStatement(services.Invoke(invokeMethod, serviceDescriptor));
     }
 
-    private void HandleTryAndAddRegistrationTypes(DependencyModuleConfigurationModel configurationModel, ModuleEntryPointModel entryPointModel, ClassDefinition classDefinition, StringBuilder stringBuilder,
+    private void HandleTryAndAddRegistrationTypes(
+        DependencyModuleConfigurationModel configurationModel,
+        ModuleEntryPointModel entryPointModel,
+        ClassDefinition classDefinition,
+        StringBuilder stringBuilder,
         RegistrationType registrationType,
         ServiceRegistrationModel registrationModel,
         ServiceModel serviceModel,
         BaseBlockDefinition block,
         ParameterDefinition services,
-        string uniqueId) {
+        string uniqueId
+    )
+    {
         stringBuilder.Length = 0;
 
-        if (registrationType == RegistrationType.Try) {
+        if (registrationType == RegistrationType.Try)
+        {
             stringBuilder.Append("Try");
         }
 
         stringBuilder.Append("Add");
 
-        if (registrationModel.Key != null) {
+        if (registrationModel.Key != null)
+        {
             stringBuilder.Append("Keyed");
         }
 
-        switch (registrationModel.Lifestyle) {
+        switch (registrationModel.Lifestyle)
+        {
             case ServiceLifestyle.Transient:
                 stringBuilder.Append("Transient");
                 break;
@@ -493,68 +615,81 @@ public class DependencyFileWriter {
 
         parameters.Add(TypeOf(registrationModel.ServiceType));
 
-        if (registrationModel.Key != null) {
+        if (registrationModel.Key != null)
+        {
             parameters.Add(registrationModel.Key);
         }
 
-        if (registrationModel.CrossWire == true) {
-            AddCrossWireParameter(
-                serviceModel, registrationModel, parameters);
+        if (registrationModel.CrossWire == true)
+        {
+            AddCrossWireParameter(serviceModel, registrationModel, parameters);
         }
-        else if (serviceModel.Factory == null) {
-            if (serviceModel.FactoryOutput != null) {
-                var factoryOutput = serviceModel.FactoryOutput?.Invoke(serviceModel, registrationModel);
+        else if (serviceModel.Factory == null)
+        {
+            if (serviceModel.FactoryOutput != null)
+            {
+                var factoryOutput = serviceModel.FactoryOutput?.Invoke(
+                    serviceModel,
+                    registrationModel
+                );
 
                 parameters.Add(factoryOutput ?? TypeOf(serviceModel.ImplementationType));
             }
-            else if (serviceModel is { Constructor: not null, ImplementationType: not GenericTypeDefinition } &&
-                     ShouldGenerateFactory(serviceModel, entryPointModel, configurationModel)) {
+            else if (
+                serviceModel
+                    is { Constructor: not null, ImplementationType: not GenericTypeDefinition }
+                && ShouldGenerateFactory(serviceModel, entryPointModel, configurationModel)
+            )
+            {
                 parameters.Add(GenerateNewFactory(serviceModel, registrationModel));
             }
-            else {
+            else
+            {
                 parameters.Add(TypeOf(serviceModel.ImplementationType));
             }
         }
-        else {
+        else
+        {
             AddFactoryParameter(serviceModel, classDefinition, parameters, uniqueId);
         }
 
-        block.AddIndentedStatement(
-            services.Invoke(
-                stringBuilder.ToString(),
-                parameters.ToArray()
-            ));
+        block.AddIndentedStatement(services.Invoke(stringBuilder.ToString(), parameters.ToArray()));
     }
 
     private static void AddCrossWireParameter(
         ServiceModel serviceModel,
         ServiceRegistrationModel registrationModel,
-        List<object> parameters) {
+        List<object> parameters
+    )
+    {
         IOutputComponent invoke;
 
-        var serviceProvider =
-            new ParameterDefinition(KnownTypes.Microsoft.DependencyInjection.IServiceProvider, "s");
+        var serviceProvider = new ParameterDefinition(
+            KnownTypes.Microsoft.DependencyInjection.IServiceProvider,
+            "s"
+        );
 
-        if (registrationModel.Key != null) {
+        if (registrationModel.Key != null)
+        {
             var key = registrationModel.Key;
 
-            if (key is string stringValue) {
+            if (key is string stringValue)
+            {
                 key = QuoteString(stringValue);
             }
 
-            invoke =
-                serviceProvider.InvokeGeneric(
-                    "GetRequiredKeyedServices",
-                    new[] {
-                        serviceModel.ImplementationType
-                    },
-                    key);
+            invoke = serviceProvider.InvokeGeneric(
+                "GetRequiredKeyedServices",
+                new[] { serviceModel.ImplementationType },
+                key
+            );
         }
-        else {
-            invoke =
-                serviceProvider.InvokeGeneric("GetRequiredService", new[] {
-                    serviceModel.ImplementationType
-                });
+        else
+        {
+            invoke = serviceProvider.InvokeGeneric(
+                "GetRequiredService",
+                new[] { serviceModel.ImplementationType }
+            );
         }
 
         var wrapper = new WrapStatement(CodeOutputComponent.Get(" => "), serviceProvider, invoke);
@@ -562,20 +697,39 @@ public class DependencyFileWriter {
         parameters.Add(wrapper);
     }
 
-    private static void AddFactoryParameter(ServiceModel serviceModel, ClassDefinition classDefinition, List<object> parameters, string uniqueId) {
+    private static void AddFactoryParameter(
+        ServiceModel serviceModel,
+        ClassDefinition classDefinition,
+        List<object> parameters,
+        string uniqueId
+    )
+    {
         var factory = serviceModel.Factory;
-        if (factory == null) {
+        if (factory == null)
+        {
             return;
         }
 
-        if (factory.Parameters.Count == 1 && factory.Parameters.Any(m =>
-                m.ParameterType.Equals(KnownTypes.Microsoft.DependencyInjection.IServiceProvider))) {
-            parameters.Add(CodeOutputComponent.Get(
-                factory.TypeDefinition.Namespace + "." + factory.TypeDefinition.Name + "." + factory.MethodName));
+        if (
+            factory.Parameters.Count == 1
+            && factory.Parameters.Any(m =>
+                m.ParameterType.Equals(KnownTypes.Microsoft.DependencyInjection.IServiceProvider)
+            )
+        )
+        {
+            parameters.Add(
+                CodeOutputComponent.Get(
+                    factory.TypeDefinition.Namespace
+                        + "."
+                        + factory.TypeDefinition.Name
+                        + "."
+                        + factory.MethodName
+                )
+            );
         }
-        else {
-            var glueFactory = GenerateGlueFactory(
-                serviceModel, factory, classDefinition, uniqueId);
+        else
+        {
+            var glueFactory = GenerateGlueFactory(serviceModel, factory, classDefinition, uniqueId);
 
             parameters.Add(CodeOutputComponent.Get(glueFactory.Name));
         }
@@ -585,7 +739,9 @@ public class DependencyFileWriter {
         ServiceModel serviceModel,
         ServiceFactoryModel factory,
         ClassDefinition classDefinition,
-        string uniqueId) {
+        string uniqueId
+    )
+    {
         var glueFactoryName = uniqueId + "GlueFactory" + classDefinition.Methods.Count;
         var method = classDefinition.AddMethod(glueFactoryName);
 
@@ -593,7 +749,9 @@ public class DependencyFileWriter {
         method.SetReturnType(serviceModel.ImplementationType);
 
         var serviceProvider = method.AddParameter(
-            KnownTypes.Microsoft.DependencyInjection.IServiceProvider, "serviceProvider");
+            KnownTypes.Microsoft.DependencyInjection.IServiceProvider,
+            "serviceProvider"
+        );
 
         var parameterList = GetArgumentsForParameterList(serviceProvider, factory.Parameters);
 
@@ -603,15 +761,23 @@ public class DependencyFileWriter {
     }
 
     private static object[] GetArgumentsForParameterList(
-        ParameterDefinition serviceProvider, IReadOnlyList<ParameterInfoModel> parameterList) =>
-        ConstructorArgumentWriter.Arguments(serviceProvider, parameterList);
+        ParameterDefinition serviceProvider,
+        IReadOnlyList<ParameterInfoModel> parameterList
+    ) => ConstructorArgumentWriter.Arguments(serviceProvider, parameterList);
 
-    private static RegistrationType GetRegistrationType(ModuleEntryPointModel entryPointModel, DependencyModuleConfigurationModel configurationModel, ServiceRegistrationModel registrationModel) {
-        if (registrationModel.RegistrationType.HasValue) {
+    private static RegistrationType GetRegistrationType(
+        ModuleEntryPointModel entryPointModel,
+        DependencyModuleConfigurationModel configurationModel,
+        ServiceRegistrationModel registrationModel
+    )
+    {
+        if (registrationModel.RegistrationType.HasValue)
+        {
             return registrationModel.RegistrationType.Value;
         }
 
-        if (entryPointModel.RegistrationType.HasValue) {
+        if (entryPointModel.RegistrationType.HasValue)
+        {
             return entryPointModel.RegistrationType.Value;
         }
 
@@ -649,35 +815,46 @@ public class DependencyFileWriter {
     /// </para>
     /// </remarks>
     private List<ServiceModel> GetSortedServiceModels(
-        IEnumerable<ServiceModel> serviceModels, DependencyModuleConfigurationModel configurationModel) {
-
+        IEnumerable<ServiceModel> serviceModels,
+        DependencyModuleConfigurationModel configurationModel
+    )
+    {
         var list = new List<ServiceModel>(serviceModels);
 
-        list.Sort((x, y) => {
-            var byCondition = IsConditional(x).CompareTo(IsConditional(y));
+        list.Sort(
+            (x, y) =>
+            {
+                var byCondition = IsConditional(x).CompareTo(IsConditional(y));
 
-            if (byCondition != 0) {
-                return byCondition;
+                if (byCondition != 0)
+                {
+                    return byCondition;
+                }
+
+                var byStrategy = ActsOnExistingRegistration(x, configurationModel)
+                    .CompareTo(ActsOnExistingRegistration(y, configurationModel));
+
+                if (byStrategy != 0)
+                {
+                    return byStrategy;
+                }
+
+                // Order last of the deciding keys, so naming one cannot move a registration ahead of a
+                // condition or ahead of the Replace it depends on - both of which are about whether a
+                // registration works at all, where Order is only about where it lands among its peers.
+                var byOrder = OrderOf(x).CompareTo(OrderOf(y));
+
+                // Name is the tie-break rather than the only key, so the order stays total and the
+                // output stays deterministic under List.Sort, which is not stable.
+                return byOrder != 0
+                    ? byOrder
+                    : string.Compare(
+                        x.ImplementationType.Name,
+                        y.ImplementationType.Name,
+                        StringComparison.Ordinal
+                    );
             }
-
-            var byStrategy = ActsOnExistingRegistration(x, configurationModel)
-                .CompareTo(ActsOnExistingRegistration(y, configurationModel));
-
-            if (byStrategy != 0) {
-                return byStrategy;
-            }
-
-            // Order last of the deciding keys, so naming one cannot move a registration ahead of a
-            // condition or ahead of the Replace it depends on - both of which are about whether a
-            // registration works at all, where Order is only about where it lands among its peers.
-            var byOrder = OrderOf(x).CompareTo(OrderOf(y));
-
-            // Name is the tie-break rather than the only key, so the order stays total and the
-            // output stays deterministic under List.Sort, which is not stable.
-            return byOrder != 0
-                ? byOrder
-                : string.Compare(x.ImplementationType.Name, y.ImplementationType.Name, StringComparison.Ordinal);
-        });
+        );
 
         return list;
     }
@@ -690,12 +867,15 @@ public class DependencyFileWriter {
     /// to name its own order. They are emitted together, so the model needs one number, and the
     /// lowest is the one that matches what naming an order means — "put this early".
     /// </remarks>
-    private static int OrderOf(ServiceModel serviceModel) {
+    private static int OrderOf(ServiceModel serviceModel)
+    {
         var order = 0;
         var first = true;
 
-        foreach (var registration in serviceModel.Registrations) {
-            if (first || registration.Order < order) {
+        foreach (var registration in serviceModel.Registrations)
+        {
+            if (first || registration.Order < order)
+            {
                 order = registration.Order;
                 first = false;
             }
@@ -716,14 +896,19 @@ public class DependencyFileWriter {
     /// they arrive in, and deferring it would change nothing.
     /// </remarks>
     private static bool ActsOnExistingRegistration(
-        ServiceModel serviceModel, DependencyModuleConfigurationModel configurationModel) {
-
-        foreach (var registration in serviceModel.Registrations) {
+        ServiceModel serviceModel,
+        DependencyModuleConfigurationModel configurationModel
+    )
+    {
+        foreach (var registration in serviceModel.Registrations)
+        {
             // Null means the registration took the project-wide default, which is what
             // DependencyModules_RegistrationType sets.
-            var registrationType = registration.RegistrationType ?? configurationModel.RegistrationType;
+            var registrationType =
+                registration.RegistrationType ?? configurationModel.RegistrationType;
 
-            if (registrationType is RegistrationType.Try or RegistrationType.Replace) {
+            if (registrationType is RegistrationType.Try or RegistrationType.Replace)
+            {
                 return true;
             }
         }

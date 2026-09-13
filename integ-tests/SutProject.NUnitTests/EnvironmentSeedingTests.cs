@@ -13,7 +13,8 @@ namespace SutProject.NUnitTests;
 /// conditions through the real runner, which applies modules before the service-setup pass.
 /// </summary>
 [AttributeUsage(AttributeTargets.Assembly | AttributeTargets.Class | AttributeTargets.Method)]
-public class SeededEnvironmentAttribute(string name) : Attribute, IModuleEnvironmentProvider {
+public class SeededEnvironmentAttribute(string name) : Attribute, IModuleEnvironmentProvider
+{
     public IModuleEnvironment? ProvideEnvironment(MethodInfo testMethod) =>
         new ModuleEnvironment(false, name);
 }
@@ -27,11 +28,12 @@ public class GatedByEnvironment : IGatedByEnvironment { }
 [DependencyModule(OnlyRealm = true)]
 public partial class SeededEnvironmentModule { }
 
-public class EnvironmentSeedingTests {
-
+public class EnvironmentSeedingTests
+{
     [ModuleTest(typeof(SeededEnvironmentModule))]
     [SeededEnvironment("seeded-environment")]
-    public void AGatedRegistrationAppliesUnderTheSeededEnvironment(IServiceProvider provider) {
+    public void AGatedRegistrationAppliesUnderTheSeededEnvironment(IServiceProvider provider)
+    {
         Assert.That(provider.GetService<IGatedByEnvironment>(), Is.Not.Null);
     }
 
@@ -40,7 +42,8 @@ public class EnvironmentSeedingTests {
     /// condition was never compiled in.
     /// </summary>
     [ModuleTest(typeof(SeededEnvironmentModule))]
-    public void TheSameRegistrationIsAbsentWithoutASeed(IServiceProvider provider) {
+    public void TheSameRegistrationIsAbsentWithoutASeed(IServiceProvider provider)
+    {
         Assert.That(provider.GetService<IGatedByEnvironment>(), Is.Null);
     }
 }

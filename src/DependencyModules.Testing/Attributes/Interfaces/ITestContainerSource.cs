@@ -23,8 +23,8 @@ namespace DependencyModules.Testing.Attributes.Interfaces;
 /// request through a chain that was never assembled.
 /// </para>
 /// </remarks>
-public interface ITestContainerSource {
-
+public interface ITestContainerSource
+{
     /// <summary>
     /// A container built from the test's composition, started, and owned by the runner.
     /// </summary>

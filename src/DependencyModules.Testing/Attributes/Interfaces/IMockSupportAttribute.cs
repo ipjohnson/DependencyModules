@@ -8,7 +8,8 @@ namespace DependencyModules.Testing.Attributes.Interfaces;
 /// for specified types. It is typically used in conjunction with dependency injection
 /// to enable mocking capabilities in testing frameworks.
 /// </remarks>
-public interface IMockSupportAttribute {
+public interface IMockSupportAttribute
+{
     /// <summary>
     /// Provides a mock object instance for the specified type.
     /// </summary>

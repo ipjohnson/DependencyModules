@@ -116,8 +116,10 @@ attributes:
 
 ```csharp
 [DependencyModule]
-public partial class DataModule : IConventionModule {
-    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+public partial class DataModule : IConventionModule
+{
+    void IConventionModule.Conventions(IConventionDefinitions conventions)
+    {
         conventions.RegisterAll<IRepository>().AsScoped();
     }
 }
@@ -254,7 +256,8 @@ real DLL, then a **second compilation referencing it and containing no handlers 
 was run through an `IIncrementalGenerator`, which emitted:
 
 ```csharp
-private static void ModuleDependencies(IServiceCollection services) {
+private static void ModuleDependencies(IServiceCollection services)
+{
     services.AddScoped(typeof(global::TheLibrary.IHandler<global::TheLibrary.CreateOrder, global::TheLibrary.OrderId>), typeof(global::TheLibrary.CreateOrderHandler));
     services.AddScoped(typeof(global::TheLibrary.IHandler<global::TheLibrary.RenameOrder, global::TheLibrary.OrderId>), typeof(global::TheLibrary.RenameOrderHandler));
 }
@@ -567,7 +570,8 @@ public interface IRepository { Item Get(int id); }
 public class Repository : IRepository { ... }
 
 [Decorator(Order = 1)]
-public class CachingRepository(IRepository inner, IMemoryCache cache) : IRepository {
+public class CachingRepository(IRepository inner, IMemoryCache cache) : IRepository
+{
     public Item Get(int id) => cache.GetOrCreate(id, _ => inner.Get(id))!;
 }
 ```
@@ -603,8 +607,10 @@ Step 4 is two lines and fixes a public API that is currently a no-op, independen
 Descriptor rewrite, the same approach Scrutor takes:
 
 ```csharp
-private static void ModuleDecorators(IServiceCollection services) {
-    for (var i = services.Count - 1; i >= 0; i--) {
+private static void ModuleDecorators(IServiceCollection services)
+{
+    for (var i = services.Count - 1; i >= 0; i--)
+    {
         var descriptor = services[i];
         if (descriptor.ServiceType != typeof(global::App.IRepository)) continue;
 
@@ -693,7 +699,8 @@ Removes the boilerplate of writing a decorator that overrides one member and for
 
 ```csharp
 [Decorator]
-public partial class CachingRepository(IRepository inner, IMemoryCache cache) : IRepository {
+public partial class CachingRepository(IRepository inner, IMemoryCache cache) : IRepository
+{
     public Item Get(int id) => cache.GetOrCreate(id, _ => inner.Get(id))!;
     // every other IRepository member is generated, forwarding to inner
 }
@@ -786,7 +793,8 @@ interceptor does. That is a stronger differentiator than Scrutor parity.
 **Tier 1, lifecycle hooks.** No boxing, no argument array.
 
 ```csharp
-public interface IInterceptor<TService> {
+public interface IInterceptor<TService>
+{
     void OnEnter(string member);
     void OnExit(string member);
     void OnError(string member, Exception exception);
@@ -801,7 +809,8 @@ signature.
 **Tier 2, full invocation.** Opt-in, for caching, retry and authorisation.
 
 ```csharp
-public interface IInvocationInterceptor {
+public interface IInvocationInterceptor
+{
     ValueTask<object?> InterceptAsync(IInvocation invocation);   // arguments, ProceedAsync, short-circuit
 }
 ```

@@ -16,8 +16,8 @@ namespace DependencyModules.xUnit.Impl;
 /// <c>ToReadOnlyTraits</c> also avoids colliding with the <c>AsReadOnly</c> that
 /// <see cref="System.Collections.Generic.CollectionExtensions"/> supplies for dictionaries.
 /// </remarks>
-internal static class TraitDictionaryExtensions {
-
+internal static class TraitDictionaryExtensions
+{
     /// <summary>
     /// Widens the mutable form xUnit stores traits in to the read-only form its constructors take.
     /// </summary>
@@ -30,11 +30,13 @@ internal static class TraitDictionaryExtensions {
     /// equivalent under today's xUnit.
     /// </remarks>
     public static IReadOnlyDictionary<string, IReadOnlyCollection<string>> ToReadOnlyTraits(
-        this Dictionary<string, HashSet<string>> traits) =>
+        this Dictionary<string, HashSet<string>> traits
+    ) =>
         traits.ToDictionary(
             pair => pair.Key,
             pair => (IReadOnlyCollection<string>)pair.Value,
-            traits.Comparer);
+            traits.Comparer
+        );
 
     /// <summary>
     /// Copies the read-only form into the mutable one, under the supplied key comparer.
@@ -50,11 +52,13 @@ internal static class TraitDictionaryExtensions {
     /// </remarks>
     public static Dictionary<string, HashSet<string>> ToWritableTraits(
         this IReadOnlyDictionary<string, IReadOnlyCollection<string>> traits,
-        IEqualityComparer<string> comparer) {
-
+        IEqualityComparer<string> comparer
+    )
+    {
         var result = new Dictionary<string, HashSet<string>>(comparer);
 
-        foreach (var pair in traits) {
+        foreach (var pair in traits)
+        {
             result[pair.Key] = new HashSet<string>(pair.Value);
         }
 

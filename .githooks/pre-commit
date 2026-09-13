@@ -1,0 +1,45 @@
+#!/bin/sh
+#
+# Rejects a commit whose C# is not CSharpier-formatted.
+#
+# Enable it once per clone:
+#
+#     git config core.hooksPath .githooks
+#
+# A hook is local and skippable with --no-verify, so it is the fast answer rather than the
+# guarantee; build-package.yaml runs the same check on every pull request.
+
+set -eu
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR -- '*.cs')
+
+if [ -z "$staged" ]; then
+    exit 0
+fi
+
+if ! command -v dotnet >/dev/null 2>&1; then
+    echo "pre-commit: dotnet is not on PATH, skipping the format check." >&2
+    exit 0
+fi
+
+# The manifest pins the version, so every clone and CI agree on what formatted means.
+if ! dotnet tool run csharpier --version >/dev/null 2>&1; then
+    dotnet tool restore >/dev/null
+fi
+
+# Split on newlines only, so a path with spaces stays one argument, and with globbing off so one
+# with a bracket in it is not expanded. Named paths skip CSharpier's cache and cost about 50ms
+# each, which is worth paying to check the files being committed rather than the whole tree.
+IFS='
+'
+set -f
+set -- $staged
+set +f
+
+# The working tree is what gets checked, not the staged content. They differ only when a file is
+# staged in part, which is rare enough not to pay for a temporary checkout on every commit.
+if ! dotnet csharpier check "$@"; then
+    echo >&2
+    echo "pre-commit: run 'dotnet csharpier format .' and stage the result." >&2
+    exit 1
+fi

@@ -16,8 +16,8 @@ namespace DependencyModules.Conventions;
 /// a rename on either side would stop every convention matching, silently.
 /// </para>
 /// </remarks>
-public static class ConventionContractSource {
-
+public static class ConventionContractSource
+{
     /// <summary>
     /// The namespace the contracts are declared in, and the metadata prefix the generator matches
     /// declarations against. Deliberately not this assembly's own namespace: the contracts ship in
@@ -35,5 +35,4 @@ public static class ConventionContractSource {
     /// The method the generator reads. Implemented explicitly, so the name is fixed.
     /// </summary>
     public const string ConventionMethod = "Conventions";
-
 }

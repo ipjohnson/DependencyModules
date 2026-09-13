@@ -22,7 +22,8 @@ namespace DependencyModules.Testing.Impl;
 /// them - pays for none of this.
 /// </para>
 /// </remarks>
-public sealed class TestContainerSource : ITestContainerSource {
+public sealed class TestContainerSource : ITestContainerSource
+{
     private readonly object _gate = new();
 
     private Composition? _composition;
@@ -43,17 +44,22 @@ public sealed class TestContainerSource : ITestContainerSource {
         IReadOnlyCollection<Type> pinnedServices,
         Func<IServiceCollection, IServiceProvider> build,
         Func<IServiceProvider, ValueTask> start,
-        Action<IServiceProvider> track) {
+        Action<IServiceProvider> track
+    )
+    {
         _composition = new Composition(services, pinned, pinnedServices, build, start, track);
     }
 
     /// <inheritdoc />
-    public async ValueTask<IServiceProvider> CreateAsync() {
-        var composition = _composition
-                          ?? throw new InvalidOperationException(
-                              $"This {nameof(TestContainerSource)} was never initialized, so there is " +
-                              "nothing to build a container from. The runner does that once the test's " +
-                              "own container exists.");
+    public async ValueTask<IServiceProvider> CreateAsync()
+    {
+        var composition =
+            _composition
+            ?? throw new InvalidOperationException(
+                $"This {nameof(TestContainerSource)} was never initialized, so there is "
+                    + "nothing to build a container from. The runner does that once the test's "
+                    + "own container exists."
+            );
 
         var provider = composition.Build(Template(composition));
 
@@ -69,12 +75,15 @@ public sealed class TestContainerSource : ITestContainerSource {
     /// twice would take a second set of pinned instances out of the first container - leaving two
     /// objects where the whole point is one.
     /// </remarks>
-    private IServiceCollection Template(Composition composition) {
-        if (_template != null) {
+    private IServiceCollection Template(Composition composition)
+    {
+        if (_template != null)
+        {
             return _template;
         }
 
-        lock (_gate) {
+        lock (_gate)
+        {
             return _template ??= BuildTemplate(composition);
         }
     }
@@ -103,27 +112,34 @@ public sealed class TestContainerSource : ITestContainerSource {
     /// without anyone asking. An open generic is left alone too, having no closed type to resolve.
     /// </para>
     /// </remarks>
-    private static IServiceCollection BuildTemplate(Composition composition) {
+    private static IServiceCollection BuildTemplate(Composition composition)
+    {
         var instances = Resolve(composition);
 
         IServiceCollection template = new ServiceCollection();
         var taken = new HashSet<Type>();
 
-        foreach (var descriptor in composition.Services) {
+        foreach (var descriptor in composition.Services)
+        {
             var serviceType = descriptor.ServiceType;
 
-            if (!instances.TryGetValue(serviceType, out var pinned) ||
-                descriptor.ImplementationInstance != null) {
+            if (
+                !instances.TryGetValue(serviceType, out var pinned)
+                || descriptor.ImplementationInstance != null
+            )
+            {
                 template.Add(descriptor);
 
                 continue;
             }
 
-            if (!taken.Add(serviceType)) {
+            if (!taken.Add(serviceType))
+            {
                 continue;
             }
 
-            foreach (var instance in pinned) {
+            foreach (var instance in pinned)
+            {
                 template.Add(new ServiceDescriptor(serviceType, instance));
             }
         }
@@ -160,28 +176,35 @@ public sealed class TestContainerSource : ITestContainerSource {
     /// An open generic is skipped, having no closed type to resolve.
     /// </para>
     /// </remarks>
-    private static Dictionary<Type, object[]> Resolve(Composition composition) {
+    private static Dictionary<Type, object[]> Resolve(Composition composition)
+    {
         var instances = new Dictionary<Type, object[]>();
 
-        foreach (var serviceType in composition.PinnedServices) {
-            if (serviceType.IsGenericTypeDefinition || serviceType.IsByRef || serviceType.IsPointer) {
+        foreach (var serviceType in composition.PinnedServices)
+        {
+            if (serviceType.IsGenericTypeDefinition || serviceType.IsByRef || serviceType.IsPointer)
+            {
                 continue;
             }
 
             object[] resolved;
 
-            try {
+            try
+            {
                 var sequence = typeof(IEnumerable<>).MakeGenericType(serviceType);
 
                 resolved = ((IEnumerable)composition.Pinned.GetRequiredService(sequence))
                     .Cast<object>()
                     .Where(instance => instance != null)
                     .ToArray();
-            } catch (Exception) {
+            }
+            catch (Exception)
+            {
                 continue;
             }
 
-            if (resolved.Length > 0) {
+            if (resolved.Length > 0)
+            {
                 instances[serviceType] = resolved;
             }
         }
@@ -195,5 +218,6 @@ public sealed class TestContainerSource : ITestContainerSource {
         IReadOnlyCollection<Type> PinnedServices,
         Func<IServiceCollection, IServiceProvider> Build,
         Func<IServiceProvider, ValueTask> Start,
-        Action<IServiceProvider> Track);
+        Action<IServiceProvider> Track
+    );
 }

@@ -21,13 +21,18 @@ interface and routes its members through it — every member by default, and
 [the kinds you name](#covering-some-members-and-not-others) when that is too much:
 
 ```csharp
-public class TimingInterceptor(ILogger log) : IInterceptor {
-    public TResult Intercept<TResult>(InvocationContext<TResult> context) {
+public class TimingInterceptor(ILogger log) : IInterceptor
+{
+    public TResult Intercept<TResult>(InvocationContext<TResult> context)
+    {
         var stopwatch = Stopwatch.StartNew();
 
-        try {
+        try
+        {
             return context.Proceed();
-        } finally {
+        }
+        finally
+        {
             log.LogInformation("{Member} took {Elapsed}", context.Caller.MemberName, stopwatch.Elapsed);
         }
     }
@@ -64,10 +69,12 @@ Implement whichever kinds your services actually have:
 One type may implement any combination, and **the generator picks per member**:
 
 ```csharp
-public class TracingInterceptor : IInterceptor, IAsyncInterceptor {
+public class TracingInterceptor : IInterceptor, IAsyncInterceptor
+{
     public TResult Intercept<TResult>(InvocationContext<TResult> context) => context.Proceed();
 
-    public async ValueTask<TResult> InterceptAsync<TResult>(AsyncInvocationContext<TResult> context) {
+    public async ValueTask<TResult> InterceptAsync<TResult>(AsyncInvocationContext<TResult> context)
+    {
         using var span = tracer.StartSpan(context.Caller.MemberName);
 
         return await context.ProceedAsync();
@@ -86,7 +93,8 @@ which means anything after the await runs once the work has genuinely finished �
 whole call sits in one method body, state that spans it is an ordinary local:
 
 ```csharp
-public async ValueTask<TResult> InterceptAsync<TResult>(AsyncInvocationContext<TResult> context) {
+public async ValueTask<TResult> InterceptAsync<TResult>(AsyncInvocationContext<TResult> context)
+{
     using var scope = _tracer.StartSpan(context.Caller.MemberName);   // spans the whole call
 
     return await context.ProceedAsync();
@@ -101,10 +109,12 @@ An `IAsyncEnumerable<T>` member returns its stream immediately, before any item 
 interceptor enumerates it, so it observes each item as it is produced:
 
 ```csharp
-public async IAsyncEnumerable<TItem> InterceptStream<TItem>(StreamInvocationContext<TItem> context) {
+public async IAsyncEnumerable<TItem> InterceptStream<TItem>(StreamInvocationContext<TItem> context)
+{
     var count = 0;
 
-    await foreach (var item in context.Proceed()) {
+    await foreach (var item in context.Proceed())
+    {
         count++;
         yield return item;
     }
@@ -271,7 +281,8 @@ public class AuditInterceptor : IInterceptor { … }      // sync only
 
 [SingletonService]
 [Intercept(typeof(AuditInterceptor))]
-public class Orders : IOrders {
+public class Orders : IOrders
+{
     public int Count(string customer) { … }             // audited
     public Task<int> CountAsync(string customer) { … }  // not audited
 }

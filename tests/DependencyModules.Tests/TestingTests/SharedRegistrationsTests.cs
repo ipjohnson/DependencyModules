@@ -14,8 +14,8 @@ namespace DependencyModules.Tests.TestingTests;
 /// One test per row of the rule, because the rule has been wrong once already and the way it was
 /// wrong was a case nobody had written down.
 /// </remarks>
-public class SharedRegistrationsTests {
-
+public class SharedRegistrationsTests
+{
     private interface IThing;
 
     private interface IOther;
@@ -26,14 +26,17 @@ public class SharedRegistrationsTests {
     private interface IDriver;
 
     /// <summary>An attribute that declines, which is the only thing worth saying on a parameter.</summary>
-    private class NotSharedAttribute : Attribute, ISharedTestRegistration {
+    private class NotSharedAttribute : Attribute, ISharedTestRegistration
+    {
         public bool Shared => false;
     }
 
     /// <summary>A harness naming what it supplies, the way the trigger and web attributes do.</summary>
-    private class DrivenByAttribute : Attribute, ISharedTestRegistration {
+    private class DrivenByAttribute : Attribute, ISharedTestRegistration
+    {
         public IReadOnlyList<Type> IsolatedServices(MethodInfo testMethod) =>
-            testMethod.GetParameters()
+            testMethod
+                .GetParameters()
                 .Where(parameter => parameter.ParameterType == typeof(IDriver))
                 .Select(parameter => parameter.ParameterType)
                 .ToArray();
@@ -41,8 +44,12 @@ public class SharedRegistrationsTests {
 
     private static IReadOnlyCollection<Type> Collect(string method, params Attribute[] known) =>
         SharedRegistrations.Collect(
-            typeof(SharedRegistrationsTests).GetMethod(method, BindingFlags.NonPublic | BindingFlags.Static)!,
-            known);
+            typeof(SharedRegistrationsTests).GetMethod(
+                method,
+                BindingFlags.NonPublic | BindingFlags.Static
+            )!,
+            known
+        );
 
     private static void Plain(IThing thing) { }
 
@@ -69,29 +76,34 @@ public class SharedRegistrationsTests {
     /// first: a plain application service the handler writes to and the test reads.
     /// </summary>
     [Fact]
-    public void AnUnmarkedParameterIsPinned() {
+    public void AnUnmarkedParameterIsPinned()
+    {
         Assert.Equal([typeof(IThing)], Collect(nameof(Plain)));
     }
 
     [Fact]
-    public void EveryParameterIsPinned() {
+    public void EveryParameterIsPinned()
+    {
         Assert.Equal([typeof(IThing), typeof(IOther)], Collect(nameof(Bare)));
     }
 
     /// <summary>A mock needs no attribute to be pinned, which is what makes the rule general.</summary>
     [Fact]
-    public void AMockIsPinnedLikeAnythingElse() {
+    public void AMockIsPinnedLikeAnythingElse()
+    {
         Assert.Equal([typeof(IThing)], Collect(nameof(Mocked)));
     }
 
     /// <summary>Redundant now, and still allowed: it is how a driving parameter asks for reuse.</summary>
     [Fact]
-    public void SharedOnAValueParameterChangesNothing() {
+    public void SharedOnAValueParameterChangesNothing()
+    {
         Assert.Equal(Collect(nameof(Plain)), Collect(nameof(Marked)));
     }
 
     [Fact]
-    public void ATestWithNoParametersPinsNothing() {
+    public void ATestWithNoParametersPinsNothing()
+    {
         Assert.Empty(Collect(nameof(None)));
     }
 
@@ -101,7 +113,8 @@ public class SharedRegistrationsTests {
     /// The parameter that drives the application is not pinned, because it builds the containers.
     /// </summary>
     [Fact]
-    public void AParameterTheHarnessDrivesWithIsNotPinned() {
+    public void AParameterTheHarnessDrivesWithIsNotPinned()
+    {
         var pinned = Collect(nameof(Driving), new DrivenByAttribute());
 
         Assert.Equal([typeof(IThing)], pinned);
@@ -112,18 +125,21 @@ public class SharedRegistrationsTests {
     /// either way; it turns the isolation off while the test believes it is on.
     /// </summary>
     [Fact]
-    public void IsolatedWinsOverAnExplicitShared() {
+    public void IsolatedWinsOverAnExplicitShared()
+    {
         Assert.Empty(Collect(nameof(DrivingAndMarked), new DrivenByAttribute()));
     }
 
     [Fact]
-    public void AnAttributeDecliningUnpinsItsParameter() {
+    public void AnAttributeDecliningUnpinsItsParameter()
+    {
         Assert.Empty(Collect(nameof(Declined)));
     }
 
     /// <summary>The container itself is the one question pinning cannot answer.</summary>
     [Fact]
-    public void TheServiceProviderIsNeverPinned() {
+    public void TheServiceProviderIsNeverPinned()
+    {
         Assert.Equal([typeof(IThing)], Collect(nameof(Container)));
     }
 
@@ -133,9 +149,12 @@ public class SharedRegistrationsTests {
     /// A harness keeps its own per-test services by naming them, since no parameter holds them.
     /// </summary>
     [Fact]
-    public void AnAttributeCanPinWhatNoParameterHolds() {
-        var shared = new TestExportAttribute(typeof(IOther)) {
-            Implementation = typeof(Thing), Shared = true
+    public void AnAttributeCanPinWhatNoParameterHolds()
+    {
+        var shared = new TestExportAttribute(typeof(IOther))
+        {
+            Implementation = typeof(Thing),
+            Shared = true,
         };
 
         Assert.Equal([typeof(IThing), typeof(IOther)], Collect(nameof(Plain), shared));
@@ -143,7 +162,8 @@ public class SharedRegistrationsTests {
 
     /// <summary>An export nothing holds stays per container until it asks.</summary>
     [Fact]
-    public void AnExportIsNotPinnedUnlessItAsks() {
+    public void AnExportIsNotPinnedUnlessItAsks()
+    {
         var isolated = new TestExportAttribute(typeof(IOther)) { Implementation = typeof(Thing) };
 
         Assert.Equal([typeof(IThing)], Collect(nameof(Plain), isolated));
@@ -154,7 +174,8 @@ public class SharedRegistrationsTests {
     /// harness resolves. Isolating it would recreate the bug the rule exists to fix.
     /// </summary>
     [Fact]
-    public void AnExportTheTestHoldsIsPinnedEvenWhenItDeclined() {
+    public void AnExportTheTestHoldsIsPinnedEvenWhenItDeclined()
+    {
         var isolated = new TestExportAttribute(typeof(IThing)) { Implementation = typeof(Thing) };
 
         Assert.Equal([typeof(IThing)], Collect(nameof(Plain), isolated));

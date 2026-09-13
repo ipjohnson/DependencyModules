@@ -12,10 +12,9 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// syntax tree for any of its types. That is the whole point: this path reads symbols out of
 /// metadata, where the in-compilation path reads declarations.
 /// </remarks>
-public class ReferencedAssemblyScanTests {
-
-    private const string LibrarySource =
-        """
+public class ReferencedAssemblyScanTests
+{
+    private const string LibrarySource = """
         namespace ThePackage;
 
         public interface IHandler<TIn, TOut> { }
@@ -38,8 +37,7 @@ public class ReferencedAssemblyScanTests {
         public class Unrelated { }
         """;
 
-    private const string Preamble =
-        """
+    private const string Preamble = """
         using DependencyModules.Runtime.Attributes;
         using DependencyModules.Runtime.Conventions;
         using ThePackage;
@@ -49,18 +47,20 @@ public class ReferencedAssemblyScanTests {
         """;
 
     private static (GeneratorResult Result, GeneratedAssembly? Assembly) Run(
-        string module, bool compile = true) {
-
+        string module,
+        bool compile = true
+    )
+    {
         var library = GeneratorTestHarness.CompileLibrary(LibrarySource, "ThePackage");
         var references = new[] { library.Reference };
 
         var result = GeneratorTestHarness.Run(
             new Dictionary<string, string> { ["Test.cs"] = Preamble + module },
-            additionalReferences: references);
+            additionalReferences: references
+        );
 
         var assembly = compile
-            ? GeneratedAssembly.Create(
-                Preamble + module, additionalReferences: references)
+            ? GeneratedAssembly.Create(Preamble + module, additionalReferences: references)
             : null;
 
         return (result, assembly);
@@ -71,7 +71,8 @@ public class ReferencedAssemblyScanTests {
     /// the closed construction it actually implements.
     /// </summary>
     [Fact]
-    public void RegistersTypesFromAReferencedAssembly() {
+    public void RegistersTypesFromAReferencedAssembly()
+    {
         var (result, assembly) = Run(
             """
             [DependencyModule]
@@ -82,16 +83,17 @@ public class ReferencedAssemblyScanTests {
                         .AsScoped();
                 }
             }
-            """);
+            """
+        );
 
         result.AssertNoErrors();
 
-        var handlerType = assembly!.Services
-            .Select(d => d.ServiceType)
+        var handlerType = assembly!
+            .Services.Select(d => d.ServiceType)
             .First(t => t.Name == "IHandler`2");
 
-        var registered = assembly.Services
-            .Where(d => d.ServiceType.Name == "IHandler`2")
+        var registered = assembly
+            .Services.Where(d => d.ServiceType.Name == "IHandler`2")
             .Select(d => d.ImplementationType!.Name)
             .OrderBy(name => name)
             .ToArray();
@@ -105,7 +107,8 @@ public class ReferencedAssemblyScanTests {
     /// the same way it would be in the compilation being built.
     /// </summary>
     [Fact]
-    public void SkipsWhatItCannotSeeOrConstruct() {
+    public void SkipsWhatItCannotSeeOrConstruct()
+    {
         var (result, assembly) = Run(
             """
             [DependencyModule]
@@ -116,10 +119,11 @@ public class ReferencedAssemblyScanTests {
                         .AsScoped();
                 }
             }
-            """);
+            """
+        );
 
-        var registered = assembly!.Services
-            .Where(d => d.ServiceType.Name == "IHandler`2")
+        var registered = assembly!
+            .Services.Where(d => d.ServiceType.Name == "IHandler`2")
             .Select(d => d.ImplementationType!.Name)
             .ToArray();
 
@@ -134,7 +138,8 @@ public class ReferencedAssemblyScanTests {
     /// A registered service from the package resolves.
     /// </summary>
     [Fact]
-    public void TheRegistrationsResolve() {
+    public void TheRegistrationsResolve()
+    {
         var (_, assembly) = Run(
             """
             [DependencyModule]
@@ -145,11 +150,12 @@ public class ReferencedAssemblyScanTests {
                         .AsScoped();
                 }
             }
-            """);
+            """
+        );
 
-        var descriptor = assembly!.Services.First(
-            d => d.ServiceType.Name == "IHandler`2" &&
-                 d.ImplementationType!.Name == "CreateOrderHandler");
+        var descriptor = assembly!.Services.First(d =>
+            d.ServiceType.Name == "IHandler`2" && d.ImplementationType!.Name == "CreateOrderHandler"
+        );
 
         var provider = assembly.BuildProvider();
 
@@ -161,7 +167,8 @@ public class ReferencedAssemblyScanTests {
     /// one that names none must not reach into the package.
     /// </summary>
     [Fact]
-    public void AConventionSeesOneSourceOnly() {
+    public void AConventionSeesOneSourceOnly()
+    {
         var (_, assembly) = Run(
             """
             public class LocalHandler : IHandler<CreateOrder, OrderId> { }
@@ -174,10 +181,11 @@ public class ReferencedAssemblyScanTests {
                         .AsScoped();
                 }
             }
-            """);
+            """
+        );
 
-        var registered = assembly!.Services
-            .Where(d => d.ServiceType.Name == "IHandler`2")
+        var registered = assembly!
+            .Services.Where(d => d.ServiceType.Name == "IHandler`2")
             .Select(d => d.ImplementationType!.Name)
             .ToArray();
 
@@ -188,7 +196,8 @@ public class ReferencedAssemblyScanTests {
     /// Absent the call, a convention scans the compilation being built — unchanged behaviour.
     /// </summary>
     [Fact]
-    public void WithoutTheCallOnlyLocalTypesMatch() {
+    public void WithoutTheCallOnlyLocalTypesMatch()
+    {
         var (_, assembly) = Run(
             """
             public class LocalHandler : IHandler<CreateOrder, OrderId> { }
@@ -199,10 +208,11 @@ public class ReferencedAssemblyScanTests {
                     conventions.RegisterAll(typeof(IHandler<,>)).AsScoped();
                 }
             }
-            """);
+            """
+        );
 
-        var registered = assembly!.Services
-            .Where(d => d.ServiceType.Name == "IHandler`2")
+        var registered = assembly!
+            .Services.Where(d => d.ServiceType.Name == "IHandler`2")
             .Select(d => d.ImplementationType!.Name)
             .ToArray();
 
@@ -214,7 +224,8 @@ public class ReferencedAssemblyScanTests {
     /// the convention that asked for it rather than nowhere.
     /// </summary>
     [Fact]
-    public void DiagnosticsForMetadataMatchesReportAtTheConvention() {
+    public void DiagnosticsForMetadataMatchesReportAtTheConvention()
+    {
         var (result, _) = Run(
             """
             [DependencyModule]
@@ -226,23 +237,29 @@ public class ReferencedAssemblyScanTests {
                 }
             }
             """,
-            compile: false);
+            compile: false
+        );
 
         var exposures = result.GeneratorDiagnostics.Where(d => d.Id == "DM0010").ToArray();
 
         Assert.NotEmpty(exposures);
 
-        Assert.All(exposures, diagnostic => {
-            Assert.NotEqual(Location.None, diagnostic.Location);
-            Assert.Contains("Test.cs", diagnostic.Location.GetLineSpan().Path);
-        });
+        Assert.All(
+            exposures,
+            diagnostic =>
+            {
+                Assert.NotEqual(Location.None, diagnostic.Location);
+                Assert.Contains("Test.cs", diagnostic.Location.GetLineSpan().Path);
+            }
+        );
     }
 
     /// <summary>
     /// Filters apply to metadata types the same way they apply to local ones.
     /// </summary>
     [Fact]
-    public void FiltersApplyToMetadataTypes() {
+    public void FiltersApplyToMetadataTypes()
+    {
         var (_, assembly) = Run(
             """
             [DependencyModule]
@@ -254,10 +271,11 @@ public class ReferencedAssemblyScanTests {
                         .AsScoped();
                 }
             }
-            """);
+            """
+        );
 
-        var registered = assembly!.Services
-            .Where(d => d.ServiceType.Name == "IHandler`2")
+        var registered = assembly!
+            .Services.Where(d => d.ServiceType.Name == "IHandler`2")
             .Select(d => d.ImplementationType!.Name)
             .ToArray();
 

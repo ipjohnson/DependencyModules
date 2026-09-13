@@ -12,8 +12,8 @@ namespace DependencyModules.Testing.Attributes.Interfaces;
 /// dependency on it would bind every mocking package to a single test framework. This carries the part
 /// that is common; a framework integration supplies its own implementation over its own model.
 /// </remarks>
-public interface ITestMethodContext {
-
+public interface ITestMethodContext
+{
     /// <summary>
     /// The method under test.
     /// </summary>
@@ -22,9 +22,7 @@ public interface ITestMethodContext {
     /// <c>AttributeUtility</c> hang off this, and it is the same instance the framework integration
     /// reads parameters from, so a hook sees exactly the signature the test will be invoked with.
     /// </remarks>
-    MethodInfo Method {
-        get;
-    }
+    MethodInfo Method { get; }
 
     /// <summary>
     /// Every attribute in scope for the method, widest scope first: assembly, then declaring type,
@@ -38,7 +36,5 @@ public interface ITestMethodContext {
     /// "the most specific one wins" and so looks at the method first. This list is in the order things
     /// are applied, where the most specific runs last and therefore wins.
     /// </remarks>
-    IReadOnlyList<Attribute> Attributes {
-        get;
-    }
+    IReadOnlyList<Attribute> Attributes { get; }
 }

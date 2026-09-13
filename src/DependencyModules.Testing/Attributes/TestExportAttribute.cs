@@ -29,11 +29,11 @@ namespace DependencyModules.Testing.Attributes;
 /// </threadsafety>
 /// <seealso cref="ITestServiceSetupAttribute" />
 [AttributeUsage(
-    AttributeTargets.Assembly |
-    AttributeTargets.Class |
-    AttributeTargets.Method,
-    AllowMultiple = true)]
-public class TestExportAttribute : Attribute, ITestServiceSetupAttribute, ISharedTestRegistration {
+    AttributeTargets.Assembly | AttributeTargets.Class | AttributeTargets.Method,
+    AllowMultiple = true
+)]
+public class TestExportAttribute : Attribute, ITestServiceSetupAttribute, ISharedTestRegistration
+{
     /// <summary>
     /// An attribute that configures and exports services to the dependency injection container
     /// for test scenarios. This supports customized service registrations with specific lifetimes
@@ -49,7 +49,8 @@ public class TestExportAttribute : Attribute, ITestServiceSetupAttribute, IShare
     /// This attribute is not guaranteed to be thread-safe and should be used carefully when
     /// dealing with parallel or concurrent test execution.
     /// </threadsafety>
-    public TestExportAttribute(Type service) {
+    public TestExportAttribute(Type service)
+    {
         Service = service;
     }
 
@@ -57,27 +58,19 @@ public class TestExportAttribute : Attribute, ITestServiceSetupAttribute, IShare
     /// Gets the service type to be registered in the service collection.
     /// The specified type represents the service interface or base type for dependency injection.
     /// </summary>
-    public Type Service {
-        get;
-    }
+    public Type Service { get; }
 
     /// <summary>
     /// Gets or sets the implementation type to be registered for the associated service in the service collection.
     /// If no value is provided, the service type will be used as the implementation type by default.
     /// </summary>
-    public Type? Implementation {
-        get;
-        set;
-    }
+    public Type? Implementation { get; set; }
 
     /// <summary>
     /// Gets or sets the lifetime of the service in the dependency injection container.
     /// Determines whether the service is registered as singleton, scoped, or transient.
     /// </summary>
-    public ServiceLifetime Lifetime {
-        get;
-        set;
-    } = ServiceLifetime.Transient;
+    public ServiceLifetime Lifetime { get; set; } = ServiceLifetime.Transient;
 
     /// <summary>
     /// Whether this export is kept across every container the test builds, rather than registered
@@ -106,10 +99,7 @@ public class TestExportAttribute : Attribute, ITestServiceSetupAttribute, IShare
     /// what was asked for.
     /// </para>
     /// </remarks>
-    public bool Shared {
-        get;
-        set;
-    }
+    public bool Shared { get; set; }
 
     /// <summary>
     /// The exported service, which is what pinning applies to when <see cref="Shared"/> is set.
@@ -119,7 +109,6 @@ public class TestExportAttribute : Attribute, ITestServiceSetupAttribute, IShare
     /// sits on a method, a class or an assembly - so nothing else knows what it registered.
     /// </remarks>
     IReadOnlyList<Type> ISharedTestRegistration.SharedServices => [Service];
-
 
     /// <summary>
     /// Configures the service collection for a test method by adding services with specified lifetimes.
@@ -133,10 +122,15 @@ public class TestExportAttribute : Attribute, ITestServiceSetupAttribute, IShare
     /// The service collection to which services are added. This collection is used to configure
     /// the dependency injection container for the test's execution environment.
     /// </param>
-    public void SetupServiceCollection(ITestMethodContext testMethod, IServiceCollection serviceCollection) {
+    public void SetupServiceCollection(
+        ITestMethodContext testMethod,
+        IServiceCollection serviceCollection
+    )
+    {
         var implementation = Implementation ?? Service;
 
-        switch (Lifetime) {
+        switch (Lifetime)
+        {
             case ServiceLifetime.Singleton:
                 serviceCollection.AddSingleton(Service, implementation);
                 break;

@@ -11,14 +11,15 @@ namespace DependencyModules.SourceGenerator.Impl.Models;
 /// The return type is known at compile time, so the right shape is emitted per member instead of
 /// being sniffed at run time.
 /// </remarks>
-public enum ReturnShape {
+public enum ReturnShape
+{
     Void,
     Value,
     Task,
     TaskOfValue,
     ValueTask,
     ValueTaskOfValue,
-    AsyncEnumerable
+    AsyncEnumerable,
 }
 
 /// <summary>
@@ -29,10 +30,11 @@ public enum ReturnShape {
 /// one has nowhere to await inside a sync member. A stream is not awaitable at all, and wrapping it
 /// as a plain value would time the construction of the iterator rather than the work.
 /// </remarks>
-public enum InterceptorKind {
+public enum InterceptorKind
+{
     Sync,
     Async,
-    Stream
+    Stream,
 }
 
 /// <summary>
@@ -48,14 +50,15 @@ public record InterceptionRefusal(string Message);
 /// An accessor is invoked by its syntax, not by its name: the CLR calls it <c>get_Count</c> and
 /// reports it that way, but the call has to be written as <c>Count</c>.
 /// </remarks>
-public enum AccessorForm {
+public enum AccessorForm
+{
     Method,
     PropertyGet,
     PropertySet,
     IndexerGet,
     IndexerSet,
     EventAdd,
-    EventRemove
+    EventRemove,
 }
 
 /// <summary>
@@ -83,7 +86,8 @@ public record InterceptedParameterModel(
     string Identifier,
     ITypeDefinition Type,
     string? DefaultValue,
-    bool IsParams = false);
+    bool IsParams = false
+);
 
 /// <summary>
 /// One type parameter of an intercepted member, with the constraints the wrapper has to repeat.
@@ -114,22 +118,25 @@ public record TypeParameterModel(
     string Name,
     string? Primary,
     IReadOnlyList<ITypeDefinition> ConstraintTypes,
-    bool DefaultConstructor) {
-
+    bool DefaultConstructor
+)
+{
     /// <summary>
     /// Structural equality over the constraint types, which the compiler-generated version compares
     /// by reference — two identical models built on consecutive runs would never match, and the
     /// incremental cache would miss on every keystroke.
     /// </summary>
     public virtual bool Equals(TypeParameterModel? other) =>
-        other is not null &&
-        Name == other.Name &&
-        Primary == other.Primary &&
-        DefaultConstructor == other.DefaultConstructor &&
-        ModelEquality.ListEquals(ConstraintTypes, other.ConstraintTypes);
+        other is not null
+        && Name == other.Name
+        && Primary == other.Primary
+        && DefaultConstructor == other.DefaultConstructor
+        && ModelEquality.ListEquals(ConstraintTypes, other.ConstraintTypes);
 
-    public override int GetHashCode() {
-        unchecked {
+    public override int GetHashCode()
+    {
+        unchecked
+        {
             var hash = Name.GetHashCode();
 
             hash = hash * 31 + (Primary?.GetHashCode() ?? 0);
@@ -157,17 +164,19 @@ public record InterceptorTypeModel(
     /// <summary>
     /// The lifetime this interceptor is registered with, from the [Intercept] that named it.
     /// </summary>
-    ServiceLifestyle Lifestyle = ServiceLifestyle.Singleton) {
-
+    ServiceLifestyle Lifestyle = ServiceLifestyle.Singleton
+)
+{
     /// <summary>
     /// Whether this interceptor can be placed around a member of the given kind.
     /// </summary>
     public bool CanServe(InterceptorKind kind) =>
-        kind switch {
+        kind switch
+        {
             InterceptorKind.Sync => Sync,
             InterceptorKind.Async => Async,
             InterceptorKind.Stream => Stream,
-            _ => false
+            _ => false,
         };
 }
 
@@ -204,49 +213,57 @@ public record InterceptedMemberModel(
     IReadOnlyList<InterceptedParameterModel> Parameters,
     IReadOnlyList<TypeParameterModel> TypeParameters,
     ReturnShape ReturnShape,
-
     /// <summary>
     /// The declaration left out by <c>[Intercept].Members</c>. Still forwarded — the wrapper
     /// implements the whole interface — but not through the interceptor chain.
     /// </summary>
-    bool Excluded = false) {
-
+    bool Excluded = false
+)
+{
     /// <summary>
     /// The interceptor interface this member has to be routed through.
     /// </summary>
     public InterceptorKind Kind =>
-        ReturnShape switch {
-            ReturnShape.Task or ReturnShape.TaskOfValue or
-                ReturnShape.ValueTask or ReturnShape.ValueTaskOfValue => InterceptorKind.Async,
+        ReturnShape switch
+        {
+            ReturnShape.Task
+            or ReturnShape.TaskOfValue
+            or ReturnShape.ValueTask
+            or ReturnShape.ValueTaskOfValue => InterceptorKind.Async,
             ReturnShape.AsyncEnumerable => InterceptorKind.Stream,
-            _ => InterceptorKind.Sync
+            _ => InterceptorKind.Sync,
         };
 
     /// <summary>
     /// Structural equality, because the compiler-generated version compares the two lists by
     /// reference and two identical models built on consecutive runs would never match.
     /// </summary>
-    public virtual bool Equals(InterceptedMemberModel? other) {
-        if (ReferenceEquals(this, other)) {
+    public virtual bool Equals(InterceptedMemberModel? other)
+    {
+        if (ReferenceEquals(this, other))
+        {
             return true;
         }
 
-        if (other is null) {
+        if (other is null)
+        {
             return false;
         }
 
-        return Name == other.Name &&
-               Identifier == other.Identifier &&
-               Form == other.Form &&
-               Equals(ReturnType, other.ReturnType) &&
-               ResultType.Equals(other.ResultType) &&
-               ReturnShape == other.ReturnShape &&
-               ModelEquality.ListEquals(Parameters, other.Parameters) &&
-               ModelEquality.ListEquals(TypeParameters, other.TypeParameters);
+        return Name == other.Name
+            && Identifier == other.Identifier
+            && Form == other.Form
+            && Equals(ReturnType, other.ReturnType)
+            && ResultType.Equals(other.ResultType)
+            && ReturnShape == other.ReturnShape
+            && ModelEquality.ListEquals(Parameters, other.Parameters)
+            && ModelEquality.ListEquals(TypeParameters, other.TypeParameters);
     }
 
-    public override int GetHashCode() {
-        unchecked {
+    public override int GetHashCode()
+    {
+        unchecked
+        {
             var hash = Name.GetHashCode();
 
             hash = hash * 31 + Identifier.GetHashCode();
@@ -269,11 +286,12 @@ public record InterceptedMemberModel(
 /// Separate from the pipeline units because they do not line up: a property is one declaration and
 /// up to two of them, each with its own state class and its own caller.
 /// </remarks>
-public enum DeclarationKind {
+public enum DeclarationKind
+{
     Method,
     Property,
     Indexer,
-    Event
+    Event,
 }
 
 /// <summary>
@@ -301,27 +319,33 @@ public record InterceptedDeclarationModel(
     ITypeDefinition? Type,
     IReadOnlyList<InterceptedParameterModel> Indices,
     int First,
-    int Second) {
-
-    public virtual bool Equals(InterceptedDeclarationModel? other) {
-        if (ReferenceEquals(this, other)) {
+    int Second
+)
+{
+    public virtual bool Equals(InterceptedDeclarationModel? other)
+    {
+        if (ReferenceEquals(this, other))
+        {
             return true;
         }
 
-        if (other is null) {
+        if (other is null)
+        {
             return false;
         }
 
-        return Kind == other.Kind &&
-               Identifier == other.Identifier &&
-               Equals(Type, other.Type) &&
-               First == other.First &&
-               Second == other.Second &&
-               ModelEquality.ListEquals(Indices, other.Indices);
+        return Kind == other.Kind
+            && Identifier == other.Identifier
+            && Equals(Type, other.Type)
+            && First == other.First
+            && Second == other.Second
+            && ModelEquality.ListEquals(Indices, other.Indices);
     }
 
-    public override int GetHashCode() {
-        unchecked {
+    public override int GetHashCode()
+    {
+        unchecked
+        {
             var hash = (int)Kind;
 
             hash = hash * 31 + Identifier.GetHashCode();
@@ -360,13 +384,13 @@ public record InterceptorModel(
     InterceptionRefusal? Refusal = null,
     IReadOnlyList<TypeParameterModel>? TypeParameters = null,
     ITypeDefinition? Realm = null,
-
     /// <summary>
     /// Where the intercepted class was declared, so DM0008 and DM0015 can point at it rather than
     /// at the project.
     /// </summary>
-    LocationModel? Location = null) {
-
+    LocationModel? Location = null
+)
+{
     /// <summary>
     /// Whether the intercepted service is an open generic, and so registers as an implementation type
     /// rather than through a factory.
@@ -383,14 +407,19 @@ public record InterceptorModel(
         Array.Empty<InterceptorTypeModel>(),
         Array.Empty<InterceptedMemberModel>(),
         Array.Empty<InterceptedDeclarationModel>(),
-        0);
+        0
+    );
 
     /// <summary>
     /// A model that generates nothing and explains why, so an unsupported shape produces a
     /// diagnostic rather than a wrapper that does not compile.
     /// </summary>
     public static InterceptorModel Refused(string message, LocationModel? location = null) =>
-        Ignore with { Refusal = new InterceptionRefusal(message), Location = location };
+        Ignore with
+        {
+            Refusal = new InterceptionRefusal(message),
+            Location = location,
+        };
 
     public bool IsIgnored => ReferenceEquals(this, Ignore);
 }
@@ -398,34 +427,40 @@ public record InterceptorModel(
 /// <summary>
 /// Equality for the incremental pipeline. Every field affects the generated wrapper.
 /// </summary>
-public class InterceptorModelComparer : IEqualityComparer<InterceptorModel> {
-
-    public bool Equals(InterceptorModel? x, InterceptorModel? y) {
-        if (ReferenceEquals(x, y)) {
+public class InterceptorModelComparer : IEqualityComparer<InterceptorModel>
+{
+    public bool Equals(InterceptorModel? x, InterceptorModel? y)
+    {
+        if (ReferenceEquals(x, y))
+        {
             return true;
         }
 
-        if (x is null || y is null) {
+        if (x is null || y is null)
+        {
             return false;
         }
 
-        return x.Order == y.Order &&
-               x.ServiceType.Equals(y.ServiceType) &&
-               x.ImplementationType.Equals(y.ImplementationType) &&
-               // Realm decides which module emits the applicator, so leaving it out meant editing
-               // only `Realm = typeof(X)` compared equal to the model before the edit, hit the
-               // cache and re-emitted nothing. DecoratorModelComparer and ServiceModelComparer both
-               // compare theirs; this was the odd one out.
-               Equals(x.Realm, y.Realm) &&
-               Equals(x.Refusal, y.Refusal) &&
-               ModelEquality.ListEquals(x.Interceptors, y.Interceptors) &&
-               ModelEquality.ListEquals(x.Members, y.Members) &&
-               ModelEquality.ListEquals(x.Declarations, y.Declarations) &&
-               ModelEquality.ListEquals(x.TypeParameters, y.TypeParameters);
+        return x.Order == y.Order
+            && x.ServiceType.Equals(y.ServiceType)
+            && x.ImplementationType.Equals(y.ImplementationType)
+            &&
+            // Realm decides which module emits the applicator, so leaving it out meant editing
+            // only `Realm = typeof(X)` compared equal to the model before the edit, hit the
+            // cache and re-emitted nothing. DecoratorModelComparer and ServiceModelComparer both
+            // compare theirs; this was the odd one out.
+            Equals(x.Realm, y.Realm)
+            && Equals(x.Refusal, y.Refusal)
+            && ModelEquality.ListEquals(x.Interceptors, y.Interceptors)
+            && ModelEquality.ListEquals(x.Members, y.Members)
+            && ModelEquality.ListEquals(x.Declarations, y.Declarations)
+            && ModelEquality.ListEquals(x.TypeParameters, y.TypeParameters);
     }
 
-    public int GetHashCode(InterceptorModel obj) {
-        unchecked {
+    public int GetHashCode(InterceptorModel obj)
+    {
+        unchecked
+        {
             var hash = obj.ServiceType.GetHashCode();
 
             hash = hash * 31 + obj.ImplementationType.GetHashCode();

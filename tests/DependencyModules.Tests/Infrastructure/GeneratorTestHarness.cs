@@ -1,8 +1,7 @@
-
 using System.Collections;
 using System.Collections.Immutable;
-using System.Runtime.CompilerServices;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using DependencyModules.Runtime.Attributes;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -16,8 +15,11 @@ namespace DependencyModules.Tests.Infrastructure;
 /// Runs the DependencyModules source generator over an in-memory compilation so tests can assert
 /// on the code it produces without going through a real build.
 /// </summary>
-public static class GeneratorTestHarness {
-    private static readonly Lazy<ImmutableArray<MetadataReference>> References = new(BuildReferences);
+public static class GeneratorTestHarness
+{
+    private static readonly Lazy<ImmutableArray<MetadataReference>> References = new(
+        BuildReferences
+    );
 
     /// <summary>
     /// Compiles <paramref name="sources"/>, runs the generator, and returns everything it emitted.
@@ -34,18 +36,22 @@ public static class GeneratorTestHarness {
         OutputKind outputKind = OutputKind.DynamicallyLinkedLibrary,
         string assemblyName = "GeneratorTestAssembly",
         IReadOnlyList<MetadataReference>? additionalReferences = null,
-        IReadOnlyList<ISourceGenerator>? generators = null) {
-
+        IReadOnlyList<ISourceGenerator>? generators = null
+    )
+    {
         // MSBuild hands the compiler absolute paths, and the generator compares a file's location
         // against ProjectDir to decide whether it owns the auto-generated ApplicationModule.
         // Rooting the test sources under ProjectDir keeps that comparison meaningful.
         var projectDir = ResolveProjectDir(buildProperties);
 
         var syntaxTrees = sources
-            .Select(pair => CSharpSyntaxTree.ParseText(
-                pair.Value,
-                new CSharpParseOptions(LanguageVersion.Latest),
-                path: Path.Combine(projectDir, pair.Key)))
+            .Select(pair =>
+                CSharpSyntaxTree.ParseText(
+                    pair.Value,
+                    new CSharpParseOptions(LanguageVersion.Latest),
+                    path: Path.Combine(projectDir, pair.Key)
+                )
+            )
             .ToArray();
 
         var compilation = CSharpCompilation.Create(
@@ -54,15 +60,24 @@ public static class GeneratorTestHarness {
             additionalReferences == null
                 ? References.Value
                 : References.Value.Concat(additionalReferences),
-            new CSharpCompilationOptions(outputKind, nullableContextOptions: NullableContextOptions.Enable));
+            new CSharpCompilationOptions(
+                outputKind,
+                nullableContextOptions: NullableContextOptions.Enable
+            )
+        );
 
         var driver = CSharpGeneratorDriver.Create(
             generators == null ? Generators() : generators.ToArray(),
             optionsProvider: new TestAnalyzerConfigOptionsProvider(buildProperties),
-            parseOptions: new CSharpParseOptions(LanguageVersion.Latest));
+            parseOptions: new CSharpParseOptions(LanguageVersion.Latest)
+        );
 
-        driver = (CSharpGeneratorDriver)driver.RunGeneratorsAndUpdateCompilation(
-            compilation, out var outputCompilation, out var generatorDiagnostics);
+        driver = (CSharpGeneratorDriver)
+            driver.RunGeneratorsAndUpdateCompilation(
+                compilation,
+                out var outputCompilation,
+                out var generatorDiagnostics
+            );
 
         var runResult = driver.GetRunResult();
 
@@ -70,8 +85,8 @@ public static class GeneratorTestHarness {
         // generator can produce the same name twice. Keyed rather than grouped it threw, hiding the
         // duplication behind a dictionary error; two generators emitting one type's partial twice
         // is a real defect, so it is recorded and asserted on instead.
-        var emitted = runResult.Results
-            .SelectMany(result => result.GeneratedSources)
+        var emitted = runResult
+            .Results.SelectMany(result => result.GeneratedSources)
             .Select(generated => (generated.HintName, Source: generated.SourceText.ToString()))
             .ToArray();
 
@@ -87,8 +102,8 @@ public static class GeneratorTestHarness {
 
         // The generator catches its own exceptions and, with no log folder configured, discards
         // them. Surface them here so a crashing generator fails loudly instead of producing nothing.
-        var exceptions = runResult.Results
-            .Select(result => result.Exception)
+        var exceptions = runResult
+            .Results.Select(result => result.Exception)
             .Where(exception => exception != null)
             .ToArray();
 
@@ -98,7 +113,8 @@ public static class GeneratorTestHarness {
             outputCompilation.GetDiagnostics(),
             outputCompilation,
             exceptions!,
-            duplicateHintNames);
+            duplicateHintNames
+        );
     }
 
     /// <summary>
@@ -106,8 +122,8 @@ public static class GeneratorTestHarness {
     /// </summary>
     public static GeneratorResult Run(
         string source,
-        IReadOnlyDictionary<string, string>? buildProperties = null) =>
-        Run(new Dictionary<string, string> { ["Test.cs"] = source }, buildProperties);
+        IReadOnlyDictionary<string, string>? buildProperties = null
+    ) => Run(new Dictionary<string, string> { ["Test.cs"] = source }, buildProperties);
 
     /// <summary>
     /// One generator. Conventions, services, decorators and interception all come from it.
@@ -119,9 +135,7 @@ public static class GeneratorTestHarness {
     /// closed over a registration a convention produced.
     /// </remarks>
     private static ISourceGenerator[] Generators() =>
-        new ISourceGenerator[] {
-            new SourceGenerator.SourceGenerator().AsSourceGenerator(),
-        };
+        new ISourceGenerator[] { new SourceGenerator.SourceGenerator().AsSourceGenerator() };
 
     /// <summary>
     /// Runs the generator over <paramref name="first"/>, then re-runs the same driver over
@@ -135,25 +149,34 @@ public static class GeneratorTestHarness {
         IReadOnlyDictionary<string, string> first,
         IReadOnlyDictionary<string, string> second,
         IReadOnlyDictionary<string, string>? buildProperties = null,
-        bool withConventions = false) {
-
+        bool withConventions = false
+    )
+    {
         var projectDir = ResolveProjectDir(buildProperties);
 
         Compilation Compile(IReadOnlyDictionary<string, string> sources) =>
             CSharpCompilation.Create(
                 "GeneratorTestAssembly",
-                sources.Select(pair => CSharpSyntaxTree.ParseText(
-                    pair.Value,
-                    new CSharpParseOptions(LanguageVersion.Latest),
-                    path: Path.Combine(projectDir, pair.Key))),
+                sources.Select(pair =>
+                    CSharpSyntaxTree.ParseText(
+                        pair.Value,
+                        new CSharpParseOptions(LanguageVersion.Latest),
+                        path: Path.Combine(projectDir, pair.Key)
+                    )
+                ),
                 References.Value,
-                new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
+                new CSharpCompilationOptions(
+                    OutputKind.DynamicallyLinkedLibrary,
+                    nullableContextOptions: NullableContextOptions.Enable
+                )
+            );
 
         GeneratorDriver driver = CSharpGeneratorDriver.Create(
             Generators(),
             optionsProvider: new TestAnalyzerConfigOptionsProvider(buildProperties),
             parseOptions: new CSharpParseOptions(LanguageVersion.Latest),
-            driverOptions: new GeneratorDriverOptions(default, trackIncrementalGeneratorSteps: true));
+            driverOptions: new GeneratorDriverOptions(default, trackIncrementalGeneratorSteps: true)
+        );
 
         driver = driver.RunGenerators(Compile(first));
         var firstOutputs = Outputs(driver.GetRunResult());
@@ -161,8 +184,8 @@ public static class GeneratorTestHarness {
         driver = driver.RunGenerators(Compile(second));
         var secondRun = driver.GetRunResult();
 
-        var outputs = secondRun.Results
-            .SelectMany(result => result.TrackedOutputSteps)
+        var outputs = secondRun
+            .Results.SelectMany(result => result.TrackedOutputSteps)
             .SelectMany(step => step.Value)
             .SelectMany(step => step.Outputs)
             .Select(output => (output.Reason, EmittedSource: EmittedSourceCount(output.Value)))
@@ -186,10 +209,15 @@ public static class GeneratorTestHarness {
     private static int EmittedSourceCount(object? value) =>
         value is ITuple { Length: 2 } tuple && tuple[0] is ICollection sources ? sources.Count : 0;
 
-    private static IReadOnlyDictionary<string, string> Outputs(GeneratorDriverRunResult runResult) =>
-        runResult.Results
-            .SelectMany(result => result.GeneratedSources)
-            .ToDictionary(generated => generated.HintName, generated => generated.SourceText.ToString());
+    private static IReadOnlyDictionary<string, string> Outputs(
+        GeneratorDriverRunResult runResult
+    ) =>
+        runResult
+            .Results.SelectMany(result => result.GeneratedSources)
+            .ToDictionary(
+                generated => generated.HintName,
+                generated => generated.SourceText.ToString()
+            );
 
     internal static string DefaultProjectDir { get; } =
         Path.Combine(Path.GetTempPath(), "GeneratorTest") + Path.DirectorySeparatorChar;
@@ -214,19 +242,29 @@ public static class GeneratorTestHarness {
     /// sees that in metadata. Off by default because most callers only need plain types to scan.
     /// </param>
     public static (MetadataReference Reference, System.Reflection.Assembly Assembly) CompileLibrary(
-        string source, string assemblyName, bool runGenerator = false) {
-
+        string source,
+        string assemblyName,
+        bool runGenerator = false
+    )
+    {
         Compilation compilation = CSharpCompilation.Create(
             assemblyName,
-            new[] { CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(LanguageVersion.Latest)) },
+            new[]
+            {
+                CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(LanguageVersion.Latest)),
+            },
             References.Value,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
+        );
 
-        if (runGenerator) {
-            CSharpGeneratorDriver.Create(
+        if (runGenerator)
+        {
+            CSharpGeneratorDriver
+                .Create(
                     Generators(),
                     optionsProvider: new TestAnalyzerConfigOptionsProvider(null),
-                    parseOptions: new CSharpParseOptions(LanguageVersion.Latest))
+                    parseOptions: new CSharpParseOptions(LanguageVersion.Latest)
+                )
                 .RunGeneratorsAndUpdateCompilation(compilation, out compilation, out _);
         }
 
@@ -234,36 +272,47 @@ public static class GeneratorTestHarness {
 
         var result = compilation.Emit(stream);
 
-        Xunit.Assert.True(result.Success,
-            "The test library did not compile: " + string.Join(
-                Environment.NewLine,
-                result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error)));
+        Xunit.Assert.True(
+            result.Success,
+            "The test library did not compile: "
+                + string.Join(
+                    Environment.NewLine,
+                    result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error)
+                )
+        );
 
         var bytes = stream.ToArray();
         var assembly = System.Reflection.Assembly.Load(bytes);
 
         // Assembly.Load(byte[]) puts it in the default context but does not make it discoverable by
         // name, so generated code referencing it fails to bind at run time. The resolver closes that.
-        lock (LoadedLibraries) {
+        lock (LoadedLibraries)
+        {
             // Two test classes compiling different libraries under one name is a trap worth being
             // loud about. The resolver below is keyed by name, so the second registration decides
             // what every earlier reference binds to at run time - and the tests that break are
             // whichever ones happened to run second, which is a failure that appears and disappears
             // with the filter you ran.
             Xunit.Assert.True(
-                !LibrarySources.TryGetValue(assemblyName, out var previousSource) ||
-                previousSource == source,
-                $"'{assemblyName}' was compiled more than once from different source. The runtime " +
-                "resolver is keyed by assembly name, so one of them would silently stand in for the " +
-                "other. Give each test class its own assembly name.");
+                !LibrarySources.TryGetValue(assemblyName, out var previousSource)
+                    || previousSource == source,
+                $"'{assemblyName}' was compiled more than once from different source. The runtime "
+                    + "resolver is keyed by assembly name, so one of them would silently stand in for the "
+                    + "other. Give each test class its own assembly name."
+            );
 
             LibrarySources[assemblyName] = source;
             LoadedLibraries[assemblyName] = assembly;
 
-            if (!_resolverHooked) {
-                System.Runtime.Loader.AssemblyLoadContext.Default.Resolving += (_, name) => {
-                    lock (LoadedLibraries) {
-                        return name.Name != null && LoadedLibraries.TryGetValue(name.Name, out var found)
+            if (!_resolverHooked)
+            {
+                System.Runtime.Loader.AssemblyLoadContext.Default.Resolving += (_, name) =>
+                {
+                    lock (LoadedLibraries)
+                    {
+                        return
+                            name.Name != null
+                            && LoadedLibraries.TryGetValue(name.Name, out var found)
                             ? found
                             : null;
                     }
@@ -283,39 +332,54 @@ public static class GeneratorTestHarness {
 
     private static bool _resolverHooked;
 
-    private static ImmutableArray<MetadataReference> BuildReferences() {
+    private static ImmutableArray<MetadataReference> BuildReferences()
+    {
         var builder = ImmutableArray.CreateBuilder<MetadataReference>();
 
         // The framework reference set the test host was resolved against.
-        if (AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") is string trusted) {
-            foreach (var path in trusted.Split(Path.PathSeparator)) {
-                if (path.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) && File.Exists(path)) {
+        if (AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") is string trusted)
+        {
+            foreach (var path in trusted.Split(Path.PathSeparator))
+            {
+                if (path.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) && File.Exists(path))
+                {
                     builder.Add(MetadataReference.CreateFromFile(path));
                 }
             }
         }
 
         // The assemblies the generated code actually binds against.
-        foreach (var assembly in new[] {
-                     typeof(DependencyModuleAttribute).Assembly,
-                     typeof(IServiceCollection).Assembly,
-                     typeof(ServiceCollection).Assembly
-                 }) {
+        foreach (
+            var assembly in new[]
+            {
+                typeof(DependencyModuleAttribute).Assembly,
+                typeof(IServiceCollection).Assembly,
+                typeof(ServiceCollection).Assembly,
+            }
+        )
+        {
             AddAssembly(builder, assembly);
         }
 
         return builder.ToImmutable();
     }
 
-    private static void AddAssembly(ImmutableArray<MetadataReference>.Builder builder, Assembly assembly) {
-        if (string.IsNullOrEmpty(assembly.Location)) {
+    private static void AddAssembly(
+        ImmutableArray<MetadataReference>.Builder builder,
+        Assembly assembly
+    )
+    {
+        if (string.IsNullOrEmpty(assembly.Location))
+        {
             return;
         }
 
         var alreadyPresent = builder.Any(reference =>
-            string.Equals(reference.Display, assembly.Location, StringComparison.OrdinalIgnoreCase));
+            string.Equals(reference.Display, assembly.Location, StringComparison.OrdinalIgnoreCase)
+        );
 
-        if (!alreadyPresent) {
+        if (!alreadyPresent)
+        {
             builder.Add(MetadataReference.CreateFromFile(assembly.Location));
         }
     }
@@ -331,8 +395,9 @@ public class GeneratorResult(
     ImmutableArray<Diagnostic> compilationDiagnostics,
     Compilation compilation,
     IReadOnlyList<Exception> generatorExceptions,
-    IReadOnlyList<string>? duplicateHintNames = null) {
-
+    IReadOnlyList<string>? duplicateHintNames = null
+)
+{
     public IReadOnlyDictionary<string, string> GeneratedSources { get; } = generatedSources;
 
     public ImmutableArray<Diagnostic> GeneratorDiagnostics { get; } = generatorDiagnostics;
@@ -346,24 +411,31 @@ public class GeneratorResult(
     /// <summary>
     /// Hint names emitted by more than one generator in the same run.
     /// </summary>
-    public IReadOnlyList<string> DuplicateHintNames { get; } = duplicateHintNames ?? Array.Empty<string>();
+    public IReadOnlyList<string> DuplicateHintNames { get; } =
+        duplicateHintNames ?? Array.Empty<string>();
 
     public IEnumerable<Diagnostic> Errors =>
-        GeneratorDiagnostics.Concat(CompilationDiagnostics)
+        GeneratorDiagnostics
+            .Concat(CompilationDiagnostics)
             .Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
 
     /// <summary>
     /// The single generated file whose hint name contains <paramref name="fragment"/>.
     /// </summary>
-    public string SourceContaining(string fragment) {
+    public string SourceContaining(string fragment)
+    {
         var matches = GeneratedSources
             .Where(pair => pair.Key.Contains(fragment, StringComparison.OrdinalIgnoreCase))
             .ToArray();
 
-        Assert.True(matches.Length > 0,
-            $"No generated file matched '{fragment}'. Generated: {string.Join(", ", GeneratedSources.Keys)}");
-        Assert.True(matches.Length == 1,
-            $"'{fragment}' matched more than one generated file: {string.Join(", ", matches.Select(m => m.Key))}");
+        Assert.True(
+            matches.Length > 0,
+            $"No generated file matched '{fragment}'. Generated: {string.Join(", ", GeneratedSources.Keys)}"
+        );
+        Assert.True(
+            matches.Length == 1,
+            $"'{fragment}' matched more than one generated file: {string.Join(", ", matches.Select(m => m.Key))}"
+        );
 
         return matches[0].Value;
     }
@@ -371,16 +443,26 @@ public class GeneratorResult(
     /// <summary>
     /// Asserts the generator produced output that compiles cleanly.
     /// </summary>
-    public GeneratorResult AssertNoErrors() {
-        Assert.True(GeneratorExceptions.Count == 0,
-            "The generator threw:" + Environment.NewLine +
-            string.Join(Environment.NewLine, GeneratorExceptions.Select(e => $"  {e}")));
+    public GeneratorResult AssertNoErrors()
+    {
+        Assert.True(
+            GeneratorExceptions.Count == 0,
+            "The generator threw:"
+                + Environment.NewLine
+                + string.Join(Environment.NewLine, GeneratorExceptions.Select(e => $"  {e}"))
+        );
 
         var errors = Errors.ToArray();
 
-        Assert.True(errors.Length == 0,
-            "Expected no errors, got:" + Environment.NewLine +
-            string.Join(Environment.NewLine, errors.Select(e => $"  {e.Id} {e.GetMessage()} @ {e.Location.GetLineSpan()}")));
+        Assert.True(
+            errors.Length == 0,
+            "Expected no errors, got:"
+                + Environment.NewLine
+                + string.Join(
+                    Environment.NewLine,
+                    errors.Select(e => $"  {e.Id} {e.GetMessage()} @ {e.Location.GetLineSpan()}")
+                )
+        );
 
         return this;
     }
@@ -388,10 +470,12 @@ public class GeneratorResult(
     /// <summary>
     /// All generated files concatenated in a stable order, suitable for snapshotting.
     /// </summary>
-    public string ToSnapshot() {
+    public string ToSnapshot()
+    {
         var builder = new System.Text.StringBuilder();
 
-        foreach (var pair in GeneratedSources.OrderBy(p => p.Key, StringComparer.Ordinal)) {
+        foreach (var pair in GeneratedSources.OrderBy(p => p.Key, StringComparer.Ordinal))
+        {
             builder.AppendLine($"// ---- {pair.Key} ----");
             builder.AppendLine(pair.Value.Replace("\r\n", "\n").TrimEnd());
             builder.AppendLine();
@@ -408,8 +492,9 @@ public class GeneratorResult(
 public class IncrementalRunResult(
     IReadOnlyDictionary<string, string> firstRun,
     IReadOnlyDictionary<string, string> secondRun,
-    IReadOnlyList<(IncrementalStepRunReason Reason, int EmittedSource)> outputs) {
-
+    IReadOnlyList<(IncrementalStepRunReason Reason, int EmittedSource)> outputs
+)
+{
     public IReadOnlyDictionary<string, string> FirstRun { get; } = firstRun;
 
     public IReadOnlyDictionary<string, string> SecondRun { get; } = secondRun;
@@ -431,38 +516,49 @@ public class IncrementalRunResult(
     /// what this measures.
     /// </remarks>
     public bool AllOutputsCached =>
-        outputs.Any(output => output.EmittedSource > 0) &&
-        outputs
+        outputs.Any(output => output.EmittedSource > 0)
+        && outputs
             .Where(output => output.EmittedSource > 0)
-            .All(output => output.Reason
-                is IncrementalStepRunReason.Cached or IncrementalStepRunReason.Unchanged);
+            .All(output =>
+                output.Reason
+                    is IncrementalStepRunReason.Cached
+                        or IncrementalStepRunReason.Unchanged
+            );
 }
 
-internal class TestAnalyzerConfigOptionsProvider(IReadOnlyDictionary<string, string>? buildProperties)
-    : AnalyzerConfigOptionsProvider {
-
-    public override AnalyzerConfigOptions GlobalOptions { get; } = new TestAnalyzerConfigOptions(buildProperties);
+internal class TestAnalyzerConfigOptionsProvider(
+    IReadOnlyDictionary<string, string>? buildProperties
+) : AnalyzerConfigOptionsProvider
+{
+    public override AnalyzerConfigOptions GlobalOptions { get; } =
+        new TestAnalyzerConfigOptions(buildProperties);
 
     public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => GlobalOptions;
 
     public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => GlobalOptions;
 }
 
-internal class TestAnalyzerConfigOptions : AnalyzerConfigOptions {
+internal class TestAnalyzerConfigOptions : AnalyzerConfigOptions
+{
     private readonly Dictionary<string, string> _options;
 
-    public TestAnalyzerConfigOptions(IReadOnlyDictionary<string, string>? buildProperties) {
-        _options = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
+    public TestAnalyzerConfigOptions(IReadOnlyDictionary<string, string>? buildProperties)
+    {
+        _options = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
             ["build_property.RootNamespace"] = "TestNamespace",
-            ["build_property.ProjectDir"] = GeneratorTestHarness.DefaultProjectDir
+            ["build_property.ProjectDir"] = GeneratorTestHarness.DefaultProjectDir,
         };
 
-        if (buildProperties != null) {
-            foreach (var pair in buildProperties) {
+        if (buildProperties != null)
+        {
+            foreach (var pair in buildProperties)
+            {
                 _options["build_property." + pair.Key] = pair.Value;
             }
         }
     }
 
-    public override bool TryGetValue(string key, out string value) => _options.TryGetValue(key, out value!);
+    public override bool TryGetValue(string key, out string value) =>
+        _options.TryGetValue(key, out value!);
 }

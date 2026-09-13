@@ -9,21 +9,27 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities;
 /// Builds <see cref="DecoratorModel"/> instances from the two declaration surfaces:
 /// <c>[Decorator]</c> on the decorator class, and <c>[Decorate]</c> on a module.
 /// </summary>
-public static class DecoratorModelUtility {
-
+public static class DecoratorModelUtility
+{
     /// <summary>
     /// Reads a <c>[Decorator]</c> class declaration.
     /// </summary>
-    public static DecoratorModel? GetDecoratorModel(SyntaxTransformContext context, CancellationToken cancellationToken) {
+    public static DecoratorModel? GetDecoratorModel(
+        SyntaxTransformContext context,
+        CancellationToken cancellationToken
+    )
+    {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (context.Node is not TypeDeclarationSyntax typeDeclarationSyntax) {
+        if (context.Node is not TypeDeclarationSyntax typeDeclarationSyntax)
+        {
             return null;
         }
 
         var attribute = FindAttribute(typeDeclarationSyntax, "Decorator");
 
-        if (attribute == null) {
+        if (attribute == null)
+        {
             return null;
         }
 
@@ -35,11 +41,15 @@ public static class DecoratorModelUtility {
         ITypeDefinition? explicitService = null;
         ITypeDefinition? implementation = null;
 
-        if (attribute.ArgumentList != null) {
-            foreach (var argument in attribute.ArgumentList.Arguments) {
-                switch (argument.NameEquals?.Name.ToString()) {
+        if (attribute.ArgumentList != null)
+        {
+            foreach (var argument in attribute.ArgumentList.Arguments)
+            {
+                switch (argument.NameEquals?.Name.ToString())
+                {
                     case "Order":
-                        if (int.TryParse(argument.Expression.ToString(), out var parsed)) {
+                        if (int.TryParse(argument.Expression.ToString(), out var parsed))
+                        {
                             order = parsed;
                         }
                         break;
@@ -56,9 +66,11 @@ public static class DecoratorModelUtility {
             }
         }
 
-        var written = explicitService ?? InferDecoratedService(typeDeclarationSyntax, context, implemented);
+        var written =
+            explicitService ?? InferDecoratedService(typeDeclarationSyntax, context, implemented);
 
-        if (written == null) {
+        if (written == null)
+        {
             return null;
         }
 
@@ -67,17 +79,24 @@ public static class DecoratorModelUtility {
         // A generic decorator decorates the open service. Its base list names the service closed over
         // its own type parameters, as IHandler<T>; the unbound IHandler<> is the form the model
         // carries, and the closed constructions to emit against are worked out from the registrations.
-        if (decoratorType is GenericTypeDefinition { TypeArguments.Count: > 0 }) {
+        if (decoratorType is GenericTypeDefinition { TypeArguments.Count: > 0 })
+        {
             serviceType = ToUnboundGeneric(written);
         }
 
         // Read from the decorator class, exactly as they are for a service. A decorator is a
         // registration like any other, and one gated on Development has no other way to say so.
         var conditions = EnvironmentConditionUtility.GetConditions(
-            context, typeDeclarationSyntax, cancellationToken);
+            context,
+            typeDeclarationSyntax,
+            cancellationToken
+        );
 
         var constructor = ServiceModelUtility.GetConstructorInfo(
-            context, typeDeclarationSyntax, cancellationToken);
+            context,
+            typeDeclarationSyntax,
+            cancellationToken
+        );
 
         return new DecoratorModel(
             serviceType,
@@ -89,7 +108,8 @@ public static class DecoratorModelUtility {
             IndexOfInnerParameter(constructor, written),
             TypeParametersMatchService(typeDeclarationSyntax, written),
             implementation,
-            LocationModel.From(typeDeclarationSyntax));
+            LocationModel.From(typeDeclarationSyntax)
+        );
     }
 
     /// <summary>
@@ -102,15 +122,22 @@ public static class DecoratorModelUtility {
     /// carries an annotation the service type does not, and comparing them as written finds no
     /// parameter at all — which drops the decoration with nothing said.
     /// </remarks>
-    private static int IndexOfInnerParameter(ConstructorInfoModel? constructor, ITypeDefinition serviceType) {
-        if (constructor == null) {
+    private static int IndexOfInnerParameter(
+        ConstructorInfoModel? constructor,
+        ITypeDefinition serviceType
+    )
+    {
+        if (constructor == null)
+        {
             return -1;
         }
 
         var wanted = serviceType.MakeNullable(false);
 
-        for (var i = 0; i < constructor.Parameters.Count; i++) {
-            if (constructor.Parameters[i].ParameterType.MakeNullable(false).Equals(wanted)) {
+        for (var i = 0; i < constructor.Parameters.Count; i++)
+        {
+            if (constructor.Parameters[i].ParameterType.MakeNullable(false).Equals(wanted))
+            {
                 return i;
             }
         }
@@ -129,21 +156,29 @@ public static class DecoratorModelUtility {
     /// emitted for them instead.
     /// </remarks>
     private static bool TypeParametersMatchService(
-        TypeDeclarationSyntax typeDeclarationSyntax, ITypeDefinition serviceType) {
-
+        TypeDeclarationSyntax typeDeclarationSyntax,
+        ITypeDefinition serviceType
+    )
+    {
         var declared = typeDeclarationSyntax.TypeParameterList?.Parameters;
 
-        if (declared is not { Count: > 0 }) {
+        if (declared is not { Count: > 0 })
+        {
             return true;
         }
 
-        if (serviceType is not GenericTypeDefinition generic ||
-            generic.TypeArguments.Count != declared.Value.Count) {
+        if (
+            serviceType is not GenericTypeDefinition generic
+            || generic.TypeArguments.Count != declared.Value.Count
+        )
+        {
             return false;
         }
 
-        for (var i = 0; i < declared.Value.Count; i++) {
-            if (generic.TypeArguments[i].Name != declared.Value[i].Identifier.Text) {
+        for (var i = 0; i < declared.Value.Count; i++)
+        {
+            if (generic.TypeArguments[i].Name != declared.Value[i].Identifier.Text)
+            {
                 return false;
             }
         }
@@ -154,28 +189,46 @@ public static class DecoratorModelUtility {
     /// <summary>
     /// Reads the <c>[Decorate(service, decorator)]</c> attributes declared on a module.
     /// </summary>
-    public static IEnumerable<DecoratorModel> GetModuleDeclaredDecorators(ModuleEntryPointModel entryPointModel) {
-        foreach (var attribute in entryPointModel.AttributeModels) {
-            if (attribute.TypeDefinition.Name is not ("DecorateAttribute" or "Decorate")) {
+    public static IEnumerable<DecoratorModel> GetModuleDeclaredDecorators(
+        ModuleEntryPointModel entryPointModel
+    )
+    {
+        foreach (var attribute in entryPointModel.AttributeModels)
+        {
+            if (attribute.TypeDefinition.Name is not ("DecorateAttribute" or "Decorate"))
+            {
                 continue;
             }
 
-            if (attribute.Arguments.Count < 2 ||
-                attribute.Arguments[0].Value is not ITypeDefinition service ||
-                attribute.Arguments[1].Value is not ITypeDefinition decorator) {
+            if (
+                attribute.Arguments.Count < 2
+                || attribute.Arguments[0].Value is not ITypeDefinition service
+                || attribute.Arguments[1].Value is not ITypeDefinition decorator
+            )
+            {
                 continue;
             }
 
             var order = 0;
 
-            foreach (var property in attribute.Properties) {
-                if (property.Name == "Order" && property.Value != null &&
-                    int.TryParse(property.Value.ToString(), out var parsed)) {
+            foreach (var property in attribute.Properties)
+            {
+                if (
+                    property.Name == "Order"
+                    && property.Value != null
+                    && int.TryParse(property.Value.ToString(), out var parsed)
+                )
+                {
                     order = parsed;
                 }
             }
 
-            yield return new DecoratorModel(service, decorator, order, entryPointModel.EntryPointType);
+            yield return new DecoratorModel(
+                service,
+                decorator,
+                order,
+                entryPointModel.EntryPointType
+            );
         }
     }
 
@@ -187,20 +240,25 @@ public static class DecoratorModelUtility {
     private static ITypeDefinition? InferDecoratedService(
         TypeDeclarationSyntax typeDeclarationSyntax,
         SyntaxTransformContext context,
-        IReadOnlyList<ITypeDefinition> implemented) {
-
-        if (implemented.Count == 0) {
+        IReadOnlyList<ITypeDefinition> implemented
+    )
+    {
+        if (implemented.Count == 0)
+        {
             return null;
         }
 
-        foreach (var parameterType in GetConstructorParameterTypes(typeDeclarationSyntax, context)) {
+        foreach (var parameterType in GetConstructorParameterTypes(typeDeclarationSyntax, context))
+        {
             // Normalised, because `IGreeter? inner` is legal and its parameter type carries an
             // annotation the implemented interface does not. Compared as written, no parameter looks
             // like the service and the class stops being a decorator at all — silently.
             var declared = parameterType.MakeNullable(false);
 
-            foreach (var candidate in implemented) {
-                if (candidate.MakeNullable(false).Equals(declared)) {
+            foreach (var candidate in implemented)
+            {
+                if (candidate.MakeNullable(false).Equals(declared))
+                {
                     return candidate;
                 }
             }
@@ -210,23 +268,33 @@ public static class DecoratorModelUtility {
     }
 
     private static IEnumerable<ITypeDefinition> GetConstructorParameterTypes(
-        TypeDeclarationSyntax typeDeclarationSyntax, SyntaxTransformContext context) {
-
-        if (typeDeclarationSyntax.ParameterList != null) {
-            foreach (var parameter in typeDeclarationSyntax.ParameterList.Parameters) {
+        TypeDeclarationSyntax typeDeclarationSyntax,
+        SyntaxTransformContext context
+    )
+    {
+        if (typeDeclarationSyntax.ParameterList != null)
+        {
+            foreach (var parameter in typeDeclarationSyntax.ParameterList.Parameters)
+            {
                 var type = parameter.Type?.GetTypeDefinition(context);
 
-                if (type != null) {
+                if (type != null)
+                {
                     yield return type;
                 }
             }
         }
 
-        foreach (var constructor in typeDeclarationSyntax.Members.OfType<ConstructorDeclarationSyntax>()) {
-            foreach (var parameter in constructor.ParameterList.Parameters) {
+        foreach (
+            var constructor in typeDeclarationSyntax.Members.OfType<ConstructorDeclarationSyntax>()
+        )
+        {
+            foreach (var parameter in constructor.ParameterList.Parameters)
+            {
                 var type = parameter.Type?.GetTypeDefinition(context);
 
-                if (type != null) {
+                if (type != null)
+                {
                     yield return type;
                 }
             }
@@ -234,18 +302,23 @@ public static class DecoratorModelUtility {
     }
 
     private static IReadOnlyList<ITypeDefinition> GetImplementedInterfaces(
-        TypeDeclarationSyntax typeDeclarationSyntax, SyntaxTransformContext context) {
-
+        TypeDeclarationSyntax typeDeclarationSyntax,
+        SyntaxTransformContext context
+    )
+    {
         var interfaces = new List<ITypeDefinition>();
 
-        if (typeDeclarationSyntax.BaseList == null) {
+        if (typeDeclarationSyntax.BaseList == null)
+        {
             return interfaces;
         }
 
-        foreach (var baseType in typeDeclarationSyntax.BaseList.Types) {
+        foreach (var baseType in typeDeclarationSyntax.BaseList.Types)
+        {
             var type = baseType.Type.GetTypeDefinition(context);
 
-            if (type != null) {
+            if (type != null)
+            {
                 interfaces.Add(type);
             }
         }
@@ -256,8 +329,10 @@ public static class DecoratorModelUtility {
     /// <summary>
     /// Rewrites a generic type so its arguments render as the unbound <c>&lt;&gt;</c> form.
     /// </summary>
-    private static ITypeDefinition ToUnboundGeneric(ITypeDefinition type) {
-        if (type is not GenericTypeDefinition { TypeArguments.Count: > 0 } generic) {
+    private static ITypeDefinition ToUnboundGeneric(ITypeDefinition type)
+    {
+        if (type is not GenericTypeDefinition { TypeArguments.Count: > 0 } generic)
+        {
             return type;
         }
 
@@ -265,41 +340,62 @@ public static class DecoratorModelUtility {
             generic.TypeDefinitionEnum,
             generic.Namespace,
             generic.Name,
-            generic.TypeArguments.Select(_ => (ITypeDefinition)TypeDefinition.Get("", "")).ToArray());
+            generic.TypeArguments.Select(_ => (ITypeDefinition)TypeDefinition.Get("", "")).ToArray()
+        );
     }
 
-    private static ITypeDefinition GetDeclaredType(TypeDeclarationSyntax typeDeclarationSyntax, SyntaxTransformContext context) {
+    private static ITypeDefinition GetDeclaredType(
+        TypeDeclarationSyntax typeDeclarationSyntax,
+        SyntaxTransformContext context
+    )
+    {
         var name = typeDeclarationSyntax.Identifier.ToString();
 
-        foreach (var containing in typeDeclarationSyntax.Ancestors().OfType<TypeDeclarationSyntax>()) {
+        foreach (
+            var containing in typeDeclarationSyntax.Ancestors().OfType<TypeDeclarationSyntax>()
+        )
+        {
             name = containing.Identifier + "." + name;
         }
 
         var namespaceName = typeDeclarationSyntax.GetNamespace();
 
-        if (typeDeclarationSyntax.TypeParameterList is { Parameters.Count: > 0 } parameters) {
+        if (typeDeclarationSyntax.TypeParameterList is { Parameters.Count: > 0 } parameters)
+        {
             return new GenericTypeDefinition(
                 TypeDefinitionEnum.ClassDefinition,
                 namespaceName,
                 name,
-                parameters.Parameters.Select(_ => TypeDefinition.Get("", "")).ToArray());
+                parameters.Parameters.Select(_ => TypeDefinition.Get("", "")).ToArray()
+            );
         }
 
         return TypeDefinition.Get(namespaceName, name);
     }
 
-    private static ITypeDefinition? GetTypeOfArgument(AttributeArgumentSyntax argument, SyntaxTransformContext context) {
+    private static ITypeDefinition? GetTypeOfArgument(
+        AttributeArgumentSyntax argument,
+        SyntaxTransformContext context
+    )
+    {
         return argument.Expression is TypeOfExpressionSyntax typeOf
             ? typeOf.Type.GetTypeDefinition(context)
             : null;
     }
 
-    private static AttributeSyntax? FindAttribute(TypeDeclarationSyntax typeDeclarationSyntax, string name) {
-        foreach (var attributeList in typeDeclarationSyntax.AttributeLists) {
-            foreach (var attribute in attributeList.Attributes) {
+    private static AttributeSyntax? FindAttribute(
+        TypeDeclarationSyntax typeDeclarationSyntax,
+        string name
+    )
+    {
+        foreach (var attributeList in typeDeclarationSyntax.AttributeLists)
+        {
+            foreach (var attribute in attributeList.Attributes)
+            {
                 var attributeName = attribute.Name.ToString();
 
-                if (attributeName == name || attributeName == name + "Attribute") {
+                if (attributeName == name || attributeName == name + "Attribute")
+                {
                     return attribute;
                 }
             }

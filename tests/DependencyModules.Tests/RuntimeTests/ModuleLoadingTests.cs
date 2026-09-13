@@ -11,14 +11,15 @@ namespace DependencyModules.Tests.RuntimeTests;
 /// Covers how DependencyRegistry.LoadModules walks a module graph: de-duplication, ordering,
 /// feature application, and environment-aware configuration.
 /// </summary>
-public class ModuleLoadingTests {
-
+public class ModuleLoadingTests
+{
     private interface IThing;
 
     private class Thing : IThing;
 
     [Fact]
-    public void LoadModules_AppliesEachModuleOnce() {
+    public void LoadModules_AppliesEachModuleOnce()
+    {
         var module = new CountingModule();
 
         var collection = new ServiceCollection();
@@ -28,7 +29,8 @@ public class ModuleLoadingTests {
     }
 
     [Fact]
-    public void LoadModules_DeduplicatesEqualModules() {
+    public void LoadModules_DeduplicatesEqualModules()
+    {
         var first = new EquatableModule("same");
         var second = new EquatableModule("same");
 
@@ -39,7 +41,8 @@ public class ModuleLoadingTests {
     }
 
     [Fact]
-    public void LoadModules_KeepsModulesThatCompareUnequal() {
+    public void LoadModules_KeepsModulesThatCompareUnequal()
+    {
         var first = new EquatableModule("one");
         var second = new EquatableModule("two");
 
@@ -51,7 +54,8 @@ public class ModuleLoadingTests {
     }
 
     [Fact]
-    public void LoadModules_SkipsModulesThatOptOut() {
+    public void LoadModules_SkipsModulesThatOptOut()
+    {
         var module = new CountingModule { LoadModule = false };
 
         var collection = new ServiceCollection();
@@ -61,7 +65,8 @@ public class ModuleLoadingTests {
     }
 
     [Fact]
-    public void LoadModules_LoadsNestedModulesReturnedByGetModules() {
+    public void LoadModules_LoadsNestedModulesReturnedByGetModules()
+    {
         var child = new CountingModule();
         var parent = new CountingModule { Children = [child] };
 
@@ -73,7 +78,8 @@ public class ModuleLoadingTests {
     }
 
     [Fact]
-    public void LoadModules_TerminatesOnCircularModuleReferences() {
+    public void LoadModules_TerminatesOnCircularModuleReferences()
+    {
         var first = new CountingModule();
         var second = new CountingModule { Children = [first] };
         first.Children = [second];
@@ -86,7 +92,8 @@ public class ModuleLoadingTests {
     }
 
     [Fact]
-    public void LoadModules_InvokesServiceCollectionConfiguration() {
+    public void LoadModules_InvokesServiceCollectionConfiguration()
+    {
         var module = new ConfiguringModule();
 
         var collection = new ServiceCollection();
@@ -96,7 +103,8 @@ public class ModuleLoadingTests {
     }
 
     [Fact]
-    public void LoadModules_AppliesFeaturesBeforeServices() {
+    public void LoadModules_AppliesFeaturesBeforeServices()
+    {
         var module = new FeatureModule();
 
         var collection = new ServiceCollection();
@@ -111,7 +119,8 @@ public class ModuleLoadingTests {
     /// never invoked by anything, so a module implementing it silently did nothing.
     /// </summary>
     [Fact]
-    public void LoadModules_InvokesConfigureDecorators() {
+    public void LoadModules_InvokesConfigureDecorators()
+    {
         var module = new DecoratingModule();
 
         DependencyRegistry<object>.LoadModules(new ServiceCollection(), module);
@@ -124,7 +133,8 @@ public class ModuleLoadingTests {
     /// registered its services or there would be nothing to decorate.
     /// </summary>
     [Fact]
-    public void LoadModules_RunsConfigureDecoratorsAfterAllServices() {
+    public void LoadModules_RunsConfigureDecoratorsAfterAllServices()
+    {
         var decorating = new DecoratingModule();
         var registering = new ConfiguringModule();
 
@@ -136,9 +146,14 @@ public class ModuleLoadingTests {
     }
 
     [Fact]
-    public void LoadModules_CanDecorateARegistrationFromAnotherModule() {
+    public void LoadModules_CanDecorateARegistrationFromAnotherModule()
+    {
         var collection = new ServiceCollection();
-        DependencyRegistry<object>.LoadModules(collection, new DecoratingModule(), new ConfiguringModule());
+        DependencyRegistry<object>.LoadModules(
+            collection,
+            new DecoratingModule(),
+            new ConfiguringModule()
+        );
 
         var provider = collection.BuildServiceProvider();
 
@@ -146,7 +161,8 @@ public class ModuleLoadingTests {
     }
 
     [Fact]
-    public void LoadModules_AppliesFeaturesInOrder() {
+    public void LoadModules_AppliesFeaturesInOrder()
+    {
         var module = new OrderedFeatureModule();
 
         var collection = new ServiceCollection();
@@ -156,7 +172,8 @@ public class ModuleLoadingTests {
     }
 
     [Fact]
-    public void AddModules_WithEnvironment_PassesEnvironmentToConfiguration() {
+    public void AddModules_WithEnvironment_PassesEnvironmentToConfiguration()
+    {
         var environment = new StubEnvironment("Staging");
         var module = new EnvironmentModule();
 
@@ -175,7 +192,8 @@ public class ModuleLoadingTests {
     /// looking at two different answers to the same question.
     /// </remarks>
     [Fact]
-    public void AddModules_WithoutEnvironment_PassesTheProcessDefaultToConfiguration() {
+    public void AddModules_WithoutEnvironment_PassesTheProcessDefaultToConfiguration()
+    {
         var module = new EnvironmentModule();
 
         var collection = new ServiceCollection();
@@ -185,17 +203,21 @@ public class ModuleLoadingTests {
         // The instance registered into the collection, rather than whatever CreateDefault hands out
         // next — it builds a fresh one per call, so comparing against it would test nothing.
         var registered = Assert.Single(
-            collection, descriptor => descriptor.ServiceType == typeof(IModuleEnvironment));
+            collection,
+            descriptor => descriptor.ServiceType == typeof(IModuleEnvironment)
+        );
 
         Assert.Same(registered.ImplementationInstance, module.ObservedEnvironment);
         Assert.Equal(
             ModuleEnvironment.CreateDefault().EnvironmentName,
-            module.ObservedEnvironment!.EnvironmentName);
+            module.ObservedEnvironment!.EnvironmentName
+        );
         Assert.True(module.ConfigureCalled);
     }
 
     [Fact]
-    public void AddModules_WithModuleEnvironmentNone_PassesNoneRatherThanTheDefault() {
+    public void AddModules_WithModuleEnvironmentNone_PassesNoneRatherThanTheDefault()
+    {
         var module = new EnvironmentModule();
 
         var collection = new ServiceCollection();
@@ -205,7 +227,8 @@ public class ModuleLoadingTests {
     }
 
     [Fact]
-    public void AddModules_WithEnvironment_RegistersEnvironmentAsSingleton() {
+    public void AddModules_WithEnvironment_RegistersEnvironmentAsSingleton()
+    {
         var environment = new StubEnvironment("Production");
 
         var collection = new ServiceCollection();
@@ -215,7 +238,8 @@ public class ModuleLoadingTests {
         Assert.Same(environment, provider.GetService<IModuleEnvironment>());
     }
 
-    private class CountingModule : IDependencyModule {
+    private class CountingModule : IDependencyModule
+    {
         public int ApplyCount { get; private set; }
 
         public bool LoadModule { get; init; } = true;
@@ -229,7 +253,8 @@ public class ModuleLoadingTests {
         public void InternalApplyServices(IServiceCollection serviceCollection) => ApplyCount++;
     }
 
-    private class EquatableModule(string key) : IDependencyModule {
+    private class EquatableModule(string key) : IDependencyModule
+    {
         private string Key { get; } = key;
 
         public int ApplyCount { get; private set; }
@@ -238,16 +263,19 @@ public class ModuleLoadingTests {
 
         public void InternalApplyServices(IServiceCollection serviceCollection) => ApplyCount++;
 
-        public override bool Equals(object? obj) => obj is EquatableModule other && other.Key == Key;
+        public override bool Equals(object? obj) =>
+            obj is EquatableModule other && other.Key == Key;
 
         public override int GetHashCode() => Key.GetHashCode();
     }
 
-    private class DecoratedThing(IThing inner) : IThing {
+    private class DecoratedThing(IThing inner) : IThing
+    {
         public IThing Inner { get; } = inner;
     }
 
-    private class DecoratingModule : IDependencyModule, IServiceCollectionConfiguration {
+    private class DecoratingModule : IDependencyModule, IServiceCollectionConfiguration
+    {
         public bool ConfigureDecoratorsCalled { get; private set; }
 
         public IReadOnlyList<Type>? ServicesVisibleWhenDecorating { get; private set; }
@@ -256,12 +284,17 @@ public class ModuleLoadingTests {
 
         public void ConfigureServices(IServiceCollection services) { }
 
-        public void ConfigureDecorators(IServiceCollection services) {
+        public void ConfigureDecorators(IServiceCollection services)
+        {
             ConfigureDecoratorsCalled = true;
-            ServicesVisibleWhenDecorating = services.Select(descriptor => descriptor.ServiceType).ToList();
+            ServicesVisibleWhenDecorating = services
+                .Select(descriptor => descriptor.ServiceType)
+                .ToList();
 
-            for (var i = services.Count - 1; i >= 0; i--) {
-                if (services[i].ServiceType != typeof(IThing)) {
+            for (var i = services.Count - 1; i >= 0; i--)
+            {
+                if (services[i].ServiceType != typeof(IThing))
+                {
                     continue;
                 }
 
@@ -270,19 +303,28 @@ public class ModuleLoadingTests {
                 services[i] = new ServiceDescriptor(
                     typeof(IThing),
                     provider => new DecoratedThing(
-                        (IThing)ActivatorUtilities.CreateInstance(provider, inner.ImplementationType!)),
-                    inner.Lifetime);
+                        (IThing)
+                            ActivatorUtilities.CreateInstance(provider, inner.ImplementationType!)
+                    ),
+                    inner.Lifetime
+                );
             }
         }
     }
 
-    private class ConfiguringModule : IDependencyModule, IServiceCollectionConfiguration {
+    private class ConfiguringModule : IDependencyModule, IServiceCollectionConfiguration
+    {
         public void PopulateServiceCollection(IServiceCollection serviceCollection) { }
 
-        public void ConfigureServices(IServiceCollection services) => services.AddSingleton<IThing, Thing>();
+        public void ConfigureServices(IServiceCollection services) =>
+            services.AddSingleton<IThing, Thing>();
     }
 
-    private class FeatureModule : IDependencyModule, IDependencyModuleApplicatorProvider, IServiceCollectionConfiguration {
+    private class FeatureModule
+        : IDependencyModule,
+            IDependencyModuleApplicatorProvider,
+            IServiceCollectionConfiguration
+    {
         public bool FeatureApplied { get; private set; }
 
         public bool FeatureAppliedBeforeConfigure { get; private set; }
@@ -291,48 +333,60 @@ public class ModuleLoadingTests {
 
         public void PopulateServiceCollection(IServiceCollection serviceCollection) { }
 
-        public IEnumerable<IFeatureApplicator> FeatureApplicators() {
-            yield return new DelegateApplicator(0, () => {
-                FeatureApplied = true;
-                FeatureAppliedBeforeConfigure = !_configured;
-            });
+        public IEnumerable<IFeatureApplicator> FeatureApplicators()
+        {
+            yield return new DelegateApplicator(
+                0,
+                () =>
+                {
+                    FeatureApplied = true;
+                    FeatureAppliedBeforeConfigure = !_configured;
+                }
+            );
         }
 
         public void ConfigureServices(IServiceCollection services) => _configured = true;
     }
 
-    private class OrderedFeatureModule : IDependencyModule, IDependencyModuleApplicatorProvider {
+    private class OrderedFeatureModule : IDependencyModule, IDependencyModuleApplicatorProvider
+    {
         public List<int> AppliedOrders { get; } = [];
 
         public void PopulateServiceCollection(IServiceCollection serviceCollection) { }
 
-        public IEnumerable<IFeatureApplicator> FeatureApplicators() {
+        public IEnumerable<IFeatureApplicator> FeatureApplicators()
+        {
             yield return new DelegateApplicator(10, () => AppliedOrders.Add(10));
             yield return new DelegateApplicator(1, () => AppliedOrders.Add(1));
             yield return new DelegateApplicator(5, () => AppliedOrders.Add(5));
         }
     }
 
-    private class DelegateApplicator(int order, Action onApply) : IFeatureApplicator {
+    private class DelegateApplicator(int order, Action onApply) : IFeatureApplicator
+    {
         public int Order => order;
 
-        public void Apply(IServiceCollection services, IReadOnlyList<IDependencyModule> modules) => onApply();
+        public void Apply(IServiceCollection services, IReadOnlyList<IDependencyModule> modules) =>
+            onApply();
     }
 
-    private class EnvironmentModule : IDependencyModule, IEnvironmentServiceCollectionConfiguration {
+    private class EnvironmentModule : IDependencyModule, IEnvironmentServiceCollectionConfiguration
+    {
         public IModuleEnvironment? ObservedEnvironment { get; private set; }
 
         public bool ConfigureCalled { get; private set; }
 
         public void PopulateServiceCollection(IServiceCollection serviceCollection) { }
 
-        public void ConfigureServices(IServiceCollection services, IModuleEnvironment environment) {
+        public void ConfigureServices(IServiceCollection services, IModuleEnvironment environment)
+        {
             ConfigureCalled = true;
             ObservedEnvironment = environment;
         }
     }
 
-    private class StubEnvironment(string name) : IModuleEnvironment {
+    private class StubEnvironment(string name) : IModuleEnvironment
+    {
         public string EnvironmentName => name;
 
         public string? Value(string valueName) => null;

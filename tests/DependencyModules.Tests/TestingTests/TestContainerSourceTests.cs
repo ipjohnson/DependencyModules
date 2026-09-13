@@ -19,26 +19,29 @@ namespace DependencyModules.Tests.TestingTests;
 [DependencyModule]
 public partial class ContainerSourceModule { }
 
-public interface ICounter {
+public interface ICounter
+{
     int Value { get; }
 
     void Bump();
 }
 
 [SingletonService]
-public class Counter : ICounter {
+public class Counter : ICounter
+{
     public int Value { get; private set; }
 
     public void Bump() => Value++;
 }
 
-public interface IAudit {
+public interface IAudit
+{
     void Record(string what);
 }
 
 [NSubstituteSupport]
-public class TestContainerSourceTests {
-
+public class TestContainerSourceTests
+{
     /// <summary>
     /// A parameter the test holds crosses every container, with nothing said about it.
     /// </summary>
@@ -50,7 +53,10 @@ public class TestContainerSourceTests {
     /// </remarks>
     [ModuleTest(typeof(ContainerSourceModule))]
     public async Task ABareParameterIsTheSameObjectInEveryContainer(
-        ITestContainerSource source, ICounter counter) {
+        ITestContainerSource source,
+        ICounter counter
+    )
+    {
         var first = await source.CreateAsync();
         var second = await source.CreateAsync();
 
@@ -71,7 +77,8 @@ public class TestContainerSourceTests {
     /// anything.
     /// </remarks>
     [ModuleTest(typeof(ContainerSourceModule))]
-    public async Task EachContainerGetsItsOwnApplicationSingleton(ITestContainerSource source) {
+    public async Task EachContainerGetsItsOwnApplicationSingleton(ITestContainerSource source)
+    {
         var first = await source.CreateAsync();
         var second = await source.CreateAsync();
 
@@ -89,7 +96,11 @@ public class TestContainerSourceTests {
     /// is the one every container was built against, so what a container did is visible here.
     /// </summary>
     [ModuleTest(typeof(ContainerSourceModule))]
-    public async Task AMockIsTheSameObjectInEveryContainer(ITestContainerSource source, [Mock] IAudit audit) {
+    public async Task AMockIsTheSameObjectInEveryContainer(
+        ITestContainerSource source,
+        [Mock] IAudit audit
+    )
+    {
         var first = await source.CreateAsync();
         var second = await source.CreateAsync();
 
@@ -99,7 +110,8 @@ public class TestContainerSourceTests {
         first.GetRequiredService<IAudit>().Record("one");
         second.GetRequiredService<IAudit>().Record("two");
 
-        Received.InOrder(() => {
+        Received.InOrder(() =>
+        {
             audit.Record("one");
             audit.Record("two");
         });
@@ -110,7 +122,11 @@ public class TestContainerSourceTests {
     /// </summary>
     [ModuleTest(typeof(ContainerSourceModule))]
     public async Task TheTestsOwnContainerHoldsTheSameMock(
-        ITestContainerSource source, IServiceProvider own, [Mock] IAudit audit) {
+        ITestContainerSource source,
+        IServiceProvider own,
+        [Mock] IAudit audit
+    )
+    {
         var built = await source.CreateAsync();
 
         Assert.Same(audit, own.GetRequiredService<IAudit>());
@@ -123,7 +139,8 @@ public class TestContainerSourceTests {
     /// that wants a cold one.
     /// </summary>
     [ModuleTest(typeof(ContainerSourceModule))]
-    public async Task EveryCallBuildsAContainer(ITestContainerSource source) {
+    public async Task EveryCallBuildsAContainer(ITestContainerSource source)
+    {
         var first = await source.CreateAsync();
         var second = await source.CreateAsync();
 
@@ -140,7 +157,11 @@ public class TestContainerSourceTests {
     /// to know which kind of parameter they are looking at before writing it.
     /// </remarks>
     [ModuleTest(typeof(ContainerSourceModule))]
-    public async Task SharedOnAValueParameterIsRedundant(ITestContainerSource source, [Shared] ICounter counter) {
+    public async Task SharedOnAValueParameterIsRedundant(
+        ITestContainerSource source,
+        [Shared] ICounter counter
+    )
+    {
         var first = await source.CreateAsync();
         var second = await source.CreateAsync();
 
@@ -162,11 +183,16 @@ public class TestContainerSourceTests {
 /// clear the bar for sharing without a word at the use site.
 /// </remarks>
 [NSubstituteSupport]
-[TestExport(typeof(ICounter), Implementation = typeof(Counter), Lifetime = ServiceLifetime.Singleton)]
-public class IsolatedTestExportTests {
-
+[TestExport(
+    typeof(ICounter),
+    Implementation = typeof(Counter),
+    Lifetime = ServiceLifetime.Singleton
+)]
+public class IsolatedTestExportTests
+{
     [ModuleTest]
-    public async Task AnExportIsRebuiltWithEachContainer(ITestContainerSource source) {
+    public async Task AnExportIsRebuiltWithEachContainer(ITestContainerSource source)
+    {
         var first = await source.CreateAsync();
         var second = await source.CreateAsync();
 
@@ -179,12 +205,17 @@ public class IsolatedTestExportTests {
 }
 
 [NSubstituteSupport]
-[TestExport(typeof(ICounter), Implementation = typeof(Counter), Lifetime = ServiceLifetime.Singleton,
-    Shared = true)]
-public class SharedTestExportTests {
-
+[TestExport(
+    typeof(ICounter),
+    Implementation = typeof(Counter),
+    Lifetime = ServiceLifetime.Singleton,
+    Shared = true
+)]
+public class SharedTestExportTests
+{
     [ModuleTest]
-    public async Task AnExportAskingToBeSharedCrossesEveryContainer(ITestContainerSource source) {
+    public async Task AnExportAskingToBeSharedCrossesEveryContainer(ITestContainerSource source)
+    {
         var first = await source.CreateAsync();
         var second = await source.CreateAsync();
 
@@ -200,18 +231,23 @@ public class SharedTestExportTests {
     /// registration said.
     /// </summary>
     [ModuleTest]
-    [TestExport(typeof(IAudit), Implementation = typeof(RecordingAudit),
-        Lifetime = ServiceLifetime.Transient, Shared = true)]
-    public async Task SharedOverridesATransientLifetime(ITestContainerSource source) {
+    [TestExport(
+        typeof(IAudit),
+        Implementation = typeof(RecordingAudit),
+        Lifetime = ServiceLifetime.Transient,
+        Shared = true
+    )]
+    public async Task SharedOverridesATransientLifetime(ITestContainerSource source)
+    {
         var built = await source.CreateAsync();
 
         Assert.Same(built.GetRequiredService<IAudit>(), built.GetRequiredService<IAudit>());
     }
 }
 
-public class RecordingAudit : IAudit {
+public class RecordingAudit : IAudit
+{
     public List<string> Records { get; } = [];
 
     public void Record(string what) => Records.Add(what);
 }
-

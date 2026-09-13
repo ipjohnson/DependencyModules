@@ -8,19 +8,21 @@ namespace DependencyModules.Tests.TestingTests;
 /// <summary>
 /// The source driven directly, for the parts a test running through a framework cannot observe.
 /// </summary>
-public class TestContainerSourceUnitTests {
-
+public class TestContainerSourceUnitTests
+{
     private interface IThing;
 
     private class Thing : IThing;
 
-    private sealed class Tracked : IDisposable {
+    private sealed class Tracked : IDisposable
+    {
         public int Disposals { get; private set; }
 
         public void Dispose() => Disposals++;
     }
 
-    private sealed class Harness {
+    private sealed class Harness
+    {
         public List<IServiceProvider> Tracked { get; } = [];
 
         public List<IServiceProvider> Started { get; } = [];
@@ -29,7 +31,8 @@ public class TestContainerSourceUnitTests {
 
         public IServiceProvider Pin { get; }
 
-        public Harness(Action<IServiceCollection> compose, params Type[] pinned) {
+        public Harness(Action<IServiceCollection> compose, params Type[] pinned)
+        {
             var services = new ServiceCollection();
 
             services.AddSingleton<ITestContainerSource>(Source);
@@ -43,12 +46,14 @@ public class TestContainerSourceUnitTests {
                 Pin,
                 pinned,
                 collection => collection.BuildServiceProvider(),
-                provider => {
+                provider =>
+                {
                     Started.Add(provider);
 
                     return ValueTask.CompletedTask;
                 },
-                Tracked.Add);
+                Tracked.Add
+            );
         }
     }
 
@@ -57,7 +62,8 @@ public class TestContainerSourceUnitTests {
     /// rather than the caller's.
     /// </summary>
     [Fact]
-    public async Task EveryContainerBuiltIsHandedToTheRunner() {
+    public async Task EveryContainerBuiltIsHandedToTheRunner()
+    {
         var harness = new Harness(services => services.AddSingleton<IThing, Thing>());
 
         var first = await harness.Source.CreateAsync();
@@ -70,7 +76,8 @@ public class TestContainerSourceUnitTests {
     /// Startup runs against each one. A container that skipped it is not the one the test composed.
     /// </summary>
     [Fact]
-    public async Task StartupRunsForEveryContainer() {
+    public async Task StartupRunsForEveryContainer()
+    {
         var harness = new Harness(services => services.AddSingleton<IThing, Thing>());
 
         var first = await harness.Source.CreateAsync();
@@ -84,12 +91,11 @@ public class TestContainerSourceUnitTests {
     /// uses an instance registration rather than a factory returning the same object.
     /// </summary>
     [Fact]
-    public async Task APinnedDisposableIsNotDisposedByTheContainersItIsHandedTo() {
+    public async Task APinnedDisposableIsNotDisposedByTheContainersItIsHandedTo()
+    {
         var tracked = new Tracked();
 
-        var harness = new Harness(
-            services => services.AddSingleton(_ => tracked),
-            typeof(Tracked));
+        var harness = new Harness(services => services.AddSingleton(_ => tracked), typeof(Tracked));
 
         var first = await harness.Source.CreateAsync();
         var second = await harness.Source.CreateAsync();
@@ -108,27 +114,29 @@ public class TestContainerSourceUnitTests {
     /// last member would leave anything injecting the sequence one element long.
     /// </summary>
     [Fact]
-    public async Task PinningKeepsEveryRegistrationOfAService() {
+    public async Task PinningKeepsEveryRegistrationOfAService()
+    {
         var harness = new Harness(
-            services => {
+            services =>
+            {
                 services.AddSingleton<IThing, Thing>();
                 services.AddSingleton<IThing, Thing>();
             },
-            typeof(IThing));
+            typeof(IThing)
+        );
 
         var built = await harness.Source.CreateAsync();
 
         Assert.Equal(2, built.GetServices<IThing>().Count());
-        Assert.Equal(
-            harness.Pin.GetServices<IThing>(),
-            built.GetServices<IThing>());
+        Assert.Equal(harness.Pin.GetServices<IThing>(), built.GetServices<IThing>());
     }
 
     /// <summary>
     /// Nothing is built until something asks, so a test that never rebuilds pays for none of this.
     /// </summary>
     [Fact]
-    public void NothingIsBuiltUntilAsked() {
+    public void NothingIsBuiltUntilAsked()
+    {
         var harness = new Harness(services => services.AddSingleton<IThing, Thing>());
 
         Assert.Empty(harness.Tracked);
@@ -140,11 +148,13 @@ public class TestContainerSourceUnitTests {
     /// nothing.
     /// </summary>
     [Fact]
-    public async Task AnUninitializedSourceRefuses() {
+    public async Task AnUninitializedSourceRefuses()
+    {
         var source = new TestContainerSource();
 
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await source.CreateAsync());
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await source.CreateAsync()
+        );
 
         Assert.Contains("never initialized", refused.Message);
     }
@@ -160,19 +170,27 @@ public class TestContainerSourceUnitTests {
     /// such a parameter and never resolved it.
     /// </remarks>
     [Fact]
-    public async Task APinnedServiceThatCannotBeBuiltIsLeftAlone() {
+    public async Task APinnedServiceThatCannotBeBuiltIsLeftAlone()
+    {
         var harness = new Harness(
-            services => {
+            services =>
+            {
                 services.AddSingleton<IThing, Thing>();
-                services.AddSingleton<string>(_ => throw new InvalidOperationException("name the fix"));
+                services.AddSingleton<string>(_ =>
+                    throw new InvalidOperationException("name the fix")
+                );
             },
-            typeof(IThing), typeof(string));
+            typeof(IThing),
+            typeof(string)
+        );
 
         var built = await harness.Source.CreateAsync();
 
         Assert.NotNull(built.GetRequiredService<IThing>());
 
-        var refused = Assert.Throws<InvalidOperationException>(() => built.GetRequiredService<string>());
+        var refused = Assert.Throws<InvalidOperationException>(() =>
+            built.GetRequiredService<string>()
+        );
 
         Assert.Equal("name the fix", refused.Message);
     }
@@ -182,10 +200,14 @@ public class TestContainerSourceUnitTests {
     /// signature without filtering it first.
     /// </summary>
     [Fact]
-    public async Task APinnedTypeNothingRegisteredIsInert() {
+    public async Task APinnedTypeNothingRegisteredIsInert()
+    {
         var harness = new Harness(
             services => services.AddSingleton<IThing, Thing>(),
-            typeof(IThing), typeof(int), typeof(Uri));
+            typeof(IThing),
+            typeof(int),
+            typeof(Uri)
+        );
 
         var built = await harness.Source.CreateAsync();
 
@@ -193,4 +215,3 @@ public class TestContainerSourceUnitTests {
         Assert.Null(built.GetService<Uri>());
     }
 }
-

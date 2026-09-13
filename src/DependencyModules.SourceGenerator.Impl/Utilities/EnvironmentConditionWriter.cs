@@ -10,8 +10,8 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities;
 /// Shared by every writer that emits something conditional — service registrations and decorators —
 /// so the two cannot drift into testing the same attributes differently.
 /// </remarks>
-public static class EnvironmentConditionWriter {
-
+public static class EnvironmentConditionWriter
+{
     private const string ConditionsType =
         "global::" + KnownTypes.DependencyModules.Helpers.Namespace + ".EnvironmentConditions";
 
@@ -27,22 +27,27 @@ public static class EnvironmentConditionWriter {
     /// <param name="conditions">Conditions to test, combined with <b>and</b>.</param>
     /// <param name="environmentParameter">Name of the <c>IModuleEnvironment</c> parameter in scope.</param>
     public static string BuildCondition(
-        IReadOnlyList<EnvironmentConditionModel> conditions, string environmentParameter) {
-
+        IReadOnlyList<EnvironmentConditionModel> conditions,
+        string environmentParameter
+    )
+    {
         var parts = new List<string>(conditions.Count);
 
-        foreach (var condition in conditions) {
+        foreach (var condition in conditions)
+        {
             // An empty condition tests nothing; it is reported as DM0012 and left out rather than
             // emitted as a call that is constant either way.
-            if (EnvironmentConditionUtility.IsEmpty(condition)) {
+            if (EnvironmentConditionUtility.IsEmpty(condition))
+            {
                 continue;
             }
 
-            var call = condition.Kind == EnvironmentConditionKind.Name
-                ? $"{ConditionsType}.NameIs({environmentParameter}, {QuoteAll(condition.Values)})"
+            var call =
+                condition.Kind == EnvironmentConditionKind.Name
+                    ? $"{ConditionsType}.NameIs({environmentParameter}, {QuoteAll(condition.Values)})"
                 : condition.Values.Count > 0
                     ? $"{ConditionsType}.ValueIs({environmentParameter}, {QuoteString(condition.Key!)}, {QuoteString(condition.Values[0])})"
-                    : $"{ConditionsType}.HasValue({environmentParameter}, {QuoteString(condition.Key!)})";
+                : $"{ConditionsType}.HasValue({environmentParameter}, {QuoteString(condition.Key!)})";
 
             parts.Add(condition.Negate ? "!" + call : call);
         }

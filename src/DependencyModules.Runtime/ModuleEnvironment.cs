@@ -15,14 +15,16 @@ namespace DependencyModules.Runtime;
 /// Values can be supplied inline, since this is a collection of them:
 /// <code>
 /// services.AddModules(
-///     new ModuleEnvironment("Development") {
+///     new ModuleEnvironment("Development")
+///     {
 ///         { "FEATURE_PROFILING", "on" },
 ///         { "REGION", "eu" }
 ///     },
 ///     new ApplicationModule());
 /// </code>
 /// </example>
-public class ModuleEnvironment : IModuleEnvironment, IEnumerable<KeyValuePair<string, string?>> {
+public class ModuleEnvironment : IModuleEnvironment, IEnumerable<KeyValuePair<string, string?>>
+{
     private readonly Dictionary<string, string?> _values;
     private readonly bool _fallBackToEnvironmentVariables;
 
@@ -40,7 +42,10 @@ public class ModuleEnvironment : IModuleEnvironment, IEnumerable<KeyValuePair<st
     /// </summary>
     /// <param name="environmentName">The environment name conditions compare against.</param>
     /// <param name="values">Values reachable through <see cref="Value"/>; null means none.</param>
-    public ModuleEnvironment(string environmentName, IReadOnlyDictionary<string, string?>? values = null)
+    public ModuleEnvironment(
+        string environmentName,
+        IReadOnlyDictionary<string, string?>? values = null
+    )
         : this(true, environmentName, values) { }
 
     /// <summary>
@@ -63,19 +68,25 @@ public class ModuleEnvironment : IModuleEnvironment, IEnumerable<KeyValuePair<st
     public ModuleEnvironment(
         bool fallBackToEnvironmentVariables,
         string environmentName,
-        IReadOnlyDictionary<string, string?>? values = null) {
-        EnvironmentName = environmentName ?? throw new ArgumentNullException(nameof(environmentName));
+        IReadOnlyDictionary<string, string?>? values = null
+    )
+    {
+        EnvironmentName =
+            environmentName ?? throw new ArgumentNullException(nameof(environmentName));
         _fallBackToEnvironmentVariables = fallBackToEnvironmentVariables;
 
         // Copied rather than held by reference. Add writes to this dictionary, and writing into one
         // the caller still holds would be a side effect they did not ask for. A caller who supplied
         // a comparer picked it deliberately — most often OrdinalIgnoreCase, matching how Windows
         // treats variable names — so it is carried over instead of being reset to ordinal.
-        _values = values switch {
-            Dictionary<string, string?> dictionary =>
-                new Dictionary<string, string?>(dictionary, dictionary.Comparer),
+        _values = values switch
+        {
+            Dictionary<string, string?> dictionary => new Dictionary<string, string?>(
+                dictionary,
+                dictionary.Comparer
+            ),
             not null => new Dictionary<string, string?>(values),
-            null => new Dictionary<string, string?>()
+            null => new Dictionary<string, string?>(),
         };
     }
 
@@ -95,12 +106,15 @@ public class ModuleEnvironment : IModuleEnvironment, IEnumerable<KeyValuePair<st
     /// no longer seeing a variable changed mid-process, which nothing should be relying on; ask
     /// <see cref="CreateDefault"/> for a fresh view if you need one.
     /// </remarks>
-    public string? Value(string name) {
-        if (_values.TryGetValue(name, out var value)) {
+    public string? Value(string name)
+    {
+        if (_values.TryGetValue(name, out var value))
+        {
             return value;
         }
 
-        if (!_fallBackToEnvironmentVariables) {
+        if (!_fallBackToEnvironmentVariables)
+        {
             return null;
         }
 
@@ -184,27 +198,37 @@ public class ModuleEnvironment : IModuleEnvironment, IEnumerable<KeyValuePair<st
     /// collections and allocating its lock and bucket arrays to serve a cache most applications
     /// never touch.
     /// </remarks>
-    private static class ProcessValueCache {
-        public static string? Read(ref Dictionary<string, string?>? cache, string name) {
+    private static class ProcessValueCache
+    {
+        public static string? Read(ref Dictionary<string, string?>? cache, string name)
+        {
             var map = Volatile.Read(ref cache);
 
-            if (map != null) {
-                lock (map) {
-                    if (map.TryGetValue(name, out var cached)) {
+            if (map != null)
+            {
+                lock (map)
+                {
+                    if (map.TryGetValue(name, out var cached))
+                    {
                         return cached;
                     }
                 }
             }
-            else {
+            else
+            {
                 // Whoever gets there first owns the cache; a loser simply fills the winner's.
-                map = Interlocked.CompareExchange(
-                    ref cache, new Dictionary<string, string?>(StringComparer.Ordinal), null)
-                      ?? Volatile.Read(ref cache)!;
+                map =
+                    Interlocked.CompareExchange(
+                        ref cache,
+                        new Dictionary<string, string?>(StringComparer.Ordinal),
+                        null
+                    ) ?? Volatile.Read(ref cache)!;
             }
 
             var value = Environment.GetEnvironmentVariable(name);
 
-            lock (map) {
+            lock (map)
+            {
                 map[name] = value;
             }
 
@@ -212,20 +236,22 @@ public class ModuleEnvironment : IModuleEnvironment, IEnumerable<KeyValuePair<st
         }
     }
 
-    private sealed class ProcessModuleEnvironment : IModuleEnvironment {
+    private sealed class ProcessModuleEnvironment : IModuleEnvironment
+    {
         private Dictionary<string, string?>? _values;
 
         // Not cached. It is read once per AddModules call rather than per service, and a fresh
         // instance is what CreateDefault hands out anyway.
         public string EnvironmentName =>
-            Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ??
-            Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ??
-            "Production";
+            Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
+            ?? Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")
+            ?? "Production";
 
         public string? Value(string name) => ProcessValueCache.Read(ref _values, name);
     }
 
-    private sealed class EmptyModuleEnvironment : IModuleEnvironment {
+    private sealed class EmptyModuleEnvironment : IModuleEnvironment
+    {
         public string EnvironmentName => "";
 
         public string? Value(string name) => null;

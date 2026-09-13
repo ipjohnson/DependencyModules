@@ -14,10 +14,9 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// because an open generic registration cannot be decorated. The error blamed the open generic
 /// limitation, which is a long way from the cause.
 /// </remarks>
-public class ConventionDecoratorTests {
-
-    private const string Preamble =
-        """
+public class ConventionDecoratorTests
+{
+    private const string Preamble = """
         using System.Collections.Generic;
         using DependencyModules.Runtime.Attributes;
         using DependencyModules.Runtime.Conventions;
@@ -62,7 +61,8 @@ public class ConventionDecoratorTests {
     /// shape, and the reason this combination has to work.
     /// </summary>
     [Fact]
-    public void OneDecoratorWrapsEveryConventionRegisteredHandler() {
+    public void OneDecoratorWrapsEveryConventionRegisteredHandler()
+    {
         var assembly = Compile(
             """
             [DependencyModule]
@@ -71,7 +71,8 @@ public class ConventionDecoratorTests {
                     conventions.RegisterAll(typeof(IRequestHandler<,>)).AsScoped();
                 }
             }
-            """);
+            """
+        );
 
         var provider = assembly.BuildProvider();
         var log = provider.GetRequiredService(assembly.Type("Log"));
@@ -80,15 +81,20 @@ public class ConventionDecoratorTests {
         var handler = assembly.Type("IRequestHandler`2");
         var orderId = assembly.Type("OrderId");
 
-        foreach (var request in new[] { "CreateOrder", "RenameOrder" }) {
+        foreach (var request in new[] { "CreateOrder", "RenameOrder" })
+        {
             var requestType = assembly.Type(request);
-            var service = provider.GetRequiredService(handler.MakeGenericType(requestType, orderId));
+            var service = provider.GetRequiredService(
+                handler.MakeGenericType(requestType, orderId)
+            );
 
             // Every handler resolves as the decorator, not as the implementation.
             Assert.Equal("LoggingHandler`2", service.GetType().Name);
 
-            service.GetType().GetMethod("Handle")!.Invoke(
-                service, new[] { Activator.CreateInstance(requestType) });
+            service
+                .GetType()
+                .GetMethod("Handle")!
+                .Invoke(service, new[] { Activator.CreateInstance(requestType) });
         }
 
         Assert.Equal(["handling CreateOrder", "handling RenameOrder"], lines);
@@ -98,7 +104,8 @@ public class ConventionDecoratorTests {
     /// The decorator itself is not registered as a service.
     /// </summary>
     [Fact]
-    public void ADecoratorIsNotAConventionCandidate() {
+    public void ADecoratorIsNotAConventionCandidate()
+    {
         var assembly = Compile(
             """
             [DependencyModule]
@@ -107,7 +114,8 @@ public class ConventionDecoratorTests {
                     conventions.RegisterAll(typeof(IRequestHandler<,>)).AsScoped();
                 }
             }
-            """);
+            """
+        );
 
         // Two handlers, two registrations. The decorator rewrote them in place rather than adding
         // a third, and never registered itself as an open generic.
@@ -120,7 +128,8 @@ public class ConventionDecoratorTests {
     /// The exclusion is on the declaration, so it holds however the convention selects.
     /// </summary>
     [Fact]
-    public void ADecoratorIsExcludedWhenSelectedByFilterRatherThanInterface() {
+    public void ADecoratorIsExcludedWhenSelectedByFilterRatherThanInterface()
+    {
         var assembly = Compile(
             """
             [DependencyModule]
@@ -129,10 +138,17 @@ public class ConventionDecoratorTests {
                     conventions.RegisterAll().WithName("*Handler").AsSelf().AsScoped();
                 }
             }
-            """);
+            """
+        );
 
-        Assert.Contains(assembly.Services, d => d.ServiceType == assembly.Type("CreateOrderHandler"));
-        Assert.Contains(assembly.Services, d => d.ServiceType == assembly.Type("RenameOrderHandler"));
+        Assert.Contains(
+            assembly.Services,
+            d => d.ServiceType == assembly.Type("CreateOrderHandler")
+        );
+        Assert.Contains(
+            assembly.Services,
+            d => d.ServiceType == assembly.Type("RenameOrderHandler")
+        );
 
         // LoggingHandler ends in "Handler" and would otherwise match.
         Assert.DoesNotContain(assembly.Services, d => d.ServiceType.Name == "LoggingHandler`2");

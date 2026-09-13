@@ -129,8 +129,10 @@ public class BusinessRules : IValidator { }
 
 ```csharp
 [ScopedService]
-public class OrderService(IEnumerable<IValidator> validators) {
-    public void Place(Order order) {
+public class OrderService(IEnumerable<IValidator> validators)
+{
+    public void Place(Order order)
+    {
         foreach (var validator in validators) {   // RequiredFields, then BusinessRules
             validator.Validate(order);
         }
@@ -179,7 +181,8 @@ configuration, an object built by a factory somewhere else. Put the attribute on
 method** instead of on the class:
 
 ```csharp
-public class SomeClass : ISomeInterface {
+public class SomeClass : ISomeInterface
+{
     public SomeClass(IDep one, IDepTwo two, DateTime timestamp) { }
 
     [SingletonService]

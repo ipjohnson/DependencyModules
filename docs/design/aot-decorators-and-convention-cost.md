@@ -695,7 +695,8 @@ has to learn from `P`, and who owns the knowledge of how to build `P`'s decorato
 `P`'s generator emits, next to the decorator, a generic static method:
 
 ```csharp
-public static class LoggingBehaviorRegistration {
+public static class LoggingBehaviorRegistration
+{
     public static void ApplyTo<TRequest, TResponse>(IServiceCollection services) =>
         DecoratorHelper.Decorate(services, typeof(IRequestHandler<TRequest, TResponse>),
             (provider, inner) => new LoggingBehavior<TRequest, TResponse>(

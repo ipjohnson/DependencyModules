@@ -1,9 +1,9 @@
+using System.Text.RegularExpressions;
 using CSharpAuthor;
 using DependencyModules.Conventions.Models;
 using DependencyModules.SourceGenerator.Impl;
 using DependencyModules.SourceGenerator.Impl.Models;
 using DependencyModules.SourceGenerator.Impl.Utilities;
-using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
 
 namespace DependencyModules.Conventions.Utilities;
@@ -18,7 +18,8 @@ namespace DependencyModules.Conventions.Utilities;
 public record ConventionRegistrationMatch(
     ConventionModel Convention,
     ConventionCandidateModel Candidate,
-    ImplementedInterfaceModel? Interface);
+    ImplementedInterfaceModel? Interface
+);
 
 /// <summary>
 /// One registration a match produces, before the ambiguity check has run.
@@ -31,7 +32,8 @@ public record ConventionRegistrationMatch(
 /// </remarks>
 internal record PendingRegistration(
     ConventionRegistrationMatch Match,
-    ServiceRegistrationModel Registration);
+    ServiceRegistrationModel Registration
+);
 
 /// <summary>
 /// Matches a module's conventions against the candidates in the compilation.
@@ -41,32 +43,36 @@ internal record PendingRegistration(
 /// have to be cacheable. Everything it works from is already rendered to strings and
 /// <see cref="ITypeDefinition"/>s, so no symbol is touched here.
 /// </remarks>
-public static class ConventionMatcher {
-
+public static class ConventionMatcher
+{
     public static IReadOnlyList<ServiceModel> Match(
         ModuleEntryPointModel entryPointModel,
         ConventionModuleModel conventionModule,
         IReadOnlyList<ConventionCandidateModel> candidates,
         DiagnosticReporter report,
-        FileLogger logger) {
-
+        FileLogger logger
+    )
+    {
         var moduleName = entryPointModel.EntryPointType.Name;
 
-        foreach (var unreadable in conventionModule.Unreadable) {
+        foreach (var unreadable in conventionModule.Unreadable)
+        {
             logger.Error($"{moduleName}: refused '{unreadable.Text}' — {unreadable.Reason}.");
 
             report.Report(
                 DependencyModuleDiagnostics.ConventionCannotBeRead,
                 unreadable.Location,
                 unreadable.Reason,
-                unreadable.Text);
+                unreadable.Text
+            );
         }
 
         var merged = MergePartialDeclarations(candidates);
 
         var matches = new List<ConventionRegistrationMatch>();
 
-        foreach (var convention in conventionModule.Conventions) {
+        foreach (var convention in conventionModule.Conventions)
+        {
             CollectMatches(convention, merged, moduleName, matches, report, logger);
         }
 
@@ -76,8 +82,10 @@ public static class ConventionMatcher {
         // drag a perfectly good interface registration down with a duplicated self one.
         var pending = new List<PendingRegistration>();
 
-        foreach (var match in matches) {
-            foreach (var registration in BuildRegistrations(match, entryPointModel)) {
+        foreach (var match in matches)
+        {
+            foreach (var registration in BuildRegistrations(match, entryPointModel))
+            {
                 pending.Add(new PendingRegistration(match, registration));
             }
         }
@@ -95,18 +103,23 @@ public static class ConventionMatcher {
         string moduleName,
         List<ConventionRegistrationMatch> matches,
         DiagnosticReporter report,
-        FileLogger logger) {
-
+        FileLogger logger
+    )
+    {
         var serviceName = convention.DisplayName;
 
-        if (convention.Lifestyle == null) {
-            logger.Error($"{moduleName}: the convention registering '{serviceName}' declared no lifetime.");
+        if (convention.Lifestyle == null)
+        {
+            logger.Error(
+                $"{moduleName}: the convention registering '{serviceName}' declared no lifetime."
+            );
 
             report.Report(
                 DependencyModuleDiagnostics.ConventionCannotBeRead,
                 convention.Location,
                 "no lifetime was declared; call AsSingleton(), AsScoped() or AsTransient()",
-                $"RegisterAll({serviceName})");
+                $"RegisterAll({serviceName})"
+            );
 
             return;
         }
@@ -117,20 +130,26 @@ public static class ConventionMatcher {
         // the model keeps patterns as strings.
         var nameFilters = CompileNameFilters(convention);
 
-        foreach (var candidate in candidates) {
-            if (candidate.IsIgnored) {
+        foreach (var candidate in candidates)
+        {
+            if (candidate.IsIgnored)
+            {
                 continue;
             }
 
             // One source or the other. A scan of the project being built must not pick up a type
             // from a package, and a scan of a package must not pick up a local one.
-            if (candidate.AssemblyName != convention.AssemblyName) {
+            if (candidate.AssemblyName != convention.AssemblyName)
+            {
                 continue;
             }
 
-            if (!convention.NamespaceMatches(candidate.ImplementationType.Namespace) ||
-                !convention.AttributesMatch(candidate.AttributeTypeKeys) ||
-                !NameMatches(nameFilters, candidate.ImplementationType)) {
+            if (
+                !convention.NamespaceMatches(candidate.ImplementationType.Namespace)
+                || !convention.AttributesMatch(candidate.AttributeTypeKeys)
+                || !NameMatches(nameFilters, candidate.ImplementationType)
+            )
+            {
                 continue;
             }
 
@@ -138,21 +157,25 @@ public static class ConventionMatcher {
             // as itself — one match, no interface.
             List<ImplementedInterfaceModel?> matched;
 
-            if (convention.ServiceType == null) {
+            if (convention.ServiceType == null)
+            {
                 matched = new List<ImplementedInterfaceModel?> { null };
             }
-            else {
+            else
+            {
                 var reachable = AllMatchingInterfaces(convention, candidate);
 
-                if (reachable.Count == 0) {
+                if (reachable.Count == 0)
+                {
                     continue;
                 }
 
                 // AsSelf and AsSelfWithInterfaces name the implementation, so several matching
                 // closings still produce one registration rather than one per closing. The default
                 // and AlsoAsSelf register each matched closing.
-                matched = convention.RegisterAs is ConventionRegisterAs.Interfaces
-                    or ConventionRegisterAs.AlsoSelf
+                matched = convention.RegisterAs
+                    is ConventionRegisterAs.Interfaces
+                        or ConventionRegisterAs.AlsoSelf
                     ? reachable.Cast<ImplementedInterfaceModel?>().ToList()
                     : new List<ImplementedInterfaceModel?> { reachable[0] };
             }
@@ -161,35 +184,47 @@ public static class ConventionMatcher {
 
             // Reported rather than registered: a registration the container cannot construct throws
             // when the provider is built, a long way from the convention responsible.
-            if (!candidate.HasAccessibleConstructor) {
+            if (!candidate.HasAccessibleConstructor)
+            {
                 logger.Error(
-                    $"{moduleName}: '{candidate.ImplementationType.Name}' matched '{serviceName}' " +
-                    "but has no accessible constructor.");
+                    $"{moduleName}: '{candidate.ImplementationType.Name}' matched '{serviceName}' "
+                        + "but has no accessible constructor."
+                );
 
                 report.Report(
                     DependencyModuleDiagnostics.ConventionMatchNotConstructable,
-                    candidate.Location == LocationModel.None ? convention.Location : candidate.Location,
+                    candidate.Location == LocationModel.None
+                        ? convention.Location
+                        : candidate.Location,
                     candidate.ImplementationType.Name,
                     serviceName,
-                    moduleName);
+                    moduleName
+                );
 
                 continue;
             }
 
-            foreach (var candidateInterface in matched) {
-                matches.Add(new ConventionRegistrationMatch(convention, candidate, candidateInterface));
+            foreach (var candidateInterface in matched)
+            {
+                matches.Add(
+                    new ConventionRegistrationMatch(convention, candidate, candidateInterface)
+                );
             }
         }
 
-        if (found == 0) {
-            logger.Info($"{moduleName}: the convention registering '{serviceName}' matched nothing.");
+        if (found == 0)
+        {
+            logger.Info(
+                $"{moduleName}: the convention registering '{serviceName}' matched nothing."
+            );
 
             report.Report(
                 DependencyModuleDiagnostics.ConventionMatchedNothing,
                 convention.Location,
                 serviceName,
                 moduleName,
-                AdviceForEmptyMatch(convention, serviceName));
+                AdviceForEmptyMatch(convention, serviceName)
+            );
         }
     }
 
@@ -202,24 +237,24 @@ public static class ConventionMatcher {
     /// the shape every MVVM project starts from — <c>class FooViewModel : ViewModelBase</c> — so
     /// saying "call IncludeBaseClasses()" there sent readers looking for a mistake they had not made.
     /// </remarks>
-    private static string AdviceForEmptyMatch(ConventionModel convention, string serviceName) {
-        if (convention.ServiceType is { TypeDefinitionEnum: TypeDefinitionEnum.ClassDefinition }) {
-            return
-                $"Conventions match the interfaces a type declares, and '{serviceName}' is a class, " +
-                "so no type can match it. Register an interface the types declare — a marker " +
-                "interface on the base class is enough — or register them by attribute instead";
+    private static string AdviceForEmptyMatch(ConventionModel convention, string serviceName)
+    {
+        if (convention.ServiceType is { TypeDefinitionEnum: TypeDefinitionEnum.ClassDefinition })
+        {
+            return $"Conventions match the interfaces a type declares, and '{serviceName}' is a class, "
+                + "so no type can match it. Register an interface the types declare — a marker "
+                + "interface on the base class is enough — or register them by attribute instead";
         }
 
-        if (convention.IncludeBaseClasses) {
-            return
-                "Conventions match a type that declares the service type, or declares an interface " +
-                "extending it. IncludeBaseClasses() is already applied, so check the name, namespace " +
-                "and assembly filters on this convention";
+        if (convention.IncludeBaseClasses)
+        {
+            return "Conventions match a type that declares the service type, or declares an interface "
+                + "extending it. IncludeBaseClasses() is already applied, so check the name, namespace "
+                + "and assembly filters on this convention";
         }
 
-        return
-            "Conventions match a type that declares the service type, or declares an interface " +
-            "extending it; call IncludeBaseClasses() to also match types that reach it through a base class";
+        return "Conventions match a type that declares the service type, or declares an interface "
+            + "extending it; call IncludeBaseClasses() to also match types that reach it through a base class";
     }
 
     /// <summary>
@@ -230,31 +265,41 @@ public static class ConventionMatcher {
     /// one. Everything else is escaped, so a pattern cannot smuggle in a regex.
     /// </remarks>
     private static List<(Regex Pattern, bool Qualified, bool Exclude)>? CompileNameFilters(
-        ConventionModel convention) {
-
-        if (convention.NameFilters == null) {
+        ConventionModel convention
+    )
+    {
+        if (convention.NameFilters == null)
+        {
             return null;
         }
 
         var compiled = new List<(Regex, bool, bool)>(convention.NameFilters.Count);
 
-        foreach (var filter in convention.NameFilters) {
-            var expression = "^" +
-                             Regex.Escape(filter.Pattern).Replace("\\*", ".*").Replace("\\?", ".") +
-                             "$";
+        foreach (var filter in convention.NameFilters)
+        {
+            var expression =
+                "^" + Regex.Escape(filter.Pattern).Replace("\\*", ".*").Replace("\\?", ".") + "$";
 
             // Ordinal and case-sensitive, consistent with C# identifiers.
-            compiled.Add((new Regex(expression, RegexOptions.CultureInvariant), filter.IsQualified,
-                filter.Exclude));
+            compiled.Add(
+                (
+                    new Regex(expression, RegexOptions.CultureInvariant),
+                    filter.IsQualified,
+                    filter.Exclude
+                )
+            );
         }
 
         return compiled;
     }
 
     private static bool NameMatches(
-        List<(Regex Pattern, bool Qualified, bool Exclude)>? filters, ITypeDefinition implementation) {
-
-        if (filters == null) {
+        List<(Regex Pattern, bool Qualified, bool Exclude)>? filters,
+        ITypeDefinition implementation
+    )
+    {
+        if (filters == null)
+        {
             return true;
         }
 
@@ -267,11 +312,14 @@ public static class ConventionMatcher {
         var included = false;
         var anyInclusion = false;
 
-        foreach (var (pattern, qualified, exclude) in filters) {
+        foreach (var (pattern, qualified, exclude) in filters)
+        {
             var subject = qualified ? qualifiedName : bareName;
 
-            if (exclude) {
-                if (pattern.IsMatch(subject)) {
+            if (exclude)
+            {
+                if (pattern.IsMatch(subject))
+                {
                     return false;
                 }
 
@@ -296,11 +344,16 @@ public static class ConventionMatcher {
     /// implementation appearing twice.
     /// </remarks>
     private static List<ImplementedInterfaceModel> AllMatchingInterfaces(
-        ConventionModel convention, ConventionCandidateModel candidate) {
-
+        ConventionModel convention,
+        ConventionCandidateModel candidate
+    )
+    {
         var matched = new List<ImplementedInterfaceModel>();
 
-        foreach (var candidateInterface in candidate.InterfacesInReach(convention.IncludeBaseClasses)) {
+        foreach (
+            var candidateInterface in candidate.InterfacesInReach(convention.IncludeBaseClasses)
+        )
+        {
             // An open convention matches any closing, and the candidate is registered against the
             // construction it actually implements. A closed one has to match exactly, or
             // RegisterAll<IHandler<A,B>>() would pick up every other closing as well.
@@ -308,7 +361,8 @@ public static class ConventionMatcher {
                 ? convention.DefinitionKey == candidateInterface.DefinitionKey
                 : convention.ServiceType!.Equals(candidateInterface.InterfaceType);
 
-            if (isMatch) {
+            if (isMatch)
+            {
                 matched.Add(candidateInterface);
             }
         }
@@ -335,32 +389,38 @@ public static class ConventionMatcher {
     /// </para>
     /// </remarks>
     private static IReadOnlyList<ConventionCandidateModel> MergePartialDeclarations(
-        IReadOnlyList<ConventionCandidateModel> candidates) {
-
+        IReadOnlyList<ConventionCandidateModel> candidates
+    )
+    {
         var byType = new Dictionary<ITypeDefinition, List<ConventionCandidateModel>>();
         var order = new List<ITypeDefinition>();
         var anyPartial = false;
 
-        foreach (var candidate in candidates) {
-            if (!byType.TryGetValue(candidate.ImplementationType, out var parts)) {
+        foreach (var candidate in candidates)
+        {
+            if (!byType.TryGetValue(candidate.ImplementationType, out var parts))
+            {
                 parts = new List<ConventionCandidateModel>();
                 byType[candidate.ImplementationType] = parts;
                 order.Add(candidate.ImplementationType);
             }
-            else {
+            else
+            {
                 anyPartial = true;
             }
 
             parts.Add(candidate);
         }
 
-        if (!anyPartial) {
+        if (!anyPartial)
+        {
             return candidates;
         }
 
         var merged = new List<ConventionCandidateModel>(order.Count);
 
-        foreach (var implementationType in order) {
+        foreach (var implementationType in order)
+        {
             var parts = byType[implementationType];
 
             merged.Add(parts.Count == 1 ? parts[0] : MergeParts(parts));
@@ -369,7 +429,8 @@ public static class ConventionMatcher {
         return merged;
     }
 
-    private static ConventionCandidateModel MergeParts(List<ConventionCandidateModel> parts) {
+    private static ConventionCandidateModel MergeParts(List<ConventionCandidateModel> parts)
+    {
         var declared = new List<ImplementedInterfaceModel>();
         var viaBaseClass = new List<ImplementedInterfaceModel>();
         var seen = new HashSet<ITypeDefinition>();
@@ -377,17 +438,23 @@ public static class ConventionMatcher {
         // Declared first across every part, so an interface written on one declaration is a declared
         // match even when another part only reaches it through a base class. That is what makes
         // IncludeBaseClasses() unnecessary for a type that names the interface anywhere.
-        foreach (var part in parts) {
-            foreach (var declaredInterface in part.DeclaredInterfaces) {
-                if (seen.Add(declaredInterface.InterfaceType)) {
+        foreach (var part in parts)
+        {
+            foreach (var declaredInterface in part.DeclaredInterfaces)
+            {
+                if (seen.Add(declaredInterface.InterfaceType))
+                {
                     declared.Add(declaredInterface);
                 }
             }
         }
 
-        foreach (var part in parts) {
-            foreach (var baseClassInterface in part.BaseClassInterfaces) {
-                if (seen.Add(baseClassInterface.InterfaceType)) {
+        foreach (var part in parts)
+        {
+            foreach (var baseClassInterface in part.BaseClassInterfaces)
+            {
+                if (seen.Add(baseClassInterface.InterfaceType))
+                {
                     viaBaseClass.Add(baseClassInterface);
                 }
             }
@@ -396,8 +463,10 @@ public static class ConventionMatcher {
         var conditions = new List<EnvironmentConditionModel>();
 
         // Attributes on partial parts combine, so the conditions do too.
-        foreach (var part in parts) {
-            if (part.Conditions != null) {
+        foreach (var part in parts)
+        {
+            if (part.Conditions != null)
+            {
                 conditions.AddRange(part.Conditions);
             }
         }
@@ -405,17 +474,22 @@ public static class ConventionMatcher {
         var attributeKeys = new List<string>();
 
         // Attributes on partial parts combine, so the keys do too.
-        foreach (var part in parts) {
-            if (part.AttributeTypeKeys != null) {
-                foreach (var key in part.AttributeTypeKeys) {
-                    if (!attributeKeys.Contains(key)) {
+        foreach (var part in parts)
+        {
+            if (part.AttributeTypeKeys != null)
+            {
+                foreach (var key in part.AttributeTypeKeys)
+                {
+                    if (!attributeKeys.Contains(key))
+                    {
                         attributeKeys.Add(key);
                     }
                 }
             }
         }
 
-        return parts[0] with {
+        return parts[0] with
+        {
             AttributeTypeKeys = attributeKeys.Count > 0 ? attributeKeys : null,
             DeclaredInterfaces = declared,
             BaseClassInterfaces = viaBaseClass,
@@ -427,15 +501,19 @@ public static class ConventionMatcher {
         };
     }
 
-    private static ConstructorInfoModel? GreediestConstructor(List<ConventionCandidateModel> parts) {
+    private static ConstructorInfoModel? GreediestConstructor(List<ConventionCandidateModel> parts)
+    {
         ConstructorInfoModel? greediest = null;
 
-        foreach (var part in parts) {
-            if (part.Constructor == null) {
+        foreach (var part in parts)
+        {
+            if (part.Constructor == null)
+            {
                 continue;
             }
 
-            if (greediest == null || part.Constructor.Parameters.Count > greediest.Parameters.Count) {
+            if (greediest == null || part.Constructor.Parameters.Count > greediest.Parameters.Count)
+            {
                 greediest = part.Constructor;
             }
         }
@@ -454,21 +532,26 @@ public static class ConventionMatcher {
         List<PendingRegistration> pending,
         string moduleName,
         DiagnosticReporter report,
-        FileLogger logger) {
-
+        FileLogger logger
+    )
+    {
         // Keyed on what actually reaches the container: this implementation, under this service
         // type. A type filling two roles registers twice; one service type claimed twice is the
         // ambiguity.
         var byRegistration =
-            new Dictionary<(ITypeDefinition Implementation, ITypeDefinition Service),
-                List<PendingRegistration>>();
+            new Dictionary<
+                (ITypeDefinition Implementation, ITypeDefinition Service),
+                List<PendingRegistration>
+            >();
 
         var order = new List<(ITypeDefinition Implementation, ITypeDefinition Service)>();
 
-        foreach (var entry in pending) {
+        foreach (var entry in pending)
+        {
             var key = (entry.Match.Candidate.ImplementationType, entry.Registration.ServiceType);
 
-            if (!byRegistration.TryGetValue(key, out var list)) {
+            if (!byRegistration.TryGetValue(key, out var list))
+            {
                 list = new List<PendingRegistration>();
                 byRegistration[key] = list;
                 order.Add(key);
@@ -481,10 +564,12 @@ public static class ConventionMatcher {
 
         // Insertion order rather than dictionary order: the emitted registration order feeds the
         // module snapshots, and a hash order would move them for unrelated reasons.
-        foreach (var key in order) {
+        foreach (var key in order)
+        {
             var group = byRegistration[key];
 
-            if (group.Count == 1) {
+            if (group.Count == 1)
+            {
                 usable.Add(group[0]);
 
                 continue;
@@ -494,14 +579,16 @@ public static class ConventionMatcher {
             var second = group[1];
             var serviceName = key.Service.Name;
 
-            var difference = first.Match.Convention.Lifestyle == second.Match.Convention.Lifestyle
-                ? "The declaration is duplicated."
-                : $"They declare different lifetimes ({first.Match.Convention.Lifestyle} and " +
-                  $"{second.Match.Convention.Lifestyle}).";
+            var difference =
+                first.Match.Convention.Lifestyle == second.Match.Convention.Lifestyle
+                    ? "The declaration is duplicated."
+                    : $"They declare different lifetimes ({first.Match.Convention.Lifestyle} and "
+                        + $"{second.Match.Convention.Lifestyle}).";
 
             logger.Error(
-                $"{moduleName}: '{key.Implementation.Name}' is registered as " +
-                $"'{serviceName}' by two conventions. {difference}");
+                $"{moduleName}: '{key.Implementation.Name}' is registered as "
+                    + $"'{serviceName}' by two conventions. {difference}"
+            );
 
             report.Report(
                 DependencyModuleDiagnostics.AmbiguousConventionMatch,
@@ -509,7 +596,8 @@ public static class ConventionMatcher {
                 key.Implementation.Name,
                 moduleName,
                 serviceName,
-                difference);
+                difference
+            );
         }
 
         return usable;
@@ -533,16 +621,25 @@ public static class ConventionMatcher {
     /// </para>
     /// </remarks>
     private static (ITypeDefinition Implementation, ITypeDefinition Service) RegistrationKey(
-        ConventionRegistrationMatch match) {
-
+        ConventionRegistrationMatch match
+    )
+    {
         var implementation = match.Candidate.ImplementationType;
 
-        return match.Convention.RegisterAs switch {
-            ConventionRegisterAs.Explicit => (implementation, match.Convention.ExplicitServiceType!),
-            ConventionRegisterAs.MatchingInterface =>
-                (implementation, MatchingInterfaceOf(match) ?? implementation),
-            ConventionRegisterAs.Interfaces when match.Interface != null =>
-                (implementation, match.Interface.InterfaceType),
+        return match.Convention.RegisterAs switch
+        {
+            ConventionRegisterAs.Explicit => (
+                implementation,
+                match.Convention.ExplicitServiceType!
+            ),
+            ConventionRegisterAs.MatchingInterface => (
+                implementation,
+                MatchingInterfaceOf(match) ?? implementation
+            ),
+            ConventionRegisterAs.Interfaces when match.Interface != null => (
+                implementation,
+                match.Interface.InterfaceType
+            ),
             _ => (implementation, implementation),
         };
     }
@@ -585,22 +682,38 @@ public static class ConventionMatcher {
     /// so that line does not hold the way this one does.
     /// </para>
     /// </remarks>
-    private static bool IsFrameworkInterface(ITypeDefinition interfaceType) {
+    private static bool IsFrameworkInterface(ITypeDefinition interfaceType)
+    {
         var namespaceName = interfaceType.Namespace;
 
-        return namespaceName == "System" ||
-               (namespaceName != null && namespaceName.StartsWith("System.", StringComparison.Ordinal));
+        return namespaceName == "System"
+            || (
+                namespaceName != null
+                && namespaceName.StartsWith("System.", StringComparison.Ordinal)
+            );
     }
 
     /// <summary>
     /// The interface named after the implementation — Foo as IFoo.
     /// </summary>
-    private static ITypeDefinition? MatchingInterfaceOf(ConventionRegistrationMatch match) {
+    private static ITypeDefinition? MatchingInterfaceOf(ConventionRegistrationMatch match)
+    {
         var wanted = "I" + match.Candidate.ImplementationType.Name;
 
-        foreach (var candidateInterface in
-                 match.Candidate.InterfacesInReach(match.Convention.IncludeBaseClasses)) {
-            if (string.Equals(candidateInterface.InterfaceType.Name, wanted, StringComparison.Ordinal)) {
+        foreach (
+            var candidateInterface in match.Candidate.InterfacesInReach(
+                match.Convention.IncludeBaseClasses
+            )
+        )
+        {
+            if (
+                string.Equals(
+                    candidateInterface.InterfaceType.Name,
+                    wanted,
+                    StringComparison.Ordinal
+                )
+            )
+            {
                 return candidateInterface.InterfaceType;
             }
         }
@@ -616,23 +729,29 @@ public static class ConventionMatcher {
     /// match was not direct.
     /// </summary>
     private static void ReportExposure(
-        IReadOnlyList<PendingRegistration> usable, string moduleName, DiagnosticReporter report) {
-
-        foreach (var entry in usable) {
+        IReadOnlyList<PendingRegistration> usable,
+        string moduleName,
+        DiagnosticReporter report
+    )
+    {
+        foreach (var entry in usable)
+        {
             var serviceType = entry.Registration.ServiceType;
 
             // The interface a convention matched through explains a match that was not direct, and
             // only applies when this registration is that interface.
-            var via = entry.Match.Interface != null &&
-                      entry.Match.Interface.InterfaceType.Equals(serviceType) &&
-                      entry.Match.Interface.ViaTypeName != null
-                ? $" (via {entry.Match.Interface.ViaTypeName})"
-                : "";
+            var via =
+                entry.Match.Interface != null
+                && entry.Match.Interface.InterfaceType.Equals(serviceType)
+                && entry.Match.Interface.ViaTypeName != null
+                    ? $" (via {entry.Match.Interface.ViaTypeName})"
+                    : "";
 
             report.Report(
                 DependencyModuleDiagnostics.ExposedByConvention,
                 LocationOf(entry.Match),
-                $"{serviceType.Name} in {moduleName}{via}");
+                $"{serviceType.Name} in {moduleName}{via}"
+            );
         }
     }
 
@@ -640,8 +759,10 @@ public static class ConventionMatcher {
     /// Produces the same models the attribute path produces, so emission needs no special case.
     /// </summary>
     private static IReadOnlyList<ServiceModel> BuildServiceModels(
-        IReadOnlyList<PendingRegistration> usable, FileLogger logger) {
-
+        IReadOnlyList<PendingRegistration> usable,
+        FileLogger logger
+    )
+    {
         // One model per implementation, carrying every registration it produces — the shape
         // ServiceModelUtility builds for the attribute path. Two models with the same
         // ImplementationType would duplicate the per-implementation state the writer reads:
@@ -653,11 +774,13 @@ public static class ConventionMatcher {
         var byGroup = new Dictionary<string, List<ServiceRegistrationModel>>();
         var order = new List<ConventionModelGroup>();
 
-        foreach (var entry in usable) {
+        foreach (var entry in usable)
+        {
             var conditions = MergeConditions(entry.Match);
             var key = GroupKey(entry.Match.Candidate.ImplementationType, conditions);
 
-            if (!byGroup.TryGetValue(key, out var list)) {
+            if (!byGroup.TryGetValue(key, out var list))
+            {
                 list = new List<ServiceRegistrationModel>();
                 byGroup[key] = list;
                 order.Add(new ConventionModelGroup(entry.Match, conditions, key));
@@ -668,27 +791,32 @@ public static class ConventionMatcher {
 
         var models = new List<ServiceModel>(order.Count);
 
-        foreach (var group in order) {
+        foreach (var group in order)
+        {
             var registrations = byGroup[group.Key];
 
             logger.Info(
-                $"  {group.Match.Candidate.ImplementationType.Name} -> " +
-                $"{string.Join(", ", registrations.Select(r => r.ServiceType.Name))} " +
-                "(by convention)");
+                $"  {group.Match.Candidate.ImplementationType.Name} -> "
+                    + $"{string.Join(", ", registrations.Select(r => r.ServiceType.Name))} "
+                    + "(by convention)"
+            );
 
-            models.Add(new ServiceModel(
-                group.Match.Candidate.ImplementationType,
-                group.Match.Candidate.Constructor,
-                null,
-                null,
-                registrations,
-                // Carried across for the same reason the attribute path sets it: interception picks
-                // its registration out by asking each descriptor what implementation it was built
-                // from, and a factory descriptor cannot say. A convention-registered class carrying
-                // [Intercept] needs the exemption as much as an attribute-registered one, and
-                // reaches this writer by a different route.
-                InterceptionFeature(group.Match.Candidate),
-                group.Conditions));
+            models.Add(
+                new ServiceModel(
+                    group.Match.Candidate.ImplementationType,
+                    group.Match.Candidate.Constructor,
+                    null,
+                    null,
+                    registrations,
+                    // Carried across for the same reason the attribute path sets it: interception picks
+                    // its registration out by asking each descriptor what implementation it was built
+                    // from, and a factory descriptor cannot say. A convention-registered class carrying
+                    // [Intercept] needs the exemption as much as an attribute-registered one, and
+                    // reaches this writer by a different route.
+                    InterceptionFeature(group.Match.Candidate),
+                    group.Conditions
+                )
+            );
         }
 
         return models;
@@ -707,8 +835,9 @@ public static class ConventionMatcher {
             ? RegistrationFeature.Intercepted
             : RegistrationFeature.None;
 
-    private static readonly string InterceptAttributeKey =
-        ConventionTypeKey.For(KnownTypes.DependencyModules.Attributes.InterceptAttribute);
+    private static readonly string InterceptAttributeKey = ConventionTypeKey.For(
+        KnownTypes.DependencyModules.Attributes.InterceptAttribute
+    );
 
     /// <summary>
     /// One ServiceModel's worth of matches: the same implementation under the same conditions.
@@ -716,7 +845,8 @@ public static class ConventionMatcher {
     private record ConventionModelGroup(
         ConventionRegistrationMatch Match,
         IReadOnlyList<EnvironmentConditionModel>? Conditions,
-        string Key);
+        string Key
+    );
 
     /// <summary>
     /// The conditions in force for one match: the convention's and the class's, combined.
@@ -727,20 +857,25 @@ public static class ConventionMatcher {
     /// written in the other, which is the kind of thing nobody finds until production.
     /// </remarks>
     private static IReadOnlyList<EnvironmentConditionModel>? MergeConditions(
-        ConventionRegistrationMatch match) {
-
+        ConventionRegistrationMatch match
+    )
+    {
         var fromConvention = match.Convention.Conditions;
         var fromCandidate = match.Candidate.Conditions;
 
-        if ((fromConvention?.Count ?? 0) == 0) {
+        if ((fromConvention?.Count ?? 0) == 0)
+        {
             return fromCandidate;
         }
 
-        if ((fromCandidate?.Count ?? 0) == 0) {
+        if ((fromCandidate?.Count ?? 0) == 0)
+        {
             return fromConvention;
         }
 
-        var merged = new List<EnvironmentConditionModel>(fromConvention!.Count + fromCandidate!.Count);
+        var merged = new List<EnvironmentConditionModel>(
+            fromConvention!.Count + fromCandidate!.Count
+        );
         merged.AddRange(fromConvention);
         merged.AddRange(fromCandidate);
 
@@ -751,14 +886,18 @@ public static class ConventionMatcher {
     /// A stable key for grouping, so equal condition sets share a model and different ones do not.
     /// </summary>
     private static string GroupKey(
-        ITypeDefinition implementation, IReadOnlyList<EnvironmentConditionModel>? conditions) {
-
-        if ((conditions?.Count ?? 0) == 0) {
+        ITypeDefinition implementation,
+        IReadOnlyList<EnvironmentConditionModel>? conditions
+    )
+    {
+        if ((conditions?.Count ?? 0) == 0)
+        {
             return implementation.ToString();
         }
 
         var parts = conditions!.Select(condition =>
-            $"{condition.Kind}|{condition.Negate}|{condition.Key}|{string.Join(",", condition.Values)}");
+            $"{condition.Kind}|{condition.Negate}|{condition.Key}|{string.Join(",", condition.Values)}"
+        );
 
         return implementation + "::" + string.Join(";", parts);
     }
@@ -774,8 +913,10 @@ public static class ConventionMatcher {
     /// instance per service type instead of the shared instance the contract promises.
     /// </remarks>
     private static IReadOnlyList<ServiceRegistrationModel> BuildRegistrations(
-        ConventionRegistrationMatch match, ModuleEntryPointModel entryPointModel) {
-
+        ConventionRegistrationMatch match,
+        ModuleEntryPointModel entryPointModel
+    )
+    {
         var convention = match.Convention;
         var lifestyle = convention.Lifestyle!.Value;
 
@@ -784,16 +925,22 @@ public static class ConventionMatcher {
         // module declares one.
         var realm = entryPointModel.EntryPointType;
 
-        ServiceRegistrationModel Registration(ITypeDefinition serviceType, bool crossWire = false) =>
-            new(serviceType,
+        ServiceRegistrationModel Registration(
+            ITypeDefinition serviceType,
+            bool crossWire = false
+        ) =>
+            new(
+                serviceType,
                 lifestyle,
                 convention.RegistrationType,
                 realm,
                 convention.Key,
                 crossWire,
-                convention.KeyNamespaces);
+                convention.KeyNamespaces
+            );
 
-        switch (convention.RegisterAs) {
+        switch (convention.RegisterAs)
+        {
             case ConventionRegisterAs.Self:
                 return new[] { Registration(match.Candidate.ImplementationType) };
 
@@ -821,9 +968,14 @@ public static class ConventionMatcher {
             case ConventionRegisterAs.SelfAndInterfaces:
                 var crossWired = new List<ServiceRegistrationModel>();
 
-                foreach (var reachable in
-                         match.Candidate.InterfacesInReach(convention.IncludeBaseClasses)) {
-                    if (IsFrameworkInterface(reachable.InterfaceType)) {
+                foreach (
+                    var reachable in match.Candidate.InterfacesInReach(
+                        convention.IncludeBaseClasses
+                    )
+                )
+                {
+                    if (IsFrameworkInterface(reachable.InterfaceType))
+                    {
                         continue;
                     }
 
@@ -832,7 +984,8 @@ public static class ConventionMatcher {
 
                 // Nothing left to expand to still registers the type itself, so filtering everything
                 // away degrades to AsSelf() rather than to nothing.
-                if (crossWired.Count == 0) {
+                if (crossWired.Count == 0)
+                {
                     crossWired.Add(Registration(match.Candidate.ImplementationType));
                 }
 

@@ -6,9 +6,12 @@ You do not want your development machine sending real email. So the registration
 
 ```csharp
 // Program.cs
-if (builder.Environment.IsDevelopment()) {
+if (builder.Environment.IsDevelopment())
+{
     services.AddSingleton<IEmailSender, FakeEmailSender>();
-} else {
+}
+else
+{
     services.AddSingleton<IEmailSender, SmtpEmailSender>();
 }
 ```
@@ -78,7 +81,8 @@ Values go inline, since a `ModuleEnvironment` is a collection of them:
 
 ```csharp
 services.AddModules(
-    new ModuleEnvironment("Development") {
+    new ModuleEnvironment("Development")
+    {
         { "FEATURE_PROFILING", "on" },
         { "REGION", "eu" }
     },
@@ -97,7 +101,8 @@ A key you did write wins — including one written as `null`, which is how you h
 same name:
 
 ```csharp
-new ModuleEnvironment("Development") {
+new ModuleEnvironment("Development")
+{
     { "REGION", "eu" },        // wins over any REGION variable
     { "FEATURE_PROFILING", null }   // hides a FEATURE_PROFILING variable
 }
@@ -255,9 +260,12 @@ For registration that depends on the environment but is not a simple condition:
 
 ```csharp
 [DependencyModule]
-public partial class ApplicationModule : IEnvironmentServiceCollectionConfiguration {
-    public void ConfigureServices(IServiceCollection services, IModuleEnvironment environment) {
-        if (environment.Value("REGION") == "eu") {
+public partial class ApplicationModule : IEnvironmentServiceCollectionConfiguration
+{
+    public void ConfigureServices(IServiceCollection services, IModuleEnvironment environment)
+    {
+        if (environment.Value("REGION") == "eu")
+        {
             services.AddSingleton<IStorage, EuStorage>();
         }
     }

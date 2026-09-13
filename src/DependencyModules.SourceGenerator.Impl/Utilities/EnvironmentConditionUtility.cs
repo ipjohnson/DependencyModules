@@ -19,8 +19,8 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities;
 /// the incremental cache.
 /// </para>
 /// </remarks>
-public static class EnvironmentConditionUtility {
-
+public static class EnvironmentConditionUtility
+{
     private const string IfEnvironment = "IfEnvironmentAttribute";
     private const string IfNotEnvironment = "IfNotEnvironmentAttribute";
     private const string IfEnvironmentValue = "IfEnvironmentValueAttribute";
@@ -34,21 +34,28 @@ public static class EnvironmentConditionUtility {
     /// has always had and existing snapshots do not move.
     /// </returns>
     public static IReadOnlyList<EnvironmentConditionModel>? GetConditions(
-        SyntaxTransformContext context, SyntaxNode node, CancellationToken cancellationToken) {
-
-        if (node is not MemberDeclarationSyntax memberDeclaration) {
+        SyntaxTransformContext context,
+        SyntaxNode node,
+        CancellationToken cancellationToken
+    )
+    {
+        if (node is not MemberDeclarationSyntax memberDeclaration)
+        {
             return null;
         }
 
         List<EnvironmentConditionModel>? conditions = null;
 
-        foreach (var attributeList in memberDeclaration.AttributeLists) {
-            foreach (var attribute in attributeList.Attributes) {
+        foreach (var attributeList in memberDeclaration.AttributeLists)
+        {
+            foreach (var attribute in attributeList.Attributes)
+            {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var condition = ReadCondition(context, attribute);
 
-                if (condition == null) {
+                if (condition == null)
+                {
                     continue;
                 }
 
@@ -61,29 +68,43 @@ public static class EnvironmentConditionUtility {
     }
 
     private static EnvironmentConditionModel? ReadCondition(
-        SyntaxTransformContext context, AttributeSyntax attribute) {
-
-        if (ModelExtensions.GetTypeInfo(context.SemanticModel, attribute).Type is not { } attributeType ||
-            attributeType.ContainingNamespace.GetFullName() != KnownTypes.DependencyModules.Attributes.Namespace) {
+        SyntaxTransformContext context,
+        AttributeSyntax attribute
+    )
+    {
+        if (
+            ModelExtensions.GetTypeInfo(context.SemanticModel, attribute).Type
+                is not { } attributeType
+            || attributeType.ContainingNamespace.GetFullName()
+                != KnownTypes.DependencyModules.Attributes.Namespace
+        )
+        {
             return null;
         }
 
-        var kind = attributeType.Name switch {
+        var kind = attributeType.Name switch
+        {
             IfEnvironment or IfNotEnvironment => EnvironmentConditionKind.Name,
             IfEnvironmentValue or IfNotEnvironmentValue => EnvironmentConditionKind.Value,
             _ => (EnvironmentConditionKind?)null,
         };
 
-        if (kind == null) {
+        if (kind == null)
+        {
             return null;
         }
 
         var negate = attributeType.Name is IfNotEnvironment or IfNotEnvironmentValue;
         var arguments = ReadStringArguments(context, attribute);
 
-        if (kind == EnvironmentConditionKind.Name) {
+        if (kind == EnvironmentConditionKind.Name)
+        {
             return new EnvironmentConditionModel(
-                EnvironmentConditionKind.Name, negate, null, arguments);
+                EnvironmentConditionKind.Name,
+                negate,
+                null,
+                arguments
+            );
         }
 
         // The key is the first argument; a second, when present, is the value it has to equal.
@@ -92,8 +113,7 @@ public static class EnvironmentConditionUtility {
         var key = arguments.Count > 0 ? arguments[0] : "";
         var values = arguments.Count > 1 ? new[] { arguments[1] } : Array.Empty<string>();
 
-        return new EnvironmentConditionModel(
-            EnvironmentConditionKind.Value, negate, key, values);
+        return new EnvironmentConditionModel(EnvironmentConditionKind.Value, negate, key, values);
     }
 
     /// <summary>
@@ -101,22 +121,28 @@ public static class EnvironmentConditionUtility {
     /// attributes has a settable property, so one can only be a mistake.
     /// </summary>
     private static IReadOnlyList<string> ReadStringArguments(
-        SyntaxTransformContext context, AttributeSyntax attribute) {
-
-        if (attribute.ArgumentList == null) {
+        SyntaxTransformContext context,
+        AttributeSyntax attribute
+    )
+    {
+        if (attribute.ArgumentList == null)
+        {
             return Array.Empty<string>();
         }
 
         var values = new List<string>();
 
-        foreach (var argument in attribute.ArgumentList.Arguments) {
-            if (argument.NameEquals != null) {
+        foreach (var argument in attribute.ArgumentList.Arguments)
+        {
+            if (argument.NameEquals != null)
+            {
                 continue;
             }
 
             // GetConstantValue rather than the literal text, so nameof(...) and a const declared
             // elsewhere both read as the string they evaluate to.
-            if (context.SemanticModel.GetConstantValue(argument.Expression).Value is string value) {
+            if (context.SemanticModel.GetConstantValue(argument.Expression).Value is string value)
+            {
                 values.Add(value);
             }
         }
@@ -134,7 +160,8 @@ public static class EnvironmentConditionUtility {
     /// anything, so it is reported rather than emitted.
     /// </remarks>
     public static bool IsEmpty(EnvironmentConditionModel condition) =>
-        condition.Kind switch {
+        condition.Kind switch
+        {
             EnvironmentConditionKind.Name => condition.Values.Count == 0,
             EnvironmentConditionKind.Value => string.IsNullOrEmpty(condition.Key),
             _ => false,
@@ -143,10 +170,12 @@ public static class EnvironmentConditionUtility {
     /// <summary>
     /// A condition as it would read in a diagnostic message.
     /// </summary>
-    public static string Describe(EnvironmentConditionModel condition) {
+    public static string Describe(EnvironmentConditionModel condition)
+    {
         var not = condition.Negate ? "not " : "";
 
-        if (condition.Kind == EnvironmentConditionKind.Name) {
+        if (condition.Kind == EnvironmentConditionKind.Name)
+        {
             return $"environment is {not}{string.Join(" or ", condition.Values)}";
         }
 

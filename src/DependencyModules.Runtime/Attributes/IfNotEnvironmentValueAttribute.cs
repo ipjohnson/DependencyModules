@@ -15,13 +15,15 @@ namespace DependencyModules.Runtime.Attributes;
 /// </example>
 /// </remarks>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
-public class IfNotEnvironmentValueAttribute : Attribute {
+public class IfNotEnvironmentValueAttribute : Attribute
+{
     /// <summary>
     /// Registers the service except when the environment has any value for
     /// <paramref name="key"/>.
     /// </summary>
     /// <param name="key">The key whose presence skips the registration.</param>
-    public IfNotEnvironmentValueAttribute(string key) {
+    public IfNotEnvironmentValueAttribute(string key)
+    {
         Key = key;
     }
 
@@ -31,7 +33,8 @@ public class IfNotEnvironmentValueAttribute : Attribute {
     /// </summary>
     /// <param name="key">The key to read.</param>
     /// <param name="value">The value that skips the registration.</param>
-    public IfNotEnvironmentValueAttribute(string key, string value) {
+    public IfNotEnvironmentValueAttribute(string key, string value)
+    {
         Key = key;
         Value = value;
     }

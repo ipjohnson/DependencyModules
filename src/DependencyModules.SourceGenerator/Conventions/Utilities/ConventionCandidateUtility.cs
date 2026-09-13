@@ -27,8 +27,8 @@ namespace DependencyModules.Conventions.Utilities;
 /// convention decides whether they count rather than the type graph deciding for it.
 /// </para>
 /// </remarks>
-public static class ConventionCandidateUtility {
-
+public static class ConventionCandidateUtility
+{
     /// <summary>
     /// Attributes that take a type out of convention matching.
     /// </summary>
@@ -42,12 +42,18 @@ public static class ConventionCandidateUtility {
     /// decorated. One open generic decorator over convention-registered handlers — the ordinary
     /// MediatR and FluentValidation shape — failed at the composition root because of it.
     /// </remarks>
-    private static readonly string[] ServiceAttributeNames = {
-        "SingletonService", "SingletonServiceAttribute",
-        "ScopedService", "ScopedServiceAttribute",
-        "TransientService", "TransientServiceAttribute",
-        "CrossWireService", "CrossWireServiceAttribute",
-        "Decorator", "DecoratorAttribute",
+    private static readonly string[] ServiceAttributeNames =
+    {
+        "SingletonService",
+        "SingletonServiceAttribute",
+        "ScopedService",
+        "ScopedServiceAttribute",
+        "TransientService",
+        "TransientServiceAttribute",
+        "CrossWireService",
+        "CrossWireServiceAttribute",
+        "Decorator",
+        "DecoratorAttribute",
     };
 
     /// <summary>
@@ -70,20 +76,26 @@ public static class ConventionCandidateUtility {
     /// base list there is no interface walk.
     /// </para>
     /// </remarks>
-    public static bool IsCandidate(SyntaxNode node, CancellationToken cancellationToken) {
+    public static bool IsCandidate(SyntaxNode node, CancellationToken cancellationToken)
+    {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (node is not ClassDeclarationSyntax and not RecordDeclarationSyntax) {
+        if (node is not ClassDeclarationSyntax and not RecordDeclarationSyntax)
+        {
             return false;
         }
 
         var typeDeclaration = (TypeDeclarationSyntax)node;
 
-        foreach (var modifier in typeDeclaration.Modifiers) {
-            if (modifier.IsKind(SyntaxKind.StaticKeyword) ||
-                modifier.IsKind(SyntaxKind.AbstractKeyword) ||
-                modifier.IsKind(SyntaxKind.PrivateKeyword) ||
-                modifier.IsKind(SyntaxKind.ProtectedKeyword)) {
+        foreach (var modifier in typeDeclaration.Modifiers)
+        {
+            if (
+                modifier.IsKind(SyntaxKind.StaticKeyword)
+                || modifier.IsKind(SyntaxKind.AbstractKeyword)
+                || modifier.IsKind(SyntaxKind.PrivateKeyword)
+                || modifier.IsKind(SyntaxKind.ProtectedKeyword)
+            )
+            {
                 return false;
             }
         }
@@ -99,13 +111,17 @@ public static class ConventionCandidateUtility {
     /// static factory method marked <c>[SingletonService]</c> would otherwise disqualify itself as a
     /// candidate for reasons that have nothing to do with the class.
     /// </remarks>
-    private static bool HasServiceAttribute(TypeDeclarationSyntax typeDeclaration) {
-        foreach (var attributeList in typeDeclaration.AttributeLists) {
-            foreach (var attribute in attributeList.Attributes) {
+    private static bool HasServiceAttribute(TypeDeclarationSyntax typeDeclaration)
+    {
+        foreach (var attributeList in typeDeclaration.AttributeLists)
+        {
+            foreach (var attribute in attributeList.Attributes)
+            {
                 var name = attribute.Name.ToString();
                 var simpleName = name.Substring(name.LastIndexOf('.') + 1);
 
-                if (Array.IndexOf(ServiceAttributeNames, simpleName) >= 0) {
+                if (Array.IndexOf(ServiceAttributeNames, simpleName) >= 0)
+                {
                     return true;
                 }
             }
@@ -115,11 +131,14 @@ public static class ConventionCandidateUtility {
     }
 
     public static ConventionCandidateModel GetCandidateModel(
-        SyntaxTransformContext context, CancellationToken cancellationToken) {
-
+        SyntaxTransformContext context,
+        CancellationToken cancellationToken
+    )
+    {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (context.Node is not TypeDeclarationSyntax typeDeclaration) {
+        if (context.Node is not TypeDeclarationSyntax typeDeclaration)
+        {
             return ConventionCandidateModel.Ignore;
         }
 
@@ -127,7 +146,8 @@ public static class ConventionCandidateUtility {
         // semantic question. Binding a symbol for every such type — which is most types in most
         // projects — was the largest remaining cost of admitting them: measured on 2,000 classes,
         // the second run after an edit took 40 ms with the symbol and 12 ms without.
-        if (typeDeclaration.BaseList is not { Types.Count: > 0 }) {
+        if (typeDeclaration.BaseList is not { Types.Count: > 0 })
+        {
             return new ConventionCandidateModel(
                 typeDeclaration.GetTypeDefinition(),
                 Array.Empty<ImplementedInterfaceModel>(),
@@ -135,18 +155,31 @@ public static class ConventionCandidateUtility {
                 ServiceModelUtility.GetConstructorInfo(context, typeDeclaration, cancellationToken),
                 DeclaresAccessibleConstructor(typeDeclaration),
                 LocationModel.From(typeDeclaration),
-                EnvironmentConditionUtility.GetConditions(context, typeDeclaration, cancellationToken),
-                CollectAttributeKeys(context, typeDeclaration, cancellationToken));
+                EnvironmentConditionUtility.GetConditions(
+                    context,
+                    typeDeclaration,
+                    cancellationToken
+                ),
+                CollectAttributeKeys(context, typeDeclaration, cancellationToken)
+            );
         }
 
-        if (context.SemanticModel.GetDeclaredSymbol(typeDeclaration) is not INamedTypeSymbol symbol) {
+        if (context.SemanticModel.GetDeclaredSymbol(typeDeclaration) is not INamedTypeSymbol symbol)
+        {
             return ConventionCandidateModel.Ignore;
         }
 
         var declared = new List<ImplementedInterfaceModel>();
         var viaBaseClass = new List<ImplementedInterfaceModel>();
 
-        CollectInterfaces(symbol, typeDeclaration, context, declared, viaBaseClass, cancellationToken);
+        CollectInterfaces(
+            symbol,
+            typeDeclaration,
+            context,
+            declared,
+            viaBaseClass,
+            cancellationToken
+        );
 
         return new ConventionCandidateModel(
             ImplementationTypeOf(symbol),
@@ -156,7 +189,8 @@ public static class ConventionCandidateUtility {
             HasAccessibleConstructor(symbol),
             LocationModel.From(typeDeclaration),
             EnvironmentConditionUtility.GetConditions(context, typeDeclaration, cancellationToken),
-            CollectAttributeKeys(context, typeDeclaration, cancellationToken));
+            CollectAttributeKeys(context, typeDeclaration, cancellationToken)
+        );
     }
 
     /// <summary>
@@ -169,16 +203,24 @@ public static class ConventionCandidateUtility {
     /// of admitting every class as a candidate.
     /// </remarks>
     private static IReadOnlyList<string>? CollectAttributeKeys(
-        SyntaxTransformContext context, TypeDeclarationSyntax typeDeclaration,
-        CancellationToken cancellationToken) {
-
+        SyntaxTransformContext context,
+        TypeDeclarationSyntax typeDeclaration,
+        CancellationToken cancellationToken
+    )
+    {
         List<string>? keys = null;
 
-        foreach (var attributeList in typeDeclaration.AttributeLists) {
-            foreach (var attribute in attributeList.Attributes) {
+        foreach (var attributeList in typeDeclaration.AttributeLists)
+        {
+            foreach (var attribute in attributeList.Attributes)
+            {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (ModelExtensions.GetTypeInfo(context.SemanticModel, attribute).Type is not { } type) {
+                if (
+                    ModelExtensions.GetTypeInfo(context.SemanticModel, attribute).Type
+                    is not { } type
+                )
+                {
                     continue;
                 }
 
@@ -199,32 +241,41 @@ public static class ConventionCandidateUtility {
         SyntaxTransformContext context,
         List<ImplementedInterfaceModel> declared,
         List<ImplementedInterfaceModel> viaBaseClass,
-        CancellationToken cancellationToken) {
-
+        CancellationToken cancellationToken
+    )
+    {
         // Deduped on the type definition rather than on the arity key, which is deliberately equal
         // for every closing of one generic — IHandler<A,B> and IHandler<C,D> are distinct services.
         var seen = new HashSet<ITypeDefinition>();
 
-        foreach (var baseTypeSyntax in typeDeclaration.BaseList!.Types) {
+        foreach (var baseTypeSyntax in typeDeclaration.BaseList!.Types)
+        {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (context.SemanticModel.GetSymbolInfo(baseTypeSyntax.Type).Symbol
-                is not INamedTypeSymbol baseSymbol) {
+            if (
+                context.SemanticModel.GetSymbolInfo(baseTypeSyntax.Type).Symbol
+                is not INamedTypeSymbol baseSymbol
+            )
+            {
                 continue;
             }
 
-            if (baseSymbol.TypeKind == TypeKind.Interface) {
+            if (baseSymbol.TypeKind == TypeKind.Interface)
+            {
                 // Written on the declaration, plus everything that interface extends. An interface
                 // declaring that it extends another is a deliberate statement of substitutability,
                 // so a convention naming the base interface matches this type by declaration.
                 Add(declared, seen, symbol, baseSymbol, null);
 
-                foreach (var inherited in baseSymbol.AllInterfaces) {
+                foreach (var inherited in baseSymbol.AllInterfaces)
+                {
                     Add(declared, seen, symbol, inherited, baseSymbol.Name);
                 }
             }
-            else if (baseSymbol.TypeKind == TypeKind.Class) {
-                foreach (var inherited in baseSymbol.AllInterfaces) {
+            else if (baseSymbol.TypeKind == TypeKind.Class)
+            {
+                foreach (var inherited in baseSymbol.AllInterfaces)
+                {
                     Add(viaBaseClass, seen, symbol, inherited, baseSymbol.Name);
                 }
             }
@@ -236,22 +287,30 @@ public static class ConventionCandidateUtility {
         HashSet<ITypeDefinition> seen,
         INamedTypeSymbol implementation,
         INamedTypeSymbol interfaceSymbol,
-        string? viaTypeName) {
-
+        string? viaTypeName
+    )
+    {
         var interfaceType = RegistrationFormOf(interfaceSymbol, implementation);
 
-        if (interfaceType == null) {
+        if (interfaceType == null)
+        {
             return;
         }
 
         // Deduped across both lists: an interface reached by declaration is a declared match even if
         // a base class also brings it, and listing it twice would register the same service twice.
-        if (!seen.Add(interfaceType)) {
+        if (!seen.Add(interfaceType))
+        {
             return;
         }
 
-        target.Add(new ImplementedInterfaceModel(
-            interfaceType, ConventionTypeKey.For(interfaceType), viaTypeName));
+        target.Add(
+            new ImplementedInterfaceModel(
+                interfaceType,
+                ConventionTypeKey.For(interfaceType),
+                viaTypeName
+            )
+        );
     }
 
     /// <summary>
@@ -266,27 +325,39 @@ public static class ConventionCandidateUtility {
     /// built.
     /// </remarks>
     private static ITypeDefinition? RegistrationFormOf(
-        INamedTypeSymbol interfaceSymbol, INamedTypeSymbol implementation) {
-
+        INamedTypeSymbol interfaceSymbol,
+        INamedTypeSymbol implementation
+    )
+    {
         var definition = interfaceSymbol.GetTypeDefinition();
 
-        if (!ContainsTypeParameter(interfaceSymbol)) {
+        if (!ContainsTypeParameter(interfaceSymbol))
+        {
             return definition;
         }
 
-        if (!implementation.IsGenericType) {
+        if (!implementation.IsGenericType)
+        {
             return null;
         }
 
         // Every argument is one of the implementation's own parameters, used once, in order.
         var arguments = interfaceSymbol.TypeArguments;
 
-        if (arguments.Length != implementation.TypeParameters.Length) {
+        if (arguments.Length != implementation.TypeParameters.Length)
+        {
             return null;
         }
 
-        for (var i = 0; i < arguments.Length; i++) {
-            if (!SymbolEqualityComparer.Default.Equals(arguments[i], implementation.TypeParameters[i])) {
+        for (var i = 0; i < arguments.Length; i++)
+        {
+            if (
+                !SymbolEqualityComparer.Default.Equals(
+                    arguments[i],
+                    implementation.TypeParameters[i]
+                )
+            )
+            {
                 return null;
             }
         }
@@ -294,13 +365,17 @@ public static class ConventionCandidateUtility {
         return OpenFormOf(definition);
     }
 
-    private static bool ContainsTypeParameter(INamedTypeSymbol symbol) {
-        foreach (var argument in symbol.TypeArguments) {
-            if (argument is ITypeParameterSymbol) {
+    private static bool ContainsTypeParameter(INamedTypeSymbol symbol)
+    {
+        foreach (var argument in symbol.TypeArguments)
+        {
+            if (argument is ITypeParameterSymbol)
+            {
                 return true;
             }
 
-            if (argument is INamedTypeSymbol nested && ContainsTypeParameter(nested)) {
+            if (argument is INamedTypeSymbol nested && ContainsTypeParameter(nested))
+            {
                 return true;
             }
         }
@@ -317,9 +392,11 @@ public static class ConventionCandidateUtility {
             definition.TypeDefinitionEnum,
             definition.Namespace,
             definition.Name,
-            definition.TypeArguments.Select(_ => TypeDefinition.Get("", "")).ToArray());
+            definition.TypeArguments.Select(_ => TypeDefinition.Get("", "")).ToArray()
+        );
 
-    private static ITypeDefinition ImplementationTypeOf(INamedTypeSymbol symbol) {
+    private static ITypeDefinition ImplementationTypeOf(INamedTypeSymbol symbol)
+    {
         var definition = symbol.GetTypeDefinition();
 
         return symbol.IsGenericType ? OpenFormOf(definition) : definition;
@@ -341,24 +418,30 @@ public static class ConventionCandidateUtility {
     /// A type declaring no constructor has the implicit public parameterless one; a primary
     /// constructor is public; otherwise any constructor not marked private or protected will do.
     /// </remarks>
-    private static bool DeclaresAccessibleConstructor(TypeDeclarationSyntax typeDeclaration) {
-        if (typeDeclaration.ParameterList is { Parameters.Count: >= 0 }) {
+    private static bool DeclaresAccessibleConstructor(TypeDeclarationSyntax typeDeclaration)
+    {
+        if (typeDeclaration.ParameterList is { Parameters.Count: >= 0 })
+        {
             return true;
         }
 
         var declaredAny = false;
 
-        foreach (var constructor in typeDeclaration.Members.OfType<ConstructorDeclarationSyntax>()) {
-            if (constructor.Modifiers.Any(m => m.IsKind(SyntaxKind.StaticKeyword))) {
+        foreach (var constructor in typeDeclaration.Members.OfType<ConstructorDeclarationSyntax>())
+        {
+            if (constructor.Modifiers.Any(m => m.IsKind(SyntaxKind.StaticKeyword)))
+            {
                 continue;
             }
 
             declaredAny = true;
 
-            var hidden = constructor.Modifiers.Any(
-                m => m.IsKind(SyntaxKind.PrivateKeyword) || m.IsKind(SyntaxKind.ProtectedKeyword));
+            var hidden = constructor.Modifiers.Any(m =>
+                m.IsKind(SyntaxKind.PrivateKeyword) || m.IsKind(SyntaxKind.ProtectedKeyword)
+            );
 
-            if (!hidden) {
+            if (!hidden)
+            {
                 return true;
             }
         }
@@ -366,14 +449,22 @@ public static class ConventionCandidateUtility {
         return !declaredAny;
     }
 
-    private static bool HasAccessibleConstructor(INamedTypeSymbol symbol) {
-        if (symbol.InstanceConstructors.Length == 0) {
+    private static bool HasAccessibleConstructor(INamedTypeSymbol symbol)
+    {
+        if (symbol.InstanceConstructors.Length == 0)
+        {
             return true;
         }
 
-        foreach (var constructor in symbol.InstanceConstructors) {
-            if (constructor.DeclaredAccessibility is Accessibility.Public or Accessibility.Internal
-                or Accessibility.ProtectedOrInternal) {
+        foreach (var constructor in symbol.InstanceConstructors)
+        {
+            if (
+                constructor.DeclaredAccessibility
+                is Accessibility.Public
+                    or Accessibility.Internal
+                    or Accessibility.ProtectedOrInternal
+            )
+            {
                 return true;
             }
         }

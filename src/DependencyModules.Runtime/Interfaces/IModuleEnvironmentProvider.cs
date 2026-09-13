@@ -27,8 +27,8 @@ namespace DependencyModules.Runtime.Interfaces;
 ///     narrowest one that answers decides, matching how every other attribute resolves.
 ///     </para>
 /// </remarks>
-public interface IModuleEnvironmentProvider {
-
+public interface IModuleEnvironmentProvider
+{
     /// <summary>
     ///     The environment module conditions are evaluated against, or null to leave the decision
     ///     to a wider scope.

@@ -6,25 +6,28 @@ using Xunit;
 
 namespace SutProject.Tests.GenericTests;
 
-
 [DependencyModule]
-public partial class GenericListModule : IServiceCollectionConfiguration {
-
-    public void ConfigureServices(IServiceCollection services) {
+public partial class GenericListModule : IServiceCollectionConfiguration
+{
+    public void ConfigureServices(IServiceCollection services)
+    {
         services.AddTransient(typeof(IReadOnlyList<>), typeof(List<>));
     }
 }
 
 [SutModule]
-public class ResolveGenericTypeTests {
+public class ResolveGenericTypeTests
+{
     [ModuleTest]
-    public void ResolveGenericType(IGenericInterface<IDependencyOne> genericInterface) {
+    public void ResolveGenericType(IGenericInterface<IDependencyOne> genericInterface)
+    {
         Assert.NotNull(genericInterface);
         Assert.NotNull(genericInterface.Value);
     }
 
     [ModuleTest]
-    public void ResolveClosedGeneric(IGenericInterface<string> genericInterface) {
+    public void ResolveClosedGeneric(IGenericInterface<string> genericInterface)
+    {
         Assert.NotNull(genericInterface);
         Assert.IsType<StringGeneric>(genericInterface);
     }
@@ -32,7 +35,8 @@ public class ResolveGenericTypeTests {
     [ModuleTest]
     [SutModule]
     [GenericListModule]
-    public void ResolveList(IReadOnlyList<IDependencyOne> genericList) {
+    public void ResolveList(IReadOnlyList<IDependencyOne> genericList)
+    {
         Assert.NotNull(genericList);
     }
 }

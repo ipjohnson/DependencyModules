@@ -10,12 +10,15 @@ namespace SutProject.NUnitTests.Moq;
 /// The Moq package, unchanged, against NUnit.
 /// </summary>
 [MoqSupport]
-public class MoqTests {
-
+public class MoqTests
+{
     [ModuleTest]
     [SutModule]
     public void MockTest(
-        [Mock] Mock<IDependencyOne> dependencyOne, ISingletonService singletonService) {
+        [Mock] Mock<IDependencyOne> dependencyOne,
+        ISingletonService singletonService
+    )
+    {
         dependencyOne.Setup(mock => mock.SingletonService).Returns(singletonService);
 
         Assert.That(dependencyOne.Object.SingletonService, Is.SameAs(singletonService));
@@ -30,7 +33,8 @@ public class MoqTests {
     [ModuleTest]
     [SutModule]
     [TestExport(typeof(ISingletonService), Implementation = typeof(ExportedSingletonService))]
-    public void TestExportBeatsAMockOfTheSameService(ISingletonService singletonService) {
+    public void TestExportBeatsAMockOfTheSameService(ISingletonService singletonService)
+    {
         Assert.That(singletonService, Is.TypeOf<ExportedSingletonService>());
     }
 }

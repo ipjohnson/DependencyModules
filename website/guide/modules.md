@@ -179,7 +179,8 @@ properties, and the generated attribute mirrors them:
 
 ```csharp
 [DependencyModule]
-public partial class ApplicationModule {
+public partial class ApplicationModule
+{
     public string? ConnectionString { get; set; }
 }
 ```
@@ -218,8 +219,10 @@ binding, anything from a third-party library with its own extension method. Impl
 
 ```csharp
 [DependencyModule]
-public partial class ApplicationModule : IServiceCollectionConfiguration {
-    public void ConfigureServices(IServiceCollection services) {
+public partial class ApplicationModule : IServiceCollectionConfiguration
+{
+    public void ConfigureServices(IServiceCollection services)
+    {
         services.AddHttpClient();
     }
 }

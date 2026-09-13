@@ -13,10 +13,9 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// actually in the collection. A condition emitted into the wrong branch still produces plausible
 /// generated text, so text assertions would pass while the service registered in production.
 /// </remarks>
-public class EnvironmentConditionTests {
-
-    private const string Preamble =
-        """
+public class EnvironmentConditionTests
+{
+    private const string Preamble = """
         using System;
         using DependencyModules.Runtime.Attributes;
 
@@ -34,11 +33,12 @@ public class EnvironmentConditionTests {
     private static IModuleEnvironment Env(string name) => Env(name, []);
 
     /// <inheritdoc cref="Env(string)" />
-    private static IModuleEnvironment Env(string name, params (string Key, string? Value)[] values) =>
-        new ModuleEnvironment(false, name, values.ToDictionary(v => v.Key, v => v.Value));
+    private static IModuleEnvironment Env(
+        string name,
+        params (string Key, string? Value)[] values
+    ) => new ModuleEnvironment(false, name, values.ToDictionary(v => v.Key, v => v.Value));
 
-    private const string NameGated =
-        """
+    private const string NameGated = """
         public interface IEmailSender { }
 
         [SingletonService]
@@ -46,8 +46,7 @@ public class EnvironmentConditionTests {
         public class FakeEmailSender : IEmailSender { }
         """;
 
-    private const string Module =
-        """
+    private const string Module = """
 
         [DependencyModule]
         public partial class TestModule;
@@ -59,16 +58,20 @@ public class EnvironmentConditionTests {
     [InlineData("development", true)]
     [InlineData("Production", false)]
     [InlineData("", false)]
-    public void IfEnvironmentRegistersOnlyInTheNamedEnvironments(string environmentName, bool expected) {
+    public void IfEnvironmentRegistersOnlyInTheNamedEnvironments(
+        string environmentName,
+        bool expected
+    )
+    {
         var assembly = Compile(NameGated + Module, Env(environmentName));
 
         Assert.Equal(expected, assembly.Descriptors("IEmailSender").Count == 1);
     }
 
     [Fact]
-    public void IfNotEnvironmentRegistersEverywhereElse() {
-        const string source =
-            """
+    public void IfNotEnvironmentRegistersEverywhereElse()
+    {
+        const string source = """
             public interface IProfiler { }
 
             [SingletonService]
@@ -81,9 +84,9 @@ public class EnvironmentConditionTests {
     }
 
     [Fact]
-    public void IfEnvironmentValueTestsPresenceWhenGivenOnlyAKey() {
-        const string source =
-            """
+    public void IfEnvironmentValueTestsPresenceWhenGivenOnlyAKey()
+    {
+        const string source = """
             public interface IBilling { }
 
             [SingletonService]
@@ -91,18 +94,23 @@ public class EnvironmentConditionTests {
             public class Billing : IBilling { }
             """;
 
-        Assert.Single(Compile(source + Module, Env("Any", ("FEATURE_BILLING", "anything"))).Descriptors("IBilling"));
+        Assert.Single(
+            Compile(source + Module, Env("Any", ("FEATURE_BILLING", "anything")))
+                .Descriptors("IBilling")
+        );
 
         // Set to empty is still set; only absence is absence.
-        Assert.Single(Compile(source + Module, Env("Any", ("FEATURE_BILLING", ""))).Descriptors("IBilling"));
+        Assert.Single(
+            Compile(source + Module, Env("Any", ("FEATURE_BILLING", ""))).Descriptors("IBilling")
+        );
 
         Assert.Empty(Compile(source + Module, Env("Any")).Descriptors("IBilling"));
     }
 
     [Fact]
-    public void IfEnvironmentValueComparesTheValueExactly() {
-        const string source =
-            """
+    public void IfEnvironmentValueComparesTheValueExactly()
+    {
+        const string source = """
             public interface IBilling { }
 
             [SingletonService]
@@ -118,9 +126,9 @@ public class EnvironmentConditionTests {
     }
 
     [Fact]
-    public void ConditionsOfDifferentKindsCombineWithAnd() {
-        const string source =
-            """
+    public void ConditionsOfDifferentKindsCombineWithAnd()
+    {
+        const string source = """
             public interface IThing { }
 
             [SingletonService]
@@ -129,15 +137,21 @@ public class EnvironmentConditionTests {
             public class Thing : IThing { }
             """;
 
-        Assert.Single(Compile(source + Module, Env("Development", ("MODE", "on"))).Descriptors("IThing"));
-        Assert.Empty(Compile(source + Module, Env("Development", ("MODE", "off"))).Descriptors("IThing"));
-        Assert.Empty(Compile(source + Module, Env("Production", ("MODE", "on"))).Descriptors("IThing"));
+        Assert.Single(
+            Compile(source + Module, Env("Development", ("MODE", "on"))).Descriptors("IThing")
+        );
+        Assert.Empty(
+            Compile(source + Module, Env("Development", ("MODE", "off"))).Descriptors("IThing")
+        );
+        Assert.Empty(
+            Compile(source + Module, Env("Production", ("MODE", "on"))).Descriptors("IThing")
+        );
     }
 
     [Fact]
-    public void SeveralValueConditionsAllHaveToHold() {
-        const string source =
-            """
+    public void SeveralValueConditionsAllHaveToHold()
+    {
+        const string source = """
             public interface IThing { }
 
             [SingletonService]
@@ -146,7 +160,9 @@ public class EnvironmentConditionTests {
             public class Thing : IThing { }
             """;
 
-        Assert.Single(Compile(source + Module, Env("Any", ("A", "1"), ("B", "2"))).Descriptors("IThing"));
+        Assert.Single(
+            Compile(source + Module, Env("Any", ("A", "1"), ("B", "2"))).Descriptors("IThing")
+        );
         Assert.Empty(Compile(source + Module, Env("Any", ("A", "1"))).Descriptors("IThing"));
     }
 
@@ -163,9 +179,9 @@ public class EnvironmentConditionTests {
     /// "Smtp" and the default would land last and win in every environment.
     /// </remarks>
     [Fact]
-    public void AConditionalRegistrationOverridesAnUnconditionalDefault() {
-        const string source =
-            """
+    public void AConditionalRegistrationOverridesAnUnconditionalDefault()
+    {
+        const string source = """
             public interface IEmailSender { }
 
             [SingletonService]
@@ -181,20 +197,22 @@ public class EnvironmentConditionTests {
 
         Assert.Equal(
             development.Type("FakeEmailSender"),
-            development.BuildProvider().GetService(development.Type("IEmailSender"))!.GetType());
+            development.BuildProvider().GetService(development.Type("IEmailSender"))!.GetType()
+        );
 
         Assert.Equal(
             production.Type("SmtpEmailSender"),
-            production.BuildProvider().GetService(production.Type("IEmailSender"))!.GetType());
+            production.BuildProvider().GetService(production.Type("IEmailSender"))!.GetType()
+        );
     }
 
     /// <summary>
     /// The motivating case: one service type, two implementations, exactly one registered.
     /// </summary>
     [Fact]
-    public void TwoImplementationsOfOneServiceSelectByEnvironment() {
-        const string source =
-            """
+    public void TwoImplementationsOfOneServiceSelectByEnvironment()
+    {
+        const string source = """
             public interface IEmailSender { string Name { get; } }
 
             [SingletonService]
@@ -209,14 +227,20 @@ public class EnvironmentConditionTests {
         var development = Compile(source + Module, Env("Development"));
         var production = Compile(source + Module, Env("Production"));
 
-        Assert.Equal(development.Type("FakeEmailSender"), development.Descriptor("IEmailSender").ImplementationType);
-        Assert.Equal(production.Type("SmtpEmailSender"), production.Descriptor("IEmailSender").ImplementationType);
+        Assert.Equal(
+            development.Type("FakeEmailSender"),
+            development.Descriptor("IEmailSender").ImplementationType
+        );
+        Assert.Equal(
+            production.Type("SmtpEmailSender"),
+            production.Descriptor("IEmailSender").ImplementationType
+        );
     }
 
     [Fact]
-    public void UnconditionalServicesInTheSameModuleAreUnaffected() {
-        const string source =
-            """
+    public void UnconditionalServicesInTheSameModuleAreUnaffected()
+    {
+        const string source = """
             public interface IAlways { }
             public interface ISometimes { }
 
@@ -235,7 +259,8 @@ public class EnvironmentConditionTests {
     }
 
     [Fact]
-    public void ModuleEnvironmentNoneRegistersNothingConditional() {
+    public void ModuleEnvironmentNoneRegistersNothingConditional()
+    {
         var assembly = Compile(NameGated + Module, ModuleEnvironment.None);
 
         Assert.Empty(assembly.Descriptors("IEmailSender"));
@@ -250,13 +275,15 @@ public class EnvironmentConditionTests {
     /// ModuleEnvironmentDefaultNameTests moves on purpose.
     /// </remarks>
     [Fact]
-    public void NoEnvironmentSuppliedUsesTheProcessEnvironment() {
+    public void NoEnvironmentSuppliedUsesTheProcessEnvironment()
+    {
         var supplied = Compile(NameGated + Module, ModuleEnvironment.CreateDefault());
         var omitted = Compile(NameGated + Module, environment: null);
 
         Assert.Equal(
             supplied.Descriptors("IEmailSender").Count,
-            omitted.Descriptors("IEmailSender").Count);
+            omitted.Descriptors("IEmailSender").Count
+        );
     }
 
     /// <summary>
@@ -276,9 +303,11 @@ public class EnvironmentConditionTests {
     [Theory]
     [InlineData("Development")]
     [InlineData("Production")]
-    public void AReferencedModuleConditionalDoesNotOverrideTheReferencingModule(string environmentName) {
-        const string source =
-            """
+    public void AReferencedModuleConditionalDoesNotOverrideTheReferencingModule(
+        string environmentName
+    )
+    {
+        const string source = """
             public interface IEmailSender { }
 
             [SingletonService(Realm = typeof(LibraryModule))]
@@ -300,7 +329,8 @@ public class EnvironmentConditionTests {
 
         Assert.Equal(
             assembly.Type("ApplicationOwn"),
-            assembly.BuildProvider().GetService(assembly.Type("IEmailSender"))!.GetType());
+            assembly.BuildProvider().GetService(assembly.Type("IEmailSender"))!.GetType()
+        );
     }
 
     /// <summary>
@@ -311,10 +341,11 @@ public class EnvironmentConditionTests {
     [InlineData("Development", "ApplicationFake")]
     [InlineData("Production", "LibrarySmtp")]
     public void AnApplicationConditionalOverridesAReferencedModuleDefault(
-        string environmentName, string expected) {
-
-        const string source =
-            """
+        string environmentName,
+        string expected
+    )
+    {
+        const string source = """
             public interface IEmailSender { }
 
             [SingletonService(Realm = typeof(LibraryModule))]
@@ -336,7 +367,8 @@ public class EnvironmentConditionTests {
 
         Assert.Equal(
             assembly.Type(expected),
-            assembly.BuildProvider().GetService(assembly.Type("IEmailSender"))!.GetType());
+            assembly.BuildProvider().GetService(assembly.Type("IEmailSender"))!.GetType()
+        );
     }
 
     /// <summary>
@@ -344,9 +376,9 @@ public class EnvironmentConditionTests {
     /// both are still in the enumerable.
     /// </summary>
     [Fact]
-    public void AConditionalOverrideLeavesTheDefaultInTheEnumerable() {
-        const string source =
-            """
+    public void AConditionalOverrideLeavesTheDefaultInTheEnumerable()
+    {
+        const string source = """
             public interface IEmailSender { }
 
             [SingletonService]
@@ -367,9 +399,9 @@ public class EnvironmentConditionTests {
     /// kind of registration it is, and the two compose.
     /// </summary>
     [Fact]
-    public void AConditionCombinesWithReplace() {
-        const string source =
-            """
+    public void AConditionCombinesWithReplace()
+    {
+        const string source = """
             public interface IEmailSender { }
 
             [SingletonService]
@@ -384,14 +416,21 @@ public class EnvironmentConditionTests {
         var production = Compile(source + Module, Env("Production"));
 
         Assert.Single(development.Descriptors("IEmailSender"));
-        Assert.Equal(development.Type("FakeEmailSender"), development.Descriptor("IEmailSender").ImplementationType);
+        Assert.Equal(
+            development.Type("FakeEmailSender"),
+            development.Descriptor("IEmailSender").ImplementationType
+        );
 
         Assert.Single(production.Descriptors("IEmailSender"));
-        Assert.Equal(production.Type("SmtpEmailSender"), production.Descriptor("IEmailSender").ImplementationType);
+        Assert.Equal(
+            production.Type("SmtpEmailSender"),
+            production.Descriptor("IEmailSender").ImplementationType
+        );
     }
 
     [Fact]
-    public void ConditionsAreReportedAtBuildTime() {
+    public void ConditionsAreReportedAtBuildTime()
+    {
         var result = GeneratorTestHarness.Run(Preamble + NameGated + Module);
 
         var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0011");
@@ -400,9 +439,9 @@ public class EnvironmentConditionTests {
     }
 
     [Fact]
-    public void UnconditionalServicesReportNothing() {
-        const string source =
-            """
+    public void UnconditionalServicesReportNothing()
+    {
+        const string source = """
             public interface IThing { }
 
             [SingletonService]
@@ -418,15 +457,15 @@ public class EnvironmentConditionTests {
     [InlineData("[IfEnvironment]", "environment name")]
     [InlineData("[IfNotEnvironment]", "environment name")]
     [InlineData("[IfEnvironmentValue(\"\")]", "key")]
-    public void AConditionThatTestsNothingIsRefused(string attribute, string expectedKind) {
-        var source =
-            $$"""
-              public interface IThing { }
+    public void AConditionThatTestsNothingIsRefused(string attribute, string expectedKind)
+    {
+        var source = $$"""
+            public interface IThing { }
 
-              [SingletonService]
-              {{attribute}}
-              public class Thing : IThing { }
-              """;
+            [SingletonService]
+            {{attribute}}
+            public class Thing : IThing { }
+            """;
 
         var result = GeneratorTestHarness.Run(Preamble + source + Module);
 
@@ -436,8 +475,10 @@ public class EnvironmentConditionTests {
 
         // Reported, not silently dropped: the service still registers rather than vanishing.
         Assert.Single(
-            GeneratedAssembly.Create(Preamble + source + Module, environment: ModuleEnvironment.None)
-                .Descriptors("IThing"));
+            GeneratedAssembly
+                .Create(Preamble + source + Module, environment: ModuleEnvironment.None)
+                .Descriptors("IThing")
+        );
     }
 
     /// <summary>
@@ -445,9 +486,9 @@ public class EnvironmentConditionTests {
     /// keeps its environment names in one place would silently never match.
     /// </summary>
     [Fact]
-    public void ConditionArgumentsMayBeConstants() {
-        const string source =
-            """
+    public void ConditionArgumentsMayBeConstants()
+    {
+        const string source = """
             public static class Environments {
                 public const string Development = "Development";
             }
@@ -469,9 +510,9 @@ public class EnvironmentConditionTests {
     /// already, and here it would register a development service in production.
     /// </summary>
     [Fact]
-    public void ANamespaceQualifiedConditionStillApplies() {
-        const string source =
-            """
+    public void ANamespaceQualifiedConditionStillApplies()
+    {
+        const string source = """
             public interface IThing { }
 
             [SingletonService]

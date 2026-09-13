@@ -9,7 +9,8 @@ namespace DependencyModules.Runtime.Interception;
 /// writing one replaces the value the implementation will receive, and an interceptor that ignores
 /// them pays for neither.
 /// </remarks>
-public interface IArguments {
+public interface IArguments
+{
     /// <summary>
     /// The number of arguments the intercepted member declares.
     /// </summary>

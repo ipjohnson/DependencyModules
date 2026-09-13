@@ -13,11 +13,13 @@ namespace SutProject.Tests.ConventionTests;
 /// decoration do not know a service was registered by convention, conventions do not know a
 /// candidate is intercepted, and the type shapes people write are not all plain classes.
 /// </remarks>
-public class ConventionInteractionTests {
-
+public class ConventionInteractionTests
+{
     private static ServiceProvider Provider(
-        IModuleEnvironment? environment, params IDependencyModule[] modules) {
-
+        IModuleEnvironment? environment,
+        params IDependencyModule[] modules
+    )
+    {
         var collection = new ServiceCollection();
 
         collection.AddModules(environment, modules);
@@ -34,7 +36,8 @@ public class ConventionInteractionTests {
     /// ends up registered.
     /// </summary>
     [Fact]
-    public void AConventionRegisteredServiceIsIntercepted() {
+    public void AConventionRegisteredServiceIsIntercepted()
+    {
         var provider = Provider(new ConventionInterceptModule());
 
         var service = provider.GetRequiredService<IInterceptedByConvention>();
@@ -48,7 +51,8 @@ public class ConventionInteractionTests {
     /// Two decorators nest by declared order, lower closest to the implementation.
     /// </summary>
     [Fact]
-    public void DecoratorsNestByOrderOverAConventionRegistration() {
+    public void DecoratorsNestByOrderOverAConventionRegistration()
+    {
         var provider = Provider(new ConventionOrderedDecoratorModule());
 
         Assert.Equal("outer(inner(core))", provider.GetRequiredService<IOrdered>().Describe());
@@ -58,12 +62,14 @@ public class ConventionInteractionTests {
     /// Decoration rewrites a keyed registration in place, keeping the key.
     /// </summary>
     [Fact]
-    public void AKeyedConventionRegistrationIsDecorated() {
+    public void AKeyedConventionRegistrationIsDecorated()
+    {
         var provider = Provider(new ConventionKeyedDecoratedModule());
 
         Assert.Equal(
             "wrapped(core)",
-            provider.GetRequiredKeyedService<IKeyedAndDecorated>("main").Describe());
+            provider.GetRequiredKeyedService<IKeyedAndDecorated>("main").Describe()
+        );
     }
 
     /// <summary>
@@ -71,7 +77,8 @@ public class ConventionInteractionTests {
     /// convention registration can be injected into another.
     /// </summary>
     [Fact]
-    public void RecordsNestedTypesAndPrimaryConstructorsAreCandidates() {
+    public void RecordsNestedTypesAndPrimaryConstructorsAreCandidates()
+    {
         var names = Provider(new ConventionShapesModule())
             .GetServices<IShaped>()
             .Select(shaped => shaped.Name)
@@ -85,7 +92,8 @@ public class ConventionInteractionTests {
     /// An OnlyRealm module takes its own convention registrations, which name it as their realm.
     /// </summary>
     [Fact]
-    public void ARealmModuleTakesItsOwnConventionRegistrations() {
+    public void ARealmModuleTakesItsOwnConventionRegistrations()
+    {
         var provider = Provider(new ConventionRealmModule());
 
         Assert.Equal("realm", provider.GetRequiredService<IRealmScoped>().Name);
@@ -95,7 +103,8 @@ public class ConventionInteractionTests {
     /// Composing a module brings its conventions with it, the same as its attribute registrations.
     /// </summary>
     [Fact]
-    public void ComposingAModuleBringsItsConventions() {
+    public void ComposingAModuleBringsItsConventions()
+    {
         var provider = Provider(new ConventionCompositionModule());
 
         Assert.Equal("composed", provider.GetRequiredService<IComposedService>().Name);
@@ -110,9 +119,14 @@ public class ConventionInteractionTests {
     [InlineData("Development", new[] { "always", "development" })]
     [InlineData("Production", new[] { "always" })]
     public void EnvironmentConditionsApplyToConventionCandidates(
-        string environmentName, string[] expected) {
-
-        var names = Provider(new ModuleEnvironment(environmentName), new ConventionConditionalModule())
+        string environmentName,
+        string[] expected
+    )
+    {
+        var names = Provider(
+                new ModuleEnvironment(environmentName),
+                new ConventionConditionalModule()
+            )
             .GetServices<IConditionalByConvention>()
             .Select(service => service.Name)
             .OrderBy(name => name)
@@ -126,7 +140,8 @@ public class ConventionInteractionTests {
     /// declaring module, so two modules scanning the same interface do not leak into each other.
     /// </summary>
     [Fact]
-    public void ConventionRegistrationsDoNotLeakBetweenModules() {
+    public void ConventionRegistrationsDoNotLeakBetweenModules()
+    {
         var onlyShapes = Provider(new ConventionShapesModule());
 
         Assert.Empty(onlyShapes.GetServices<IOrdered>());

@@ -14,7 +14,8 @@ namespace SutProject.Tests.EnvironmentTests;
 /// tests.
 /// </summary>
 [AttributeUsage(AttributeTargets.Assembly | AttributeTargets.Class | AttributeTargets.Method)]
-public class SeededEnvironmentAttribute(string name) : Attribute, IModuleEnvironmentProvider {
+public class SeededEnvironmentAttribute(string name) : Attribute, IModuleEnvironmentProvider
+{
     public IModuleEnvironment? ProvideEnvironment(MethodInfo testMethod) =>
         new ModuleEnvironment(false, name);
 }
@@ -38,12 +39,13 @@ public partial class SeededEnvironmentModule { }
 /// service-setup pass, so every condition had been decided against the process default before an
 /// attribute could register anything.
 /// </remarks>
-public class EnvironmentSeedingTests {
-
+public class EnvironmentSeedingTests
+{
     [ModuleTest]
     [SeededEnvironmentModule]
     [SeededEnvironment("seeded-environment")]
-    public void AGatedRegistrationAppliesUnderTheSeededEnvironment(IServiceProvider provider) {
+    public void AGatedRegistrationAppliesUnderTheSeededEnvironment(IServiceProvider provider)
+    {
         Assert.NotNull(provider.GetService<IGatedByEnvironment>());
     }
 
@@ -53,7 +55,8 @@ public class EnvironmentSeedingTests {
     /// </summary>
     [ModuleTest]
     [SeededEnvironmentModule]
-    public void TheSameRegistrationIsAbsentWithoutASeed(IServiceProvider provider) {
+    public void TheSameRegistrationIsAbsentWithoutASeed(IServiceProvider provider)
+    {
         Assert.Null(provider.GetService<IGatedByEnvironment>());
     }
 
@@ -61,31 +64,35 @@ public class EnvironmentSeedingTests {
     [ModuleTest]
     [EnvironmentAwareModule]
     [SeededEnvironment("seeded-environment")]
-    public void AModuleReadingTheEnvironmentSeesTheSeededOne(IEnvironmentDependency dependency) {
+    public void AModuleReadingTheEnvironmentSeesTheSeededOne(IEnvironmentDependency dependency)
+    {
         Assert.Equal("seeded-environment", dependency.EnvironmentName);
     }
 
     [ModuleTest]
     [EnvironmentAwareModule]
-    public void WithoutASeedTheProcessDefaultApplies(IEnvironmentDependency dependency) {
+    public void WithoutASeedTheProcessDefaultApplies(IEnvironmentDependency dependency)
+    {
         Assert.Equal(ModuleEnvironment.CreateDefault().EnvironmentName, dependency.EnvironmentName);
     }
 }
 
 /// <summary>Narrowest scope wins, matching how every other attribute here resolves.</summary>
 [SeededEnvironment("outer-environment")]
-public class EnvironmentSeedingPrecedenceTests {
-
+public class EnvironmentSeedingPrecedenceTests
+{
     [ModuleTest]
     [EnvironmentAwareModule]
-    public void AClassLevelSeedApplies(IEnvironmentDependency dependency) {
+    public void AClassLevelSeedApplies(IEnvironmentDependency dependency)
+    {
         Assert.Equal("outer-environment", dependency.EnvironmentName);
     }
 
     [ModuleTest]
     [EnvironmentAwareModule]
     [SeededEnvironment("inner-environment")]
-    public void TheMethodsSeedBeatsTheClasses(IEnvironmentDependency dependency) {
+    public void TheMethodsSeedBeatsTheClasses(IEnvironmentDependency dependency)
+    {
         Assert.Equal("inner-environment", dependency.EnvironmentName);
     }
 }

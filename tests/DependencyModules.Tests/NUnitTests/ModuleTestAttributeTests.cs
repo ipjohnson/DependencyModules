@@ -17,16 +17,16 @@ namespace DependencyModules.Tests.NUnitTests;
 /// services, and the row kept aside so execution knows which leading arguments are real. Building a
 /// container here instead would construct every mock in an assembly during discovery.
 /// </remarks>
-public class ModuleTestAttributeTests {
-
+public class ModuleTestAttributeTests
+{
     private interface IService;
 
     /// <summary>
     /// The methods under test, carrying real attributes — the same reflection <c>BuildFrom</c> reads
     /// from at discovery.
     /// </summary>
-    private class Samples {
-
+    private class Samples
+    {
         public void NoParameters() { }
 
         public void OneServiceParameter(IService service) { }
@@ -56,7 +56,8 @@ public class ModuleTestAttributeTests {
     }
 
     [Fact]
-    public void BuildsOneCaseWhenThereAreNoRows() {
+    public void BuildsOneCaseWhenThereAreNoRows()
+    {
         var testMethod = Assert.Single(Build(nameof(Samples.OneServiceParameter)));
 
         Assert.Equal(nameof(Samples.OneServiceParameter), testMethod.Name);
@@ -68,7 +69,8 @@ public class ModuleTestAttributeTests {
     /// NUnit checks the argument count against the method's parameters when the case is built.
     /// </summary>
     [Fact]
-    public void APlaceholderIsSuppliedForEveryParameter() {
+    public void APlaceholderIsSuppliedForEveryParameter()
+    {
         var testMethod = Assert.Single(Build(nameof(Samples.NumberThenService)));
 
         Assert.Equal(2, testMethod.Arguments.Length);
@@ -76,12 +78,14 @@ public class ModuleTestAttributeTests {
     }
 
     [Fact]
-    public void AMethodWithNoParametersBuildsWithNoArguments() {
+    public void AMethodWithNoParametersBuildsWithNoArguments()
+    {
         Assert.Empty(Assert.Single(Build(nameof(Samples.NoParameters))).Arguments);
     }
 
     [Fact]
-    public void BuildsOneCasePerRow() {
+    public void BuildsOneCasePerRow()
+    {
         var built = Build(nameof(Samples.TwoRows));
 
         Assert.Equal(2, built.Length);
@@ -93,7 +97,8 @@ public class ModuleTestAttributeTests {
     /// A row covers the leading parameters only; the rest stay null until the container fills them.
     /// </summary>
     [Fact]
-    public void ARowLeavesTheRemainingParametersToTheContainer() {
+    public void ARowLeavesTheRemainingParametersToTheContainer()
+    {
         var testMethod = Assert.Single(Build(nameof(Samples.OneRowCoveringOneOfTwoParameters)));
 
         Assert.Equal(7, testMethod.Arguments[0]);
@@ -101,9 +106,12 @@ public class ModuleTestAttributeTests {
     }
 
     [Fact]
-    public void RowsAreNamedAfterTheirOwnArguments() {
-        Assert.Equal("OneRowCoveringOneOfTwoParameters(7)",
-            Assert.Single(Build(nameof(Samples.OneRowCoveringOneOfTwoParameters))).Name);
+    public void RowsAreNamedAfterTheirOwnArguments()
+    {
+        Assert.Equal(
+            "OneRowCoveringOneOfTwoParameters(7)",
+            Assert.Single(Build(nameof(Samples.OneRowCoveringOneOfTwoParameters))).Name
+        );
     }
 
     /// <summary>
@@ -112,13 +120,17 @@ public class ModuleTestAttributeTests {
     /// the time the test runs.
     /// </summary>
     [Fact]
-    public void ARowsNameOmitsTheParametersTheContainerSupplies() {
-        Assert.DoesNotContain("null",
-            Assert.Single(Build(nameof(Samples.OneRowCoveringOneOfTwoParameters))).Name);
+    public void ARowsNameOmitsTheParametersTheContainerSupplies()
+    {
+        Assert.DoesNotContain(
+            "null",
+            Assert.Single(Build(nameof(Samples.OneRowCoveringOneOfTwoParameters))).Name
+        );
     }
 
     [Fact]
-    public void StringsAreQuotedAndNullsSpelledOutInARowsName() {
+    public void StringsAreQuotedAndNullsSpelledOutInARowsName()
+    {
         var built = Build(nameof(Samples.RowsNeedingQuoting));
 
         Assert.Equal("RowsNeedingQuoting(1, \"text\")", built[0].Name);
@@ -126,7 +138,8 @@ public class ModuleTestAttributeTests {
     }
 
     [Fact]
-    public void ARowCanNameItself() {
+    public void ARowCanNameItself()
+    {
         Assert.Equal("the first one", Assert.Single(Build(nameof(Samples.NamedRow))).Name);
     }
 
@@ -134,7 +147,8 @@ public class ModuleTestAttributeTests {
     /// The case a live fixture cannot cover, because a non-runnable test is a failing one.
     /// </summary>
     [Fact]
-    public void ARowWithTooManyArgumentsIsReportedRatherThanThrown() {
+    public void ARowWithTooManyArgumentsIsReportedRatherThanThrown()
+    {
         var testMethod = Assert.Single(Build(nameof(Samples.TooManyArguments)));
 
         Assert.Equal(RunState.NotRunnable, testMethod.RunState);
@@ -149,7 +163,8 @@ public class ModuleTestAttributeTests {
     /// discovery would do.
     /// </summary>
     [Fact]
-    public void AGoodRowStillBuildsAlongsideABadOne() {
+    public void AGoodRowStillBuildsAlongsideABadOne()
+    {
         var built = Build(nameof(Samples.OneGoodRowAndOneBad));
 
         Assert.Equal(2, built.Length);
@@ -157,7 +172,8 @@ public class ModuleTestAttributeTests {
         Assert.Equal(RunState.NotRunnable, built[1].RunState);
     }
 
-    private static TestMethod[] Build(string methodName) {
+    private static TestMethod[] Build(string methodName)
+    {
         var method = typeof(Samples).GetMethod(methodName)!;
 
         return new ModuleTestAttribute()

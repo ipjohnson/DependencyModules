@@ -1,5 +1,5 @@
-using DependencyModules.Runtime.Conventions;
 using DependencyModules.Runtime.Attributes;
+using DependencyModules.Runtime.Conventions;
 using SecondarySutProject;
 using SutProject.Tests.ConventionTests.Nested;
 
@@ -17,23 +17,28 @@ namespace SutProject.Tests.ConventionTests;
 // to use when the decorator or the service comes from an assembly you do not control.
 // ---------------------------------------------------------------------------
 
-public interface IModuleDecorated {
+public interface IModuleDecorated
+{
     string Describe();
 }
 
-public class ModuleDecoratedCore : IModuleDecorated {
+public class ModuleDecoratedCore : IModuleDecorated
+{
     public string Describe() => "core";
 }
 
 /// <summary>Carries no [Decorator]; the module names it instead.</summary>
-public class ModuleDecoratedWrapper(IModuleDecorated inner) : IModuleDecorated {
+public class ModuleDecoratedWrapper(IModuleDecorated inner) : IModuleDecorated
+{
     public string Describe() => $"wrapped({inner.Describe()})";
 }
 
 [DependencyModule]
 [Decorate(typeof(IModuleDecorated), typeof(ModuleDecoratedWrapper))]
-public partial class ConventionModuleDecorateModule : IConventionModule {
-    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+public partial class ConventionModuleDecorateModule : IConventionModule
+{
+    void IConventionModule.Conventions(IConventionDefinitions conventions)
+    {
         // The wrapper implements the interface too, so it would match. Excluding it by name is the
         // cost of declaring decoration on the module rather than on the class.
         conventions.RegisterAll<IModuleDecorated>().WithoutName("*Wrapper").AsSingleton();
@@ -44,28 +49,35 @@ public partial class ConventionModuleDecorateModule : IConventionModule {
 // Two modules scanning one interface, composed into the same application.
 // ---------------------------------------------------------------------------
 
-public interface IShared {
+public interface IShared
+{
     string Name { get; }
 }
 
-public class SharedFirst : IShared {
+public class SharedFirst : IShared
+{
     public string Name => "first";
 }
 
-public class SharedSecond : IShared {
+public class SharedSecond : IShared
+{
     public string Name => "second";
 }
 
 [DependencyModule]
-public partial class ConventionSharedFirstModule : IConventionModule {
-    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+public partial class ConventionSharedFirstModule : IConventionModule
+{
+    void IConventionModule.Conventions(IConventionDefinitions conventions)
+    {
         conventions.RegisterAll<IShared>().WithName("SharedFirst").AsSingleton();
     }
 }
 
 [DependencyModule]
-public partial class ConventionSharedSecondModule : IConventionModule {
-    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+public partial class ConventionSharedSecondModule : IConventionModule
+{
+    void IConventionModule.Conventions(IConventionDefinitions conventions)
+    {
         conventions.RegisterAll<IShared>().WithName("SharedSecond").AsSingleton();
         conventions.RegisterAll<IAlsoShaped>().WithoutName("SharedFirst").AsSingleton();
     }
@@ -75,35 +87,48 @@ public partial class ConventionSharedSecondModule : IConventionModule {
 // Exact versus prefix namespaces, and the negative form.
 // ---------------------------------------------------------------------------
 
-public interface INamespaceScanned {
+public interface INamespaceScanned
+{
     string Name { get; }
 }
 
-public class RootLevelScanned : INamespaceScanned {
+public class RootLevelScanned : INamespaceScanned
+{
     public string Name => "root";
 }
 
 /// <summary>Prefix filters reach into nested namespaces; exact ones do not.</summary>
 [DependencyModule]
-public partial class ConventionPrefixNamespaceModule : IConventionModule {
-    void IConventionModule.Conventions(IConventionDefinitions conventions) {
-        conventions.RegisterAll<INamespaceScanned>().InNamespaceOf<RootLevelScanned>().AsSingleton();
+public partial class ConventionPrefixNamespaceModule : IConventionModule
+{
+    void IConventionModule.Conventions(IConventionDefinitions conventions)
+    {
+        conventions
+            .RegisterAll<INamespaceScanned>()
+            .InNamespaceOf<RootLevelScanned>()
+            .AsSingleton();
     }
 }
 
 [DependencyModule]
-public partial class ConventionExactNamespaceModule : IConventionModule {
-    void IConventionModule.Conventions(IConventionDefinitions conventions) {
-        conventions.RegisterAll<INamespaceScanned>()
+public partial class ConventionExactNamespaceModule : IConventionModule
+{
+    void IConventionModule.Conventions(IConventionDefinitions conventions)
+    {
+        conventions
+            .RegisterAll<INamespaceScanned>()
             .InExactNamespaces("SutProject.Tests.ConventionTests")
             .AsSingleton();
     }
 }
 
 [DependencyModule]
-public partial class ConventionExcludedNamespaceModule : IConventionModule {
-    void IConventionModule.Conventions(IConventionDefinitions conventions) {
-        conventions.RegisterAll<INamespaceScanned>()
+public partial class ConventionExcludedNamespaceModule : IConventionModule
+{
+    void IConventionModule.Conventions(IConventionDefinitions conventions)
+    {
+        conventions
+            .RegisterAll<INamespaceScanned>()
             .NotInNamespaceOf<NestedScanned>()
             .AsSingleton();
     }
@@ -113,18 +138,22 @@ public partial class ConventionExcludedNamespaceModule : IConventionModule {
 // An open generic implementation, resolved at several closings.
 // ---------------------------------------------------------------------------
 
-public interface IOpenCache<T> {
+public interface IOpenCache<T>
+{
     string Describe();
 }
 
 /// <summary>Closes nothing, so it registers as the open generic.</summary>
-public class OpenPassThroughCache<T> : IOpenCache<T> {
+public class OpenPassThroughCache<T> : IOpenCache<T>
+{
     public string Describe() => "cache:" + typeof(T).Name;
 }
 
 [DependencyModule]
-public partial class ConventionOpenGenericModule : IConventionModule {
-    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+public partial class ConventionOpenGenericModule : IConventionModule
+{
+    void IConventionModule.Conventions(IConventionDefinitions conventions)
+    {
         conventions.RegisterAll(typeof(IOpenCache<>)).AsSingleton();
     }
 }
@@ -133,36 +162,44 @@ public partial class ConventionOpenGenericModule : IConventionModule {
 // Lifetime, disposal, and an internal candidate.
 // ---------------------------------------------------------------------------
 
-public interface IScopedByConvention {
+public interface IScopedByConvention
+{
     Guid Id { get; }
 }
 
-public class ScopedByConvention : IScopedByConvention {
+public class ScopedByConvention : IScopedByConvention
+{
     public Guid Id { get; } = Guid.NewGuid();
 }
 
-public interface IDisposableByConvention {
+public interface IDisposableByConvention
+{
     bool Disposed { get; }
 }
 
-public class DisposableByConvention : IDisposableByConvention, IDisposable {
+public class DisposableByConvention : IDisposableByConvention, IDisposable
+{
     public bool Disposed { get; private set; }
 
     public void Dispose() => Disposed = true;
 }
 
 /// <summary>Internal, and still a candidate — the compilation being built sees its own internals.</summary>
-public interface IInternallyImplemented {
+public interface IInternallyImplemented
+{
     string Name { get; }
 }
 
-internal class InternalCandidate : IInternallyImplemented {
+internal class InternalCandidate : IInternallyImplemented
+{
     public string Name => "internal";
 }
 
 [DependencyModule]
-public partial class ConventionLifetimeModule : IConventionModule {
-    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+public partial class ConventionLifetimeModule : IConventionModule
+{
+    void IConventionModule.Conventions(IConventionDefinitions conventions)
+    {
         conventions.RegisterAll<IScopedByConvention>().AsScoped();
         conventions.RegisterAll<IDisposableByConvention>().AsSingleton();
         conventions.RegisterAll<IInternallyImplemented>().AsSingleton();
@@ -174,32 +211,38 @@ public partial class ConventionLifetimeModule : IConventionModule {
 // ActivatorUtilities, so everything but the inner instance is resolved from the container.
 // ---------------------------------------------------------------------------
 
-public interface IDecoratorDependency {
+public interface IDecoratorDependency
+{
     string Value { get; }
 }
 
-public class DecoratorDependency : IDecoratorDependency {
+public class DecoratorDependency : IDecoratorDependency
+{
     public string Value => "dep";
 }
 
-public interface IDependentlyDecorated {
+public interface IDependentlyDecorated
+{
     string Describe();
 }
 
-public class DependentlyDecoratedCore : IDependentlyDecorated {
+public class DependentlyDecoratedCore : IDependentlyDecorated
+{
     public string Describe() => "core";
 }
 
 [Decorator]
 public class DependentlyDecorating(IDependentlyDecorated inner, IDecoratorDependency dependency)
-    : IDependentlyDecorated {
-
+    : IDependentlyDecorated
+{
     public string Describe() => $"{dependency.Value}({inner.Describe()})";
 }
 
 [DependencyModule]
-public partial class ConventionDecoratorDependencyModule : IConventionModule {
-    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+public partial class ConventionDecoratorDependencyModule : IConventionModule
+{
+    void IConventionModule.Conventions(IConventionDefinitions conventions)
+    {
         conventions.RegisterAll<IDependentlyDecorated>().AsSingleton();
         conventions.RegisterAll<IDecoratorDependency>().AsSingleton();
     }
@@ -210,9 +253,12 @@ public partial class ConventionDecoratorDependencyModule : IConventionModule {
 // ---------------------------------------------------------------------------
 
 [DependencyModule]
-public partial class ConventionFilteredScanModule : IConventionModule {
-    void IConventionModule.Conventions(IConventionDefinitions conventions) {
-        conventions.RegisterAll<IPackagePolicy>()
+public partial class ConventionFilteredScanModule : IConventionModule
+{
+    void IConventionModule.Conventions(IConventionDefinitions conventions)
+    {
+        conventions
+            .RegisterAll<IPackagePolicy>()
             .InAssemblyOf<FirstPackagePolicy>()
             .WithName("First*")
             .AsSelf()

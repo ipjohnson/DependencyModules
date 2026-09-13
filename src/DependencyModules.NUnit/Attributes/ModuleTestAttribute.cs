@@ -29,14 +29,20 @@ namespace DependencyModules.NUnit.Attributes;
 /// <example>
 /// <code>
 /// [ModuleTest(typeof(MyModule))]
-/// public void ResolvesTheService(IMyService service) {
+/// public void ResolvesTheService(IMyService service)
+/// {
 ///     Assert.That(service, Is.Not.Null);
 /// }
 /// </code>
 /// </example>
 [AttributeUsage(AttributeTargets.Method)]
-public class ModuleTestAttribute : Attribute, ITestBuilder, IWrapSetUpTearDown, IImplyFixture, IModuleTestAttribute {
-
+public class ModuleTestAttribute
+    : Attribute,
+        ITestBuilder,
+        IWrapSetUpTearDown,
+        IImplyFixture,
+        IModuleTestAttribute
+{
     /// <summary>
     /// Where a row's arguments are stashed between building the test case and executing it.
     /// </summary>
@@ -57,14 +63,13 @@ public class ModuleTestAttribute : Attribute, ITestBuilder, IWrapSetUpTearDown, 
     /// parameters after a params array. NUnit takes navigation from the assembly's symbols instead,
     /// so nothing is lost by taking the params form here.
     /// </remarks>
-    public ModuleTestAttribute(params Type[] modules) {
+    public ModuleTestAttribute(params Type[] modules)
+    {
         ModuleTypes = modules;
     }
 
     /// <inheritdoc />
-    public Type[] ModuleTypes {
-        get;
-    }
+    public Type[] ModuleTypes { get; }
 
     /// <summary>
     /// Builds one test case per data row, or a single case when the method has no rows.
@@ -75,30 +80,42 @@ public class ModuleTestAttribute : Attribute, ITestBuilder, IWrapSetUpTearDown, 
     /// this has to satisfy is NUnit's arity check, which an array of the right length does; the real
     /// arguments are written into that array at execution time, once there is a container.
     /// </remarks>
-    public IEnumerable<TestMethod> BuildFrom(IMethodInfo method, Test? suite) {
+    public IEnumerable<TestMethod> BuildFrom(IMethodInfo method, Test? suite)
+    {
         var parameterCount = method.GetParameters().Length;
 
-        var rows = method.MethodInfo.GetCustomAttributes(false)
+        var rows = method
+            .MethodInfo.GetCustomAttributes(false)
             .OfType<IModuleTestDataAttribute>()
             .SelectMany(dataAttribute => dataAttribute.GetRows(method.MethodInfo))
             .ToArray();
 
-        if (rows.Length == 0) {
-            yield return BuildTestMethod(method, suite, new object?[parameterCount], null, method.Name);
+        if (rows.Length == 0)
+        {
+            yield return BuildTestMethod(
+                method,
+                suite,
+                new object?[parameterCount],
+                null,
+                method.Name
+            );
 
             yield break;
         }
 
-        var names = method.MethodInfo.GetCustomAttributes(false)
+        var names = method
+            .MethodInfo.GetCustomAttributes(false)
             .OfType<ModuleTestCaseAttribute>()
             .Select(attribute => attribute.TestName)
             .ToArray();
 
-        for (var i = 0; i < rows.Length; i++) {
+        for (var i = 0; i < rows.Length; i++)
+        {
             var row = rows[i];
             var arguments = new object?[parameterCount];
 
-            if (row.Length <= parameterCount) {
+            if (row.Length <= parameterCount)
+            {
                 Array.Copy(row, arguments, row.Length);
             }
 
@@ -106,15 +123,17 @@ public class ModuleTestAttribute : Attribute, ITestBuilder, IWrapSetUpTearDown, 
 
             var testMethod = BuildTestMethod(method, suite, arguments, row, testName);
 
-            if (row.Length > parameterCount) {
+            if (row.Length > parameterCount)
+            {
                 // Reported as a failing test rather than thrown, so one bad row names itself instead
                 // of taking down discovery for the whole fixture.
                 testMethod.RunState = RunState.NotRunnable;
                 testMethod.Properties.Set(
                     PropertyNames.SkipReason,
-                    $"[ModuleTestCase] supplied {row.Length} arguments to a method taking " +
-                    $"{parameterCount}. A row may supply fewer than the method takes — the remaining " +
-                    "parameters are resolved from the container — but not more.");
+                    $"[ModuleTestCase] supplied {row.Length} arguments to a method taking "
+                        + $"{parameterCount}. A row may supply fewer than the method takes — the remaining "
+                        + "parameters are resolved from the container — but not more."
+                );
             }
 
             yield return testMethod;
@@ -125,12 +144,19 @@ public class ModuleTestAttribute : Attribute, ITestBuilder, IWrapSetUpTearDown, 
     public TestCommand Wrap(TestCommand command) => new ModuleTestCommand(command);
 
     private static TestMethod BuildTestMethod(
-        IMethodInfo method, Test? suite, object?[] arguments, object?[]? row, string testName) {
+        IMethodInfo method,
+        Test? suite,
+        object?[] arguments,
+        object?[]? row,
+        string testName
+    )
+    {
         var parameters = new TestCaseParameters(arguments) { TestName = testName };
 
         var testMethod = new NUnitTestCaseBuilder().BuildTestMethod(method, suite, parameters);
 
-        if (row != null) {
+        if (row != null)
+        {
             testMethod.Properties.Set(RowPropertyName, row);
         }
 
@@ -153,11 +179,12 @@ public class ModuleTestAttribute : Attribute, ITestBuilder, IWrapSetUpTearDown, 
     /// keeps a name that a test explorer filters on from changing with the machine's locale.
     /// </remarks>
     private static string FormatArgument(object? argument) =>
-        argument switch {
+        argument switch
+        {
             null => "null",
             string text => $"\"{text}\"",
             char character => $"'{character}'",
             IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
-            _ => argument.ToString() ?? string.Empty
+            _ => argument.ToString() ?? string.Empty,
         };
 }

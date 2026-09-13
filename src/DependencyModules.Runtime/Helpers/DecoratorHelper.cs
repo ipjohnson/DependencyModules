@@ -24,8 +24,8 @@ namespace DependencyModules.Runtime.Helpers;
 /// decorator is constructed by a literal <c>new</c> and the code exists in the assembly.
 /// </para>
 /// </remarks>
-public static class DecoratorHelper {
-
+public static class DecoratorHelper
+{
     /// <summary>
     /// Swaps an <b>open generic</b> registration for a generated wrapper that implements the same
     /// open generic service.
@@ -63,25 +63,38 @@ public static class DecoratorHelper {
         IServiceCollection services,
         Type serviceType,
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
-        Type implementationType,
+            Type implementationType,
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
-        Type wrapperType) {
-
+            Type wrapperType
+    )
+    {
         // Snapshotted: the loop appends the implementation's own registration, and re-reading Count
         // would walk into what it just added.
         var count = services.Count;
 
-        for (var i = 0; i < count; i++) {
+        for (var i = 0; i < count; i++)
+        {
             var descriptor = services[i];
 
-            if (descriptor.ServiceType != serviceType || ImplementationOf(descriptor) != implementationType) {
+            if (
+                descriptor.ServiceType != serviceType
+                || ImplementationOf(descriptor) != implementationType
+            )
+            {
                 continue;
             }
 
-            services.Add(new ServiceDescriptor(implementationType, implementationType, descriptor.Lifetime));
+            services.Add(
+                new ServiceDescriptor(implementationType, implementationType, descriptor.Lifetime)
+            );
 
             services[i] = descriptor.IsKeyedService
-                ? new ServiceDescriptor(serviceType, descriptor.ServiceKey, wrapperType, descriptor.Lifetime)
+                ? new ServiceDescriptor(
+                    serviceType,
+                    descriptor.ServiceKey,
+                    wrapperType,
+                    descriptor.Lifetime
+                )
                 : new ServiceDescriptor(serviceType, wrapperType, descriptor.Lifetime);
         }
     }
@@ -94,7 +107,9 @@ public static class DecoratorHelper {
     /// cannot be read through one property.
     /// </remarks>
     private static Type? ImplementationOf(ServiceDescriptor descriptor) =>
-        descriptor.IsKeyedService ? descriptor.KeyedImplementationType : descriptor.ImplementationType;
+        descriptor.IsKeyedService
+            ? descriptor.KeyedImplementationType
+            : descriptor.ImplementationType;
 
     /// <summary>
     /// Wraps every registration of <paramref name="serviceType"/> using <paramref name="decoratorFactory"/>.
@@ -114,8 +129,9 @@ public static class DecoratorHelper {
     public static void Decorate(
         IServiceCollection services,
         Type serviceType,
-        Func<IServiceProvider, object, object> decoratorFactory) {
-
+        Func<IServiceProvider, object, object> decoratorFactory
+    )
+    {
         Decorate(services, serviceType, decoratorFactory, null, null);
     }
 
@@ -142,8 +158,10 @@ public static class DecoratorHelper {
     public static void Decorate<TService>(
         IServiceCollection services,
         Type decoratorIdentity,
-        Func<IServiceProvider, TService, TService> decoratorFactory) where TService : class {
-
+        Func<IServiceProvider, TService, TService> decoratorFactory
+    )
+        where TService : class
+    {
         Decorate(services, decoratorIdentity, decoratorFactory, null);
     }
 
@@ -182,15 +200,18 @@ public static class DecoratorHelper {
         IServiceCollection services,
         Type decoratorIdentity,
         Func<IServiceProvider, TService, TService> decoratorFactory,
-        Type? implementationType) where TService : class {
-
+        Type? implementationType
+    )
+        where TService : class
+    {
         Decorate(
             services,
             typeof(TService),
             (provider, inner) => decoratorFactory(provider, (TService)inner),
             null,
             decoratorIdentity,
-            implementationType);
+            implementationType
+        );
     }
 
     /// <summary>
@@ -217,14 +238,18 @@ public static class DecoratorHelper {
     private static readonly ConditionalWeakTable<ServiceDescriptor, HashSet<Type>> Applied = new();
 
     private static bool AlreadyApplied(ServiceDescriptor descriptor, Type? decoratorIdentity) =>
-        decoratorIdentity != null &&
-        Applied.TryGetValue(descriptor, out var applied) &&
-        applied.Contains(decoratorIdentity);
+        decoratorIdentity != null
+        && Applied.TryGetValue(descriptor, out var applied)
+        && applied.Contains(decoratorIdentity);
 
     private static void RecordApplied(
-        ServiceDescriptor original, ServiceDescriptor replacement, Type? decoratorIdentity) {
-
-        if (decoratorIdentity == null) {
+        ServiceDescriptor original,
+        ServiceDescriptor replacement,
+        Type? decoratorIdentity
+    )
+    {
+        if (decoratorIdentity == null)
+        {
             return;
         }
 
@@ -232,7 +257,8 @@ public static class DecoratorHelper {
 
         // Stacked decorators each rewrite the slot, so the set has to follow the descriptor that
         // now occupies it rather than staying with the one that was replaced.
-        if (Applied.TryGetValue(original, out var existing)) {
+        if (Applied.TryGetValue(original, out var existing))
+        {
             applied.UnionWith(existing);
         }
 
@@ -251,7 +277,8 @@ public static class DecoratorHelper {
     /// then be unable to recognise its own registration, so the origin is carried across the
     /// replacement the same way <see cref="Applied"/> is.
     /// </remarks>
-    private static readonly ConditionalWeakTable<ServiceDescriptor, Type> OriginImplementation = new();
+    private static readonly ConditionalWeakTable<ServiceDescriptor, Type> OriginImplementation =
+        new();
 
     /// <summary>
     /// The implementation behind a descriptor, or null when it cannot be known — a registration made
@@ -259,10 +286,14 @@ public static class DecoratorHelper {
     /// <c>DependencyModules_GenerateFactories</c> emits.
     /// </summary>
     private static Type? OriginImplementationOf(ServiceDescriptor descriptor) =>
-        OriginImplementation.TryGetValue(descriptor, out var origin) ? origin : ImplementationOf(descriptor);
+        OriginImplementation.TryGetValue(descriptor, out var origin)
+            ? origin
+            : ImplementationOf(descriptor);
 
-    private static void RecordOrigin(ServiceDescriptor original, ServiceDescriptor replacement) {
-        if (OriginImplementationOf(original) is not { } origin) {
+    private static void RecordOrigin(ServiceDescriptor original, ServiceDescriptor replacement)
+    {
+        if (OriginImplementationOf(original) is not { } origin)
+        {
             return;
         }
 
@@ -276,25 +307,30 @@ public static class DecoratorHelper {
         Func<IServiceProvider, object, object> decoratorFactory,
         Type? decoratorType,
         Type? decoratorIdentity,
-        Type? implementationType = null) {
-
+        Type? implementationType = null
+    )
+    {
         var ordinal = 0;
 
-        for (var i = services.Count - 1; i >= 0; i--) {
+        for (var i = services.Count - 1; i >= 0; i--)
+        {
             var descriptor = services[i];
 
-            if (!Matches(descriptor.ServiceType, serviceType)) {
+            if (!Matches(descriptor.ServiceType, serviceType))
+            {
                 continue;
             }
 
             // A registration this method displaced on an earlier pass is machinery, not a service.
             // Decorating it would wrap the implementation a second time, one layer further in.
-            if (descriptor.ServiceKey is DisplacedImplementationKey) {
+            if (descriptor.ServiceKey is DisplacedImplementationKey)
+            {
                 continue;
             }
 
             // Emitted from two places for the same registration; the first one wins.
-            if (AlreadyApplied(descriptor, decoratorIdentity)) {
+            if (AlreadyApplied(descriptor, decoratorIdentity))
+            {
                 continue;
             }
 
@@ -303,9 +339,12 @@ public static class DecoratorHelper {
             // registration made from an instance or a factory cannot be attributed to an
             // implementation, and refusing to wrap it there would silently stop intercepting a
             // service that had asked for it — a worse failure than the one this filter prevents.
-            if (implementationType != null &&
-                OriginImplementationOf(descriptor) is { } origin &&
-                origin != implementationType) {
+            if (
+                implementationType != null
+                && OriginImplementationOf(descriptor) is { } origin
+                && origin != implementationType
+            )
+            {
                 continue;
             }
 
@@ -321,12 +360,14 @@ public static class DecoratorHelper {
                     descriptor.ServiceType,
                     descriptor.ServiceKey,
                     (provider, key) => decoratorFactory(provider, innerFactory(provider, key)),
-                    descriptor.Lifetime)
+                    descriptor.Lifetime
+                )
                 : new ServiceDescriptor(
                     descriptor.ServiceType,
                     provider => decoratorFactory(provider, innerFactory(provider, null)),
                     // The decorator must not change how long the service lives.
-                    descriptor.Lifetime);
+                    descriptor.Lifetime
+                );
 
             RecordApplied(descriptor, replacement, decoratorIdentity);
             RecordOrigin(descriptor, replacement);
@@ -344,27 +385,31 @@ public static class DecoratorHelper {
     /// ordinal only separates descriptors that are otherwise identical, which is legal —
     /// <c>AddSingleton&lt;IFoo, Foo&gt;()</c> twice registers two services and must stay two.
     /// </remarks>
-    private sealed class DisplacedImplementationKey : IEquatable<DisplacedImplementationKey> {
+    private sealed class DisplacedImplementationKey : IEquatable<DisplacedImplementationKey>
+    {
         private readonly Type _serviceType;
         private readonly Type _implementationType;
         private readonly int _ordinal;
 
-        public DisplacedImplementationKey(Type serviceType, Type implementationType, int ordinal) {
+        public DisplacedImplementationKey(Type serviceType, Type implementationType, int ordinal)
+        {
             _serviceType = serviceType;
             _implementationType = implementationType;
             _ordinal = ordinal;
         }
 
         public bool Equals(DisplacedImplementationKey? other) =>
-            other is not null &&
-            _serviceType == other._serviceType &&
-            _implementationType == other._implementationType &&
-            _ordinal == other._ordinal;
+            other is not null
+            && _serviceType == other._serviceType
+            && _implementationType == other._implementationType
+            && _ordinal == other._ordinal;
 
         public override bool Equals(object? obj) => Equals(obj as DisplacedImplementationKey);
 
-        public override int GetHashCode() {
-            unchecked {
+        public override int GetHashCode()
+        {
+            unchecked
+            {
                 var hash = _serviceType.GetHashCode();
                 hash = hash * 31 + _implementationType.GetHashCode();
                 return hash * 31 + _ordinal;
@@ -393,47 +438,70 @@ public static class DecoratorHelper {
     /// </para>
     /// </remarks>
     private static Func<IServiceProvider, object?, object> CaptureInner(
-        IServiceCollection services, ServiceDescriptor descriptor, int ordinal) {
-
-        if (descriptor.IsKeyedService) {
-            if (descriptor.KeyedImplementationInstance is { } keyedInstance) {
+        IServiceCollection services,
+        ServiceDescriptor descriptor,
+        int ordinal
+    )
+    {
+        if (descriptor.IsKeyedService)
+        {
+            if (descriptor.KeyedImplementationInstance is { } keyedInstance)
+            {
                 return (_, _) => keyedInstance;
             }
 
-            if (descriptor.KeyedImplementationFactory is { } keyedFactory) {
+            if (descriptor.KeyedImplementationFactory is { } keyedFactory)
+            {
                 return (provider, key) => keyedFactory(provider, key);
             }
 
-            if (descriptor.KeyedImplementationType is { } keyedImplementationType) {
+            if (descriptor.KeyedImplementationType is { } keyedImplementationType)
+            {
                 var keyedInnerKey = Displace(
-                    services, descriptor.ServiceType, keyedImplementationType, ordinal, descriptor.Lifetime);
+                    services,
+                    descriptor.ServiceType,
+                    keyedImplementationType,
+                    ordinal,
+                    descriptor.Lifetime
+                );
 
-                return (provider, _) => provider.GetRequiredKeyedService(keyedImplementationType, keyedInnerKey);
+                return (provider, _) =>
+                    provider.GetRequiredKeyedService(keyedImplementationType, keyedInnerKey);
             }
 
             throw new InvalidOperationException(
-                $"The keyed registration for '{descriptor.ServiceType}' has no implementation type, factory, " +
-                "or instance, so there is nothing to decorate.");
+                $"The keyed registration for '{descriptor.ServiceType}' has no implementation type, factory, "
+                    + "or instance, so there is nothing to decorate."
+            );
         }
 
-        if (descriptor.ImplementationInstance is { } instance) {
+        if (descriptor.ImplementationInstance is { } instance)
+        {
             return (_, _) => instance;
         }
 
-        if (descriptor.ImplementationFactory is { } factory) {
+        if (descriptor.ImplementationFactory is { } factory)
+        {
             return (provider, _) => factory(provider);
         }
 
-        if (descriptor.ImplementationType is { } implementationType) {
+        if (descriptor.ImplementationType is { } implementationType)
+        {
             var innerKey = Displace(
-                services, descriptor.ServiceType, implementationType, ordinal, descriptor.Lifetime);
+                services,
+                descriptor.ServiceType,
+                implementationType,
+                ordinal,
+                descriptor.Lifetime
+            );
 
             return (provider, _) => provider.GetRequiredKeyedService(implementationType, innerKey);
         }
 
         throw new InvalidOperationException(
-            $"The registration for '{descriptor.ServiceType}' has no implementation type, factory, or " +
-            "instance, so there is nothing to decorate.");
+            $"The registration for '{descriptor.ServiceType}' has no implementation type, factory, or "
+                + "instance, so there is nothing to decorate."
+        );
     }
 
     /// <summary>
@@ -443,10 +511,11 @@ public static class DecoratorHelper {
         IServiceCollection services,
         Type serviceType,
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
-        Type implementationType,
+            Type implementationType,
         int ordinal,
-        ServiceLifetime lifetime) {
-
+        ServiceLifetime lifetime
+    )
+    {
         var key = new DisplacedImplementationKey(serviceType, implementationType, ordinal);
 
         // Appended while the caller iterates backwards, so it is never revisited on this pass.
@@ -472,32 +541,39 @@ public static class DecoratorHelper {
     /// Closed registrations of a generic service are decorated normally, so declaring a closed
     /// construction is the way through.
     /// </remarks>
-    private static void GuardOpenGenericRegistration(ServiceDescriptor descriptor, Type? decoratorType) {
-        if (!descriptor.ServiceType.IsGenericTypeDefinition) {
+    private static void GuardOpenGenericRegistration(
+        ServiceDescriptor descriptor,
+        Type? decoratorType
+    )
+    {
+        if (!descriptor.ServiceType.IsGenericTypeDefinition)
+        {
             return;
         }
 
         var by = decoratorType == null ? "" : $" by '{decoratorType}'";
 
         throw new InvalidOperationException(
-            $"'{descriptor.ServiceType}' is registered as an open generic and cannot be decorated{by}. " +
-            "Decorating replaces a registration with a factory, which the container does not allow " +
-            "for an open generic service type. Register closed constructions of the service instead, " +
-            "such as a class deriving from the generic implementation.");
+            $"'{descriptor.ServiceType}' is registered as an open generic and cannot be decorated{by}. "
+                + "Decorating replaces a registration with a factory, which the container does not allow "
+                + "for an open generic service type. Register closed constructions of the service instead, "
+                + "such as a class deriving from the generic implementation."
+        );
     }
 
     /// <summary>
     /// True when a registered service type is the one being decorated, including a closed
     /// construction of a decorated open generic.
     /// </summary>
-    private static bool Matches(Type registeredServiceType, Type decoratedServiceType) {
-        if (registeredServiceType == decoratedServiceType) {
+    private static bool Matches(Type registeredServiceType, Type decoratedServiceType)
+    {
+        if (registeredServiceType == decoratedServiceType)
+        {
             return true;
         }
 
-        return decoratedServiceType.IsGenericTypeDefinition &&
-               registeredServiceType.IsGenericType &&
-               registeredServiceType.GetGenericTypeDefinition() == decoratedServiceType;
+        return decoratedServiceType.IsGenericTypeDefinition
+            && registeredServiceType.IsGenericType
+            && registeredServiceType.GetGenericTypeDefinition() == decoratedServiceType;
     }
-
 }

@@ -3,10 +3,12 @@ using Xunit;
 
 namespace SutProject.Tests.Customization;
 
-public class CustomDependencyTestCase {
+public class CustomDependencyTestCase
+{
     [ModuleTest]
     [CustomServiceProvider]
-    public void TestCase(ICustomTestDependency dependency) {
+    public void TestCase(ICustomTestDependency dependency)
+    {
         Assert.NotNull(dependency);
     }
 }

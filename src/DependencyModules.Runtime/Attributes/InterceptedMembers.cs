@@ -21,7 +21,8 @@ namespace DependencyModules.Runtime.Attributes;
 /// </para>
 /// </remarks>
 [Flags]
-public enum InterceptedMembers {
+public enum InterceptedMembers
+{
     /// <summary>Ordinary methods.</summary>
     Methods = 1,
 
@@ -35,5 +36,5 @@ public enum InterceptedMembers {
     Events = 8,
 
     /// <summary>Everything the interface declares. The default.</summary>
-    All = Methods | Properties | Indexers | Events
+    All = Methods | Properties | Indexers | Events,
 }

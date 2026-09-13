@@ -23,14 +23,17 @@ namespace DependencyModules.SourceGenerator;
 /// point of DM0016.
 /// </para>
 /// </remarks>
-internal sealed class ReferencedModuleLookup {
-    private const string ProviderInterface = "DependencyModules.Runtime.Interfaces.IDependencyModuleProvider";
+internal sealed class ReferencedModuleLookup
+{
+    private const string ProviderInterface =
+        "DependencyModules.Runtime.Interfaces.IDependencyModuleProvider";
 
     private readonly Compilation? _compilation;
     private readonly INamedTypeSymbol? _providerInterface;
     private Dictionary<string, string>? _byName;
 
-    public ReferencedModuleLookup(Compilation? compilation) {
+    public ReferencedModuleLookup(Compilation? compilation)
+    {
         _compilation = compilation;
         _providerInterface = compilation?.GetTypeByMetadataName(ProviderInterface);
     }
@@ -39,20 +42,26 @@ internal sealed class ReferencedModuleLookup {
     /// The namespace of a module whose attribute is <paramref name="name"/> and which one of
     /// <paramref name="candidateNamespaces"/> brings into scope, or null.
     /// </summary>
-    public string? FindImported(string name, IEnumerable<string> candidateNamespaces) {
-        if (_compilation == null || _providerInterface == null) {
+    public string? FindImported(string name, IEnumerable<string> candidateNamespaces)
+    {
+        if (_compilation == null || _providerInterface == null)
+        {
             return null;
         }
 
-        foreach (var candidate in candidateNamespaces) {
-            if (string.IsNullOrEmpty(candidate)) {
+        foreach (var candidate in candidateNamespaces)
+        {
+            if (string.IsNullOrEmpty(candidate))
+            {
                 continue;
             }
 
-            foreach (var typeName in AttributeNames(name)) {
+            foreach (var typeName in AttributeNames(name))
+            {
                 var symbol = _compilation.GetTypeByMetadataName($"{candidate}.{typeName}");
 
-                if (symbol != null && IsModuleAttribute(symbol)) {
+                if (symbol != null && IsModuleAttribute(symbol))
+                {
                     return candidate;
                 }
             }
@@ -68,15 +77,19 @@ internal sealed class ReferencedModuleLookup {
     /// Walks the referenced assemblies. Reached only for a usage that resolved to nothing, so the
     /// compilation it walks is one that is already failing to build.
     /// </remarks>
-    public string? FindAnywhere(string name) {
-        if (_compilation == null || _providerInterface == null) {
+    public string? FindAnywhere(string name)
+    {
+        if (_compilation == null || _providerInterface == null)
+        {
             return null;
         }
 
         _byName ??= BuildIndex();
 
-        foreach (var typeName in AttributeNames(name)) {
-            if (_byName.TryGetValue(typeName, out var moduleNamespace)) {
+        foreach (var typeName in AttributeNames(name))
+        {
+            if (_byName.TryGetValue(typeName, out var moduleNamespace))
+            {
                 return moduleNamespace;
             }
         }
@@ -85,10 +98,12 @@ internal sealed class ReferencedModuleLookup {
     }
 
     /// <summary>Written as <c>[assembly: Foo]</c> or <c>[assembly: FooAttribute]</c>.</summary>
-    private static IEnumerable<string> AttributeNames(string name) {
+    private static IEnumerable<string> AttributeNames(string name)
+    {
         yield return name;
 
-        if (!name.EndsWith("Attribute", System.StringComparison.Ordinal)) {
+        if (!name.EndsWith("Attribute", System.StringComparison.Ordinal))
+        {
             yield return name + "Attribute";
         }
     }
@@ -96,11 +111,14 @@ internal sealed class ReferencedModuleLookup {
     private bool IsModuleAttribute(INamedTypeSymbol symbol) =>
         symbol.AllInterfaces.Any(i => SymbolEqualityComparer.Default.Equals(i, _providerInterface));
 
-    private Dictionary<string, string> BuildIndex() {
+    private Dictionary<string, string> BuildIndex()
+    {
         var index = new Dictionary<string, string>(System.StringComparer.Ordinal);
 
-        foreach (var reference in _compilation!.References) {
-            if (_compilation.GetAssemblyOrModuleSymbol(reference) is not IAssemblySymbol assembly) {
+        foreach (var reference in _compilation!.References)
+        {
+            if (_compilation.GetAssemblyOrModuleSymbol(reference) is not IAssemblySymbol assembly)
+            {
                 continue;
             }
 
@@ -110,18 +128,23 @@ internal sealed class ReferencedModuleLookup {
         return index;
     }
 
-    private void Walk(INamespaceSymbol namespaceSymbol, Dictionary<string, string> index) {
-        foreach (var type in namespaceSymbol.GetTypeMembers()) {
-            if (type.DeclaredAccessibility == Accessibility.Public && IsModuleAttribute(type)) {
+    private void Walk(INamespaceSymbol namespaceSymbol, Dictionary<string, string> index)
+    {
+        foreach (var type in namespaceSymbol.GetTypeMembers())
+        {
+            if (type.DeclaredAccessibility == Accessibility.Public && IsModuleAttribute(type))
+            {
                 // First wins. Two packages can ship a same-named module, and naming one of them is
                 // more useful than naming neither.
-                if (!index.ContainsKey(type.Name)) {
+                if (!index.ContainsKey(type.Name))
+                {
                     index.Add(type.Name, namespaceSymbol.ToDisplayString());
                 }
             }
         }
 
-        foreach (var nested in namespaceSymbol.GetNamespaceMembers()) {
+        foreach (var nested in namespaceSymbol.GetNamespaceMembers())
+        {
             Walk(nested, index);
         }
     }

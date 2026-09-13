@@ -1,8 +1,8 @@
 using System.Runtime.CompilerServices;
 using DependencyModules.Conventions.Models;
+using DependencyModules.SourceGenerator.Impl.Models;
 using DependencyModules.SourceGenerator.Impl.Utilities;
 using Microsoft.CodeAnalysis;
-using DependencyModules.SourceGenerator.Impl.Models;
 
 namespace DependencyModules.Conventions.Utilities;
 
@@ -24,12 +24,14 @@ namespace DependencyModules.Conventions.Utilities;
 /// entirely on <see cref="DeclarationStamp"/> being complete.
 /// </para>
 /// </remarks>
-public static class ConventionCandidateCache {
-
+public static class ConventionCandidateCache
+{
     private static readonly ConditionalWeakTable<SyntaxNode, Entry> Entries = new();
 
-    private sealed class Entry {
-        public Entry(long stamp, ConventionCandidateModel model) {
+    private sealed class Entry
+    {
+        public Entry(long stamp, ConventionCandidateModel model)
+        {
             Stamp = stamp;
             Model = model;
         }
@@ -40,11 +42,14 @@ public static class ConventionCandidateCache {
     }
 
     public static ConventionCandidateModel GetOrAdd(
-        SyntaxTransformContext context, CancellationToken cancellationToken) {
-
+        SyntaxTransformContext context,
+        CancellationToken cancellationToken
+    )
+    {
         var stamp = DeclarationStamp.Of(context.SemanticModel.Compilation);
 
-        if (Entries.TryGetValue(context.Node, out var entry) && entry.Stamp == stamp) {
+        if (Entries.TryGetValue(context.Node, out var entry) && entry.Stamp == stamp)
+        {
             return entry.Model;
         }
 

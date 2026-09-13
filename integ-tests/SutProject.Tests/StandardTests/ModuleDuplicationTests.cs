@@ -5,49 +5,55 @@ using Xunit;
 
 namespace SutProject.Tests.StandardTests;
 
-public class ModuleDuplicationTests {
+public class ModuleDuplicationTests
+{
     [ModuleTest]
     [CombinedModule]
-    public void CombinedModuleTest(IEnumerable<IDependencyOne> dependencies) {
+    public void CombinedModuleTest(IEnumerable<IDependencyOne> dependencies)
+    {
         Assert.Single(dependencies);
     }
-    
+
     [ModuleTest]
     [DuplicateModule]
-    public void DuplicateModuleTest(IEnumerable<IDependencyOne> dependencies) {
+    public void DuplicateModuleTest(IEnumerable<IDependencyOne> dependencies)
+    {
         Assert.Single(dependencies);
     }
 
     [ModuleTest]
     [CombinedModule]
     [DuplicateModule]
-    public void CombinedAndDuplicateModuleTest(IEnumerable<IDependencyOne> dependencies) {
+    public void CombinedAndDuplicateModuleTest(IEnumerable<IDependencyOne> dependencies)
+    {
         Assert.Single(dependencies);
     }
 
     [Fact]
-    public void CombinedModuleAddModules() {
+    public void CombinedModuleAddModules()
+    {
         var serviceCollection = new ServiceCollection();
 
         serviceCollection.AddModules(new CombinedModule());
-        
+
         var serviceProvider = serviceCollection.BuildServiceProvider();
-        
+
         var dependencies = serviceProvider.GetServices<IDependencyOne>();
-        
+
         Assert.Single(dependencies);
     }
 
     [Fact]
-    public void MultipleDuplicatesAddModules() {
+    public void MultipleDuplicatesAddModules()
+    {
         var serviceCollection = new ServiceCollection();
 
         serviceCollection.AddModules(new CombinedModule(), new DuplicateModule());
-        
+
         var serviceProvider = serviceCollection.BuildServiceProvider();
-        
+
         var dependencies = serviceProvider.GetServices<IDependencyOne>();
-        
+
         Assert.Single(dependencies);
     }
 }
