@@ -25,7 +25,8 @@ namespace DependencyModules.Moq;
 /// <code>
 /// [ModuleTest]
 /// [MoqSupport]
-/// public void SendsTheMail(IEmailSender sender, Mock&lt;IAuditLog&gt; log) {
+/// public void SendsTheMail(IEmailSender sender, Mock&lt;IAuditLog&gt; log)
+/// {
 ///     log.Verify(x => x.Write(It.IsAny&lt;string&gt;()));
 /// }
 /// </code>

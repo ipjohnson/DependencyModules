@@ -106,8 +106,10 @@ time:
 
 ```csharp
 [DependencyModule]
-public partial class HandlerModule : IConventionModule {
-    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+public partial class HandlerModule : IConventionModule
+{
+    void IConventionModule.Conventions(IConventionDefinitions conventions)
+    {
         conventions.RegisterAll(typeof(IRequestHandler<,>)).AsScoped();
 
         conventions.RegisterAll(typeof(IValidator<>))
@@ -172,12 +174,13 @@ Tests receive their dependencies as method parameters, against the real registra
 [assembly: ApplicationModule]
 [assembly: NSubstituteSupport]
 
-public class OrderTests {
+public class OrderTests
+{
     [ModuleTest]
     public async Task PlaceOrder_PricesThroughTheChannel(
         IRequestHandler<PlaceOrder, Order> handler,
-        [Mock] IBookRepository books) {
-
+        [Mock] IBookRepository books)
+    {
         books.Find("isbn-1", Arg.Any<CancellationToken>())
             .Returns(new Book("isbn-1", 20m));
 

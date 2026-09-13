@@ -42,8 +42,10 @@ calls it alongside the registrations it wrote:
 
 ```csharp
 [DependencyModule]
-public partial class ApplicationModule : IServiceCollectionConfiguration {
-    public void ConfigureServices(IServiceCollection services) {
+public partial class ApplicationModule : IServiceCollectionConfiguration
+{
+    public void ConfigureServices(IServiceCollection services)
+    {
         services.AddHttpClient();
         services.Configure<CacheOptions>(options => options.SizeLimit = 1024);
     }
@@ -56,7 +58,8 @@ gets an `ApplicationModule` it did not declare; adding a partial for it **withou
 with it:
 
 ```csharp
-public partial class ApplicationModule : IServiceCollectionConfiguration {
+public partial class ApplicationModule : IServiceCollectionConfiguration
+{
     public void ConfigureServices(IServiceCollection services) =>
         services.AddHttpClient();
 }

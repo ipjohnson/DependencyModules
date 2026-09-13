@@ -17,12 +17,16 @@ namespace DependencyModules.Runtime.Interception;
 /// cannot serve rather than skipping them silently.
 ///
 /// <code>
-/// public TResult Intercept&lt;TResult&gt;(InvocationContext&lt;TResult&gt; context) {
+/// public TResult Intercept&lt;TResult&gt;(InvocationContext&lt;TResult&gt; context)
+/// {
 ///     var stopwatch = Stopwatch.StartNew();
 ///
-///     try {
+///     try
+///     {
 ///         return context.Proceed();
-///     } finally {
+///     }
+///     finally
+///     {
 ///         _log.Record(context.Caller, stopwatch.Elapsed);
 ///     }
 /// }
@@ -52,7 +56,8 @@ public interface IInterceptor
 /// body, state spanning the call is an ordinary local and a scope may be held across it.
 ///
 /// <code>
-/// public async ValueTask&lt;TResult&gt; InterceptAsync&lt;TResult&gt;(AsyncInvocationContext&lt;TResult&gt; context) {
+/// public async ValueTask&lt;TResult&gt; InterceptAsync&lt;TResult&gt;(AsyncInvocationContext&lt;TResult&gt; context)
+/// {
 ///     using var scope = _tracer.StartSpan(context.Caller.MemberName);
 ///
 ///     return await context.ProceedAsync();
@@ -82,10 +87,12 @@ public interface IAsyncInterceptor
 /// An interceptor here enumerates the stream, and so observes each item as it is produced.
 ///
 /// <code>
-/// public async IAsyncEnumerable&lt;TItem&gt; InterceptStream&lt;TItem&gt;(StreamInvocationContext&lt;TItem&gt; context) {
+/// public async IAsyncEnumerable&lt;TItem&gt; InterceptStream&lt;TItem&gt;(StreamInvocationContext&lt;TItem&gt; context)
+/// {
 ///     var count = 0;
 ///
-///     await foreach (var item in context.Proceed()) {
+///     await foreach (var item in context.Proceed())
+///     {
 ///         count++;
 ///         yield return item;
 ///     }

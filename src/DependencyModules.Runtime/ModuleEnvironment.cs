@@ -15,7 +15,8 @@ namespace DependencyModules.Runtime;
 /// Values can be supplied inline, since this is a collection of them:
 /// <code>
 /// services.AddModules(
-///     new ModuleEnvironment("Development") {
+///     new ModuleEnvironment("Development")
+///     {
 ///         { "FEATURE_PROFILING", "on" },
 ///         { "REGION", "eu" }
 ///     },

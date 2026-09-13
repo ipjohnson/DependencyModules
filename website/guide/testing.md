@@ -6,7 +6,8 @@ Here is a service with two dependencies, one of which has a dependency of its ow
 
 ```csharp
 [SingletonService]
-public class Weather(ISummaryProvider summaryProvider, ITemperatureProvider temperatureProvider) {
+public class Weather(ISummaryProvider summaryProvider, ITemperatureProvider temperatureProvider)
+{
     public IEnumerable<WeatherForecast> GetWeatherForecast() { /* … */ }
 }
 ```
@@ -42,10 +43,12 @@ services your test needs arrive as **method parameters**, resolved from a provid
 real modules:
 
 ```csharp
-public class WeatherTests {
+public class WeatherTests
+{
     [ModuleTest]
     [ApplicationModule]
-    public void GetForecast(Weather weather) {
+    public void GetForecast(Weather weather)
+    {
         var forecast = weather.GetWeatherForecast().ToArray();
 
         // assert on forecast
@@ -123,7 +126,8 @@ they belong.
 Every test in the project now gets `ApplicationModule` without saying so:
 
 ```csharp
-public class WeatherTests {
+public class WeatherTests
+{
     [ModuleTest]
     public void UsesTheAssemblyModules(Weather weather) { }
 
@@ -147,7 +151,8 @@ Within a test, ask for `IServiceProvider` and create scopes as usual:
 
 ```csharp
 [ModuleTest]
-public void ScopedServicesAreScoped(IServiceProvider provider) {
+public void ScopedServicesAreScoped(IServiceProvider provider)
+{
     using var first = provider.CreateScope();
     using var second = provider.CreateScope();
 
@@ -201,7 +206,8 @@ differently, a mock makes you stub out every member you touch.
 `[TestExport]` registers a real type into the test's container without touching the module:
 
 ```csharp
-public class FixedClock : IClock {
+public class FixedClock : IClock
+{
     public DateTime UtcNow => new(2026, 1, 1);
 }
 
@@ -231,7 +237,8 @@ data rather than a service. `[InjectValues]` supplies the parts the container ca
 public record InjectModel(IDependencyOne DependencyOne, string StringValue);
 
 [ModuleTest]
-public void InjectTestValue([InjectValues("Hello World!")] InjectModel model) {
+public void InjectTestValue([InjectValues("Hello World!")] InjectModel model)
+{
     // model.DependencyOne came from the container
     // model.StringValue came from the attribute
 }
@@ -248,7 +255,8 @@ parameter that should simply **be** a value wants a data row instead. `[InlineDa
 [ModuleTest]
 [InlineData("978-0132350884")]
 [InlineData("978-0201616224")]
-public async Task GetBook_FindsEachIsbn(string isbn, IRequestHandler<GetBook, Book?> handler) {
+public async Task GetBook_FindsEachIsbn(string isbn, IRequestHandler<GetBook, Book?> handler)
+{
     // isbn came from the row, handler from the container
 }
 ```

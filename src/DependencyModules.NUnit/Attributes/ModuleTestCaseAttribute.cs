@@ -40,7 +40,8 @@ public interface IModuleTestDataAttribute
 /// [ModuleTest(typeof(MyModule))]
 /// [ModuleTestCase(1, "one")]
 /// [ModuleTestCase(2, "two")]
-/// public void Converts(int number, string word, INumberFormatter formatter) {
+/// public void Converts(int number, string word, INumberFormatter formatter)
+/// {
 ///     Assert.That(formatter.Spell(number), Is.EqualTo(word));
 /// }
 /// </code>

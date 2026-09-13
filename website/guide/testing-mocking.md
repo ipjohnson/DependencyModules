@@ -7,7 +7,8 @@ occasionally the problem. One of the services behind `Weather` is non-determinis
 
 ```csharp
 [SingletonService]
-public class TemperatureProvider : ITemperatureProvider {
+public class TemperatureProvider : ITemperatureProvider
+{
     public int GetTemperature() => Random.Shared.Next(-20, 55);
 }
 ```
@@ -26,8 +27,8 @@ resolved. Everything constructed afterwards gets the substitute:
 public void GetStaticForecast(
     Weather weather,
     [Mock] ITemperatureProvider temperatureProvider,
-    [Mock] IAiSummaryProvider aiSummaryProvider) {
-
+    [Mock] IAiSummaryProvider aiSummaryProvider)
+{
     temperatureProvider.GetTemperature().Returns(38);
     aiSummaryProvider.GetSummary().Returns("Sunny");
 
@@ -135,7 +136,8 @@ using DependencyModules.NSubstitute;
 
 ```csharp
 [ModuleTest]
-public void SendsTheMail(IEmailSender sender, [Mock] IAuditLog log) {
+public void SendsTheMail(IEmailSender sender, [Mock] IAuditLog log)
+{
     sender.Send("someone@example.com");
 
     log.Received().Write(Arg.Any<string>());
@@ -156,7 +158,8 @@ using DependencyModules.FakeItEasy;
 
 ```csharp
 [ModuleTest]
-public void SendsTheMail(IEmailSender sender, [Mock] IAuditLog log) {
+public void SendsTheMail(IEmailSender sender, [Mock] IAuditLog log)
+{
     sender.Send("someone@example.com");
 
     A.CallTo(() => log.Write(A<string>._)).MustHaveHappened();
@@ -173,7 +176,8 @@ Moq is the one that needs a paragraph, because it keeps the mock and the object 
 
 ```csharp
 [ModuleTest]
-public void SendsTheMail(IEmailSender sender, [Mock] IAuditLog log) {
+public void SendsTheMail(IEmailSender sender, [Mock] IAuditLog log)
+{
     Mock.Get(log).Verify(x => x.Write(It.IsAny<string>()));
 }
 ```
@@ -188,8 +192,8 @@ says what it is:
 public void GetStaticForecast(
     Weather weather,
     Mock<ITemperatureProvider> temperatureProvider,
-    Mock<IAiSummaryProvider> aiSummaryProvider) {
-
+    Mock<IAiSummaryProvider> aiSummaryProvider)
+{
     temperatureProvider.Setup(x => x.GetTemperature()).Returns(38);
     aiSummaryProvider.Setup(x => x.GetSummary()).Returns("Sunny");
 
@@ -227,8 +231,8 @@ default and one test opts out:
 
 ```csharp
 [TestExport(typeof(IClock), Implementation = typeof(SystemClock))]   // the fixture default
-public class ExpiryTests {
-
+public class ExpiryTests
+{
     [ModuleTest]
     public void UsesTheRealClock(IClock clock) { }                   // SystemClock
 
@@ -247,7 +251,8 @@ service mocked, so a `[TestExport]` still beats it:
 ```csharp
 [ModuleTest]
 [TestExport(typeof(IClock), Implementation = typeof(SystemClock))]
-public void RealClock(IClock clock, Mock<IClock> mock) {
+public void RealClock(IClock clock, Mock<IClock> mock)
+{
     Assert.IsType<SystemClock>(clock);      // the export won
 }
 ```

@@ -17,7 +17,8 @@ namespace DependencyModules.NSubstitute;
 /// <code>
 /// [ModuleTest]
 /// [NSubstituteSupport]
-/// public void SendsTheMail(IEmailSender sender, [Mock] IAuditLog log) {
+/// public void SendsTheMail(IEmailSender sender, [Mock] IAuditLog log)
+/// {
 ///     log.Received().Write(Arg.Any&lt;string&gt;());
 /// }
 /// </code>

@@ -29,7 +29,8 @@ and the dependency methods name each registration.
 The smallest useful thing: `LoadModules` registers what it loaded.
 
 ```csharp
-public interface IModuleGraph {
+public interface IModuleGraph
+{
     IReadOnlyList<Type> Modules { get; }
     bool Contains<TModule>() where TModule : IDependencyModule;
 }
@@ -44,7 +45,8 @@ two questions with the sharpest failure modes today.
 The generator emits, per module, the service types it registers, and the runtime assembles them:
 
 ```csharp
-public interface IModuleGraph {
+public interface IModuleGraph
+{
     IReadOnlyList<ModuleNode> Modules { get; }
 }
 

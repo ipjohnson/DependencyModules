@@ -109,8 +109,10 @@ next year.
 
 ```csharp
 [DependencyModule]
-public partial class HandlerModule : IConventionModule {
-    void IConventionModule.Conventions(IConventionDefinitions conventions) {
+public partial class HandlerModule : IConventionModule
+{
+    void IConventionModule.Conventions(IConventionDefinitions conventions)
+    {
         conventions.RegisterAll(typeof(IRequestHandler<,>)).AsScoped();
         conventions.RegisterAll<IValidator>().InNamespaceOf<OrderMarker>().AsScoped();
     }

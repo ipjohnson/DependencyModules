@@ -16,7 +16,8 @@ namespace DependencyModules.FakeItEasy;
 /// <code>
 /// [ModuleTest]
 /// [FakeItEasySupport]
-/// public void SendsTheMail(IEmailSender sender, [Mock] IAuditLog log) {
+/// public void SendsTheMail(IEmailSender sender, [Mock] IAuditLog log)
+/// {
 ///     A.CallTo(() => log.Write(A&lt;string&gt;._)).MustHaveHappened();
 /// }
 /// </code>

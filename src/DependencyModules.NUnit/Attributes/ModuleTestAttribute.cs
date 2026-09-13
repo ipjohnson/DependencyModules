@@ -29,7 +29,8 @@ namespace DependencyModules.NUnit.Attributes;
 /// <example>
 /// <code>
 /// [ModuleTest(typeof(MyModule))]
-/// public void ResolvesTheService(IMyService service) {
+/// public void ResolvesTheService(IMyService service)
+/// {
 ///     Assert.That(service, Is.Not.Null);
 /// }
 /// </code>

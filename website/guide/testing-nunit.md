@@ -10,10 +10,12 @@ dotnet add package DependencyModules.NUnit
 ```csharp
 using DependencyModules.NUnit.Attributes;
 
-public class WeatherTests {
+public class WeatherTests
+{
     [ModuleTest]
     [ApplicationModule]
-    public void GetForecast(Weather weather) {
+    public void GetForecast(Weather weather)
+    {
         var forecast = weather.GetWeatherForecast().ToArray();
 
         Assert.That(forecast, Has.Length.EqualTo(5));
@@ -38,7 +40,8 @@ each `[Repeat]` pass and each `[Retry]` attempt, not just each test case:
 [ModuleTest]
 [ApplicationModule]
 [Repeat(3)]
-public void EachPassStartsClean(ICallCounter counter) {
+public void EachPassStartsClean(ICallCounter counter)
+{
     counter.Record();
 
     Assert.That(counter.Count, Is.EqualTo(1));   // never 2, never 3
@@ -66,7 +69,8 @@ after:
 [ApplicationModule]
 [ModuleTestCase("one")]
 [ModuleTestCase("two")]
-public void MultipleRows(string value, ITemperatureProvider provider) {
+public void MultipleRows(string value, ITemperatureProvider provider)
+{
     Assert.That(value, Is.Not.Null);        // from [ModuleTestCase]
     Assert.That(provider, Is.Not.Null);     // from the container
 }
@@ -90,7 +94,8 @@ To supply rows from somewhere other than an attribute literal, implement `IModul
 
 ```csharp
 [AttributeUsage(AttributeTargets.Method)]
-public class CsvRowsAttribute(string path) : Attribute, IModuleTestDataAttribute {
+public class CsvRowsAttribute(string path) : Attribute, IModuleTestDataAttribute
+{
     public IEnumerable<object?[]> GetRows(MethodInfo method) =>
         File.ReadLines(path).Select(line => line.Split(',').Cast<object?>().ToArray());
 }

@@ -46,8 +46,10 @@ namespace DependencyModules.Runtime.Conventions
     /// <example>
     /// <code>
     /// [DependencyModule]
-    /// public partial class DataModule : IConventionModule {
-    ///     void IConventionModule.Conventions(IConventionDefinitions conventions) {
+    /// public partial class DataModule : IConventionModule
+    /// {
+    ///     void IConventionModule.Conventions(IConventionDefinitions conventions)
+    ///     {
     ///         conventions.RegisterAll&lt;IRepository&gt;().AsScoped();
     ///         conventions.RegisterAll(typeof(IRequestHandler&lt;,&gt;)).AsTransient();
     ///     }

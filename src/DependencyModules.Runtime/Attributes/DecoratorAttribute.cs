@@ -11,7 +11,8 @@ namespace DependencyModules.Runtime.Attributes;
 ///
 /// <code>
 /// [Decorator(Order = 100)]
-/// public class CachingRepository(IRepository inner, IMemoryCache cache) : IRepository {
+/// public class CachingRepository(IRepository inner, IMemoryCache cache) : IRepository
+/// {
 ///     public Item Get(int id) => cache.GetOrCreate(id, _ => inner.Get(id))!;
 /// }
 /// </code>

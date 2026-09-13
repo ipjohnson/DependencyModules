@@ -75,7 +75,8 @@ Both sides fit in one theory:
 [Theory]
 [InlineData("Development", typeof(FakeEmailSender))]
 [InlineData("Production", typeof(SmtpEmailSender))]
-public void SelectsTheSenderByEnvironment(string environment, Type expected) {
+public void SelectsTheSenderByEnvironment(string environment, Type expected)
+{
     var services = new ServiceCollection();
 
     services.AddModules(new ModuleEnvironment(environment), new ApplicationModule());
