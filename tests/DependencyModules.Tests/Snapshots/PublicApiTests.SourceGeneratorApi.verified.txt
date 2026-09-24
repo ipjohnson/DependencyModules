@@ -1733,6 +1733,7 @@ namespace DependencyModules.SourceGenerator.Impl.Models
         FactoryMethodNotStatic = 16,
         FactoryMethodInaccessible = 32,
         CrossWireInheritedInterfaces = 64,
+        FactoryReturnsClass = 128,
     }
     public enum RegistrationType
     {

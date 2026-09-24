@@ -380,7 +380,13 @@ public class DependencyFileWriter
         }
         else
         {
-            AddFactoryParameter(serviceModel, classDefinition, parameters, uniqueId);
+            AddFactoryParameter(
+                serviceModel,
+                registrationModel,
+                classDefinition,
+                parameters,
+                uniqueId
+            );
         }
 
         switch (registrationModel.Lifestyle)
@@ -413,10 +419,8 @@ public class DependencyFileWriter
     /// An intercepted implementation is always emitted as <c>typeof</c>, whatever
     /// <c>DependencyModules_GenerateFactories</c> says. Interception rewrites the one registration
     /// its wrapper was generated from, and it finds that registration by asking each descriptor
-    /// which implementation it was built from - which a factory descriptor cannot answer. Under the
-    /// property every descriptor was factory-built, the filter matched nothing, and interception
-    /// reverted to wrapping every registration of the service type: an unmarked sibling coming back
-    /// inside another class's wrapper, and interceptors running once per registration.
+    /// which implementation it was built from. A factory from the property returns object, which
+    /// names no implementation, so the class would not be intercepted at all.
     ///
     /// The exemption costs that one service the property's benefit. It costs nothing else: the
     /// wrapper is still emitted as a literal <c>new</c>, and <c>typeof</c> is what every
@@ -436,11 +440,9 @@ public class DependencyFileWriter
     /// Whether any registration of this service is one interception has to be able to pick out.
     /// </summary>
     /// <remarks>
-    /// The exemption is by service type rather than by implementation, and it has to be. Applying
-    /// interception means walking every descriptor of the service type and rewriting the one whose
-    /// implementation matches - so an *unmarked* sibling built by a factory is as much of a problem
-    /// as the marked one: it cannot say what it was built from either, so it cannot be told apart
-    /// from the registration being wrapped, and it came back wearing another class's wrapper.
+    /// The exemption is by service type rather than by implementation, so an unmarked sibling keeps
+    /// <c>typeof</c> too. That is wider than interception needs: a sibling built by a factory names
+    /// no implementation, so interception leaves it alone.
     /// </remarks>
     private bool IsInterceptedServiceType(ServiceModel serviceModel) =>
         serviceModel.Registrations.Any(registration =>
@@ -502,9 +504,10 @@ public class DependencyFileWriter
     /// A factory cast to a delegate that returns <paramref name="implementationType"/>.
     /// </summary>
     /// <remarks>
-    /// TryAddEnumerable identifies a factory registration by the return type of its delegate. A
-    /// lambda passed as <c>Func&lt;IServiceProvider, object&gt;</c> returns object, and
-    /// TryAddEnumerable then throws ArgumentException.
+    /// The container reads the implementation of a factory registration from the return type of its
+    /// delegate, and so does interception. A lambda passed as
+    /// <c>Func&lt;IServiceProvider, object&gt;</c> returns object. TryAddEnumerable then throws
+    /// ArgumentException, and an interceptor cannot tell that the registration is its own.
     /// </remarks>
     private static IOutputComponent TypedFactory(
         ITypeDefinition implementationType,
@@ -562,7 +565,7 @@ public class DependencyFileWriter
 
         if (registrationModel.CrossWire == true)
         {
-            AddCrossWireParameter(serviceModel, registrationModel, parameters, typed);
+            AddCrossWireParameter(serviceModel, registrationModel, parameters);
         }
         else if (serviceModel.Factory == null)
         {
@@ -590,7 +593,13 @@ public class DependencyFileWriter
         }
         else
         {
-            AddFactoryParameter(serviceModel, classDefinition, parameters, uniqueId);
+            AddFactoryParameter(
+                serviceModel,
+                registrationModel,
+                classDefinition,
+                parameters,
+                uniqueId
+            );
         }
 
         switch (registrationModel.Lifestyle)
@@ -695,7 +704,13 @@ public class DependencyFileWriter
         }
         else
         {
-            AddFactoryParameter(serviceModel, classDefinition, parameters, uniqueId);
+            AddFactoryParameter(
+                serviceModel,
+                registrationModel,
+                classDefinition,
+                parameters,
+                uniqueId
+            );
         }
 
         block.AddIndentedStatement(services.Invoke(stringBuilder.ToString(), parameters.ToArray()));
@@ -707,13 +722,13 @@ public class DependencyFileWriter
     /// </summary>
     /// <remarks>
     /// The key is the source text of the attribute or convention argument, so it is emitted as it
-    /// was written.
+    /// was written. The factory is typed to return the class, so the container and an interceptor
+    /// both read the class as the implementation of the registration.
     /// </remarks>
     private static void AddCrossWireParameter(
         ServiceModel serviceModel,
         ServiceRegistrationModel registrationModel,
-        List<object> parameters,
-        bool typed = false
+        List<object> parameters
     )
     {
         var serviceProvider = new ParameterDefinition(
@@ -739,15 +754,12 @@ public class DependencyFileWriter
             null
         );
 
-        parameters.Add(
-            typed
-                ? TypedFactory(serviceModel.ImplementationType, registrationModel, lambda)
-                : lambda
-        );
+        parameters.Add(TypedFactory(serviceModel.ImplementationType, registrationModel, lambda));
     }
 
     private static void AddFactoryParameter(
         ServiceModel serviceModel,
+        ServiceRegistrationModel registrationModel,
         ClassDefinition classDefinition,
         List<object> parameters,
         string uniqueId
@@ -759,6 +771,8 @@ public class DependencyFileWriter
             return;
         }
 
+        IOutputComponent method;
+
         if (
             factory.Parameters.Count == 1
             && factory.Parameters.Any(m =>
@@ -766,22 +780,29 @@ public class DependencyFileWriter
             )
         )
         {
-            parameters.Add(
-                CodeOutputComponent.Get(
-                    factory.TypeDefinition.Namespace
-                        + "."
-                        + factory.TypeDefinition.Name
-                        + "."
-                        + factory.MethodName
-                )
+            method = CodeOutputComponent.Get(
+                factory.TypeDefinition.Namespace
+                    + "."
+                    + factory.TypeDefinition.Name
+                    + "."
+                    + factory.MethodName
             );
         }
         else
         {
             var glueFactory = GenerateGlueFactory(serviceModel, factory, classDefinition, uniqueId);
 
-            parameters.Add(CodeOutputComponent.Get(glueFactory.Name));
+            method = CodeOutputComponent.Get(glueFactory.Name);
         }
+
+        // Typed to the class the method returns, so an interceptor of that class recognises the
+        // registration. A keyed delegate also takes the key, which the method does not.
+        parameters.Add(
+            registrationModel.Key == null
+            && serviceModel.Features.HasFlag(RegistrationFeature.FactoryReturnsClass)
+                ? TypedFactory(serviceModel.ImplementationType, registrationModel, method)
+                : method
+        );
     }
 
     private static MethodDefinition GenerateGlueFactory(

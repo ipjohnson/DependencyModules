@@ -158,7 +158,8 @@ public class ServiceModelUtility
     }
 
     /// <summary>
-    /// Why the generated module cannot call a factory method, or None when it can.
+    /// Why the generated module cannot call a factory method, and whether the method returns a
+    /// class.
     /// </summary>
     /// <remarks>
     /// Read from the symbol, not from the written modifiers. A method with no access modifier is
@@ -183,9 +184,14 @@ public class ServiceModelUtility
             return RegistrationFeature.FactoryMethodNotStatic;
         }
 
-        return context.GeneratedCodeCanUse(method)
-            ? RegistrationFeature.None
-            : RegistrationFeature.FactoryMethodInaccessible;
+        if (!context.GeneratedCodeCanUse(method))
+        {
+            return RegistrationFeature.FactoryMethodInaccessible;
+        }
+
+        return method.ReturnType.TypeKind == TypeKind.Class
+            ? RegistrationFeature.FactoryReturnsClass
+            : RegistrationFeature.None;
     }
 
     private static ServiceFactoryModel? GetFactoryModel(
