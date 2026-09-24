@@ -5,6 +5,14 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.1] - 2026-09-24
+
+### Changed
+
+- The package README and the package descriptions are the new ones, written in Simplified
+  Technical English. 1.6.0 was packed before they reached main, so it shows the previous README.
+- The code is the same as in 1.6.0.
+
 ## [1.6.0] - 2026-09-24
 
 This release fixes the 32 defects that the documentation review of 2026-09-23 found, issues #63
