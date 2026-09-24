@@ -120,32 +120,6 @@ public static class DependencyModuleDiagnostics
     /// no entry point to be in the wrong file relative to.
     /// </remarks>
     /// <summary>
-    /// Raised for a decorator naming an implementation in a project emitting factories.
-    /// </summary>
-    /// <remarks>
-    /// Reaching one registration of a service means asking each descriptor what implementation it
-    /// was built from, and a factory descriptor cannot answer.
-    /// <c>DependencyModules_GenerateFactories</c> makes every registration factory-built, so the
-    /// decorator would wrap all of them — which is the opposite of what naming one asked for.
-    ///
-    /// An intercepted service is exempted from the property automatically, because the interception
-    /// is declared on the class being registered and the writer emitting that registration can see
-    /// it. A decorator is declared on the decorator, so the registration it targets is written by a
-    /// pass that never learns about it. Reported rather than silently doing the wrong thing.
-    /// </remarks>
-    public static readonly DiagnosticDescriptor DecoratorImplementationNeedsTypeRegistration = new(
-        id: "DM0022",
-        title: "Decorator names an implementation while factories are generated",
-        messageFormat: "'{0}' decorates only '{1}', but DependencyModules_GenerateFactories is on for this project "
-            + "and a factory registration cannot say what implementation it built — so the decorator would "
-            + "wrap every registration of '{2}' instead of one. Turn the property off for this project, or "
-            + "drop Implementation and decorate them all.",
-        category: Category,
-        defaultSeverity: DiagnosticSeverity.Warning,
-        isEnabledByDefault: true
-    );
-
-    /// <summary>
     /// Raised for a <c>[Mock]</c> parameter and a <c>[TestExport]</c> on the same method, both
     /// naming one service.
     /// </summary>
@@ -469,6 +443,20 @@ public static class DependencyModuleDiagnostics
     );
 
     /// <summary>
+    /// Raised for a <c>[Decorator]</c> class that the generator does not apply. Without it, a
+    /// protected constructor is CS0122 in generated code, and the other cases drop the decorator
+    /// with no message.
+    /// </summary>
+    public static readonly DiagnosticDescriptor DecoratorIgnored = new(
+        id: "DM0025",
+        title: "Decorator is not applied",
+        messageFormat: "'{0}' has [Decorator] but is not applied. {1}.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true
+    );
+
+    /// <summary>
     /// Raised for <c>[CrossWireService]</c> on a generic type.
     /// </summary>
     /// <remarks>
@@ -487,10 +475,23 @@ public static class DependencyModuleDiagnostics
     public static readonly DiagnosticDescriptor CrossWireCannotBeGeneric = new(
         id: "DM0014",
         title: "Generic type cannot be cross-wired",
-        messageFormat: "'{0}' is generic, so [CrossWireService] cannot register it. Cross-wiring shares one instance "
+        messageFormat: "'{0}' is generic, so {1} cannot register it. Cross-wiring shares one instance "
             + "across every service type, which needs a factory, and the container does not allow one for an "
-            + "open generic registration. Use [SingletonService], [ScopedService] or [TransientService] to "
-            + "register it, applying one per interface if it needs to answer to more than one.",
+            + "open generic registration. {2}.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true
+    );
+
+    /// <summary>
+    /// Raised for a <c>[CrossWireService]</c> class that declares no interface but inherits one.
+    /// Cross-wiring takes the declared interfaces only, so the inherited ones are not registered.
+    /// </summary>
+    public static readonly DiagnosticDescriptor CrossWireInheritedInterfaces = new(
+        id: "DM0024",
+        title: "Cross-wired class declares no interface",
+        messageFormat: "'{0}' has [CrossWireService] but declares no interface, so only '{0}' is registered. "
+            + "The interfaces it gets from a base class are not cross-wired. Name them on the declaration of '{0}'.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true

@@ -79,61 +79,32 @@ public class DecoratorImplementationTests
     }
 
     /// <summary>
-    /// The same limit interception has, and for the same reason: a factory descriptor cannot say
-    /// what implementation it was built from, so naming one has nothing to match against and the
-    /// decorator wraps everything — the opposite of what it asked for.
-    ///
-    /// An intercepted service escapes this automatically, because the interception is declared on
-    /// the class being registered and the writer emitting that registration can see it. A decorator
-    /// is declared on the decorator, so the registration it targets is written by a pass that never
-    /// learns about it. Reported rather than silently doing the wrong thing.
+    /// A factory from <c>DependencyModules_GenerateFactories</c> is typed to return its class, so
+    /// the decorator tells the registrations apart as it does without the property.
     /// </summary>
     [Fact]
-    public void NamingAnImplementationUnderGenerateFactories_ReportsDM0022()
+    public void NamingAnImplementationUnderGenerateFactories_WrapsOnlyThatOne()
     {
-        var result = Generate(
+        var resolved = Resolve(
             "[Decorator(Implementation = typeof(Loud))]",
             generateFactories: true
         );
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0022");
-
-        Assert.Contains("Logged", diagnostic.GetMessage());
-        Assert.Contains("Loud", diagnostic.GetMessage());
+        Assert.Equal(["Logged", "Quiet"], resolved.Select(Outer));
     }
 
     [Fact]
-    public void NamingNoImplementationUnderGenerateFactories_IsNotReported()
+    public void NamingNoImplementationUnderGenerateFactories_WrapsEveryRegistration()
     {
-        var result = Generate("[Decorator]", generateFactories: true);
+        var resolved = Resolve("[Decorator]", generateFactories: true);
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0022");
-    }
-
-    [Fact]
-    public void NamingAnImplementationWithoutGenerateFactories_IsNotReported()
-    {
-        var result = Generate(
-            "[Decorator(Implementation = typeof(Loud))]",
-            generateFactories: false
-        );
-
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0022");
+        Assert.Equal(["Logged", "Logged"], resolved.Select(Outer));
     }
 
     private static string Outer(object greeter) => greeter.GetType().Name;
 
     private static string Greet(object greeter) =>
         (string)greeter.GetType().GetMethod("Greet")!.Invoke(greeter, null)!;
-
-    private static GeneratorResult Generate(string decoratorAttribute, bool generateFactories) =>
-        GeneratorTestHarness.Run(
-            Source(decoratorAttribute),
-            new Dictionary<string, string>
-            {
-                ["DependencyModules_GenerateFactories"] = generateFactories ? "true" : "false",
-            }
-        );
 
     private static object[] Resolve(string decoratorAttribute, bool generateFactories = false)
     {

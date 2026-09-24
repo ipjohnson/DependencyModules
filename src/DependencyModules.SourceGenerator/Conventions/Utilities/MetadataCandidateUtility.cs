@@ -189,7 +189,7 @@ public static class MetadataCandidateUtility
                 ? ConstructorAccess.Public
                 : ConstructorAccess.None,
             LocationModel.None,
-            null,
+            EnvironmentConditionUtility.GetConditions(type),
             AttributeKeysOf(type),
             assemblyName
         );

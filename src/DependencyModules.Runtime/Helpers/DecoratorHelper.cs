@@ -281,14 +281,39 @@ public static class DecoratorHelper
         new();
 
     /// <summary>
-    /// The implementation behind a descriptor, or null when it cannot be known — a registration made
-    /// from an instance or a hand-written factory, including the factories
-    /// <c>DependencyModules_GenerateFactories</c> emits.
+    /// The implementation behind a descriptor, or null when it cannot be known.
     /// </summary>
-    private static Type? OriginImplementationOf(ServiceDescriptor descriptor) =>
-        OriginImplementation.TryGetValue(descriptor, out var origin)
-            ? origin
-            : ImplementationOf(descriptor);
+    /// <remarks>
+    /// Read as the container reads it for TryAddEnumerable: the implementation type, the type of the
+    /// instance, or the return type of the factory delegate. A factory typed to return object or the
+    /// service type names no implementation. That includes a lambda passed to
+    /// <c>AddSingleton&lt;IService&gt;</c> and the factories <c>DependencyModules_GenerateFactories</c>
+    /// emits.
+    /// </remarks>
+    private static Type? OriginImplementationOf(ServiceDescriptor descriptor)
+    {
+        if (OriginImplementation.TryGetValue(descriptor, out var origin))
+        {
+            return origin;
+        }
+
+        var implementation = descriptor.IsKeyedService
+            ? descriptor.KeyedImplementationType
+                ?? descriptor.KeyedImplementationInstance?.GetType()
+                ?? ReturnTypeOf(descriptor.KeyedImplementationFactory)
+            : descriptor.ImplementationType
+                ?? descriptor.ImplementationInstance?.GetType()
+                ?? ReturnTypeOf(descriptor.ImplementationFactory);
+
+        return implementation == typeof(object) || implementation == descriptor.ServiceType
+            ? null
+            : implementation;
+    }
+
+    private static Type? ReturnTypeOf(Delegate? factory) =>
+        factory?.GetType().GenericTypeArguments is { Length: > 0 } arguments
+            ? arguments[arguments.Length - 1]
+            : null;
 
     private static void RecordOrigin(ServiceDescriptor original, ServiceDescriptor replacement)
     {
@@ -334,15 +359,14 @@ public static class DecoratorHelper
                 continue;
             }
 
-            // An interceptor's wrapper belongs to the one implementation it was generated from.
-            // Skipped only when the descriptor's origin is known and is a different type: a
-            // registration made from an instance or a factory cannot be attributed to an
-            // implementation, and refusing to wrap it there would silently stop intercepting a
-            // service that had asked for it — a worse failure than the one this filter prevents.
+            // An interceptor's wrapper belongs to the one implementation it was generated from, so
+            // it wraps only a registration known to be built from that implementation. Every
+            // registration the generator writes for an intercepted class names the class. A factory
+            // that names no implementation is taken to be another registration, because wrapping it
+            // would put the wrapper of one class around an instance of another.
             if (
                 implementationType != null
-                && OriginImplementationOf(descriptor) is { } origin
-                && origin != implementationType
+                && OriginImplementationOf(descriptor) != implementationType
             )
             {
                 continue;

@@ -351,6 +351,31 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
                 Diagnostic.Create(
                     DependencyModuleDiagnostics.CrossWireCannotBeGeneric,
                     serviceModel.Location?.ToLocationOrNone(lookup) ?? Location.None,
+                    typeName,
+                    "[CrossWireService]",
+                    "Use [SingletonService], [ScopedService] or [TransientService] to register it, "
+                        + "applying one per interface if it needs to answer to more than one"
+                )
+            );
+        }
+
+        foreach (var serviceModel in data.Right)
+        {
+            context.CancellationToken.ThrowIfCancellationRequested();
+
+            if (!serviceModel.Features.HasFlag(RegistrationFeature.CrossWireInheritedInterfaces))
+            {
+                continue;
+            }
+
+            var typeName = serviceModel.ImplementationType.Name;
+
+            logger.Error($"'{typeName}' is cross-wired but declares no interface.");
+
+            context.ReportDiagnostic(
+                Diagnostic.Create(
+                    DependencyModuleDiagnostics.CrossWireInheritedInterfaces,
+                    serviceModel.Location?.ToLocationOrNone(lookup) ?? Location.None,
                     typeName
                 )
             );
@@ -397,8 +422,7 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
                     continue;
                 }
 
-                var kind =
-                    condition.Kind == EnvironmentConditionKind.Name ? "environment name" : "key";
+                var kind = EnvironmentConditionUtility.Subject(condition);
 
                 logger.Error($"'{typeName}' has an environment condition that names no {kind}.");
 
