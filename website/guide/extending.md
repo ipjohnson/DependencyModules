@@ -1,232 +1,197 @@
-# Writing your own generator
+# Extending
 
-## The problem
+This page tells you about the extension points of the runtime, of `DependencyModules.Testing`, and of the generator.
 
-You want a registration mechanism this library does not have — your own attribute, a DSL that suits
-your domain, registrations derived from something only your codebase knows about.
+## Module features
 
-Writing that as a standalone source generator means rebuilding a lot of unglamorous machinery first:
-finding the modules, parsing the MSBuild configuration, producing diagnostics, keeping the
-incremental cache honest, and emitting registration code that composes with everything else. None of
-that is the part you actually wanted to write.
-
-## How DependencyModules helps
-
-All of it lives in a shared assembly you can compile into your own analyzer. Your mechanism produces
-the same `ServiceModel`s the attribute path produces, so emission needs no special case and your
-registrations compose with `[SingletonService]` and conventions as if they had always been there.
-
-The [convention](/guide/conventions) generator is exactly this — a registration mechanism of its own,
-plugged into the same pipeline — and it is the worked example throughout this page. It ships inside
-`DependencyModules.SourceGenerator` rather than beside it, but nothing about how it plugs in depends
-on that; yours can live in its own analyzer package.
-
-::: warning Not a stable public API yet
-These are the extension points the convention generator uses, and they are public. They are **not**
-versioned as a stable API, so a minor release may move them. If you build on this, pin the generator
-package version.
-:::
-
-## What you get to reuse
-
-| | |
-|---|---|
-| Module discovery | which `[DependencyModule]` classes exist, and their realms and features |
-| Configuration | the `DependencyModules_*` MSBuild properties, already parsed |
-| `DependencyFileWriter` | turns `ServiceModel`s into registration code |
-| `FileLogger` | the diagnostic log users attach to issues |
-| Diagnostics | the `DM####` descriptors and their release tracking |
-| Model equality helpers | what keeps the incremental cache working |
-
-## The shape
-
-Two interfaces. `BaseSourceGenerator` is the Roslyn entry point, and it asks you for the generators
-that want module models:
+A feature lets one module get the other loaded modules that implement an interface. Implement `IDependencyModuleFeature<TFeature>` from `DependencyModules.Runtime.Features` on a module:
 
 ```csharp
-[Generator]
-public class MySourceGenerator : BaseSourceGenerator
-{
-    protected override IEnumerable<IDependencyModuleSourceGenerator> AttributeSourceGenerators()
-    {
-        yield return new MyGenerator();
-    }
+using DependencyModules.Runtime.Attributes;
+using DependencyModules.Runtime.Features;
+using Microsoft.Extensions.DependencyInjection;
 
-    // SetupRootGenerator is deliberately not overridden. DependencyModules.SourceGenerator owns the
-    // module partial; emitting it from here too would declare every module twice. The base class
-    // knows that from the attribute you trigger on, so the default does the right thing here.
+namespace Plugins;
+
+public interface IPluginModule
+{
+    string PluginName { get; }
+}
+
+public record PluginInfo(string Name);
+
+[DependencyModule(OnlyRealm = true)]
+public partial class PluginRegistryModule : IDependencyModuleFeature<IPluginModule>
+{
+    public void HandleFeature(IServiceCollection collection, IEnumerable<IPluginModule> feature)
+    {
+        foreach (var plugin in feature)
+        {
+            collection.AddSingleton(new PluginInfo(plugin.PluginName));
+        }
+    }
+}
+
+[DependencyModule(OnlyRealm = true)]
+public partial class ReportsPluginModule : IPluginModule
+{
+    public string PluginName => "reports";
 }
 ```
 
-A generator that declares its **own** module attribute is the other shape, and the default flips to
-match: nothing else can write those modules, so the base class writes them for you.
+```csharp
+using DependencyModules.Runtime;
+using Microsoft.Extensions.DependencyInjection;
+using Plugins;
+
+var services = new ServiceCollection();
+
+services.AddModules(new PluginRegistryModule(), new ReportsPluginModule());
+
+var plugins = services.BuildServiceProvider().GetServices<PluginInfo>();
+```
+
+When the modules load, `HandleFeature` gets each loaded module that implements `TFeature`. The features are applicable before the modules add their services. If more than one module implements a feature, the `Order` property sets the sequence of the feature handlers. The default value is 0.
+
+Put `IDependencyModuleFeature<TFeature>` on the declaration of the module that has `[DependencyModule]`. The generator does not read the other partial declarations.
+
+## Attributes that load modules
+
+An attribute that implements `IDependencyModuleProvider` from `DependencyModules.Runtime.Interfaces` can load a module. The generated module attributes implement this interface. You can also write such an attribute:
 
 ```csharp
+using DependencyModules.Runtime.Attributes;
+using DependencyModules.Runtime.Interfaces;
+
+namespace Plugins;
+
+[DependencyModule(OnlyRealm = true)]
+public partial class NamedPluginModule(string name) : IPluginModule
+{
+    public string PluginName => name;
+}
+
+public class PluginAttribute(string name) : Attribute, IDependencyModuleProvider
+{
+    public IDependencyModule GetModule() => new NamedPluginModule(name);
+}
+
+[DependencyModule]
+[Plugin("audit")]
+public partial class HostModule;
+```
+
+When `HostModule` loads, `NamedPluginModule` also loads. The test packages also read these attributes on test methods, test classes, and the assembly.
+
+The generated module attribute is `partial`. To add an interface to it, write a partial declaration:
+
+```csharp
+namespace Plugins;
+
+public interface IDocumentedModule;
+
+public partial class ReportsPluginModuleAttribute : IDocumentedModule;
+```
+
+## Test extension points
+
+`DependencyModules.Testing` has interfaces for attributes that change the steps of a test. For more information, refer to [Attributes that you write for tests](./testing.md#attributes-that-you-write-for-tests) and [Other mock libraries](./testing-mocking.md#other-mock-libraries).
+
+## A source generator for different framework attributes
+
+A framework can use a different attribute to identify a module. It can also use different service attributes. The `DependencyModules.SourceGenerator.Impl` package contains the source code of the generator. You compile this source code into your generator.
+
+Do these steps:
+
+1. Make a class library that has the target framework `netstandard2.0`.
+2. Add the `DependencyModules.SourceGenerator.Impl` package.
+3. Add the `CSharpAuthor` package, version 2.0.0. The generator source code uses this package.
+4. Set `PackageDependencyModuleIncludeSource` and `PackageCSharpAuthorIncludeSource` to `true`.
+5. Write a class that derives from `BaseSourceGenerator`.
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <PackageDependencyModuleIncludeSource>true</PackageDependencyModuleIncludeSource>
+    <PackageCSharpAuthorIncludeSource>true</PackageCSharpAuthorIncludeSource>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="DependencyModules.SourceGenerator.Impl" Version="1.5.0" PrivateAssets="all" />
+    <PackageReference Include="CSharpAuthor" Version="2.0.0" PrivateAssets="all" IncludeAssets="build" />
+  </ItemGroup>
+</Project>
+```
+
+```csharp
+using CSharpAuthor;
+using DependencyModules.Conventions;
+using DependencyModules.SourceGenerator;
+using DependencyModules.SourceGenerator.Impl;
+using Microsoft.CodeAnalysis;
+
+namespace MyFramework.Generator;
+
 [Generator]
-public class MyFrameworkGenerator : BaseSourceGenerator
+public class FrameworkGenerator : BaseSourceGenerator
 {
     protected override ITypeDefinition[] ModuleAttributeTypes() =>
-        [TypeDefinition.Get("My.Framework", "MyModuleAttribute")];
+        new[] { TypeDefinition.Get("MyFramework", "FrameworkModuleAttribute") };
 
     protected override IEnumerable<IDependencyModuleSourceGenerator> AttributeSourceGenerators()
     {
-        yield return new MyGenerator();
+        yield return new ServiceSourceGenerator();
+        yield return new ConventionGenerator();
     }
 }
 ```
 
-`[MyModule]` on a class now gets everything `[DependencyModule]` does — `AddModule<T>()`, services,
-conventions, decorators, interception — with no `[DependencyModule]` in the consuming project. Two
-things follow from declaring your own attribute:
+The source code in the package declares no `[Generator]` class. Only the `DependencyModules.SourceGenerator` package declares one. Thus your generator does not contain a copy of the DependencyModules generator.
 
-- **Override `SetupRootGenerator` with an empty body** if you want the attribute as a marker only,
-  and no module written for it.
-- **`Program.cs` is not yours.** A file of top level statements carries no attribute to tell the two
-  generators apart, so the generated `ApplicationModule` belongs to whichever generator reads
-  `[DependencyModule]`. If your framework ships without this package's generator and you want that
-  module, override `ShouldAutoApproveCompilationUnit` to `true`.
+`BaseSourceGenerator` has these members to override:
 
-`IDependencyModuleSourceGenerator` is one method. You receive the initialization context and a
-provider of every discovered module paired with the configuration in effect:
+| Member | Function |
+| --- | --- |
+| `ModuleAttributeTypes()` | The attributes that identify a module. The default is `[DependencyModule]`. If your generator uses only `[DependencyModule]`, it does not write the module class. The `DependencyModules.SourceGenerator` package writes it. |
+| `AttributeSourceGenerators()` | The parts that write registrations. |
+| `SetupRootGenerator(...)` | Writes the module classes. An override can write no module classes. |
+| `ShouldAutoApproveCompilationUnit` | If the value is `true`, the generator uses `Program.cs` as the entry of a generated `ApplicationModule`. The default value is `true` only if `ModuleAttributeTypes()` gives only `[DependencyModule]`. |
+| `GenerateEntryPointModel(...)` | Makes the model of a module from a module declaration or from `Program.cs`. |
 
-```csharp
-public class MyGenerator : IDependencyModuleSourceGenerator
-{
-    public void SetupGenerator(
-        IncrementalGeneratorInitializationContext context,
-        IncrementalValuesProvider<(ModuleEntryPointModel Left, DependencyModuleConfigurationModel Right)> modules)
-    {
-        var candidates = context.SyntaxProvider
-            .CreateSyntaxProvider(IsCandidate, GetModel)
-            .Where(model => !model.IsIgnored)
-            .Collect();
+A framework generator that does not use `DependencyModules.SourceGenerator` can set `ShouldAutoApproveCompilationUnit` to `true`. The framework generator then writes the `ApplicationModule`.
 
-        context.RegisterSourceOutput(modules.Collect().Combine(candidates), Generate);
-    }
-}
-```
+The package contains these parts:
 
-For an attribute-driven mechanism, `BaseAttributeSourceGenerator<TModel>` does more of the work — you
-supply the attribute types, a transform, a comparer and an ignored sentinel:
+- `ServiceSourceGenerator` writes the registrations for the service attributes.
+- `ConventionGenerator` writes the convention registrations and the decorators.
 
-```csharp
-public class MyGenerator : BaseAttributeSourceGenerator<MyModel>
-{
-    protected override IEnumerable<ITypeDefinition> AttributeTypes() => [MyAttributeType];
-    protected override MyModel GenerateAttributeModel(GeneratorAttributeSyntaxContext c, CancellationToken t) => …;
-    protected override IEqualityComparer<MyModel> GetComparer() => new MyModelComparer();
-    protected override MyModel IgnoredModel => MyModel.Ignore;
-    protected override void GenerateSourceOutput(SourceProductionContext context, …) => …;
-}
-```
+The package does not contain the interception part.
 
-## Emitting registrations
+A part implements `IDependencyModuleSourceGenerator`. This interface has one method: `SetupGenerator(context, provider)`. The provider gives pairs of `ModuleEntryPointModel` and `DependencyModuleConfigurationModel` values.
 
-Build `ServiceModel`s and hand them to `DependencyFileWriter`. The `uniqueId` becomes part of the
-generated method and field names, so pick something that will not collide with another generator
-contributing to the same module:
+To write registrations for attributes that you declare, derive a part from `BaseAttributeSourceGenerator<TModel>`. Implement `AttributeTypes()`, `GenerateAttributeModel`, `GenerateSourceOutput`, `GetComparer()`, and `IgnoredModel`.
 
-```csharp
-var writer = new DependencyFileWriter(logger, coverageAttributeOnMethod: true);
+`DependencyFileWriter` writes the registration code for a list of `ServiceModel` values. Its `Write` method has a `uniqueId` parameter. The name of the generated method is `uniqueId` and the suffix `Dependencies`. Thus each part that adds registrations to a module must use a different `uniqueId`.
 
-var output = writer.Write(entryPointModel, configurationModel, serviceModels, "MyMechanism");
+The constructor of `DependencyFileWriter` has a `coverageAttributeOnMethod` parameter. If the value is `true`, `DependencyFileWriter` puts `[ExcludeFromCodeCoverage]` on the generated method and not on the class. Only one part of a partial class can have this attribute on the class. If two parts have it, the compiler gives the error CS0579.
 
-context.AddSource(
-    entryPointModel.EntryPointType.GetFileNameHint(configuration.RootNamespace, "MyDependencies"),
-    output);
-```
+The generator source code declares the DM diagnostics. The compiler then gives the warning RS2008 for each diagnostic, because your project has no analyzer release tracking.
 
-::: tip coverageAttributeOnMethod
-`[ExcludeFromCodeCoverage]` is not `AllowMultiple`, and attributes on partial parts combine. Only one
-writer can own the class-level attribute, so every other file contributing to the same partial has to
-apply it per member. Pass `true` unless you are the first.
-:::
+To suppress these warnings, add `RS2008` to `NoWarn`. You can also add release tracking files.
 
-## Packaging
+A project that uses your generator must reference `DependencyModules.Runtime`, because the generated code uses it.
 
-The project is an analyzer, and analyzer packaging is unforgiving in ways that only surface once
-someone installs the package. Copy the conventions project's csproj rather than working it out again.
+Your generator reads the MSBuild properties only if the project declares them as `CompilerVisibleProperty` items. The `DependencyModules.SourceGenerator` package declares them in its `build` folder. Declare them in your package too.
 
-```xml
-<PropertyGroup>
-  <TargetFramework>netstandard2.0</TargetFramework>
-  <IsRoslynComponent>true</IsRoslynComponent>
-  <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
-  <DevelopmentDependency>true</DevelopmentDependency>
-  <IncludeBuildOutput>false</IncludeBuildOutput>
-  <!-- Analyzer package: ships an analyzer and no lib/, which is what NU5128 flags. -->
-  <NoWarn>$(NoWarn);NU5128</NoWarn>
-</PropertyGroup>
+The `DependencyModules.SourceGenerator` package has these properties. You can use the same properties for your generator package:
 
-<ItemGroup>
-  <None Include="$(OutputPath)\$(AssemblyName).dll"
-        Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false"/>
-</ItemGroup>
-```
-
-Roslyn supplies the compiler assemblies at load time, so every compiler dependency must be
-`PrivateAssets="all"` or it leaks into your consumers' dependency graphs.
-
-### Reusing the shared sources
-
-The shared code is compiled **into** your analyzer rather than referenced, because an analyzer
-assembly cannot depend on another one at load time:
-
-```xml
-<ItemGroup>
-  <Compile Include="../DependencyModules.SourceGenerator.Impl/**/*.cs"
-           Exclude="../DependencyModules.SourceGenerator.Impl/obj/**/*">
-    <Link>Impl\%(RecursiveDir)/%(FileName)%(Extension)</Link>
-  </Compile>
-</ItemGroup>
-```
-
-That works because **`Impl` declares no `[Generator]` of its own**. Compiling it into a second
-analyzer assembly adds no second registration of the service, decorator or interceptor generators, so
-a project referencing both packages does not generate everything twice.
-
-If you carry the `DM####` descriptors, you need their release tracking too, or the build fails
-RS2008:
-
-```xml
-<ItemGroup>
-  <AdditionalFiles Include="../DependencyModules.SourceGenerator.Impl/AnalyzerReleases.Shipped.md"/>
-  <AdditionalFiles Include="../DependencyModules.SourceGenerator.Impl/AnalyzerReleases.Unshipped.md"/>
-</ItemGroup>
-```
-
-## Three rules that will cost you a day each
-
-**Never put a symbol in a model.** `ISymbol` is not equatable and holds its `SyntaxTree` alive. A
-model containing one never compares equal across runs, so the incremental cache misses on every
-keystroke and pins memory. Render what you need to strings or `ITypeDefinition` during the transform.
-
-**Give every model structural equality.** A positional record compares `IReadOnlyList` members by
-reference, so two structurally identical models built on consecutive runs are unequal and everything
-downstream recomputes. `ModelEquality.ListEquals` and `ListHashCode` exist for this.
-
-**Keep the predicate syntax-only and cheap.** It runs on a great many nodes. Reject on node type
-first, and never touch the semantic model — resolve in the transform, which runs only for what the
-predicate accepted.
-
-## Refuse rather than guess
-
-The house style is that an unsupported shape produces a `DM####` diagnostic and generates nothing.
-The failure mode should be "this library does not support X", never a `CS` error inside generated
-code, and never a silent absence.
-
-Silent failure is the recurring bug class here. When you add something, ask what happens when it does
-*not* work — and if the answer is "nothing is registered and the build is green", add a diagnostic.
-
-## Testing it
-
-Drive the generator in memory and then **execute what it produced**. Asserting on generated text
-passes happily while the wrong service type is registered.
-
-The pattern used throughout this repository is: compile the source with the generator, emit a real
-assembly, load it, build a provider, and resolve. See [Testing modules](/guide/testing) for the
-consumer-facing equivalent.
-
-One caveat if you drive two analyzers from one test project: both compile in the shared `Impl`
-sources, so referencing both as libraries puts two copies of every `Impl` type in scope and every use
-is `CS0433`. Reach the second through an `Alias` and let everything else resolve to the first.
+- `IncludeBuildOutput` is `false`.
+- `DevelopmentDependency` is `true`.
+- The generator assembly is in the `analyzers/dotnet/cs` folder of the package.
+- `NoWarn` contains `NU5128`.
+- The Roslyn package references have `PrivateAssets="all"`.

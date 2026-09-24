@@ -6,7 +6,7 @@
         <Nullable>enable</Nullable>
         <IsPackable>True</IsPackable>
         <PackageId>DependencyModules.xUnit</PackageId>
-        <Description>xUnit v3 integration for DependencyModules. Provides the [ModuleTest] attribute, which builds a service provider from your modules and injects the services a test method asks for, plus attributes for per-test service overrides and value injection.</Description>
+        <Description>xUnit v3 support for DependencyModules. [ModuleTest] builds a service provider from your modules for each test and each data row. The test parameters get their values from this service provider.</Description>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
     </PropertyGroup>
 

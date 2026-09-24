@@ -6,7 +6,7 @@
         <Nullable>enable</Nullable>
         <IsPackable>True</IsPackable>
         <PackageId>DependencyModules.NSubstitute</PackageId>
-        <Description>NSubstitute mocking support for DependencyModules test integrations. Add [NSubstituteSupport] to resolve any unregistered dependency as an NSubstitute substitute, and use [Mock] on a test parameter to inject and configure it. Pair with a test framework integration such as DependencyModules.xUnit.</Description>
+        <Description>NSubstitute mocks for DependencyModules tests. With [NSubstituteSupport], a test parameter with [Mock] gets a substitute. The service provider of the test gives the same substitute to the other services. Use it with DependencyModules.xUnit or DependencyModules.NUnit.</Description>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
     </PropertyGroup>
 

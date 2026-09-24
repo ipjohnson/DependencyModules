@@ -1,204 +1,244 @@
 # Decorators
 
-## The problem
+A decorator is a wrapper class for a service. The decorator implements the service type and gets the service in its constructor. When you get the service type from the service provider, you get the decorator. The decorator then calls the service.
 
-You want to cache the results of a repository:
+## Declare a decorator
+
+Put `[Decorator]` on the class:
 
 ```csharp
-[SingletonService]
-public class SqlRepository : IRepository
+using DependencyModules.Runtime.Attributes;
+
+namespace Orders;
+
+public interface IOrderService
 {
-    public Item Get(int id) => /* a database round trip */;
+    string Place(string item);
 }
-```
-
-Putting the cache inside `SqlRepository` gives that class a second job and makes it harder to test.
-Putting it in every caller is worse. What you want is something that sits **between** the callers and
-the repository, without either side knowing.
-
-Microsoft's container has no built-in way to express that.
-
-## How DependencyModules helps
-
-Write the wrapper as an ordinary class, mark it `[Decorator]`, and it takes over the registration:
-
-```csharp
-public interface IRepository { Item Get(int id); }
 
 [SingletonService]
-public class SqlRepository : IRepository
+public class OrderService : IOrderService
 {
-    public Item Get(int id) => /* … */;
+    public string Place(string item) => $"placed {item}";
+}
+
+public interface IAuditLog
+{
+    void Write(string line);
+}
+
+[SingletonService]
+public class ConsoleAuditLog : IAuditLog
+{
+    public void Write(string line) => Console.WriteLine(line);
 }
 
 [Decorator]
-public class CachingRepository(IRepository inner, IMemoryCache cache) : IRepository
+public class AuditedOrderService(IOrderService inner, IAuditLog log) : IOrderService
 {
-    public Item Get(int id) => cache.GetOrCreate(id, _ => inner.Get(id))!;
+    public string Place(string item)
+    {
+        log.Write($"order for {item}");
+        return inner.Place(item);
+    }
 }
 ```
 
-Resolving `IRepository` now gives you `CachingRepository` wrapping `SqlRepository`. Neither the
-callers nor `SqlRepository` changed.
+When you get `IOrderService`, the service provider gives `AuditedOrderService`. `AuditedOrderService` gets `OrderService` in the `inner` parameter.
 
-## How it is wired
+The generator finds the service type from the constructor. The service type is the first constructor parameter with a type that the class declaration of the decorator contains. The generator does not examine the interfaces of base classes or the interfaces that an interface derives from. If the generator finds no service type, it ignores the decorator and gives no diagnostic. The `Service` property can also set the service type, for example `[Decorator(Service = typeof(IOrderService))]`.
 
-The **first constructor parameter is the wrapped instance**; every other parameter is resolved from
-the container normally. That is the whole convention.
+The generator does not register the decorator class as a service. The service provider gives the other constructor parameters, for example `IAuditLog` in the example.
 
-You never register the decorator yourself — `[Decorator]` is enough, and the decorator is not
-registered as a service in its own right. This also keeps it out of
-[convention](/guide/conventions) matching, which matters because a decorator implements the very
-interface a convention over that interface would be looking for.
+Give the decorator a `public` constructor. The generated code calls this constructor.
 
-## Ordering
+## Which registrations a decorator changes
 
-With more than one decorator, `Order` decides the nesting. **Lower orders sit closer to the
-implementation**; higher ones wrap them:
+The decorators change the registrations after all modules of the load operation add their services. A decorator changes each registration of its service type in the service collection. All loaded modules can add these registrations. Your code can also add them before the call to `AddModules`.
+
+A decorator changes each registration only one time. When two modules contain the same decorator, the decorator also changes each registration only one time.
+
+The decorated registration keeps its lifetime. A decorator can change keyed registrations, instance registrations, and factory registrations. A keyed registration keeps its key.
+
+A decorator does not change registrations that you add after the modules load.
+
+For a registration with an implementation type, the decorator moves the registration to a private service key. The decorator then gets the service with `GetRequiredKeyedService`. Thus the service provider must support keyed services. The service provider continues to make and dispose the decorated service.
+
+## Decorator sequence
+
+The `Order` property sets the sequence of decorators for one service type. If the `Order` value of decorator A is less than the `Order` value of decorator B, B is the outer decorator. Thus B gets the call before A.
 
 ```csharp
-[Decorator(Order = 10)] public class Retrying(IRepository inner) : IRepository { }
-[Decorator(Order = 20)] public class Logging(IRepository inner)  : IRepository { }
+using DependencyModules.Runtime.Attributes;
 
-// resolves as Logging(Retrying(SqlRepository))
+namespace Orders;
+
+public interface IPriceService
+{
+    string Describe();
+}
+
+[SingletonService]
+public class PriceService : IPriceService
+{
+    public string Describe() => "price";
+}
+
+[Decorator(Order = 10)]
+public class InnerPriceDecorator(IPriceService inner) : IPriceService
+{
+    public string Describe() => $"inner({inner.Describe()})";
+}
+
+[Decorator(Order = 20)]
+public class OuterPriceDecorator(IPriceService inner) : IPriceService
+{
+    public string Describe() => $"outer({inner.Describe()})";
+}
 ```
 
-So a logged call reports the whole retry sequence as one operation, which is usually what you want.
+In this example, `Describe()` gives `outer(inner(price))`.
 
-Ordering is global — decorators are sorted across **every module** in an `AddModule(s)` call, not
-just within the module that declared them. By convention framework packages use 0–999 and application
-code 1000 and above, so an application's decorators wrap the ones contributed by libraries it
-consumes.
+The decorators of all modules and the interceptors are in one sequence. The default `Order` value is 0. The source code recommends values from 0 to 999 for packages and values of 1000 and more for application code. Then the decorators of the application are the outer decorators. The generator does not examine these ranges.
 
-Two decorators of one service sharing an order is [DM0007](/reference/diagnostics#dm0007), since
-their nesting would be ambiguous.
+Write `Order` as a number, for example `Order = 1000`. The generator reads the text of the value. If you use a constant or `1_000`, the `Order` value is 0, and the generator gives no diagnostic. `[Decorate]` also accepts a constant.
 
-## One decorator over every closed generic
+If two decorators in one module have the same service type and the same `Order` value, the generator gives the error DM0007.
 
-This is where decorators earn their keep. A single declaration can wrap **every** closed registration
-of an open generic — cross-cutting behaviour over all your MediatR handlers or FluentValidation
-validators, written once:
+## Generic decorators
+
+A generic decorator decorates a generic service type:
 
 ```csharp
+using DependencyModules.Runtime.Attributes;
+using DependencyModules.Runtime.Conventions;
+
+namespace Orders.Handlers;
+
+public interface IHandler<TRequest, TResponse>
+{
+    TResponse Handle(TRequest request);
+}
+
+public record CreateOrder(string Item);
+
+public record CancelOrder(string OrderId);
+
+public class CreateOrderHandler : IHandler<CreateOrder, string>
+{
+    public string Handle(CreateOrder request) => "created";
+}
+
+public class CancelOrderHandler : IHandler<CancelOrder, string>
+{
+    public string Handle(CancelOrder request) => "cancelled";
+}
+
 [Decorator]
-public class LoggingHandler<TRequest, TResponse>(
-    IRequestHandler<TRequest, TResponse> inner, ILogger log)
-    : IRequestHandler<TRequest, TResponse>
+public class LoggingHandler<TRequest, TResponse>(IHandler<TRequest, TResponse> inner)
+    : IHandler<TRequest, TResponse>
 {
     public TResponse Handle(TRequest request)
     {
-        log.LogInformation("handling {Request}", typeof(TRequest).Name);
+        Console.WriteLine($"handle {typeof(TRequest).Name}");
         return inner.Handle(request);
     }
 }
-```
 
-Combined with a convention, that is the entire setup:
-
-```csharp
-conventions.RegisterAll(typeof(IRequestHandler<,>)).AsScoped();
-```
-
-Every handler registered, every handler wrapped, and a new handler joins both by existing.
-
-## Decorating only in some environments
-
-A decorator carries [environment conditions](/guide/environments) the same way a service does, which
-is how you get behaviour that exists only where you want it — request logging in development, a
-circuit breaker only in production:
-
-```csharp
-[Decorator]
-[IfEnvironment("Development")]
-public class LoggingRepository(IRepository inner, ILogger log) : IRepository
+[DependencyModule]
+public partial class HandlerModule : IConventionModule
 {
-    public Item Get(int id)
+    public void Conventions(IConventionDefinitions conventions)
     {
-        log.LogInformation("getting {Id}", id);
-        return inner.Get(id);
+        conventions.RegisterAll(typeof(IHandler<,>)).AsScoped();
     }
 }
 ```
 
-Outside Development the decorator is **never applied**, so `IRepository` resolves as the undecorated
-implementation. Nothing wraps it and nothing tests the environment per call — the decision is made
-once, while the modules are being applied.
+The generator makes a closed decorator for each closed registration of the service type in the project. In this example, `LoggingHandler` decorates `IHandler<CreateOrder, string>` and `IHandler<CancelOrder, string>`. The registrations can be from service attributes or from conventions.
 
-All four condition attributes work, and they combine with **and** exactly as they do on a service:
+These conditions are applicable to a generic decorator:
 
-```csharp
-[Decorator]
-[IfNotEnvironment("Production")]
-[IfEnvironmentValue("TRACE_SQL", "on")]
-public class TracingRepository(IRepository inner) : IRepository { … }
-```
+- The decorator must have the same type parameters as the service type, in the same sequence.
+- The generator uses only the closed service types that the same project registers.
+- If a closed service type does not agree with the constraints of the decorator, the generator does not use the decorator for that type.
 
-A condition changes **whether** a decorator applies, never **where it sits**. Ordering is unaffected,
-so a conditional decorator dropping out leaves the rest of the chain nesting exactly as before:
+The generator cannot decorate an open generic registration, for example a registration of `IRepository<>` to `Repository<>`. If the project has only an open generic registration of the service type, the generator gives the warning DM0013. If the project also contains closed registrations, the generator decorates only the closed registrations. It gives no diagnostic for the open generic registration.
 
-```csharp
-[Decorator(Order = 10)] [IfEnvironment("Development")] public class Inner(IRepository r) : IRepository { }
-[Decorator(Order = 20)]                                public class Outer(IRepository r) : IRepository { }
+To decorate each closed type, register closed types. For example, declare classes that are not generic, such as `OrderRepository : IRepository<Order>`. A convention registers such a class as each closed type that it implements.
 
-// Development: Outer(Inner(SqlRepository))
-// Production:  Outer(SqlRepository)
-```
+## Decorate from a module
 
-## Decorating a type you do not own
-
-When the service, the decorator, or both come from an assembly you do not control, there is nowhere
-to put `[Decorator]`. Declare it on the module instead:
+When you cannot put `[Decorator]` on the decorator class, use `[Decorate]` on a module. For example, the decorator can be in a package.
 
 ```csharp
+using DependencyModules.Runtime.Attributes;
+
+namespace Orders;
+
+public class TimedOrderService(IOrderService inner) : IOrderService
+{
+    public string Place(string item) => inner.Place(item);
+}
+
 [DependencyModule]
-[Decorate(typeof(IRepository), typeof(CachingRepository), Order = 100)]
-public partial class DataModule;
+[Decorate(typeof(IOrderService), typeof(TimedOrderService), Order = 30)]
+public partial class OrdersModule;
 ```
 
-## When decoration happens
+The first argument is the service type. The next argument is the decorator type. The decorator must have a `public` constructor with a parameter of the service type. If it does not have such a constructor, the generator ignores the decorator and gives no diagnostic. The [generator log](./troubleshooting.md#write-a-generator-log) shows the cause. Only the module that has the attribute uses this decorator.
 
-Decoration runs as a distinct phase **after** every module's registrations, so a decorator sees
-everything registered by every module in the call, regardless of the order they were added in. You do
-not have to sequence anything.
+If the service type is an open generic type, the decorator type must also be an open generic type. If the decorator type is not generic, the generator gives the warning DM0013.
 
-The boundary is the `AddModule(s)` call: anything you register afterwards is outside that scope and
-will not be decorated.
+## Decorate one implementation
 
-## One limitation
-
-A service **registered as an open generic** — one generic implementation serving every closing —
-cannot be decorated:
+When a service type has more than one implementation, set `Implementation` to decorate only one of them:
 
 ```csharp
-[SingletonService]
-public class Repository<T> : IRepository<T> { }   // registers IRepository<> itself
+using DependencyModules.Runtime.Attributes;
 
-[Decorator]
-public class CachingRepository<T>(IRepository<T> inner) : IRepository<T> { }
+namespace Orders.Payments;
+
+public interface IPaymentMethod
+{
+    string Pay(decimal amount);
+}
+
+[SingletonService]
+public class CardPayment : IPaymentMethod
+{
+    public string Pay(decimal amount) => "card";
+}
+
+[SingletonService]
+public class InvoicePayment : IPaymentMethod
+{
+    public string Pay(decimal amount) => "invoice";
+}
+
+[Decorator(Implementation = typeof(CardPayment))]
+public class CardPaymentCheck(IPaymentMethod inner) : IPaymentMethod
+{
+    public string Pay(decimal amount) => amount > 0 ? inner.Pay(amount) : "rejected";
+}
 ```
 
-This is [DM0013](/reference/diagnostics#dm0013) at build time, whichever way the decorator was
-declared — on the class, or on the module with `[Decorate]`.
+`CardPaymentCheck` decorates only the registration of `CardPayment`.
 
-Register closed constructions instead. A [convention](/guide/conventions) over the open generic
-registers one per implementation, and an open generic decorator is then expanded across them.
+`Implementation` has an effect only on type registrations. In an instance registration or a factory registration, the decorator does not know the implementation type. Thus the decorator changes the registration.
 
-Note that this is about the **registration**, not the decorator. An open generic decorator over
-closed registrations — the example further up — works, and is the common case.
+If a module writes [generated factories](./aot.md#generated-factories), its registrations are factory registrations. The generator then gives the warning DM0022, because the decorator changes all registrations of the service type. If `[DependencyModule]` sets `GenerateFactories`, the generator uses this value for the module. It does not use the `DependencyModules_GenerateFactories` MSBuild property.
 
-## Decorator or interceptor?
+## Environment conditions
 
-|  | Decorator | [Interception](/guide/interception) |
-|---|---|---|
-| Who writes the wrapper | you | the generator |
-| Declared on | the decorator, against an interface | the implementation being wrapped |
-| Covers by default | every registration of that service | the one class it is written on |
-| Member access | real signatures and parameter names | uniform, `TResult` and `IArguments` |
-| Reach for it when | caching *this* method, validating *that* one | logging, timing, retry, tracing |
+A `[Decorator]` class can have environment attributes, for example `[IfEnvironment("Development")]`. The decorator then changes the registrations only when the conditions are true. If the conditions are false, the other decorators keep their positions in the sequence. For the attributes, refer to [Environments](./environments.md).
 
-Either can be narrowed to the other's default. `[Decorator(Implementation = typeof(X))]` decorates one
-implementation instead of all of them; `[Intercept(Realm = …)]` and `[Intercept(Members = …)]` narrow
-an interception further still.
+The generator ignores the environment attributes of a decorator that `[Decorate]` adds.
 
-If you need to do something specific to one member, write a decorator. If you need to do the same
-thing to every member of thirty services, read on.
+## Realms
+
+A decorator without `Realm` is applicable in each module that is not realm-only. A decorator with `Realm` is applicable only in the module that `Realm` identifies. For realms, refer to [Realms](./modules.md#realms).
+
+## Decorators in code
+
+To decorate registrations with your code, implement `IServiceCollectionConfiguration.ConfigureDecorators` on a module. This method runs after all generated decorators. For more information, refer to [Registration code in the module](./modules.md#registration-code-in-the-module).

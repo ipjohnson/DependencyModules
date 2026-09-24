@@ -6,7 +6,7 @@
         <Nullable>enable</Nullable>
         <IsPackable>True</IsPackable>
         <PackageId>DependencyModules.NUnit</PackageId>
-        <Description>NUnit integration for DependencyModules. Provides the [ModuleTest] attribute, which builds a service provider from your modules for every test iteration and injects the services a test method asks for, plus [ModuleTestCase] for data-driven tests and attributes for per-test service overrides and value injection.</Description>
+        <Description>NUnit support for DependencyModules. [ModuleTest] builds a service provider from your modules for each run of a test. The test parameters get their values from this service provider. [ModuleTestCase] gives data rows.</Description>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
     </PropertyGroup>
 

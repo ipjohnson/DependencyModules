@@ -9,7 +9,7 @@
         <Nullable>enable</Nullable>
         <IsPackable>True</IsPackable>
         <PackageId>DependencyModules.SourceGenerator</PackageId>
-        <Description>Roslyn source generator for DependencyModules. Turns [DependencyModule], [SingletonService], [ScopedService], [TransientService], and [CrossWireService] attributes into IServiceCollection registration code at compile time — no reflection or assembly scanning at run time. Pair with the DependencyModules.Runtime package.</Description>
+        <Description>The source generator of DependencyModules. When you compile, it writes the IServiceCollection registration code for each [DependencyModule] and for the classes with [SingletonService], [ScopedService], [TransientService], or [CrossWireService]. The generated code does not use reflection to find services. Use it with the DependencyModules.Runtime package.</Description>
         <DevelopmentDependency>true</DevelopmentDependency>
         <IncludeBuildOutput>false</IncludeBuildOutput>
         <!-- Analyzer package: ships a single analyzer assembly and no lib/, which is exactly what NU5128 flags. -->

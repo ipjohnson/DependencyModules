@@ -1,334 +1,332 @@
 # Conventions
 
-## The problem
+A convention registers all classes that agree with a set of conditions. You do not put an attribute on each class. When you compile, the generator reads the convention. It then writes one registration for each class that the convention selects.
 
-Attributes are explicit, which is a virtue right up until you have forty of them saying the same
-thing:
+You do not add a package for conventions. The convention types are in `DependencyModules.Runtime`, and `DependencyModules.SourceGenerator` reads the conventions.
 
-```csharp
-[TransientService] public class CreateOrderHandler : IRequestHandler<CreateOrder, OrderId> { }
-[TransientService] public class RenameOrderHandler : IRequestHandler<RenameOrder, OrderId> { }
-[TransientService] public class ShipOrderHandler   : IRequestHandler<ShipOrder, Unit> { }
-// … thirty-seven more
-```
+## Declare a convention
 
-Nothing here is a decision. Every handler is transient because every handler is transient, and the
-only real event is the day someone writes the forty-first and forgets the attribute. You are back to
-the hand-maintained list, just spread across forty files instead of gathered in one.
-
-## How DependencyModules helps
-
-State the rule once, and let the generator find the types that fit **while it builds**:
+Implement `IConventionModule` on a module. Write the conventions in the `Conventions` method.
 
 ```csharp
+using DependencyModules.Runtime.Attributes;
 using DependencyModules.Runtime.Conventions;
 
-[DependencyModule]
-public partial class DataModule : IConventionModule
+namespace Billing;
+
+public interface IInvoiceRule
 {
-    void IConventionModule.Conventions(IConventionDefinitions conventions)
+    bool Accepts(decimal total);
+}
+
+public class MinimumTotalRule : IInvoiceRule
+{
+    public bool Accepts(decimal total) => total > 0;
+}
+
+public class MaximumTotalRule : IInvoiceRule
+{
+    public bool Accepts(decimal total) => total < 10_000;
+}
+
+[DependencyModule]
+public partial class BillingModule : IConventionModule
+{
+    public void Conventions(IConventionDefinitions conventions)
     {
-        conventions.RegisterAll(typeof(IRequestHandler<,>)).AsTransient();
+        conventions.RegisterAll<IInvoiceRule>().AsSingleton();
     }
 }
 ```
 
-Forty registrations, one declaration, and the forty-first handler registers itself by existing.
+This convention registers `MinimumTotalRule` and `MaximumTotalRule` as `IInvoiceRule`.
 
-Nothing extra to install: the contracts are part of `DependencyModules.Runtime` and the generator
-that reads them is part of `DependencyModules.SourceGenerator`, both of which you already have.
+The generator reads the `Conventions` method when you compile. The method does not run. Thus these conditions are applicable to the method:
 
-::: tip Explicit or implicit, either compiles
-`void IConventionModule.Conventions(…)` as above, or an ordinary
-`public void Conventions(IConventionDefinitions conventions)` — both are matched. The explicit form
-is used when a type somehow carries both, since that is the one satisfying the interface.
+- The method must have a body with statements.
+- Each statement starts with a `RegisterAll` call on the parameter of the method.
+- Each statement continues with a chain of calls on the result of `RegisterAll`.
+- The arguments must be values that the compiler knows, for example string literals, constants, and `nameof` expressions.
+
+If the generator cannot read a statement, it gives the error DM0009 and does not use the statement.
+
+For `WithName`, `WithoutName`, and the environment calls, the generator does not always find an argument that is not a compile-time value. If the call has a different argument that is a compile-time value, the generator ignores the argument that is not a compile-time value. It gives no diagnostic. For example, the generator reads `IfEnvironmentValue(Keys.Feature, "on")` as `IfEnvironmentValue("on")` if `Keys.Feature` is a `static readonly` field. Use string literals or `const` fields for these arguments.
+
+You can implement the method as a public method or as an explicit interface implementation: `void IConventionModule.Conventions(IConventionDefinitions conventions)`. If a type has the two methods, the generator reads the explicit interface implementation.
+
+The type that implements `IConventionModule` must have `[DependencyModule]`. If it does not have this attribute, the generator gives the error DM0009. The generator does this only if the project has one or more modules.
+
+## Select classes by service type
+
+`RegisterAll` sets the service type for the convention:
+
+| Call | Selected classes |
+| --- | --- |
+| `RegisterAll<IService>()` | Classes that implement `IService`. |
+| `RegisterAll(typeof(IService))` | The same as `RegisterAll<IService>()`. |
+| `RegisterAll(typeof(IHandler<>))` | Classes that implement a type of `IHandler<>`. |
+| `RegisterAll()` | Classes that agree with the filters. A service type is not necessary. |
+
+For an open generic service type, the convention registers each class as each closed type that the class implements. A generic class can also implement the open generic type, for example `Handler<T> : IHandler<T>`. The convention then writes an open generic registration. The class must give its type parameters to the interface without changes and in the same sequence. The convention does not register a class such as `Handler<T> : IHandler<Order, T>`.
+
+A class implements the service type for a convention when one of these conditions is true:
+
+- The class declaration contains the service type.
+- The class declaration contains an interface that derives from the service type.
+
+A convention does not select a class if only its base class implements the service type. `IncludeBaseClasses()` also selects these classes.
+
+The service type must be an interface. A convention for a class type selects no classes. The generator then gives the warning DM0005.
+
+### Candidate classes
+
+A convention examines only the classes of the project that contains the module. A class is a candidate when all these conditions are true:
+
+- It is a class, a record class, or a record struct.
+- It is not `static` and not `abstract`.
+- It is not `private` and not `protected`. An `internal` class is a candidate.
+- It does not have a service attribute or `[Decorator]`.
+
+A class with a service attribute keeps the registration from its attribute. The convention does not register this class again.
+
+A nested class can be a candidate. Write an access modifier on a nested class. A nested class without an access modifier is private, but the generator examines only the modifiers that you write. Thus the convention selects this class, and the generated code does not compile.
+
+A selected class must have a `public` constructor, or no declared constructor. The service provider uses only `public` constructors. If the class has only `private` or `protected` constructors, the generator gives the warning DM0006 and does not register the class. If the class has only `internal` constructors, the generator registers the class and gives no diagnostic. The service provider then cannot make the service, unless the module uses [generated factories](./aot.md#generated-factories).
+
+## Lifetime
+
+Each convention must call one lifetime method:
+
+- `AsSingleton()`
+- `AsScoped()`
+- `AsTransient()`
+
+If a convention has no lifetime or more than one lifetime, the generator gives the error DM0009.
+
+## Registration shape
+
+By default, a convention registers each class as the service type that it selected. These calls change the registrations:
+
+| Call | Registrations |
+| --- | --- |
+| No call | Each selected interface. For a service type that is an open generic type, each closed type that the class implements. |
+| `AsSelf()` | The class type only. |
+| `AsSelfWithInterfaces()` | The class type and each interface of the class. The convention does not include the interfaces in `System` namespaces. |
+| `AlsoAsSelf()` | Each selected interface and the class type. |
+| `As<TService>()` | The type `TService` only. |
+| `AsMatchingInterface()` | The interface with the name `I` and the class name. If the class has no such interface, the convention does not register the class. |
+
+For `AsSelfWithInterfaces()`, the interfaces of the class are the interfaces in the class declaration and the interfaces that they derive from. If the convention calls `IncludeBaseClasses()`, the convention also includes the interfaces of the base classes. For `AsSelfWithInterfaces()`, the convention removes the interfaces in `System` namespaces. This is also true for the service type of the convention. If the convention uses a different registration shape, it registers a service type in a `System` namespace.
+
+If a convention calls `AsSelfWithInterfaces()` or `AlsoAsSelf()`, the interface registrations get the instance from the registration of the class type. Thus, for the `Singleton` and `Scoped` lifetimes, all these registrations give the same instance in a scope. If `AsSelfWithInterfaces()` finds no interface, it registers only the class type.
+
+::: warning
+Do not use `AlsoAsSelf()` or `AsSelfWithInterfaces()` for generic classes or with `WithKey`. In these conditions, the generated code does not compile.
 :::
 
-## The body never runs
-
-This is the one genuinely surprising thing on this page, and everything else follows from it.
-
-`Conventions` is **read at compile time, not executed**. The generator parses that method as source
-and works out what you asked for. It is a declaration that happens to be written in C# syntax.
-
-Two consequences:
-
-**Only the calls documented on this page may appear in it.** A loop, an `if`, a local variable or a
-call to your own helper method cannot be read, and is reported as
-[DM0009](/reference/diagnostics#dm0009) rather than silently ignored.
-
-**What comes out is ordinary registration code** — one `services.AddTransient(…)` per match, sitting
-in your assembly. Turn on `EmitCompilerGeneratedFiles` and read it:
+Use only one of `AsSelf()`, `AsSelfWithInterfaces()`, and `AlsoAsSelf()` in a convention. If you use more than one, the generator gives the error DM0009.
 
 ```csharp
-// generated
-services.AddTransient(typeof(IRequestHandler<CreateOrder, OrderId>), typeof(CreateOrderHandler));
-services.AddTransient(typeof(IRequestHandler<RenameOrder, OrderId>), typeof(RenameOrderHandler));
-```
+using DependencyModules.Runtime.Attributes;
+using DependencyModules.Runtime.Conventions;
 
-## What matches
+namespace Billing;
 
-A type matches when it **declares** the service type, or declares an interface that extends it:
-
-```csharp
-public interface IAuditedRepository : IRepository { }
-
-public class OrderRepository  : IRepository { }          // matches
-public class AuditedOrders    : IAuditedRepository { }   // matches — IAuditedRepository extends IRepository
-```
-
-An interface declaring that it extends another is a deliberate statement that it is substitutable for
-it, so it counts.
-
-Reaching the service type through a **base class** does not count, unless you ask for it:
-
-```csharp
-public abstract class RepositoryBase : IRepository { }
-public class ProductRepository : RepositoryBase { }      // no match by default
-
-conventions.RegisterAll<IRepository>().IncludeBaseClasses().AsScoped();   // now it matches
-```
-
-Turn it on for the common `CreateOrderValidator : AbstractValidator<CreateOrder>` shape, where the
-interface only ever arrives through a framework base class. Bear in mind that every future subclass
-of that base joins the convention too.
-
-::: info Attributes always win
-A type carrying `[SingletonService]`, `[ScopedService]`, `[TransientService]` or `[CrossWireService]`
-is never a convention candidate, so an attribute is how you exempt one type from a rule that would
-otherwise catch it.
-
-Neither is a `[Decorator]` — a decorator implements the interface it decorates, and it is not a
-service in its own right.
-:::
-
-## Open generics
-
-An open generic cannot be written as a type argument, so use the `Type` overload. Each match is
-registered against the **closed** construction it actually implements:
-
-```csharp
-public class CreateOrderHandler : IRequestHandler<CreateOrder, OrderId> { }
-public class RenameOrderHandler : IRequestHandler<RenameOrder, OrderId> { }
-
-conventions.RegisterAll(typeof(IRequestHandler<,>)).AsTransient();
-```
-
-```csharp
-// generated
-services.AddTransient(typeof(IRequestHandler<CreateOrder, OrderId>), typeof(CreateOrderHandler));
-services.AddTransient(typeof(IRequestHandler<RenameOrder, OrderId>), typeof(RenameOrderHandler));
-```
-
-A type implementing **several** closings is registered against all of them:
-
-```csharp
-public class OrderEvents
-    : INotificationHandler<OrderPlaced>, INotificationHandler<OrderShipped> { }
-```
-
-Both are registered. They are different service types, so this is not one implementation registered
-twice.
-
-A generic implementation that closes nothing registers as the open generic, and the container closes
-it per request:
-
-```csharp
-public class PassThroughCache<T> : ICache<T> { }   // registers ICache<> itself
-```
-
-## Narrowing what matches
-
-A service type is often too broad on its own. Filters chain, and combine with **and**; alternatives
-go inside a single call:
-
-```csharp
-conventions.RegisterAll<IRepository>()
-    .InNamespaceOf<OrderMarker>()          // and: in this namespace or below it
-    .WithoutName("*Legacy")                // and: not named like this
-    .WithAttribute<AuditedAttribute>()     // and: carrying this attribute
-    .AsScoped();
-```
-
-| Filter | Matches |
-|---|---|
-| `InNamespaceOf<TMarker>()` | the marker's namespace **and those beneath it** |
-| `InNamespaces(params string[])` | the given namespaces and those beneath them |
-| `InExactNamespaces(params string[])` | only those namespaces, not nested ones |
-| `NotInNamespaceOf<TMarker>()`, `NotInNamespaces(…)` | excludes; applied after inclusions |
-| `WithAttribute<T>()`, `WithoutAttribute<T>()` | the attribute type, resolved rather than name-matched |
-| `WithName(params string[])`, `WithoutName(…)` | name globs — see below |
-
-Namespace and name inclusions of the same kind combine with **or**. Exclusions are applied afterwards,
-and any one of them removes a match.
-
-### Name globs
-
-Two wildcards, and no regular expressions:
-
-| Token | Matches |
-|---|---|
-| `*` | zero or more characters |
-| `?` | exactly one character |
-
-A pattern containing a dot is matched against the full `Namespace.TypeName`; otherwise against the
-bare type name. Matching is ordinal and case-sensitive, like C# identifiers.
-
-```csharp
-conventions.RegisterAll<IRepository>().WithName("*Repository", "*Store").AsScoped();
-```
-
-Prefer a service type, an attribute or a namespace wherever you can. A name pattern will cheerfully
-match a class somebody adds next year — and `*Handler` matches `LoggingHandler` too.
-
-## Registering types that implement nothing
-
-Some things worth registering implement no interface at all. `RegisterAll()` with no service type
-selects by filter alone:
-
-```csharp
-conventions.RegisterAll()
-    .InNamespaceOf<OrderMarker>()
-    .WithName("*Calculator")
-    .AsSelf()
-    .AsScoped();
-```
-
-Because there is no interface to constrain it, this form **requires** a shape and at least one
-filter. Missing either is [DM0009](/reference/diagnostics#dm0009).
-
-## What each match is registered as
-
-| Call | Registers |
-|---|---|
-| *(default)* | the service type the convention matched |
-| `AsSelf()` | the match's own concrete type, instead of the interface |
-| `AlsoAsSelf()` | the matched service type **and** the concrete type, sharing one instance |
-| `AsSelfWithInterfaces()` | the concrete type and **every** interface it implements, sharing one instance |
-| `AsMatchingInterface()` | the interface named after the type — `Foo` as `IFoo` |
-| `As<TService>()` | one named service type, whatever the match matched through |
-
-### One instance or several
-
-This is the distinction that catches people out with every scanning library, so it is worth being
-explicit about.
-
-```csharp
-conventions.RegisterAll<IFoo>().AsSingleton();          // one registration
-conventions.RegisterAll<IBar>().AsSingleton();          // another, same class
-```
-
-A class matched through two different interfaces gets **two registrations and two instances**. That
-is what Scrutor and MediatR both produce, and for handlers it is usually what you want.
-
-When you want one instance reachable through several service types, say so:
-
-```csharp
-conventions.RegisterAll(typeof(IValidator<>)).IncludeBaseClasses().AlsoAsSelf().AsScoped();
-```
-
-`AlsoAsSelf()` and `AsSelfWithInterfaces()` both cross-wire — resolving any of the registered service
-types gives the same instance. The difference is reach: `AlsoAsSelf()` registers only the interfaces
-the convention matched, while `AsSelfWithInterfaces()` registers everything the type implements.
-
-::: warning AsSelfWithInterfaces skips System interfaces
-Interfaces in `System` or a namespace beginning `System.` are not expanded into, so a type whose base
-implements `IDisposable` does not become resolvable as `IDisposable`.
-
-This applies only to the automatic expansion. A service type you name yourself is always honoured, so
-`RegisterAll<IDisposable>()` still registers `IDisposable`.
-:::
-
-## Lifetime, keys and registration strategy
-
-A lifetime is **required**; there is no default. Omitting one is
-[DM0009](/reference/diagnostics#dm0009) rather than a silent transient.
-
-```csharp
-conventions.RegisterAll<IRepository>()
-    .AsScoped()
-    .Using(RegistrationType.Try)     // Add, Try, TryEnumerable or Replace
-    .WithKey("primary");             // literal, const or enum member
-```
-
-## Registering only in some environments
-
-A convention can carry an [environment condition](/guide/environments), so a whole rule applies only
-where you want it rather than needing the attribute repeated on every class it matches:
-
-```csharp
-conventions.RegisterAll<IDiagnostic>().IfEnvironment("Development").AsScoped();
-conventions.RegisterAll<IAuditSink>().IfEnvironmentValue("AUDIT", "on").AsSingleton();
-```
-
-| Call | Registers when |
-|---|---|
-| `IfEnvironment(params string[])` | the environment name matches any of them |
-| `IfNotEnvironment(params string[])` | it matches none of them |
-| `IfEnvironmentValue(key)` · `IfEnvironmentValue(key, value)` | the key is present, or equals exactly |
-| `IfNotEnvironmentValue(…)` | the inverse of either form |
-
-The test runs when the modules are applied, not while the build runs — so this changes what gets
-registered, not what the convention matched. Every match is still emitted, behind the same guard.
-
-A class carrying its own condition combines with the convention's using **and**, so neither
-declaration can quietly override the other:
-
-```csharp
-conventions.RegisterAll<IFoo>().IfEnvironment("Development").AsSingleton();
-
-[IfEnvironmentValue("REGION", "eu")]
-public class EuFoo : IFoo { }        // Development AND REGION=eu
-```
-
-## When two conventions collide
-
-Two conventions in one module registering the same implementation under the **same service type** is
-[DM0004](/reference/diagnostics#dm0004), an error — the lifetime would be ambiguous:
-
-```csharp
-conventions.RegisterAll<IRepository>().AsScoped();
-conventions.RegisterAll<IRepository>().AsSingleton();   // DM0004
-```
-
-A type filling two *different* roles is not a collision, and registers as both:
-
-```csharp
-public class OrderEvents : INotificationHandler<OrderPlaced>, IRequestPreProcessor<ShipOrder> { }
-
-conventions.RegisterAll(typeof(INotificationHandler<>)).AsTransient();
-conventions.RegisterAll(typeof(IRequestPreProcessor<>)).AsTransient();   // fine
-```
-
-Conventions in *different* modules never collide, because each registers into its own
-[realm](/guide/modules#realms-keeping-a-registration-out-of-the-default-module).
-
-## What conventions will not do
-
-Anything needing a lambda over the matched types — a predicate, or a lifetime chosen per type —
-cannot be expressed, because the declaration is read rather than run. There is no way to evaluate
-your code at compile time.
-
-Use `IServiceCollectionConfiguration` for those, alongside your conventions:
-
-```csharp
-[DependencyModule]
-public partial class DataModule : IConventionModule, IServiceCollectionConfiguration
+public interface IExporter
 {
-    void IConventionModule.Conventions(IConventionDefinitions conventions)
-    {
-        conventions.RegisterAll<IRepository>().AsScoped();
-    }
+    string Export(decimal total);
+}
 
-    public void ConfigureServices(IServiceCollection services)
+public class CsvExporter : IExporter
+{
+    public string Export(decimal total) => total.ToString();
+}
+
+[DependencyModule]
+public partial class ExportModule : IConventionModule
+{
+    public void Conventions(IConventionDefinitions conventions)
     {
-        // unrestricted access to IServiceCollection, at run time
+        conventions.RegisterAll<IExporter>().AlsoAsSelf().AsSingleton();
     }
 }
 ```
 
-## Next
+In this example, the service provider gives the same instance for `IExporter` and `CsvExporter`.
 
-- [Scanning a package](/guide/scanning) — matching types in an assembly you do not own
-- [Convention API reference](/reference/conventions-api) — every call in one table
-- [Diagnostics](/reference/diagnostics) — what each DM code means
+## Filters
+
+Filters decrease the number of selected classes. You can use more than one filter in a convention.
+
+| Call | Result |
+| --- | --- |
+| `InNamespaceOf<TMarker>()` | Selects classes in the namespace of `TMarker` and in its nested namespaces. |
+| `InNamespaces("A", "B")` | Selects classes in the given namespaces and in their nested namespaces. |
+| `InExactNamespaces("A", "B")` | Selects classes in the given namespaces only. |
+| `NotInNamespaceOf<TMarker>()` | Removes classes in the namespace of `TMarker` and in its nested namespaces. |
+| `NotInNamespaces("A", "B")` | Removes classes in the given namespaces and in their nested namespaces. |
+| `WithName("*Repository")` | Selects classes with a name that agrees with one of the patterns. |
+| `WithoutName("*Fake")` | Removes classes with a name that agrees with one of the patterns. |
+| `WithAttribute<TAttribute>()` | Selects classes that have the attribute. |
+| `WithoutAttribute<TAttribute>()` | Removes classes that have the attribute. |
+
+These conditions are applicable to filters:
+
+- A nested namespace starts with the namespace and a period. The filter for `Shop.Orders` includes `Shop.Orders.Import`. It does not include `Shop.OrdersArchive`.
+- In a name pattern, `*` agrees with zero or more characters. `?` agrees with one character. Name patterns are case-sensitive.
+- If a name pattern contains a period, the filter compares the pattern with the full name of the class (the namespace and the class name). If the name pattern does not contain a period, the filter compares the pattern with the class name only.
+- The name of a nested class contains the names of the classes around it, for example `Outer.Inner`.
+- An attribute filter compares the attribute type. Thus the filter also finds an attribute that you write with its full name or with an alias.
+- A class must agree with each type of filter that the convention has: namespace, name, and attribute.
+- If a convention has more than one namespace filter that selects, the class must be in one of these namespaces.
+- If a convention has more than one name pattern that selects, the class name must agree with one of these patterns.
+- If a convention has more than one `WithAttribute` filter, the class must have all these attributes.
+- The convention does not select a class that agrees with a filter that removes.
+
+```csharp
+using DependencyModules.Runtime.Attributes;
+using DependencyModules.Runtime.Conventions;
+
+namespace Billing.Storage;
+
+public interface IStore
+{
+    string Name { get; }
+}
+
+public class InvoiceRepository : IStore
+{
+    public string Name => "invoices";
+}
+
+public class CustomerRepository : IStore
+{
+    public string Name => "customers";
+}
+
+public class RepositoryFake : IStore
+{
+    public string Name => "fake";
+}
+
+[DependencyModule]
+public partial class StorageModule : IConventionModule
+{
+    public void Conventions(IConventionDefinitions conventions)
+    {
+        conventions
+            .RegisterAll<IStore>()
+            .InNamespaceOf<InvoiceRepository>()
+            .WithName("*Repository")
+            .AsScoped();
+    }
+}
+```
+
+### Selection by filters only
+
+`RegisterAll()` without a service type selects classes only with filters. Two more conditions are applicable to this type of convention:
+
+- The convention must have a filter that selects: a namespace filter, a name filter, or an attribute filter. Without such a filter, the convention could select all classes of the project. Thus the generator gives the error DM0009.
+- The convention must set a registration shape, for example `AsSelf()`. Without a shape, the generator does not know the service type. Thus it gives the error DM0009.
+
+```csharp
+using DependencyModules.Runtime.Attributes;
+using DependencyModules.Runtime.Conventions;
+
+namespace Billing.Calculators;
+
+public class TaxCalculator
+{
+    public decimal Tax(decimal total) => total * 0.2m;
+}
+
+public class FeeCalculator
+{
+    public decimal Fee(decimal total) => 1.5m;
+}
+
+[DependencyModule]
+public partial class CalculatorModule : IConventionModule
+{
+    public void Conventions(IConventionDefinitions conventions)
+    {
+        conventions
+            .RegisterAll()
+            .InNamespaceOf<TaxCalculator>()
+            .WithName("*Calculator")
+            .AsSelf()
+            .AsTransient();
+    }
+}
+```
+
+## Classes from a referenced assembly
+
+`InAssemblyOf<TMarker>()` makes the convention examine the assembly that contains `TMarker`. The convention then does not examine the project. You can use `InAssemblyOf<TMarker>()` for a package or for a project that has no module.
+
+```csharp
+conventions.RegisterAll<IPolicy>().InAssemblyOf<PolicyMarker>().AsSingleton();
+```
+
+A convention examines one assembly. If a convention calls `InAssemblyOf` two times, the last call replaces the first call.
+
+In a referenced assembly, a class is a candidate when all these conditions are true:
+
+- It is a `public` class.
+- It is not a nested class.
+- It is not `abstract` and not `static`.
+- It does not have a service attribute or `[Decorator]`.
+
+A selected class must have a `public` constructor.
+
+The generator ignores the environment attributes of a class from a referenced assembly. The conditions of the convention are applicable.
+
+A class from a referenced assembly has no location in your source code. Thus the generator shows its diagnostics, for example DM0010, at the convention statement.
+
+## Keys and registration type
+
+`WithKey(key)` registers each class as a keyed service. The generator writes the key into the generated code without changes.
+
+::: warning
+Do not use `WithKey` with `AlsoAsSelf()` or `AsSelfWithInterfaces()`. The generated code does not compile.
+:::
+
+`Using(RegistrationType.Try)` sets the registration type. For the values, refer to [Registration type](./services.md#registration-type). Write the argument as `RegistrationType.Try`. If you write the full name of the enum or use a constant, the generator uses `Add` and gives no diagnostic.
+
+```csharp
+conventions.RegisterAll<IStore>().WithKey("archive").Using(RegistrationType.Try).AsScoped();
+```
+
+## Environment conditions
+
+A convention can register its classes only in some environments. Use these calls:
+
+| Call | The convention registers when |
+| --- | --- |
+| `IfEnvironment("Development", "Staging")` | The environment name is one of the names. |
+| `IfNotEnvironment("Production")` | The environment name is not one of the names. |
+| `IfEnvironmentValue("FEATURE_X")` | The environment has a value for the key. |
+| `IfEnvironmentValue("FEATURE_X", "on")` | The value for the key is equal to the given value. |
+| `IfNotEnvironmentValue("FEATURE_X")` | The environment has no value for the key. |
+| `IfNotEnvironmentValue("FEATURE_X", "on")` | The value for the key is not equal to the given value. |
+
+If a class in the project has environment attributes, for example `[IfEnvironment("Development")]`, the conditions of the class are also applicable. All conditions must be true. For more information, refer to [Environments](./environments.md).
+
+## Diagnostics
+
+| ID | Severity | Cause |
+| --- | --- | --- |
+| DM0004 | Error | Two conventions in one module register the same class as the same service type. The generator does not write these two registrations. |
+| DM0005 | Warning | A convention selects no classes. |
+| DM0006 | Warning | A selected class has no constructor that the generated code can use. |
+| DM0009 | Error | The generator cannot read a convention statement. |
+| DM0010 | Info | The generator registered a class from a convention. The message shows the service type and the module. |
+
+If two conventions select one class for two different service types, this is not an error. The class then gets two registrations. For example, a class that implements `IFirstRole` and `ISecondRole` can have a singleton registration as `IFirstRole` and a scoped registration as `ISecondRole`.
+
+## Decorators and interception
+
+[Decorators](./decorators.md) are applicable to convention registrations. A generic decorator is applicable to each closed registration that a convention makes.
+
+`[Intercept]` is not a service attribute. Thus a class with `[Intercept]` stays a candidate for a convention. The interceptors are then applicable to the convention registration. For more information, refer to [Interception](./interception.md).

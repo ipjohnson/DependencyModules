@@ -6,7 +6,7 @@
         <Nullable>enable</Nullable>
         <IsPackable>True</IsPackable>
         <PackageId>DependencyModules.FakeItEasy</PackageId>
-        <Description>FakeItEasy mocking support for DependencyModules test integrations. Add [FakeItEasySupport] to resolve any unregistered dependency as a FakeItEasy fake, and use [Mock] on a test parameter to inject and configure it. Pair with a test framework integration such as DependencyModules.xUnit.</Description>
+        <Description>FakeItEasy fakes for DependencyModules tests. With [FakeItEasySupport], a test parameter with [Mock] gets a fake. The service provider of the test gives the same fake to the other services. Use it with DependencyModules.xUnit or DependencyModules.NUnit.</Description>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
     </PropertyGroup>
 

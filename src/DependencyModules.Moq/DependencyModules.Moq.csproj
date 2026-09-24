@@ -6,7 +6,7 @@
         <Nullable>enable</Nullable>
         <IsPackable>True</IsPackable>
         <PackageId>DependencyModules.Moq</PackageId>
-        <Description>Moq mocking support for DependencyModules test integrations. Add [MoqSupport], then take a Mock&lt;T&gt; test parameter to get the mock itself, or mark a parameter [Mock] to get the mocked instance. Either way the service under test is built against the same mock. Pair with a test framework integration such as DependencyModules.xUnit.</Description>
+        <Description>Moq mocks for DependencyModules tests. With [MoqSupport], a Mock&lt;T&gt; parameter gets the mock, and a [Mock] parameter gets the mock object. The service provider of the test gives the same mock object to the other services. Use it with DependencyModules.xUnit or DependencyModules.NUnit.</Description>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
     </PropertyGroup>
 
