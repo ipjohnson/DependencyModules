@@ -285,14 +285,14 @@ public class DependencyModuleWriter
 
         FeatureMethod(classDefinition, model);
 
-        if (
-            (model.ModuleFeatures & ModuleEntryPointFeatures.ShouldImplementEquals)
-            == ModuleEntryPointFeatures.ShouldImplementEquals
-        )
+        if (model.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.ShouldImplementEquals))
         {
             EqualMethod(classDefinition, model);
 
-            HashMethod(classDefinition, model);
+            if (model.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.ShouldImplementGetHashCode))
+            {
+                HashMethod(classDefinition, model);
+            }
         }
     }
 
@@ -388,7 +388,11 @@ public class DependencyModuleWriter
 
         equalMethod.AddParameter(TypeDefinition.Get(typeof(object)).MakeNullable(), "obj");
 
-        equalMethod.Return($"obj is {model.EntryPointType.Name}");
+        equalMethod.Return(
+            model.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.DeclaresTypedEquals)
+                ? $"obj is {model.EntryPointType.Name} other && Equals(other)"
+                : $"obj is {model.EntryPointType.Name}"
+        );
     }
 
     /// <summary>

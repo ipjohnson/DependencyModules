@@ -82,7 +82,9 @@ public class EntryModelUtil
     /// <remarks>
     /// Every writer that emits registrations, decorations or interceptions into a module filters
     /// through this, so an auto-generated module that defers to a declared one is skipped by all of
-    /// them rather than by whichever ones remembered to.
+    /// them rather than by whichever ones remembered to. So is a module that DM0003 or DM0017
+    /// rejects. A partial class written for a module that is not partial is CS0260, and one written
+    /// for a nested module is a second type at namespace level.
     /// </remarks>
     public static IList<ModuleEntryPointModel> RegistrationTargets(
         IList<ModuleEntryPointModel> entryPoints
@@ -92,7 +94,11 @@ public class EntryModelUtil
 
         for (var i = 0; i < entryPoints.Count; i++)
         {
-            if (DelegateTargetFor(entryPoints[i], entryPoints) == null)
+            if (
+                DelegateTargetFor(entryPoints[i], entryPoints) == null
+                && !ModuleEntryPointDiagnostics.IsNotPartial(entryPoints[i])
+                && !ModuleEntryPointDiagnostics.IsNestedInType(entryPoints[i])
+            )
             {
                 filtered?.Add(entryPoints[i]);
                 continue;
