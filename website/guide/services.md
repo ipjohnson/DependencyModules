@@ -133,6 +133,8 @@ The `Using` property sets the registration type. The values are in the `Registra
 | `TryEnumerable` | `TryAddEnumerable` | Adds the registration only if no registration has the same service type and implementation type. |
 | `Replace` | `Replace` | The call removes the first registration of the service type. Then it adds this registration. |
 
+`TryEnumerable` cannot add a registration if its implementation type is the service type. A class that you register as itself makes such a registration. Each factory method also makes one. For these registrations, `AddModule` gives an `ArgumentException`. Use `Add` or `Try` for them.
+
 ```csharp
 using DependencyModules.Runtime.Attributes;
 
@@ -276,6 +278,8 @@ The generator gets each parameter of the method from the service provider. If th
 
 The method must be `static`, and the generated code must be able to call it. Thus the method must be `public` or `internal`. A method without an access modifier is `private`. The classes that contain the method must not be `private` or `protected`. If the generated code cannot call the method, the generator gives the warning DM0023 and does not register the method.
 
+Do not set `Key` on the attribute of a factory method. The generated keyed registration does not call the method. The service provider then gives an exception when you get the service.
+
 ## Generic services
 
 If a generic class implements a generic interface with the same type parameters, the generator writes an open generic registration.
@@ -304,6 +308,8 @@ A class that implements a closed interface, for example `IRepository<string>`, g
 ## Classes that the generator cannot register
 
 The generator cannot make an instance of an abstract class or a static class. If you put a service attribute on such a class, the generator gives the warning DM0002 and does not register the class. An abstract type can have a registration from a class that is not abstract, or from a factory method.
+
+The service provider uses only a `public` constructor. If a class has only `internal` constructors, the generator gives no warning. The service provider then cannot make an instance of the class. Make a constructor `public`, or set `GenerateFactories = true` on the module. A generated factory can call an `internal` constructor.
 
 ## Records, nested classes, and partial classes
 
