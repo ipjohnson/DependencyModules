@@ -6,7 +6,7 @@
         <Nullable>enable</Nullable>
         <IsPackable>True</IsPackable>
         <PackageId>DependencyModules.Runtime</PackageId>
-        <Description>Runtime support for DependencyModules: attributes, module interfaces, and IServiceCollection extensions used to compose attribute-driven dependency injection modules. Pair with the DependencyModules.SourceGenerator package, which generates the registration code.</Description>
+        <Description>The runtime package of DependencyModules. It contains the service attributes, the module interfaces, and the AddModule methods for IServiceCollection. Use it with the DependencyModules.SourceGenerator package, which writes the registration code.</Description>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <!--
             The runtime does no reflection, and this is what enforces it rather than review. Every

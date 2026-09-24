@@ -1,239 +1,359 @@
 # Modules
 
-## The problem
-
-A single project registering everything is fine until it is not. Two things push back:
-
-**Your own application grows areas.** Data access, messaging, and diagnostics each have their own
-services, and you would like to reason about them — and switch them out — as units rather than as one
-undifferentiated pile of registrations.
-
-**A library cannot register itself.** If you ship a package, its services have to end up in the
-consumer's container somehow. The usual answer is to export an `AddMyLibrary(this IServiceCollection)`
-extension method and hope everybody remembers to call it, in the right order, once.
-
-## How DependencyModules helps
-
-A **module** is a unit of registration you can name, and modules pull each other in. A library
-declares its own module; an application references it and gets everything the library registers
-without knowing what any of it is.
-
-## Declaring one
-
-A module is a `partial` class carrying `[DependencyModule]`. The generator completes the partial with
-the code that applies its registrations:
+A module is a partial class or a partial record with the `[DependencyModule]` attribute. The generator writes the other part of the module. The module then adds its services to an `IServiceCollection`.
 
 ```csharp
+using DependencyModules.Runtime.Attributes;
+
+namespace Catalog;
+
 [DependencyModule]
-public partial class ApplicationModule;
+public partial class CatalogModule;
 ```
 
-By default it collects every attributed service in its project. That is the whole declaration — the
-body stays empty unless you want something from the rest of this page.
+A module must be `partial`. If it is not partial, the generator gives the error DM0003. A module must be at the namespace level. If you declare a module in a different class, the generator gives the error DM0017. In the two conditions, the generator writes no code for the module.
 
-::: warning Two rules
-A module **must** be `partial`, or the generator has nothing to complete —
-[DM0003](/reference/diagnostics#dm0003).
+The generator reads the attributes of a module only from the declaration that has `[DependencyModule]`. If the module has more than one partial declaration, put the module attributes and the `IDependencyModuleFeature<T>` interfaces on that declaration.
 
-A module must be declared **directly in a namespace**, never nested inside another type —
-[DM0017](/reference/diagnostics#dm0017). A nested module quietly generates a separate, detached class
-instead of completing your partial, so its registrations never run. Services can be nested freely;
-the restriction is only on modules.
-:::
+## Services in a module
 
-## Composing modules
+A module registers these services:
 
-Every module generates **an attribute with the same name**. Applying that attribute to another module
-makes it a dependency:
+- Each service in the same project that does not set `Realm`.
+- Each service that sets `Realm` to the module.
+- Each class that a convention of the module selects. For more information, refer to [Conventions](./conventions.md).
 
-```csharp
-// MyApp.Data — its own project
-[DependencyModule]
-public partial class DataModule;
-```
+A module can use the module of a different project to get the services of that project. For more information, refer to [Module dependencies](#module-dependencies). A convention can also register classes from a referenced assembly.
 
-```csharp
-// MyApp — references MyApp.Data
-[DependencyModule]
-[DataModule]                       // everything DataModule registers comes along
-public partial class ApplicationModule;
-```
+If a project has more than one module, each module registers all services that do not set `Realm`. If you load two of these modules, the services have two registrations. [Realms](#realms) can divide the services of a project between modules.
 
-Loading `ApplicationModule` now also applies `DataModule`. This is what replaces the
-`AddMyLibrary(services)` extension method: a package ships a module, and consuming it is one
-attribute rather than a call somebody has to remember.
+## Load a module
+
+The `ServiceCollectionExtensions` class in the `DependencyModules.Runtime` namespace has these methods:
+
+| Method | Result |
+| --- | --- |
+| `AddModule<T>()` | Makes an instance of `T` and loads it. `T` must have a constructor without parameters. |
+| `AddModule(module)` | Loads the module instance. |
+| `AddModules(params modules)` | Loads the module instances in one operation. |
+| `AddModules(environment, params modules)` | Loads the module instances with the environment that you give. For more information, refer to [Environments](./environments.md). |
 
 ```csharp
-services.AddModule<ApplicationModule>();   // DataModule comes too
-```
-
-::: warning The two modules are in two projects, and that matters
-A module collects every attributed service **in its own project** — so two modules declared in one
-project each hold that project's whole registration list, and composing one into the other does not
-change what either holds. Loading `ApplicationModule` would then apply the same registrations twice.
-
-```csharp
-// one project, both modules — every service registers twice
-[DependencyModule] public partial class DataModule;
-[DependencyModule] [DataModule] public partial class ApplicationModule;
-```
-
-Composing across projects is the shape above and is what this is for. Two modules that genuinely
-belong in one project want [realms](#realms-keeping-a-registration-out-of-the-default-module)
-instead: a realm is how you say which registrations belong to which module.
-:::
-
-Dependencies are expanded **before** the module that declares them, so a module's own registrations
-are applied last and win wherever the container is last-wins. An application can therefore override
-something a library registered simply by registering it itself.
-
-## Loading modules
-
-```csharp
+using Catalog;
 using DependencyModules.Runtime;
-
-services.AddModule<ApplicationModule>();
-services.AddModules(new ApplicationModule(), new DiagnosticsModule());
-```
-
-`AddModules` also accepts an [environment](/guide/environments), which is what conditional
-registrations get evaluated against:
-
-```csharp
-services.AddModules(new ModuleEnvironment("Development"), new ApplicationModule());
-```
-
-## You may not need to declare one
-
-For applications using [top-level statements](https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/program-structure/top-level-statements),
-an `ApplicationModule` is generated for you from `Program.cs`:
-
-```csharp
-using MyApp;                       // the generated module takes your RootNamespace
-using DependencyModules.Runtime;
-
-[assembly: SomeOtherModule]        // compose other modules at the assembly level
+using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();
 
-// SomeOtherModule, plus every attributed service in this project
-services.AddModule<ApplicationModule>();
+services.AddModule<CatalogModule>();
+
+var provider = services.BuildServiceProvider();
 ```
 
-::: warning The first `using` is not optional
-The generated module takes the project's `RootNamespace`, and top-level statements sit in the
-global namespace — so `Program.cs` cannot see `ApplicationModule` until it imports that namespace.
-Leave it out and the build fails with `CS0246: The type or namespace name 'ApplicationModule' could
-not be found`, which does not hint at the cause.
-:::
+When a module loads, its dependencies also load.
 
-This is why the ASP.NET sample in this repository never declares a module — the web project's
-`Program.cs` gets one automatically, and the test project composes it by name.
+In one load operation, each module loads one time. The load operation uses the `Equals` method to compare two modules. For more information, refer to [Module equality](#module-equality). If you call `AddModule` two times with the same module, the module loads two times and its registrations occur two times.
 
-## Realms: keeping a registration out of the default module
+## Module dependencies
 
-By default an attributed service joins every module in its compilation. Occasionally that is wrong —
-a profiler you only want when the diagnostics module is loaded, say. A **realm** scopes a
-registration to one named module:
+The generator writes an attribute for each module. The name of the attribute is the name of the module and the suffix `Attribute`. For `CatalogModule`, the attribute is `[CatalogModule]`.
+
+To make a module use a different module, put the attribute of the other module on the module class:
 
 ```csharp
-[SingletonService(Realm = typeof(DiagnosticsModule))]
-public class Profiler : IProfiler { }
-```
+using DependencyModules.Runtime.Attributes;
 
-`Profiler` is now registered only by `DiagnosticsModule`, and an application that does not compose
-that module never sees it.
+namespace Shop;
 
-The reverse restriction is on the module itself. `OnlyRealm = true` means the module takes **nothing**
-that did not name it:
-
-```csharp
-[DependencyModule(OnlyRealm = true)]
-public partial class DiagnosticsModule;
-```
-
-Convention registrations always name their declaring module as their realm, which is why two modules
-running conventions over the same interface do not leak into each other.
-
-::: warning Two modules in one assembly, loaded together, register everything twice
-"Joins every module in its compilation" is literal. An assembly declaring two modules that neither set
-`OnlyRealm` puts the *whole* registration list in both — decorators included — so loading both in one
-call runs it twice:
-
-```csharp
-services.AddModules(new AppModule(), new DataModule());   // every service registered twice
-```
-
-Declaring two modules is fine; loading both is what doubles up. **Give one a realm** — that is what
-says which registrations belong to which module, and the only thing that removes the doubling.
-
-Composing one into the other does *not*, however it reads: both still hold the whole list, so
-loading the outer one applies it twice. Composition is for modules in [separate
-projects](#composing-modules), where each holds only its own.
-:::
-
-## Parameters
-
-A module can take values from whoever loads it — a connection string, a base URL. Declare them as
-properties, and the generated attribute mirrors them:
-
-```csharp
 [DependencyModule]
-public partial class ApplicationModule
+[Catalog.CatalogModule]
+public partial class ShopModule;
+```
+
+When `ShopModule` loads, `CatalogModule` also loads. The dependency can be in a different project or in a NuGet package. Circular dependencies are permitted. Each module loads one time.
+
+To make the generator write no attribute for a module, set `GenerateAttribute = false`:
+
+```csharp
+using DependencyModules.Runtime.Attributes;
+
+namespace Shop;
+
+[DependencyModule(GenerateAttribute = false)]
+public partial class InternalToolsModule;
+```
+
+The generated attribute is `partial`. To add interfaces or members to the attribute, write a partial declaration of the attribute class.
+
+## Module load sequence
+
+The load sequence has an effect on which registration is the last for a service type. `GetService` gives the instance from the last registration.
+
+Before the modules add their registrations, the load operation makes a list of modules. It examines the modules that you give, in the sequence of your list. After it examines a module, it examines the dependencies of that module, in the sequence of the module attributes. When the load operation examines a module for the first time, it puts the module at the start of the list. When it finds a module again, it does not change the list.
+
+Then the modules add their registrations, from the start of the list to the end. Thus the module that the load operation examines first adds its registrations last.
+
+This list shows the results:
+
+- If you load one module, the module adds its registrations after all its dependencies. Thus a module can replace a service of a dependency with an `Add` registration of the same service type.
+- In one `AddModules` call, the first module in your list adds its registrations last.
+- If you call `AddModule` more than one time, each call makes a different list. The modules of the last call add their registrations last.
+
+```csharp
+using DependencyModules.Runtime;
+using Microsoft.Extensions.DependencyInjection;
+using Shop;
+
+var services = new ServiceCollection();
+
+// PaymentModule adds its registrations last.
+services.AddModules(new PaymentModule(), new ShippingModule());
+```
+
+A dependency keeps the position where the load operation first finds it. For example, `ShopModule` has the dependency `CatalogModule`. In `AddModules(new CatalogModule(), new ShopModule())`, the load operation examines `CatalogModule` first. Thus `CatalogModule` adds its registrations after `ShopModule`.
+
+After the modules of one load operation add their services, the decorators of these modules change the registrations. A decorator does not change the registrations that a subsequent load operation adds. For more information, refer to [Decorators](./decorators.md).
+
+## Realms
+
+If a service has a realm, only the module of that realm registers the service. Set `Realm` on the service attribute to the type of the module:
+
+```csharp
+using DependencyModules.Runtime.Attributes;
+
+namespace Shop;
+
+public interface IShippingRates
 {
-    public string? ConnectionString { get; set; }
+    decimal Rate(string country);
 }
-```
 
-```csharp
-[ApplicationModule(ConnectionString = "Server=…")]
-public partial class TestModule;
-```
-
-::: warning A module with parameters needs an identity
-Modules de-duplicate **by type**, which is what stops a module reached twice from registering
-everything twice. A module carrying parameters is the case that rule does not fit: two instances
-holding different values are the same module by it, so the first one reached wins and the other is
-discarded with nothing said.
-
-```csharp
-[DependencyModule] [ApplicationModule(ConnectionString = "primary")]  public partial class A;
-[DependencyModule] [ApplicationModule(ConnectionString = "reporting")] public partial class B;
-```
-
-Load both and one connection string arrives. [DM0018](/reference/diagnostics#dm0018) reports it, and
-declaring your own `Equals` and `GetHashCode` says which answer you meant — identity by value, so
-both survive, or identity by type, so one wins deliberately.
-:::
-
-A **value-typed** parameter cannot carry a default. `public int Retries { get; set; } = 3;` is reset
-to `0` by a composition that does not name it, because `0` and "not set" are the same value and the
-generated attribute cannot tell them apart. A nullable or reference-typed parameter keeps its
-default. Name value-typed parameters at every composition, or make them nullable.
-
-## When attributes are not enough
-
-Some registration cannot be expressed as an attribute on a class — `AddHttpClient()`, options
-binding, anything from a third-party library with its own extension method. Implement
-`IServiceCollectionConfiguration` on the module and you get the collection directly:
-
-```csharp
-[DependencyModule]
-public partial class ApplicationModule : IServiceCollectionConfiguration
+[SingletonService(Realm = typeof(ShippingModule))]
+public class ShippingRates : IShippingRates
 {
+    public decimal Rate(string country) => 5m;
+}
+
+[DependencyModule]
+public partial class ShippingModule;
+```
+
+Only `ShippingModule` registers `ShippingRates`. The other modules of the project do not register it.
+
+A module with `OnlyRealm = true` registers only the services that set `Realm` to that module. It also registers the classes that its conventions select. It does not register the other services without a realm.
+
+```csharp
+using DependencyModules.Runtime.Attributes;
+
+namespace Shop;
+
+public interface IPaymentProcessor
+{
+    bool Charge(decimal amount);
+}
+
+[SingletonService(Realm = typeof(PaymentModule))]
+public class PaymentProcessor : IPaymentProcessor
+{
+    public bool Charge(decimal amount) => true;
+}
+
+[DependencyModule(OnlyRealm = true)]
+public partial class PaymentModule;
+```
+
+Realms are also applicable to decorators and interceptors. A convention registers its services only in the module that declares the convention.
+
+## Module parameters
+
+A module can have constructor parameters and properties with a `set` accessor. The generated attribute has the same constructor parameters and the same properties. Thus the module that uses the attribute can give the values.
+
+```csharp
+using DependencyModules.Runtime.Attributes;
+using DependencyModules.Runtime.Interfaces;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Shop;
+
+public record MailSettings(string Host, int Port, string? Sender);
+
+[DependencyModule(OnlyRealm = true)]
+public partial class MailModule : IServiceCollectionConfiguration
+{
+    private readonly string _host;
+    private readonly int _port;
+
+    public MailModule(string host, int port)
+    {
+        _host = host;
+        _port = port;
+    }
+
+    public string? Sender { get; set; }
+
     public void ConfigureServices(IServiceCollection services)
     {
-        services.AddHttpClient();
+        services.AddSingleton(new MailSettings(_host, _port, Sender));
+    }
+
+    public override bool Equals(object? obj) =>
+        obj is MailModule other
+        && other._host == _host
+        && other._port == _port
+        && other.Sender == Sender;
+
+    public override int GetHashCode() => HashCode.Combine(_host, _port, Sender);
+}
+
+[DependencyModule]
+[MailModule("smtp.example.com", 25, Sender = "shop@example.com")]
+public partial class NotificationModule;
+```
+
+The generator puts the `public`, `internal`, and `protected internal` properties that have a `set` accessor on the attribute. The `set` accessor must also be `public`, `internal`, or `protected internal`. Thus a property with a `private set` accessor is not on the attribute. The generator does not put `static` properties or the properties of nested classes on the attribute.
+
+When the attribute does not set a property, the result is as follows:
+
+- A reference-type property keeps the value from the module, for example the initial value of the property.
+- A value-type property gets the default value of its type, for example 0. The property does not keep the initial value from the module.
+- A nullable value-type property, for example `int?`, also gets the default value of the value type. The property of the attribute has the type `int`. Thus the module property gets 0, not `null`.
+
+### Module equality
+
+A module class that you declare gets a generated `Equals` method and a generated `GetHashCode` method. The generated `Equals` method compares only the module type. Thus, two instances of the same module type are the same module.
+
+If the module declares `Equals(object)`, the generator does not write these methods. The generator examines all partial declarations of the module. If the module declares `GetHashCode` but not `Equals(object)`, the generator writes only `Equals`.
+
+The load operation calls `Equals(object)`. If the module declares only `Equals` for its own type, for example `IEquatable<T>.Equals(T)`, the generated `Equals(object)` calls that method. Thus your method compares the modules.
+
+If a module has properties that the generator puts on the attribute and declares no `Equals` method, the generator gives the warning DM0018. Two instances with different values are then one module. Only the first instance loads. If you declare `Equals` and `GetHashCode`, two instances with different values can load, as shown in the `MailModule` example.
+
+The generated `ApplicationModule` does not get these methods.
+
+## Registration code in the module
+
+A module can add registrations with code. Implement one or more of these interfaces from `DependencyModules.Runtime.Interfaces`:
+
+| Interface | Method | When it runs |
+| --- | --- | --- |
+| `IServiceCollectionConfiguration` | `ConfigureServices(IServiceCollection services)` | After the generated registrations of the module. |
+| `IServiceCollectionConfiguration` | `ConfigureDecorators(IServiceCollection services)` | After all decorators of all modules. This method is optional. |
+| `IEnvironmentServiceCollectionConfiguration` | `ConfigureServices(IServiceCollection services, IModuleEnvironment environment)` | After `IServiceCollectionConfiguration.ConfigureServices`. It gets the environment. |
+
+```csharp
+using DependencyModules.Runtime.Attributes;
+using DependencyModules.Runtime.Interfaces;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Shop;
+
+public record ShopSettings(string Environment);
+
+[DependencyModule(OnlyRealm = true)]
+public partial class SettingsModule : IEnvironmentServiceCollectionConfiguration
+{
+    public void ConfigureServices(IServiceCollection services, IModuleEnvironment environment)
+    {
+        services.AddSingleton(new ShopSettings(environment.EnvironmentName));
     }
 }
 ```
 
-It runs **after** the module's own registrations, with unrestricted access. There is a matching
-`ConfigureDecorators` that runs after every module's decorators, and an
-`IEnvironmentServiceCollectionConfiguration` that also hands you the
-[environment](/guide/environments#programmatic-access).
+## Extension method for a module
 
-## Next
+Set `GenerateUseMethod` to make the generator write an extension method for `IServiceCollection`. The method has the name that you give. The parameters of the method are the constructor parameters of the module. The method calls `AddModules`.
 
-- [Registering services](/guide/services) — what each attribute emits
-- [Conventions](/guide/conventions) — registering by rule instead of per class
+```csharp
+using DependencyModules.Runtime.Attributes;
+
+namespace Shop;
+
+[DependencyModule(OnlyRealm = true, GenerateUseMethod = "AddReporting")]
+public partial class ReportingModule(string connectionString)
+{
+    public string ConnectionString => connectionString;
+}
+```
+
+The generator puts the method in the `ReportingModuleExtensions` class in the same namespace:
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+using Shop;
+
+var services = new ServiceCollection();
+
+services.AddReporting("Server=reports");
+```
+
+## The generated application module
+
+The generator can write a module for an application project. The generated module has the name `ApplicationModule` and is in the root namespace of the project. The generator writes it when these conditions are true:
+
+- The project has a `Program.cs` file in the project folder.
+- The `DependencyModules_AutoGenerateModule` MSBuild property is not `false`.
+
+```csharp
+using DependencyModules.Runtime;
+using WebShop;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddModule<ApplicationModule>();
+
+var app = builder.Build();
+
+app.Run();
+```
+
+The registrations of `ApplicationModule` are as follows:
+
+- If the project declares a module that is partial, is not realm-only, and has no constructor parameters, `ApplicationModule` loads that module. If the project declares more than one such module, the generator compares their full names. `ApplicationModule` then loads the first module.
+- If the project declares no such module, `ApplicationModule` registers the services of the project.
+
+To add a module from a different project to `ApplicationModule`, put the module attribute on the assembly in `Program.cs`:
+
+```csharp
+using DependencyModules.Runtime;
+using Catalog;
+using WebShop;
+
+[assembly: CatalogModule]
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddModule<ApplicationModule>();
+
+var app = builder.Build();
+
+app.Run();
+```
+
+The generator reads assembly-level module attributes only from `Program.cs`. If you put one in a different file of an application project, the generator gives the error DM0019 and ignores the attribute. An assembly-level attribute must also have a `using` directive for its namespace. If the directive is missing, the generator gives the warning DM0016.
+
+A `using` directive is not necessary for an attribute with its full name, for example `[assembly: Catalog.CatalogModule]`. Thus DM0016 is only for an attribute without its namespace. DM0019 is also for an attribute with its full name.
+
+The top-level statements of `Program.cs` can also call a static method of a module. `ApplicationModule` then also loads that module. These conditions are necessary:
+
+- The statement only calls the method. It does not give the result to a variable.
+- The module has a constructor without parameters.
+- The module is from a referenced project or package. The generator cannot see the `IDependencyModule` interface of a module from the same project, because this interface is in generated code.
+
+The generated `ApplicationModule` is a partial class. To add registration code to it, declare `partial class ApplicationModule` in the root namespace without `[DependencyModule]`. Then implement `IServiceCollectionConfiguration`.
+
+If you declare a module with the name `ApplicationModule` and `[DependencyModule]` in the root namespace, the generator uses your module. It does not write a different `ApplicationModule`. Your module also loads the modules that the assembly-level module attributes and the static calls in `Program.cs` identify.
+
+## Records as modules
+
+A module can be a partial record:
+
+```csharp
+using DependencyModules.Runtime.Attributes;
+
+namespace Shop;
+
+[DependencyModule]
+public partial record AuditModule;
+```
+
+A record module uses the equality of the record. The generator does not write `Equals` or `GetHashCode` for it.

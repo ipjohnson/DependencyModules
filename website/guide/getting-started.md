@@ -1,188 +1,132 @@
 # Getting started
 
-## The problem
+DependencyModules is a source generator for `Microsoft.Extensions.DependencyInjection`. You put attributes on your classes. When you compile the project, the generator writes the code that adds these classes to an `IServiceCollection`.
 
-Every .NET application wires its services in one place, and that place grows:
+The generated code does not use reflection to find services at run time. It contains one registration call for each service.
 
-```csharp
-// Program.cs, eventually
-services.AddScoped<IOrderRepository, OrderRepository>();
-services.AddScoped<ICustomerRepository, CustomerRepository>();
-services.AddSingleton<IEmailSender, SmtpEmailSender>();
-services.AddScoped<IPricingRules, PricingRules>();
-// … and another two hundred lines
-```
+## Before you start
 
-Nothing checks that this list is complete. Write a new class, forget to add its line, and the failure
-shows up at run time:
+- The project must have the target framework `net8.0` or a subsequent version. The packages contain assemblies for `net8.0` and `net10.0`.
+- The C# compiler must contain Roslyn 4.10 or a subsequent version. The .NET SDK 8.0.300 and all subsequent SDKs contain this compiler.
 
-```
-System.InvalidOperationException: Unable to resolve service for type
-'MyApp.IPricingRules' while attempting to activate 'MyApp.OrderService'.
-```
+## Install the packages
 
-Usually in the environment you deployed to, rather than the one you tested in.
-
-The common escape is a runtime scanner such as Scrutor: describe the types once, and let reflection
-find them when the application starts. That does remove the list, but it costs you three things. You
-can no longer read what was registered. The scan runs on every start. And the trimmer cannot see
-through reflection, so a published, trimmed or Native AOT build registers nothing and fails at
-startup — a failure that never reproduces in development.
-
-## How DependencyModules helps
-
-You declare registration next to the class it belongs to, and a source generator writes the
-`services.AddScoped(…)` calls into your assembly **while the project builds**.
-
-The hand-written list comes back, except you did not write it and cannot forget a line. Because it is
-ordinary C# in your own assembly, there is nothing to reflect over at startup and nothing for the
-trimmer to lose.
-
-## Install
+Add the two packages to the project that contains your services:
 
 ```shell
 dotnet add package DependencyModules.Runtime
 dotnet add package DependencyModules.SourceGenerator
 ```
 
-Requires .NET 8.0 or later, and ships both `net8.0` and `net10.0` assemblies so a project on either
-LTS release gets one built against its own framework.
+`DependencyModules.Runtime` contains the attributes and the types that the generated code uses. It has one dependency: `Microsoft.Extensions.DependencyInjection.Abstractions`. The version of this dependency is 8.0.0 for `net8.0` and 10.0.0 for `net10.0`.
 
-::: tip A console app or class library needs one more
-`DependencyModules.Runtime` depends on `Microsoft.Extensions.DependencyInjection.Abstractions`, which
-is the right dependency for a library — but `ServiceCollection` and `BuildServiceProvider()` live in
-the implementation package. A project using the Web or Worker SDK already has it through its framework
-reference. Anything else needs:
+`DependencyModules.SourceGenerator` contains the generator. The generator operates only when you compile. The build output does not contain the generator. The package sets `DevelopmentDependency` to `true`. If you pack your project as a NuGet package, your package does not get a dependency on the generator package.
 
-```shell
-dotnet add package Microsoft.Extensions.DependencyInjection
-```
-:::
+To build a service provider, the application must also have the `Microsoft.Extensions.DependencyInjection` package. ASP.NET Core applications and applications that use the .NET generic host contain this package.
 
-Those two are everything the library itself needs — [conventions](/guide/conventions) included. The
-optional packages are for [testing](/guide/testing), and this guide will tell you when you want them:
+## Register a service
 
-| Package | For |
-|---|---|
-| `DependencyModules.xUnit` / `DependencyModules.NUnit` | [building a provider in tests](/guide/testing) from your real modules |
-| `DependencyModules.NSubstitute` / `.Moq` / `.FakeItEasy` | [mocking a service](/guide/testing-mocking) inside such a test |
+Put a service attribute on each class that you want in the service collection. Each attribute sets one lifetime:
 
-## Your first module
-
-Two pieces. First, mark the class you want registered:
+| Attribute | Lifetime |
+| --- | --- |
+| `[SingletonService]` | `ServiceLifetime.Singleton` |
+| `[ScopedService]` | `ServiceLifetime.Scoped` |
+| `[TransientService]` | `ServiceLifetime.Transient` |
 
 ```csharp
 using DependencyModules.Runtime.Attributes;
 
-namespace MyApp;
+namespace Shop;
 
-public interface IEmailSender { void Send(string to); }
+public interface IPriceCalculator
+{
+    decimal Total(decimal price, int quantity);
+}
 
 [SingletonService]
-public class SmtpEmailSender : IEmailSender
+public class PriceCalculator : IPriceCalculator
 {
-    public void Send(string to) { }
+    public decimal Total(decimal price, int quantity) => price * quantity;
 }
 ```
 
-Second, declare a **module** — a `partial` class the generator fills in. It collects every marked
-class in the project:
+The generator registers `PriceCalculator` as `IPriceCalculator`, because `PriceCalculator` implements this interface. For more information about the service type, refer to [Services](./services.md).
+
+## Declare a module
+
+A module is a partial class with the `[DependencyModule]` attribute. The generator writes the other part of the class. This part adds the services of the project to a service collection.
 
 ```csharp
+using DependencyModules.Runtime.Attributes;
+
+namespace Shop;
+
 [DependencyModule]
-public partial class ApplicationModule;
+public partial class ShopModule;
 ```
 
-`partial` is required. The generator completes the class you declared; without `partial` there is
-nothing to complete, and you get [DM0003](/reference/diagnostics#dm0003).
+The class must be `partial`. If the class is not partial, the generator gives the error DM0003 and writes no code for the module.
 
-::: tip You may already have one
-A project whose entry point is a top-level `Program.cs` gets an `ApplicationModule` generated for it,
-in the project's `RootNamespace` — so in that project the declaration above is redundant, and
-declaring it merges with the generated one rather than fighting it.
+## Load the module
 
-If you want to add a `ConfigureServices` to that generated module, declare the partial **without**
-`[DependencyModule]` and implement `IServiceCollectionConfiguration`:
-
-```csharp
-public partial class ApplicationModule : IServiceCollectionConfiguration
-{
-    public void ConfigureServices(IServiceCollection services) =>
-        services.AddHttpClient();
-}
-```
-
-See [Modules](/guide/modules#you-may-not-need-to-declare-one).
-:::
-
-Now load it at your composition root:
+Call `AddModule<T>()` on the service collection. Then build the service provider.
 
 ```csharp
 using DependencyModules.Runtime;
+using Microsoft.Extensions.DependencyInjection;
+using Shop;
 
 var services = new ServiceCollection();
 
-services.AddModule<ApplicationModule>();
+services.AddModule<ShopModule>();
 
 var provider = services.BuildServiceProvider();
-var sender = provider.GetRequiredService<IEmailSender>();   // SmtpEmailSender
+
+var calculator = provider.GetRequiredService<IPriceCalculator>();
+
+Console.WriteLine(calculator.Total(2.50m, 4));
 ```
 
-That is the whole loop: mark the class, declare the module once, load the module once.
-
-::: tip Call AddModule once
-Modules pull in other modules through attributes rather than by calling `AddModule` inside each
-other — see [Modules](/guide/modules#composing-modules). Calling it once at the composition root
-keeps the registration order predictable and avoids registering anything twice.
-:::
-
-## Proving to yourself that nothing is hiding
-
-The generated code is the ground truth, and it is worth looking at once so the rest of this guide
-reads as concrete rather than magic. Turn it on:
-
-```xml
-<PropertyGroup>
-  <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
-</PropertyGroup>
-```
-
-Build, then open `obj/…/ApplicationModule.Dependencies.g.cs`. Inside it:
+In an ASP.NET Core application, call `AddModule<T>()` on `builder.Services`:
 
 ```csharp
-private static void ModuleDependencies(IServiceCollection services)
+using DependencyModules.Runtime;
+using Shop;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddModule<ShopModule>();
+
+var app = builder.Build();
+
+app.Run();
+```
+
+## Generated code
+
+For `ShopModule`, the generator writes two files. The names of the files contain the module name. The `ShopModule.Module.g.cs` file implements `IDependencyModule` on the module. The `ShopModule.Dependencies.g.cs` file contains the registrations:
+
+```csharp
+private static void ModuleDependencies(global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)
 {
-    services.AddSingleton(typeof(MyApp.IEmailSender), typeof(MyApp.SmtpEmailSender));
+    services.AddSingleton(
+        typeof(global::Shop.IPriceCalculator),
+        typeof(global::Shop.PriceCalculator)
+    );
 }
 ```
 
-One line, and it is the line you would have written by hand. No reflection, no startup scan, and a
-literal `typeof()` the trimmer can follow.
-
-::: warning If you redirect the output, exclude it from the build
-`EmitCompilerGeneratedFiles` alone writes under `obj/`, which is already excluded and is fine.
-`CompilerGeneratedFilesOutputPath` pointing at a folder **inside your project** is the trap: those
-files are then compiled as ordinary source *as well as* being generated, so every type exists twice
-and you get a wall of `CS0111`/`CS0579`.
+To see the generated files, set `EmitCompilerGeneratedFiles` to `true` in the project file. The compiler then writes the files below the `obj` folder.
 
 ```xml
 <PropertyGroup>
   <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
-  <CompilerGeneratedFilesOutputPath>generated</CompilerGeneratedFilesOutputPath>
 </PropertyGroup>
-
-<ItemGroup>
-  <Compile Remove="generated/**" />   <!-- read them, do not compile them -->
-</ItemGroup>
 ```
 
-Stale files are the other half: delete the folder when you rename a module, or the old name compiles
-alongside the new one.
-:::
+## Next steps
 
-## Where to go next
-
-- [Modules](/guide/modules) — grouping registrations and composing them across projects
-- [Registering services](/guide/services) — lifetimes, keys, factories, `As`, `Try`/`Replace`
-- [Conventions](/guide/conventions) — when attributing each class stops scaling
-- [Testing modules](/guide/testing) — building a provider from your real modules in a test
+- [Services](./services.md) tells you about lifetimes, service types, keys, and factory methods.
+- [Modules](./modules.md) tells you how to use modules together and how to select the services that each module registers.
+- [Testing](./testing.md) tells you how to write tests that get services from your modules.

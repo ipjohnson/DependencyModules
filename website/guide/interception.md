@@ -1,297 +1,184 @@
 # Interception
 
-## The problem
+An interceptor is a class that runs code before and after the calls to a service. You write the interceptor one time and use it for many services. For each intercepted service, the generator writes a wrapper class. The wrapper calls the interceptors. The last interceptor calls the service.
 
-A [decorator](/guide/decorators) works well when you want to do something to one member. It scales
-badly in two directions.
+## Write an interceptor
 
-**Wide interfaces.** To time one method on an interface with twenty members, you write a decorator
-with twenty methods — nineteen of which are pass-throughs that exist only to compile, and which
-someone has to remember to update when a twenty-first member appears.
+An interceptor implements one or more interfaces from the `DependencyModules.Runtime.Interception` namespace:
 
-**Many services.** To time thirty unrelated services, you write thirty decorators. The behaviour is
-identical in all of them; only the interface differs.
-
-In both cases you are writing forwarding code by hand, and the actual logic is four lines.
-
-## How DependencyModules helps
-
-Write the behaviour once, as an interceptor. The generator emits a type implementing the service
-interface and routes its members through it — every member by default, and
-[the kinds you name](#covering-some-members-and-not-others) when that is too much:
+| Interface | Members that it intercepts |
+| --- | --- |
+| `IInterceptor` | Methods that have a return value, and `void` methods. Properties, indexers, and events. |
+| `IAsyncInterceptor` | Methods that have the return type `Task`, `Task<T>`, `ValueTask`, or `ValueTask<T>`. |
+| `IAsyncEnumerableInterceptor` | Methods that have the return type `IAsyncEnumerable<T>`. |
 
 ```csharp
-public class TimingInterceptor(ILogger log) : IInterceptor
+using System.Diagnostics;
+using DependencyModules.Runtime.Interception;
+
+namespace Inventory;
+
+public class TimingInterceptor : IInterceptor, IAsyncInterceptor
 {
     public TResult Intercept<TResult>(InvocationContext<TResult> context)
     {
-        var stopwatch = Stopwatch.StartNew();
+        var watch = Stopwatch.StartNew();
+        var result = context.Proceed();
+        Console.WriteLine($"{context.Caller}: {watch.ElapsedMilliseconds} ms");
+        return result;
+    }
 
-        try
-        {
-            return context.Proceed();
-        }
-        finally
-        {
-            log.LogInformation("{Member} took {Elapsed}", context.Caller.MemberName, stopwatch.Elapsed);
-        }
+    public async ValueTask<TResult> InterceptAsync<TResult>(
+        AsyncInvocationContext<TResult> context
+    )
+    {
+        var watch = Stopwatch.StartNew();
+        var result = await context.ProceedAsync();
+        Console.WriteLine($"{context.Caller}: {watch.ElapsedMilliseconds} ms");
+        return result;
     }
 }
 ```
 
-Apply it to any service, however many members it has:
+Each context has these members:
+
+| Member | Function |
+| --- | --- |
+| `Caller` | A `CallerInfo` value with the service type and the member name. Its `ToString()` gives `Service.Member`. |
+| `Arguments` | The arguments of the call. You can read them with `Count`, the indexer, and `NameAt(index)`. You can change an argument before the call continues. |
+| `Proceed()` | Calls the next interceptor, or the service after the last interceptor. `AsyncInvocationContext<TResult>` has `ProceedAsync()`. |
+
+For a member that has no return value, `TResult` is the `NoResult` type. These members include `void` methods, `Task` methods, `ValueTask` methods, property `set` accessors, and event accessors.
+
+An interceptor must call `Proceed()` or `ProceedAsync()` to call the service. If the interceptor does not call `Proceed()` or `ProceedAsync()`, the service does not run.
+
+An interceptor can call `Proceed()` or `ProceedAsync()` more than one time, for example to try a call again. Each call runs the subsequent interceptors and the service again.
+
+An async interceptor waits for `ProceedAsync()`. Thus the code after the `await` runs when the call is complete. An `IAsyncEnumerableInterceptor` gets the stream from `Proceed()` and enumerates it. Thus it gets each item of the stream.
+
+## Use interceptors on a class
+
+Put `[Intercept]` on the implementation class. The class must also have a registration, from a service attribute or from a convention.
 
 ```csharp
+using DependencyModules.Runtime.Attributes;
+
+namespace Inventory;
+
+public interface IStockService
+{
+    int Count(string sku);
+
+    Task ReserveAsync(string sku, int quantity);
+}
+
 [SingletonService]
 [Intercept(typeof(TimingInterceptor))]
-public class Repository : IRepository { }
-```
-
-The return type comes from the generated call site rather than from reflection, so nothing is boxed
-and nothing is inspected at run time.
-
-::: info Only calls through the interface are intercepted
-A call the implementation makes to *itself* does not pass through the wrapper — it is an ordinary
-method call inside one object.
-:::
-
-## Three interfaces, chosen per member
-
-A synchronous interceptor cannot serve a `Task`-returning member, because it has nowhere to await.
-Implement whichever kinds your services actually have:
-
-| Interface | For members returning |
-|---|---|
-| `IInterceptor` | a value directly, or `void` |
-| `IAsyncInterceptor` | `Task`, `Task<T>`, `ValueTask`, `ValueTask<T>` |
-| `IAsyncEnumerableInterceptor` | `IAsyncEnumerable<T>` |
-
-One type may implement any combination, and **the generator picks per member**:
-
-```csharp
-public class TracingInterceptor : IInterceptor, IAsyncInterceptor
+public class StockService : IStockService
 {
-    public TResult Intercept<TResult>(InvocationContext<TResult> context) => context.Proceed();
+    public int Count(string sku) => 10;
 
-    public async ValueTask<TResult> InterceptAsync<TResult>(AsyncInvocationContext<TResult> context)
-    {
-        using var span = tracer.StartSpan(context.Caller.MemberName);
-
-        return await context.ProceedAsync();
-    }
+    public Task ReserveAsync(string sku, int quantity) => Task.CompletedTask;
 }
 ```
 
-A member that no interceptor can serve is forwarded untouched, with no allocation. So an interceptor
-implementing only `IAsyncInterceptor`, applied to a service with both synchronous and asynchronous
-members, intercepts the asynchronous ones and leaves the rest alone.
+You can give more than one interceptor, for example `[Intercept(typeof(AuditInterceptor), typeof(TimingInterceptor))]`. The first interceptor in the list gets the call first.
 
-## Awaiting is yours
+You can also put more than one `[Intercept]` attribute on the class. The generator then adds the interceptors in the sequence of the attributes. For `Service`, `Order`, and `Realm`, the generator uses the value from the last attribute that sets the property. The wrapper intercepts only the members that all the attributes select.
 
-The generated wrapper awaits nothing on your behalf. Your interceptor awaits `ProceedAsync()` itself,
-which means anything after the await runs once the work has genuinely finished — and because the
-whole call sits in one method body, state that spans it is an ordinary local:
+The wrapper intercepts only the calls on the service type. If the class calls one of its members, the wrapper does not intercept this call.
 
-```csharp
-public async ValueTask<TResult> InterceptAsync<TResult>(AsyncInvocationContext<TResult> context)
-{
-    using var scope = _tracer.StartSpan(context.Caller.MemberName);   // spans the whole call
+## Service type
 
-    return await context.ProceedAsync();
-}
-```
+The generator intercepts one interface of the class. By default, it uses the interface in the class declaration. If the class declaration contains no interface, the generator examines the base classes in sequence. It uses the interfaces of the first base class that declares interfaces.
 
-That `using` disposes after the awaited work completes, not when the `Task` was handed back.
-
-## Streams
-
-An `IAsyncEnumerable<T>` member returns its stream immediately, before any item exists. A stream
-interceptor enumerates it, so it observes each item as it is produced:
+If the class declares more than one interface, set `Service`:
 
 ```csharp
-public async IAsyncEnumerable<TItem> InterceptStream<TItem>(StreamInvocationContext<TItem> context)
-{
-    var count = 0;
-
-    await foreach (var item in context.Proceed())
-    {
-        count++;
-        yield return item;
-    }
-
-    log.LogInformation("{Member} produced {Count}", context.Caller.MemberName, count);
-}
-```
-
-## What the context gives you
-
-| Member | |
-|---|---|
-| `Proceed()` / `ProceedAsync()` | run the rest of the pipeline — more than once to retry, or not at all to skip the implementation |
-| `Caller.ServiceType`, `Caller.MemberName` | what is being called |
-| `Arguments` | by index, and **writable** — a write replaces what the implementation receives. `NameAt(index)` gives the declared parameter name |
-
-Arguments cost nothing until you read one.
-
-## Several interceptors
-
-```csharp
-[Intercept(typeof(TimingInterceptor), typeof(RetryInterceptor))]
-public class Repository : IRepository { }
-```
-
-They nest in declaration order. Each is resolved from the container, so an interceptor can take
-dependencies of its own — as `TimingInterceptor` does with its `ILogger`.
-
-## How an interceptor is registered
-
-You do not register interceptors. The generated code registers each one **as its own type**, with
-`TryAdd`, so it is resolvable by the wrapper without being visible as an `IInterceptor` to anything
-else.
-
-`TryAdd` means a registration you made yourself wins. An interceptor carrying its own
-`[SingletonService]` or `[ScopedService]` keeps that lifetime, because services are applied before
-decorators and yours is already there by the time this runs.
-
-The default is singleton, and it is the wrong default for an interceptor that takes a scoped
-dependency — a singleton holding a scoped service is a captive dependency, and nothing says so unless
-`ValidateScopes` is on. Name the lifetime instead:
-
-```csharp
-[Intercept(typeof(AuditInterceptor), Lifetime = ServiceLifetime.Scoped)]
-public class Repository : IRepository { }
-```
-
-## An interception belongs to one implementation
-
-`[Intercept]` applies to **the class it is written on**, not to every implementation of the interface:
-
-```csharp
-[SingletonService] [Intercept(typeof(TimingInterceptor))]
-public class SqlRepository : IRepository { }
-
 [SingletonService]
-public class InMemoryRepository : IRepository { }   // not wrapped
+[Intercept(typeof(TimingInterceptor), Service = typeof(IStockService))]
+public class AuditedStockService : IStockService, IDisposable
+{
+    public int Count(string sku) => 10;
+
+    public Task ReserveAsync(string sku, int quantity) => Task.CompletedTask;
+
+    public void Dispose() { }
+}
 ```
 
-This is the opposite of a [decorator](/guide/decorators), which is declared against the interface and
-wraps everything behind it — and the difference is the point. A decorator says "this behaviour
-belongs to the interface"; an interceptor says "this behaviour belongs to this class".
+The generator gives the warning DM0008 in these conditions:
 
-Decorators can name one implementation too, with `[Decorator(Implementation = typeof(X))]`, when that
-turns out to be what you meant.
+- The generator finds no interface.
+- The generator finds more than one interface, and `[Intercept]` does not set `Service`.
+- `Service` is an interface that the class does not implement.
+- The service type has no members.
+
+The interception is applicable only to the registrations of the class. The wrapper changes a registration only if the implementation of the registration is the class. These registrations have the class as their implementation:
+
+- A registration with the class type
+- An instance of the class
+- A factory that has the class as its return type
+
+The wrapper does not change a factory that has `object` or the service type as its return type, also if the factory makes the class. For example, the wrapper does not change `services.AddSingleton<IStockService>(_ => new StockService())`.
+
+## Intercepted members
+
+By default, the wrapper intercepts all members of the service type: methods, properties, indexers, and events. It also intercepts the members of the interfaces that the service type derives from. The `Members` property selects the types of members to intercept:
+
+```csharp
+[SingletonService]
+[Intercept(typeof(TimingInterceptor), Members = InterceptedMembers.Methods)]
+public class MethodsOnlyStockService : IStockService
+{
+    public int Count(string sku) => 10;
+
+    public Task ReserveAsync(string sku, int quantity) => Task.CompletedTask;
+}
+```
+
+The values of `InterceptedMembers` are `Methods`, `Properties`, `Indexers`, `Events`, and `All`. You can use more than one value with the `|` operator. The generator reads the value of `Members`, not its text. Thus you can also use a constant. The wrapper sends the calls to the other members directly to the service.
+
+An interceptor intercepts only the members that its interfaces can intercept. For example, an interceptor that implements only `IInterceptor` does not intercept a method that has the return type `Task`. The generator then gives the warning DM0015 with the names of these members.
+
+## Interceptor registration
+
+The generator registers each interceptor as its class type, with `TryAdd`. The `Lifetime` property of `[Intercept]` sets the lifetime of this registration. The default is `Singleton`. The interceptor gets its constructor parameters from the service provider.
+
+If the service collection has a registration for the interceptor class type, the generator does not add a registration. For example, `[SingletonService(As = typeof(TimingInterceptor))]` on the interceptor makes such a registration. A service attribute without `As` registers the interceptor as its first interface, for example `IInterceptor`. That registration does not prevent the `TryAdd` registration.
+
+## Sequence with decorators
+
+The interception occurs at the same time as the decorators, after all modules add their services. The `Order` property of `[Intercept]` sets the position of the interception in the decorator sequence. The value can be a number or a constant. For more information, refer to [Decorator sequence](./decorators.md#decorator-sequence).
 
 ## Realms
 
-An interception with no `Realm` takes the one its own class's service attribute names, so these agree
-without being told to:
+By default, the interception is applicable in the same modules as the registration of the class. If the service attribute sets `Realm`, the interception uses the same realm. To set a different realm, set `Realm` on `[Intercept]`.
 
-```csharp
-[SingletonService(Realm = typeof(DiagnosticsModule))]
-[Intercept(typeof(AuditInterceptor))]
-public class Profiler : IProfiler { }
-```
+If no module uses the interception, the generator gives the warning DM0020. This can occur when a realm-only module registers the class from a convention and the interception has no realm.
 
-The interception lands in `DiagnosticsModule`, where the registration is. Name a realm explicitly to
-override that:
+## Generic services
 
-```csharp
-[Intercept(typeof(AuditInterceptor), Realm = typeof(DiagnosticsModule))]
-```
+The generator can intercept a generic class. It writes a generic wrapper with the same type parameters and constraints. The generated code also registers the class as its open generic type, with the same lifetime. The wrapper gets the service from this registration.
 
-A class registered by a **convention** takes its realm at match time, which is too late for an
-interception to inherit — so a realm-only convention module needs the realm named on `[Intercept]`.
-[DM0020](/reference/diagnostics#dm0020) reports an interception no module ends up applying.
+## Members that the generator cannot intercept
 
-## Covering some members and not others
+The generator does not intercept a service type that has one of these members:
 
-Every member is covered by default, which is right for auditing or retry — an interceptor has no way
-to know which members matter, and leaving one out silently is worse than covering too much.
+- A static member
+- A method or a property that has a `ref` return value
+- A method that has a `ref struct` return type
+- A parameter with `ref`, `out`, or `in`
+- A parameter or a property of a `ref struct` type
+- A property with an `init` accessor
+- An event without `add` and `remove` accessors
 
-It is the wrong default for an interface with properties, where a timing interceptor records a call
-per read. Name the kinds instead:
+In these conditions, the generator gives the warning DM0008 and writes no wrapper. The diagnostic gives the name of one member. Other members can have the same problem. If you move these members to a different interface, the generator can intercept the service type. You can also use a [decorator](./decorators.md).
 
-```csharp
-[Intercept(typeof(TimingInterceptor), Members = InterceptedMembers.Methods)]
-public class Repository : IRepository { }
-```
+The generator cannot find a type parameter with the `allows ref struct` constraint. If a return type or a parameter type is such a type parameter, the generator gives no DM0008. The generated wrapper then does not compile.
 
-`InterceptedMembers` has `Methods`, `Properties`, `Indexers` and `Events`, combinable with `|`. A
-member left out is still forwarded — the wrapper implements the whole interface either way — it just
-does not run through the chain.
+## Generated code
 
-## What cannot be intercepted
+For each intercepted class, the generator writes an `internal` wrapper class in the namespace of the class. The name of the wrapper is the class name and the suffix `_Intercepted`, for example `StockService_Intercepted`. For a class that is not generic, the generated code makes the wrapper with a constructor call. Thus it does not use reflection.
 
-The generator has to emit a real override, so some shapes are impossible. These are reported as
-[DM0008](/reference/diagnostics#dm0008) rather than failing the build:
-
-- `ref`, `in` and `out` parameters, and `ref struct` parameters
-- by-reference returns
-- `init`-only setters
-- static members
-- a generic *method* whose shape the wrapper cannot forward, by the same rules as above
-
-::: warning One such member disables interception for the whole interface
-There is no partial wrapper. A single `out` parameter anywhere on the interface means no wrapper is
-generated at all, so every other member goes uninterceped too, and `GetRequiredService<IOrders>()`
-returns the plain implementation. The diagnostic names the member it found first; fixing it may
-uncover another.
-
-Move the member to an interface that is not intercepted, or write a
-[decorator](/guide/decorators) for the service instead.
-:::
-
-## Intercepting a generic service
-
-A generic implementation registers as an open generic, and a decorator cannot touch one — decoration
-rewrites a registration into a factory, and the container refuses a factory for an open generic
-service type. Interception does not need a factory: the wrapper is a generated type, and an open
-generic implementation type is what the container does accept.
-
-```csharp
-[SingletonService]
-[Intercept(typeof(TracingInterceptor))]
-public class Repository<T> : IRepository<T> { … }
-```
-
-The wrapper is generic over the same parameters — `Repository_Intercepted<T> : IRepository<T>` — and
-takes `Repository<T>` by its own type rather than the service, which would resolve back to the wrapper
-and recurse. The container closes it per construction, so `IRepository<Order>` and
-`IRepository<Invoice>` each get their own.
-
-::: warning Native AOT closes this over reference types only
-An open generic registration is the container's least AOT-friendly shape, intercepted or not: a
-published binary can construct `IRepository<Order>` and throws for `IRepository<int>`. That is not
-specific to interception — a plain `[SingletonService]` on a generic class behaves identically. See
-[Trimming and AOT](/guide/aot#what-it-does-not-cover).
-:::
-
-Constraints come along with the parameters. `Repository<T> where T : class, IEntity, new()` is wrapped
-by `Repository_Intercepted<T> : IRepository<T> where T : class, IEntity, new()`, because without them
-the wrapper could not reference what it wraps.
-
-## When an interceptor covers only some members
-
-Separate from the above, and quieter. Each interceptor is placed only around the members whose shape
-it can serve — `IInterceptor` for a direct return, `IAsyncInterceptor` for a task,
-`IAsyncEnumerableInterceptor` for a stream — and it is simply absent from the rest:
-
-```csharp
-public class AuditInterceptor : IInterceptor { … }      // sync only
-
-[SingletonService]
-[Intercept(typeof(AuditInterceptor))]
-public class Orders : IOrders
-{
-    public int Count(string customer) { … }             // audited
-    public Task<int> CountAsync(string customer) { … }  // not audited
-}
-```
-
-That is [DM0015](/reference/diagnostics#dm0015). It is worth taking seriously rather than silencing:
-an interceptor that rewrites arguments stops rewriting them, and one that authorises or audits stops
-doing that — on the async members, which are usually the ones doing the work. Implement the missing
-interface, or apply the interceptor to a service with no such member.
-
-One type may implement any combination of the three, which is how a single interceptor covers a mixed
-interface.
+When you get an intercepted service from the service provider, you get the wrapper. Thus a test that examines the type of the service finds the wrapper type, not the class type.

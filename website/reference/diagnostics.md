@@ -1,480 +1,267 @@
 # Diagnostics
 
-The generator reports what it can work out at build time as `DM####` codes, so a registration mistake
-shows up in the IDE rather than as a resolution failure at startup. This page says what each one
-means and what to do about it.
-
-These are reported by a source generator rather than by an analyzer, and every way of silencing one
-works. Across a project:
-
-```xml
-<PropertyGroup>
-  <NoWarn>$(NoWarn);DM0005</NoWarn>
-  <WarningsAsErrors>$(WarningsAsErrors);DM0013</WarningsAsErrors>
-</PropertyGroup>
-```
-
-```ini
-# .editorconfig — including the Error-severity codes
-[*.cs]
-dotnet_diagnostic.DM0019.severity = none
-```
+The generator gives these diagnostics when you compile. Their category is `DependencyModules`.
 
-Or at one site, which is usually what you want:
+| ID | Severity | Title |
+| --- | --- | --- |
+| [DM0001](#dm0001) | Error | DependencyModules generator failed |
+| [DM0002](#dm0002) | Warning | Service type cannot be constructed |
+| [DM0003](#dm0003) | Error | Dependency module must be partial |
+| [DM0004](#dm0004) | Error | Convention match is ambiguous |
+| [DM0005](#dm0005) | Warning | Convention matched no types |
+| [DM0006](#dm0006) | Warning | Convention matched a type that cannot be constructed |
+| [DM0007](#dm0007) | Error | Decorator order is ambiguous |
+| [DM0008](#dm0008) | Warning | Service cannot be intercepted |
+| [DM0009](#dm0009) | Error | Convention declaration cannot be read |
+| [DM0010](#dm0010) | Info | Service is registered by convention |
+| [DM0011](#dm0011) | Info | Service is registered conditionally |
+| [DM0012](#dm0012) | Warning | Environment condition tests nothing |
+| [DM0013](#dm0013) | Warning | Open generic registration cannot be decorated |
+| [DM0014](#dm0014) | Warning | Generic type cannot be cross-wired |
+| [DM0015](#dm0015) | Warning | Interceptor does not apply to every member |
+| [DM0016](#dm0016) | Warning | Assembly-level module attribute needs its namespace imported |
+| [DM0017](#dm0017) | Error | Dependency module cannot be nested inside another type |
+| [DM0018](#dm0018) | Warning | Module with properties relies on generated equality |
+| [DM0019](#dm0019) | Error | Assembly-level module attribute is not composed |
+| [DM0020](#dm0020) | Warning | Interception is applied by no module |
+| [DM0021](#dm0021) | Warning | [Mock] and [TestExport] name one service on the same method |
+| [DM0022](#dm0022) | Removed | Decorator names an implementation while factories are generated |
+| [DM0023](#dm0023) | Warning | Factory method cannot be called |
+| [DM0024](#dm0024) | Warning | Cross-wired class declares no interface |
+| [DM0025](#dm0025) | Warning | Decorator is not applied |
 
-```csharp
-#pragma warning disable DM0018
-[DependencyModule]
-public partial class CacheModule { public int SizeLimit { get; set; } }
-#pragma warning restore DM0018
-```
+The table shows the title of each diagnostic. The compiler shows a message with more information, for example the names of the types.
 
-::: warning `.editorconfig` and `#pragma` did not work before 1.2.0
-For most codes, in 1.0.0 and 1.1.0, only `NoWarn` and `WarningsAsErrors` had any effect. A diagnostic
-carried its file and line but was not attached to the syntax tree, and Roslyn decides both
-`.editorconfig` severity and `#pragma` filtering from the tree.
+You can change the severity of a diagnostic in an `.editorconfig` file. For example, you can change DM0010 from Info to Warning. You can also suppress a diagnostic with `#pragma warning disable` or with the `NoWarn` MSBuild property.
 
-The 1.1.0 release notes said `.editorconfig` worked. It worked for `DM0016` and `DM0019` and nothing
-else — and that release is what broke it, by moving ten diagnostics from the project onto the
-declaration they are about. Both mechanisms reach every code from 1.2.0.
-:::
+Some diagnostics have no location in a source file. For these diagnostics, use `NoWarn` or a `.globalconfig` file. `#pragma` and the file sections of `.editorconfig` have no effect on them. These diagnostics have no location:
 
-**Raising a severity is the part `.editorconfig` cannot do.** A generator's diagnostics reach the
-compilation with their severity already fixed, and Roslyn's severity *mapping* applies to analyzer
-diagnostics — so `dotnet_diagnostic.DM0010.severity = warning` will not promote an informational code
-into the build. `WarningsAsErrors` promotes a warning to an error; nothing promotes an `Info`.
+- DM0001
+- DM0008 for a service type without members
+- DM0007 and DM0013 for a decorator from `[Decorate]`
 
-`DM0010` and `DM0011` are informational and exist to make a registration visible at the class. They
-appear in the IDE, and in `dotnet build` only at `-v detailed` or higher — not at the default
-verbosity. The rest are worth reading.
+Info diagnostics show in the IDE and in a SARIF log. The `dotnet build` output does not show them at the usual verbosity.
 
-| Code | Severity | Meaning |
-|---|---|---|
-| [DM0001](#dm0001) | Error | The generator failed |
-| [DM0002](#dm0002) | Warning | A service type cannot be constructed |
-| [DM0003](#dm0003) | Error | A module is not `partial` |
-| [DM0004](#dm0004) | Error | Two conventions register a type as the same service type |
-| [DM0005](#dm0005) | Warning | A convention matched nothing |
-| [DM0006](#dm0006) | Warning | A convention matched a type with no accessible constructor |
-| [DM0007](#dm0007) | Error | Two decorators of one service share an order |
-| [DM0008](#dm0008) | Warning | A service marked for interception cannot be wrapped |
-| [DM0009](#dm0009) | Error | A convention declaration could not be read |
-| [DM0010](#dm0010) | Info | A service is registered by convention |
-| [DM0011](#dm0011) | Info | A service is registered only when a condition holds |
-| [DM0012](#dm0012) | Warning | An environment condition names nothing to test |
-| [DM0013](#dm0013) | Warning | A service registered as an open generic cannot be decorated |
-| [DM0014](#dm0014) | Warning | A generic type cannot be cross-wired |
-| [DM0015](#dm0015) | Warning | An interceptor does not apply to every member |
-| [DM0016](#dm0016) | Warning | An assembly-level module attribute's namespace is not imported |
-| [DM0017](#dm0017) | Error | A module is declared inside another type |
-| [DM0018](#dm0018) | Warning | A module with parameters relies on generated equality |
-| [DM0019](#dm0019) | Error | An assembly-level module attribute is outside the entry point file |
-| [DM0020](#dm0020) | Warning | An interception is applied by no module |
-| [DM0021](#dm0021) | Warning | `[Mock]` and `[TestExport]` name one service on the same method |
-| [DM0022](#dm0022) | Warning | A decorator names an implementation while factories are generated |
+## DM0001
 
-## DM0001 {#dm0001}
+An exception occurred in the generator. Some registrations can be missing. The message gives the type and the message of the exception.
 
-**The generator failed; registrations may be missing.**
+If the exception occurred for one module, the generator writes the code of the other modules. The log files also record the exception.
 
-Please [open an issue](https://github.com/ipjohnson/DependencyModules/issues) with the generator log
-— see [Troubleshooting](/guide/troubleshooting).
+To correct the problem:
 
-## DM0002 {#dm0002}
+1. Set the `DependencyModules_LogOutputDirectory` MSBuild property to a folder.
+2. Build the project again.
+3. Write an issue for the problem on the [issues page](https://github.com/ipjohnson/DependencyModules/issues) of the repository.
+4. Attach the log files to the issue.
 
-**A service type cannot be constructed and was not registered.**
+## DM0002
 
-The implementation is abstract or a static class, so the container could not construct it.
+A class with a service attribute is abstract or static. The generator cannot make an instance of it and does not register it.
 
-## DM0003 {#dm0003}
+To correct the problem, put the attribute on a class that is not abstract. You can also register the service with a static factory method.
 
-**A module marked with `[DependencyModule]` is not partial.**
+## DM0003
 
-The generator completes the module's partial declaration. Without `partial` there is nothing to
-complete.
+A class with `[DependencyModule]` is not partial. The generator writes no code for the module.
 
-## DM0004 {#dm0004}
+To correct the problem, add the `partial` modifier to the class.
 
-**Two conventions in one module register a type as the same service type.**
+## DM0004
 
-The lifetime would be ambiguous.
+Two conventions in one module register the same class as the same service type. The generator does not write these registrations.
 
-```csharp
-conventions.RegisterAll<IRepository>().AsScoped();
-conventions.RegisterAll<IRepository>().AsSingleton();   // DM0004
-```
+To correct the problem, add a filter to one convention. You can also move one convention to a different module.
 
-Equal lifetimes are an error too — the declaration is redundant.
+## DM0005
 
-A type filling two *different* roles is not ambiguous and registers as both. Conventions in different
-modules never collide; each registers into its own realm.
+A convention selects no classes. The message gives a possible cause:
 
-## DM0005 {#dm0005}
+- The service type is a class. A convention selects only by interfaces.
+- Only a base class of the classes implements the service type.
+- The filters remove all classes.
 
-**A convention matched no types.**
+To correct the problem:
 
-Almost always a renamed interface or a typo in a filter.
+- If the service type is a class, use an interface as the service type. You can also register the classes with attributes.
+- If only a base class implements the service type, call `IncludeBaseClasses()`.
+- If the filters remove all classes, examine the name, namespace, and assembly filters.
 
-## DM0006 {#dm0006}
+## DM0006
 
-**A convention matched a type with no accessible constructor.**
+A convention selects a class that has no constructor that its registration can use. The generator does not register the class.
 
-The container could not construct it.
+The service provider uses only `public` constructors. Thus the generator gives DM0006 if the class has no `public` constructor. A class from a referenced assembly must also have a `public` constructor.
 
-## DM0007 {#dm0007}
+If the module uses [generated factories](../guide/aot.md#generated-factories), the generated code calls the constructor. Then an `internal` or `protected internal` constructor is also correct. This is not true for a class with `[Intercept]`, because the generator does not write a factory for it. The message tells which constructors are correct.
 
-**Two decorators of one service share an order.**
+To correct the problem, add a `public` constructor to the class. You can also add a filter that removes the class.
 
-Their nesting would be ambiguous. See [Decorators](/guide/decorators#ordering).
+## DM0007
 
-## DM0008 {#dm0008}
+Two decorators in one module have the same service type and the same `Order` value. The sequence of these decorators is not known.
 
-**A service marked for interception cannot be wrapped.**
+To correct the problem, give the decorators different `Order` values.
 
-The member uses `ref`, `in`, `out` or a `ref struct` parameter, returns by reference, has an
-`init`-only setter, or is static.
+## DM0008
 
-One such member costs the whole interface: no wrapper is generated, so every other member goes
-uninterceped too. The message names the first offender it found. See
-[Interception](/guide/interception#what-cannot-be-intercepted).
+The generator cannot intercept a service. It writes no wrapper. Thus, the interceptors do not intercept the members of the service. The message gives the cause:
 
-## DM0009 {#dm0009}
+- The service type has a member that a wrapper cannot send to the service. For the list, refer to [Members that the generator cannot intercept](../guide/interception.md#members-that-the-generator-cannot-intercept). The message gives the name of one such member.
+- The class implements no interface.
+- The class implements more than one interface, and `[Intercept]` does not set `Service`.
+- The class does not implement the `Service` type.
+- The service type has no members.
 
-**A convention declaration could not be read.**
+To correct the problem, set `Service`. You can also move the member to an interface that is not intercepted. You can also use a decorator.
 
-The `Conventions` body is read at compile time, so only the documented calls can appear in it — a
-loop, a conditional, a local or a call to your own helper cannot.
+## DM0009
 
-It also covers a convention with no lifetime, a `RegisterAll()` with no shape or no filter, and a
-chain that could not be resolved.
+The generator cannot read a convention statement. The message gives the cause and the statement. These are the causes:
 
-## DM0010 {#dm0010}
+- The `Conventions` method has no statement body, or a statement is not a chain of calls on the parameter.
+- A chain does not start with `RegisterAll`.
+- A call is not a convention call.
+- An argument is not a value that the compiler knows. The message gives the argument.
+- The convention has no lifetime or more than one lifetime.
+- The convention has more than one of `AsSelf()`, `AsSelfWithInterfaces()`, and `AlsoAsSelf()`.
+- `RegisterAll()` without a service type has no registration shape or no filter that selects.
+- The type that implements `IConventionModule` does not have `[DependencyModule]`. The generator gives this cause only if the project has one or more modules.
 
-**A service is registered by convention.**
+To correct the problem, change the statement. For the conditions, refer to [Conventions](../guide/conventions.md).
 
-Informational, reported at the class, naming the service type it was registered as and the interface
-the match came through when it was not direct.
+## DM0010
 
-A match from a [referenced assembly](/guide/scanning) has no class to point at, so it reports at the
-`RegisterAll` line instead.
+The generator registered a class from a convention. The message shows the service type and the module. If the convention selected the class from a different interface or a base class, the message also shows that type.
 
-## DM0011 {#dm0011}
+For a class from a referenced assembly, the diagnostic is at the convention statement.
 
-**A service is registered only when an environment condition holds.**
+This diagnostic gives information only.
 
-Informational, reported at the class. See [Environments](/guide/environments).
+## DM0011
 
-## DM0012 {#dm0012}
+A service has environment conditions. The message shows the conditions. The generator gives DM0011 for each class with a service attribute and conditions, also when the conditions are true. Registrations from conventions do not get DM0011.
 
-**An environment condition names nothing to test.**
+This diagnostic gives information only.
 
-`[IfEnvironment()]` and `[IfEnvironmentValue("")]` both compile, and neither does anything. A
-condition with nothing to test cannot be false, so the generated guard is `if (true)` and the service
-registers unconditionally — written plain or written as the `IfNot` form. The attribute reads as a
-condition and is not one, which is what the diagnostic is for.
+## DM0012
 
-## DM0013 {#dm0013}
+An environment condition has no environment name or no key. Thus it does not examine the environment. The generator ignores the condition. The generator ignores arguments that are not string constants. Thus a condition with only such arguments, for example an array, also gives DM0012.
 
-**A service registered as an open generic cannot be decorated.**
+The generator gives DM0012 for these classes:
 
-Decoration replaces a registration with a factory, and the container does not allow one for an open
-generic service type — `Open generic service type 'IRepository`1[T]' requires registering an open
-generic implementation type`.
+- A class with a service attribute
+- A `[Decorator]` class
+- A decorator that `[Decorate]` adds. The diagnostic is at the module.
+- A class that a convention selects. For a class from a referenced assembly, the diagnostic is at the convention statement.
 
-```csharp
-[SingletonService]
-public class Repository<T> : IRepository<T> { }   // registers IRepository<> itself
+On a convention statement, a condition call without a name or a key gives DM0009.
 
-[Decorator]
-public class CachingRepository<T>(IRepository<T> inner) : IRepository<T> { }   // DM0013
-```
+To correct the problem, give a name or a key. You can also remove the attribute.
 
-Reported whichever way the decorator was declared — on the class, or on the module with
-`[Decorate]` — and whether or not the decorator is itself generic.
+## DM0013
 
-Register closed constructions instead. A [convention](/guide/conventions) over the open generic
-registers one per implementation, and an open generic decorator is expanded across them. See
-[Decorators](/guide/decorators#one-limitation).
+The service type of a decorator is a type that the project registers only as an open generic type, for example `IRepository<>`. The service provider cannot decorate an open generic registration. If the project also contains closed registrations of the service type, the generator decorates them and gives no diagnostic.
 
-## DM0014 {#dm0014}
+`[Decorate]` with an open generic service type and a decorator that is not generic also gives DM0013.
 
-**A generic type cannot be cross-wired.**
+To correct the problem, register closed types of the service. For example, declare classes that are not generic, such as `OrderRepository : IRepository<Order>`. The generator then uses a generic decorator for each closed type. For `[Decorate]` with a decorator that is not generic, give a closed service type, for example `typeof(IRepository<Order>)`.
 
-`[CrossWireService]` shares one instance across the implementation and every interface it declares,
-which is emitted as a factory per interface — and an open generic registration cannot carry one.
+## DM0014
 
-```csharp
-[CrossWireService]
-public class Ledger<T> : ILedger<T>, IAudit<T> { }   // DM0014
-```
+The generator cannot cross-wire a generic class. It gives DM0014 in these conditions, and it does not register the class:
 
-Registering each interface to the same open generic implementation type would compile, and is a
-different contract: the container builds one instance per service type, which is the opposite of what
-the attribute promises.
+- `[CrossWireService]` is on a generic class.
+- A convention with `AlsoAsSelf()` or `AsSelfWithInterfaces()` selects a generic class.
 
-Use `[SingletonService]`, `[ScopedService]` or `[TransientService]` instead, applying one per
-interface if the type needs to answer to more than one.
+To correct the problem for `[CrossWireService]`, use `[SingletonService]`, `[ScopedService]`, or `[TransientService]`. To register the class as more than one interface, use one attribute for each interface.
 
-## DM0015 {#dm0015}
+To correct the problem for a convention, remove `AlsoAsSelf()` or `AsSelfWithInterfaces()`. You can also select the generic classes with a different convention.
 
-**An interceptor does not apply to every member it was applied to.**
+## DM0015
 
-Three interfaces cover the member shapes, and the generator picks per member:
+An interceptor does not implement the interface for some members of the service. These members run without the interceptor. The message gives the names of the members.
 
-| Interface | Members |
-|---|---|
-| `IInterceptor` | returning a value directly, or `void` |
-| `IAsyncInterceptor` | returning `Task`, `Task<T>`, `ValueTask`, `ValueTask<T>` |
-| `IAsyncEnumerableInterceptor` | returning `IAsyncEnumerable<T>` |
+To correct the problem, implement the missing interface on the interceptor. For example, implement `IAsyncInterceptor` for methods that have the return type `Task`. You can also use the interceptor for a service without such members.
 
-An interceptor that implements none of the one a member needs is left out of that member's chain, and
-those calls run without it:
+## DM0016
 
-```csharp
-public class AuditInterceptor : IInterceptor { … }      // sync only
+An assembly-level module attribute is in a file that has no `using` directive for the namespace of the module. The code does not compile. A `global using` directive in a different file is also a `using` directive for this check.
 
-[SingletonService]
-[Intercept(typeof(AuditInterceptor))]
-public class Orders : IOrders
-{
-    public int Count(string customer) { … }             // audited
-    public Task<int> CountAsync(string customer) { … }  // DM0015 — not audited
-}
-```
+The generator examines only attributes without their namespace. It examines them only if the project has a module or a generated `ApplicationModule`.
 
-This matters more than it first reads. An interceptor that rewrites arguments stops rewriting them;
-one that authorises or audits stops doing that, on exactly the members most likely to be the
-interesting ones. In the sharpest case — an `IInterceptor` applied to a service whose members are all
-async — it never runs at all.
+To correct the problem, add the `using` directive. You can also write the full name, for example `[assembly: Catalog.CatalogModule]`.
 
-Implement the missing interface on the interceptor, or apply it to a service with no such member.
+## DM0017
 
-Reported once per interceptor and member shape, so a wide interface produces one line rather than
-one per member. See [Interception](/guide/interception).
+A class with `[DependencyModule]` is in a different class. The generator can write the other part of a module only at the namespace level. It does not write the other part of this module.
 
-## DM0016 {#dm0016}
+To correct the problem, move the module to the namespace level.
 
-**An assembly-level module attribute's namespace is not imported.**
+## DM0018
 
-A module generates its attribute in the module's own namespace, and an assembly-level attribute has
-no namespace context to inherit — a `using` written inside a namespace declaration cannot apply to
-it, because assembly attributes precede every namespace in the file.
+A module has properties that the generator puts on the module attribute, but the module does not declare `Equals`. The generated `Equals` method compares only the module type. Thus, two instances with different values are one module. Only the first instance loads.
 
-```csharp
-// Bootstrap.cs
-using DependencyModules.NSubstitute;
+The generator examines all partial declarations of the module. If the module declares `Equals` for its own type, for example `IEquatable<T>.Equals(T)`, the generator gives no DM0018. The generated `Equals(object)` then calls that method.
 
-[assembly: ApplicationModule]     // DM0016 — nothing brings MyApp.Composition into scope
-[assembly: NSubstituteSupport]
-```
+To correct the problem, declare `Equals` and `GetHashCode` on the module. If each module of this type loads only one time, you can also suppress the warning with `NoWarn` or `.editorconfig`.
 
-Left alone this is `CS0246: The type or namespace name 'ApplicationModuleAttribute' could not be
-found` — a type you never wrote, generated into a namespace the error does not name. Every part of
-that message points away from the fix, which is one line:
+## DM0019
 
-```csharp
-using MyApp.Composition;          // or write it as [assembly: MyApp.Composition.ApplicationModule]
-```
+An assembly-level module attribute is in a file that the generator does not use for `ApplicationModule`. The generator reads assembly-level module attributes only from `Program.cs`. Thus, it ignores this attribute. The module does not register its services.
 
-A module in a referenced package is covered too: its attribute is already in metadata by the time
-this runs, so it can be found there. What cannot be resolved is a module in *this* compilation —
-its attribute is written by the generator that is running, so nothing about it exists yet to look up.
+The generator gives DM0019 for an attribute without its namespace and for an attribute with its full name, for example `[assembly: Catalog.CatalogModule]`. It examines the files only if the project has a module or a generated `ApplicationModule`.
 
-Unlike the other diagnostics here this one is read from syntax rather than from the compiler's view
-of your code, and it has to be: the attribute is written by the generator that is running, so it does
-not exist in the compilation being examined and nothing about it can be resolved. The check is
-therefore "is there a module by this name, and could this file see it" — which is why it stays quiet
-for an attribute matching no module in the compilation, a module in the global namespace, a usage
-already written qualified, and a namespace supplied by a `global using` in any file.
+To correct the problem, move the attribute to `Program.cs`. You can also load the module with `AddModule`.
 
-See [Testing](/guide/testing#stop-repeating-the-module-list) and [Modules](/guide/modules).
+## DM0020
 
-## DM0017 {#dm0017}
+A class has `[Intercept]`, but no module in the project uses the interception. Thus the interceptors do not run. This can occur when a realm-only module registers the class from a convention, and `[Intercept]` has no realm.
 
-**A dependency module cannot be nested inside another type.**
+To correct the problem, set `Realm` on `[Intercept]` to the module that registers the class.
 
-A module must be declared directly in a namespace. The generator completes it with a second partial
-declaration written at namespace level, so a nested one produced a *separate* type of the same name
-while the nested declaration never implemented `IDependencyModule` — a green build that registered
-nothing.
+## DM0021
 
-```csharp
-public static class Outer
-{
-    [DependencyModule]
-    public partial class NestedModule;   // DM0017
-}
-```
+A test method has `[TestExport]` for a service type and a `[Mock]` parameter of the same type. The mock replaces the `[TestExport]` registration. The generator gives DM0021 only if the test project references `DependencyModules.SourceGenerator`.
 
-`AddModule<Outer.NestedModule>()` would not compile, but `[assembly: NestedModule]` bound to the
-detached type's attribute and did, which is why this is reported rather than left to be discovered.
-Move the module out to the namespace. Services may be nested freely; the restriction is only on
-modules.
+The generator gives no DM0021 for the two exceptions, because the `[TestExport]` registration stays in use:
 
-See [Modules](/guide/modules) and [Troubleshooting](/guide/troubleshooting).
+- The `[Mock]` parameter has `[FromKeyedServices]`.
+- For Moq, the test also has a `Mock<T>` parameter of the same type.
 
-## DM0018 {#dm0018}
+For more information, refer to [Mocks and `[TestExport]`](../guide/testing-mocking.md#mocks-and-testexport).
 
-**A module with parameters relies on generated equality.**
+To correct the problem, if the `[TestExport]` is a default, move it to the test class or to the assembly. You can also remove the attribute that you do not want.
 
-Modules de-duplicate by type, which is what stops a module reached twice from registering everything
-twice. A module carrying parameters is the case that rule does not fit: two instances holding
-different values are the same module by it, so the first one reached wins and the other is discarded
-silently.
+## DM0022
 
-```csharp
-[DependencyModule]
-public partial class CacheModule : IServiceCollectionConfiguration
-{
-    public int SizeLimit { get; set; }              // DM0018
-    public void ConfigureServices(IServiceCollection services) =>
-        services.AddSingleton(new CacheSettings(SizeLimit));
-}
+The generator does not give DM0022 now. It gave DM0022 when a decorator set `Implementation` in a module with generated factories.
 
-[DependencyModule] [CacheModule(SizeLimit = 10)]  public partial class SmallCacheFeature;
-[DependencyModule] [CacheModule(SizeLimit = 999)] public partial class BigCacheFeature;
-```
+Each generated factory now returns its class. Thus the decorator changes only the registration of the implementation that it names. For more information, refer to [Decorate one implementation](../guide/decorators.md#decorate-one-implementation).
 
-Load both features and one `CacheSettings` arrives, not two — whichever was reached first, with no
-error and no duplicate to notice.
+## DM0023
 
-The generator has to choose an identity for you, and type-only is the choice it makes. Declaring your
-own `Equals` and `GetHashCode` suppresses the generated pair and says which you meant. Both answers
-are legitimate:
+A static factory method has a service attribute, but the generated code cannot call the method. The generator does not register the method. The message gives the cause:
 
-```csharp
-// identity is the values: both configurations survive
-public override bool Equals(object? obj) =>
-    obj is CacheModule other && other.SizeLimit == SizeLimit;
-public override int GetHashCode() => SizeLimit;
+- The method is not `static`.
+- The method is `private`, `protected`, or `private protected`. A method without an access modifier is `private`.
+- A class that contains the method is `private` or `protected`.
 
-// identity is the type: one wins, and that is intended
-public override bool Equals(object? obj) => obj is CacheModule;
-public override int GetHashCode() => typeof(CacheModule).GetHashCode();
-```
+To correct the problem, make the method `static`, and `public` or `internal`. The classes that contain the method must not be `private` or `protected`.
 
-Only **settable, non-static** properties count. A read-only property is not a parameter — a module
-implementing an interface with `public string Value => "A";` has nothing to configure and is not
-reported.
+## DM0024
 
-Silence it per project with `NoWarn` or `.editorconfig` if every parameterised module in the codebase
-is composed once.
+A class has `[CrossWireService]`, but it declares no interface. It gets one or more interfaces from a base class. The generator registers only the class type. It does not cross-wire the interfaces of a base class.
 
-See [Modules](/guide/modules#parameters).
+To correct the problem, write the interfaces in the declaration of the class. For example, write `class Store : ReaderBase, IReader`.
 
-## DM0019 {#dm0019}
+## DM0025
 
-**An assembly-level module attribute is outside the entry point file.**
+A class has `[Decorator]`, but the generator cannot apply the decorator. The generator does not write code for the decorator. The message gives the cause:
 
-Assembly-level module attributes are composed into the generated `ApplicationModule`, and that module
-is built from one compilation unit — the entry point. Written in any other file the attribute was
-read by nobody: a clean build, no diagnostic, and an `InvalidOperationException` at the first resolve.
+- The class implements no type that one of its constructor parameters has. Thus the generator finds no service type.
+- The class has no constructor that the generated code can call. The constructor must be `public`, `internal`, or `protected internal`.
+- No constructor parameter has the service type. Thus the decorator cannot get the service.
+- The type parameters of a generic decorator are not the type arguments of the service type in the same sequence.
 
-```csharp
-// Bootstrap.cs — DM0019
-using MyApp.Library;
-
-[assembly: LibraryModule]
-```
-
-Move it to the file holding the entry point, or load the module explicitly with
-`services.AddModule<LibraryModule>()`.
-
-The module can live anywhere — this compilation or a referenced package. Before 1.2.0 only a module
-declared in the same project was checked, so the shape above, which is the one worth catching,
-reported nothing.
-
-This stays quiet when nothing generated an `ApplicationModule`. A class library has no entry point,
-and neither does a test project — where assembly-level module attributes are read at *run time* by
-the test integration and are perfectly at home in a file of their own, which is the shape
-[Testing](/guide/testing#stop-repeating-the-module-list) shows.
-
-## DM0020 {#dm0020}
-
-**An interception is applied by no module, so it never runs.**
-
-Registrations and interceptions are placed by the same rule — named a realm, it belongs to that
-module; named none, it belongs to every module that is not `OnlyRealm`. The wrapper is generated
-either way, so an interception no module applies is a class nothing ever routes through.
-
-The case that reaches here is a realm-only module registering the class *by convention*:
-
-```csharp
-[Intercept(typeof(AuditInterceptor))]           // DM0020 — no realm named
-public class Greeter : IGreeter { … }
-
-[DependencyModule(OnlyRealm = true)]
-public partial class GreetingModule : IConventionModule
-{
-    void IConventionModule.Conventions(IConventionDefinitions conventions) =>
-        conventions.RegisterAll<IGreeter>().AsSingleton();
-}
-```
-
-A convention registration is stamped with its declaring module's realm when the convention is
-matched, which is long after the interception was read. So the registration lands in
-`GreetingModule` and the interception is offered only to modules that are *not* realm-only — of
-which there are none here.
-
-Name the module and the two meet:
-
-```csharp
-[Intercept(typeof(AuditInterceptor), Realm = typeof(GreetingModule))]
-```
-
-An interception on a class registered by a *service attribute* needs none of this: it takes the realm
-from that attribute automatically, so `[SingletonService(Realm = typeof(X))]` and a plain
-`[Intercept]` agree without being told to. See [Interception](/guide/interception#realms).
-
-## DM0021 {#dm0021}
-
-**`[Mock]` and `[TestExport]` name one service on the same test method.**
-
-A parameter attribute names one argument, which is the narrowest thing a test can say, so `[Mock]`
-wins and the `[TestExport]` beside it does nothing:
-
-```csharp
-[ModuleTest]
-[TestExport(typeof(IClock), Implementation = typeof(SystemClock))]
-public void Expires([Mock] IClock clock) { }        // DM0021 — the export does nothing
-```
-
-Only on the same method. `[TestExport]` on the class or the assembly is a default for everything
-under it, and one test overriding that for one argument is what having both scopes is for:
-
-```csharp
-[TestExport(typeof(IClock), Implementation = typeof(SystemClock))]   // the fixture default
-public class ExpiryTests
-{
-    [ModuleTest]
-    public void UsesTheRealClock(IClock clock) { }                   // SystemClock
-
-    [ModuleTest]
-    public void Expires([Mock] IClock clock) { }                     // the mock — no diagnostic
-}
-```
-
-See [Mocking frameworks](/guide/testing-mocking#precedence).
-
-## DM0022 {#dm0022}
-
-**A decorator names an implementation while factories are generated.**
-
-Reaching one registration of a service means asking each descriptor what implementation it was built
-from, and a factory registration cannot say. `DependencyModules_GenerateFactories` makes every
-registration factory-built, so the decorator would wrap *all* of them — the opposite of what naming
-one asked for.
-
-```csharp
-[Decorator(Implementation = typeof(SmtpSender))]   // DM0022 when factories are on
-public class RetryingSender(IEmailSender inner) : IEmailSender { … }
-```
-
-Turn the property off for this project, or drop `Implementation` and decorate them all.
-
-An *intercepted* service escapes the property automatically — the interception is declared on the
-class being registered, so the code emitting that registration can see it and keeps a `typeof`
-registration for it. A decorator is declared on the decorator, so the registration it targets is
-written by a pass that never learns about it. See
-[MSBuild properties](/reference/msbuild#generatefactories-and-container-validation).
-
+To correct the problem, correct the cause that the message gives. For example, set `Service` on the attribute, or give the class a `public` constructor.

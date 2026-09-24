@@ -1,200 +1,135 @@
 # xUnit
 
-`DependencyModules.xUnit` is the xUnit integration. Read [Testing modules](/guide/testing) first —
-this page covers only what is specific to xUnit.
+`DependencyModules.xUnit` adds `[ModuleTest]` to xUnit v3 test projects. The package is compatible with `xunit.v3` version 3.2.2 and all subsequent versions before 4.0.0.
+
+## Install
 
 ```shell
 dotnet add package DependencyModules.xUnit
 ```
 
+Also add references to `xunit.v3` and to a test runner, for example `xunit.runner.visualstudio`.
+
+## `[ModuleTest]`
+
+`[ModuleTest]` is in the `DependencyModules.xUnit.Attributes` namespace. Put it on a test method. Do not also put `[Fact]` or `[Theory]` on the method. `[ModuleTest]` has these constructors:
+
+| Constructor | Result |
+| --- | --- |
+| `[ModuleTest]` | Loads no module from the attribute. The test can get modules from module attributes. |
+| `[ModuleTest(typeof(ShopModule))]` | Loads one module. |
+| `[ModuleTest(typeof(ShopModule), typeof(MailModule))]` | Loads the modules in the sequence of the list. |
+
+The constructor with two or more module types does not record the source file and the line of the test. Thus the test explorer of an IDE cannot open the source code of this test. The other two constructors record this information.
+
+`[ModuleTest]` is an xUnit `FactAttribute`. Thus `Skip`, `SkipType`, `SkipUnless`, `SkipWhen`, `SkipExceptions`, `Explicit`, `Timeout`, `DisplayName`, and traits have the same function as on `[Fact]`.
+
 ```csharp
 using DependencyModules.xUnit.Attributes;
+using Shop;
+using Xunit;
 
-public class WeatherTests
+namespace Shop.Tests;
+
+public class CalculatorTests
 {
-    [ModuleTest]
-    [ApplicationModule]
-    public void GetForecast(Weather weather)
+    [ModuleTest(typeof(ShopModule))]
+    public void Multiplies(IPriceCalculator calculator)
     {
-        var forecast = weather.GetWeatherForecast().ToArray();
+        Assert.Equal(6m, calculator.Total(2m, 3));
+    }
 
-        Assert.Equal(5, forecast.Length);
+    [ModuleTest(typeof(ShopModule), Skip = "Not ready")]
+    public void SkippedTest(IPriceCalculator calculator) { }
+}
+```
+
+The service provider gives values only to the parameters of the test method. xUnit gives the values for the constructor of the test class.
+
+## Data rows
+
+You can use xUnit data attributes with `[ModuleTest]`, for example `[InlineData]`, `[MemberData]`, and `[ClassData]`. The test package also reads other attributes that implement the xUnit `IDataAttribute` interface. The test package gives the values of a row to the first parameters of the method. The service provider gives the values for the other parameters.
+
+```csharp
+using DependencyModules.xUnit.Attributes;
+using Shop;
+using Xunit;
+
+namespace Shop.Tests;
+
+public class RowTests
+{
+    [ModuleTest(typeof(ShopModule))]
+    [InlineData(2, 4)]
+    [InlineData(3, 6)]
+    public void RowAndService(int quantity, int expected, IPriceCalculator calculator)
+    {
+        Assert.Equal(expected, calculator.Total(2m, quantity));
     }
 }
 ```
 
-Requires **xUnit v3**. `[ModuleTest]` derives from `FactAttribute` and is discovered through xUnit's
-own test case discoverer, so it is a fact as far as the rest of xUnit is concerned.
+Each row gets a new service provider. If the data attributes give no rows, the test fails. It does not pass when no row runs.
 
-::: warning `dotnet new xunit` gives you v2
-The template still creates an xUnit **v2** project — package `xunit`, not `xunit.v3` — and this
-integration cannot use it at all. Start from `dotnet new xunit3`, or replace the reference:
+A row of the type `TheoryData<T>` or `TheoryDataRow<T>` has a type for each value. The xUnit analyzer compares the number of these types with the number of parameters. If the number of types is less, the analyzer gives the error xUnit1037. For a `[ModuleTest]` method, this number of values is correct.
 
-```xml
-<PackageReference Include="xunit.v3" Version="3.2.2" />
-```
-
-Supported range is `[3.2.2, 4.0.0)`. xUnit 4.0.0 changed a discovery API this package binds to, so
-combining them fails at test discovery with a `MissingMethodException` naming an xUnit internal
-rather than this package. From 1.2.0 the dependency is bounded, so NuGet says so at restore instead.
-:::
-
-## `[ModuleTest]` replaces `[Fact]`
-
-It replaces `[Theory]` as well. A module test with data attributes on it produces one test case per
-row without your saying so — there is no separate attribute for the parameterised case.
-
-Because it derives from `FactAttribute`, everything `[Fact]` carries carries here too:
+Disable xUnit1037 for these tests:
 
 ```csharp
-[ModuleTest(Skip = "flaky on CI", Explicit = true, Timeout = 5000, DisplayName = "Forecast")]
-public void GetForecast(Weather weather) { }
-```
+using DependencyModules.xUnit.Attributes;
+using Shop;
+using Xunit;
 
-`Skip`, `SkipUnless`, `SkipWhen`, `SkipExceptions`, `SkipType`, `Explicit`, `Timeout` and
-`DisplayName` all behave as xUnit defines them, and `[Trait]` is carried onto the generated test
-cases.
+namespace Shop.Tests;
 
-## Naming modules on the attribute
-
-Beyond the module attributes described in [Testing modules](/guide/testing#stop-repeating-the-module-list),
-`[ModuleTest]` takes module types directly:
-
-```csharp
-[ModuleTest(typeof(ApplicationModule))]
-public void GetForecast(Weather weather) { }
-```
-
-::: warning Two or more modules loses the source location
-`[ModuleTest]` captures the file and line it sits on through `[CallerFilePath]`/`[CallerLineNumber]`,
-which is how a test explorer navigates back to your test. C# will not accept caller-info parameters
-after a `params` array, so the overload taking **several** module types cannot capture them.
-
-Such a test still runs and still reports correctly; only navigation from the explorer to the source
-is unavailable. Naming one module, or none, takes an overload that keeps it — so prefer the module
-attributes for the multi-module case:
-
-```csharp
-[ModuleTest]                        // location captured
-[ApplicationModule]
-[DiagnosticsModule]
-public void GetForecast(Weather weather) { }
-```
-:::
-
-## Data-driven tests
-
-Any xUnit data attribute works — `[InlineData]`, `[MemberData]`, `[ClassData]`, and anything else
-implementing `IDataAttribute`. Row arguments come first, injected ones after:
-
-```csharp
-[ModuleTest]
-[InlineData("one")]
-[InlineData("two")]
-public void MultipleRows(string value, ITemperatureProvider provider)
+public class TypedRowTests
 {
-    Assert.NotNull(value);       // from [InlineData]
-    Assert.NotNull(provider);    // from the container
-}
-```
+    public static TheoryData<int> Quantities => new(2, 3);
 
-A row supplies the **leading** parameters and may supply fewer than the method takes — that is the
-point of it. The rest are resolved from the container.
-
-Each row is a separate test case with its own container, so state cannot carry from one row to the
-next.
-
-::: warning xUnit's analyzer objects to the shape
-`xUnit1037` counts a row's arguments against the method's parameters and finds them short, because to
-xUnit a row is meant to supply all of them. Under `[ModuleTest]` the shortfall is the feature. Silence
-it where you use it:
-
-```csharp
 #pragma warning disable xUnit1037
-```
 
-Also worth knowing: before 1.2.0, `[MemberData]` under `[ModuleTest]` produced **zero** test cases and
-the run reported a pass. `[MemberData(nameof(Cases), MemberType = typeof(MyTests))]` was the shape
-that worked. Both work now, and a row source that yields nothing is a failure rather than a silent
-green.
-:::
+    [ModuleTest(typeof(ShopModule))]
+    [MemberData(nameof(Quantities))]
+    public void TypedRow(int quantity, IPriceCalculator calculator)
+    {
+        Assert.Equal(2m * quantity, calculator.Total(2m, quantity));
+    }
 
-`TheoryDataRow`'s own metadata is honoured per row, so a single row can skip or carry its own traits:
-
-```csharp
-public static TheoryData<string> Cases => new()
-{
-    new TheoryDataRow<string>("ok"),
-    new TheoryDataRow<string>("broken") { Skip = "pending #412" },
-};
-
-[ModuleTest]
-[MemberData(nameof(Cases))]
-public void MultipleRows(string value, ITemperatureProvider provider) { }
-```
-
-## Reading the test case
-
-`ITestCaseInfo` is resolvable from the container and exposes xUnit's own metadata for the running
-test:
-
-```csharp
-[ModuleTest]
-public void KnowsWhatItIs(ITestCaseInfo testCase)
-{
-    IXunitTestMethod method = testCase.TestMethod;
-
-    Assert.Equal(nameof(KnowsWhatItIs), method.MethodName);
+#pragma warning restore xUnit1037
 }
 ```
 
-| Member | |
-|---|---|
-| `TestMethod` | the `IXunitTestMethod` xUnit built |
-| `TestMethodArguments` | the arguments the test will be invoked with |
-| `TestMethodAttributes` | every attribute on the method |
+A `TheoryDataRow` can set its `Skip`, `SkipType`, `SkipUnless`, `SkipWhen`, `Timeout`, `Traits`, `TestDisplayName`, and `Label`. These values are applicable only to that row.
 
-## Fixtures and lifetime
+The test of a data row gets the traits of the class, of the method, and of the row. The traits of the row are, for example, from the `Traits` property of `[InlineData]`. A `[Theory]` row gets its traits in the same way.
 
-xUnit constructs the test class **once per test**, which is its own model and unchanged here. Combined
-with a container per test, that means nothing survives between tests unless you deliberately make it —
-a class fixture, a collection fixture, or a static.
+## Lifetime of the service provider
 
-The container's lifetime brackets the test, so a constructor or `IAsyncLifetime` on the class runs
-inside it. Anything the test class needs from the container has to come through a `[ModuleTest]`
-parameter, though — xUnit constructs the class, not this package, so a constructor parameter is
-xUnit's to supply.
+The test package builds the service providers when xUnit makes the tests of a test method. After all tests of the test method run, the test package disposes these service providers.
 
-## Customising how the provider is built
+## Test information
 
-Implement `IServiceProviderBuilderAttribute` to take over the final step, if you want validation on or
-a different container:
+The `ITestCaseInfo` interface in the `DependencyModules.xUnit.Impl` namespace has these properties:
+
+| Property | Value |
+| --- | --- |
+| `TestMethod` | The xUnit `IXunitTestMethod`. |
+| `TestMethodArguments` | The values of the parameters. |
+| `TestMethodAttributes` | The attributes of the test method, the test class, and the assembly. |
 
 ```csharp
-[AttributeUsage(AttributeTargets.Method | AttributeTargets.Class | AttributeTargets.Assembly)]
-public class ValidatingProviderAttribute : Attribute, IServiceProviderBuilderAttribute
+using DependencyModules.xUnit.Attributes;
+using DependencyModules.xUnit.Impl;
+using Xunit;
+
+namespace Shop.Tests;
+
+public class InfoTests
 {
-    public IServiceProvider BuildServiceProvider(
-        ITestMethodContext testMethod, IServiceCollection serviceCollection) =>
-        serviceCollection.BuildServiceProvider(new ServiceProviderOptions
-        {
-            ValidateScopes = true,
-            ValidateOnBuild = true,
-        });
+    [ModuleTest]
+    public void KnowsItsName(ITestCaseInfo info)
+    {
+        Assert.Equal(nameof(KnowsItsName), info.TestMethod.MethodName);
+    }
 }
 ```
-
-It runs last, after every other hook has contributed, so it is also the final chance to amend the
-collection. Without one, the collection is built with `BuildServiceProvider()` and its defaults.
-
-Unlike the other hooks, which all contribute, only **one** of these is used. Declare a single one —
-assembly level is the usual place, since replacing the container is a project-wide decision.
-
-This one is not xUnit-specific — it lives in `DependencyModules.Testing` and works the same under
-[NUnit](/guide/testing-nunit).
-
-## Next
-
-- [Mocking frameworks](/guide/testing-mocking) — `[Mock]` and the three libraries behind it
-- [NUnit](/guide/testing-nunit) — the same integration for NUnit
-- [Testing registrations](/guide/testing-registrations) — asserting on what a module registered

@@ -6,7 +6,7 @@
         <Nullable>enable</Nullable>
         <IsPackable>True</IsPackable>
         <PackageId>DependencyModules.Testing</PackageId>
-        <Description>Test-framework-neutral building blocks for DependencyModules test integrations. Contains the [Mock] and [InjectValues] parameter attributes, the mocking seam (IMockSupportAttribute) that the DependencyModules.NSubstitute, DependencyModules.Moq and DependencyModules.FakeItEasy packages implement, the hooks an integration uses to build a test's container, and attribute discovery helpers. Reference a test framework integration such as DependencyModules.xUnit rather than this package directly.</Description>
+        <Description>The test attributes and interfaces of DependencyModules: [Mock], [InjectValues], [Shared], [TestExport], and the interfaces for mock libraries and test attributes. It also contains the helpers that find the attributes of a test on the method, the class, and the assembly. It does not depend on a test framework. The DependencyModules.xUnit and DependencyModules.NUnit packages use this package. Add one of those packages to a test project.</Description>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
     </PropertyGroup>
 

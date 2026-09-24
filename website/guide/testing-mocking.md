@@ -1,132 +1,16 @@
-# Mocking frameworks
+# Mocks
 
-## The problem
+A mock replaces a service in the service provider of a test. The test gets the mock as a parameter and sets the return values of its members. The other services get the mock in their constructors.
 
-A provider built from your real modules gives you real services, which is usually the point — and
-occasionally the problem. One of the services behind `Weather` is non-deterministic:
+## Packages
 
-```csharp
-[SingletonService]
-public class TemperatureProvider : ITemperatureProvider
-{
-    public int GetTemperature() => Random.Shared.Next(-20, 55);
-}
-```
+| Package | Attribute | Mock library |
+| --- | --- | --- |
+| `DependencyModules.NSubstitute` | `[NSubstituteSupport]` | NSubstitute |
+| `DependencyModules.Moq` | `[MoqSupport]` | Moq |
+| `DependencyModules.FakeItEasy` | `[FakeItEasySupport]` | FakeItEasy |
 
-You cannot assert on a forecast built out of random numbers. But you do not want to abandon the
-container either — `Weather` and `SummaryProvider` should still be the real ones, wired the real way.
-You want to replace exactly one leaf of the graph and leave the rest alone.
-
-## How DependencyModules helps
-
-Mark the parameter `[Mock]` and that service is **replaced in the container** before anything is
-resolved. Everything constructed afterwards gets the substitute:
-
-```csharp
-[ModuleTest]
-public void GetStaticForecast(
-    Weather weather,
-    [Mock] ITemperatureProvider temperatureProvider,
-    [Mock] IAiSummaryProvider aiSummaryProvider)
-{
-    temperatureProvider.GetTemperature().Returns(38);
-    aiSummaryProvider.GetSummary().Returns("Sunny");
-
-    var forecast = weather.GetWeatherForecast().ToArray();
-
-    Assert.All(forecast, day => Assert.Equal(38, day.TemperatureC));
-    Assert.All(forecast, day => Assert.Equal("Sunny", day.Summary));
-}
-```
-
-`Weather` is still constructed by the container, and it receives the same substitutes the test is
-holding. You wire nothing together yourself.
-
-Note what stayed real: `SummaryProvider` was not mocked, so the call still travels
-`Weather` → `SummaryProvider` → `IAiSummaryProvider`. Only the leaf was swapped.
-
-`[Mock]` comes from `DependencyModules.Testing`, which your [test framework
-integration](/guide/testing#pick-an-integration) already brings in — so it needs a
-`using DependencyModules.Testing.Attributes;`. It carries no test framework dependency and no mocking
-library dependency of its own.
-
-## Choosing a library
-
-`[Mock]` does not depend on a particular mocking library. It defines a seam, and a small package
-fills it — so use whichever library you already have:
-
-| Package | Attribute | Creates |
-|---|---|---|
-| `DependencyModules.NSubstitute` | `[NSubstituteSupport]` | `Substitute.For(type)` |
-| `DependencyModules.Moq` | `[MoqSupport]` | `Mock<T>` |
-| `DependencyModules.FakeItEasy` | `[FakeItEasySupport]` | `Sdk.Create.Fake(type)` |
-
-Install one and apply its attribute. Like the module attributes it works at assembly, class or
-method level, and assembly is usually right:
-
-```shell
-dotnet add package DependencyModules.Moq
-```
-
-```csharp
-[assembly: MoqSupport]
-```
-
-Without one, `[Mock]` throws with a message telling you so, rather than quietly handing back the real
-service.
-
-All three work under both [xUnit](/guide/testing-xunit) and [NUnit](/guide/testing-nunit) — the
-mocking package and the test framework package are independent choices.
-
-::: tip Pick one per project
-The support attributes are found by walking method, class then assembly, and the first one found
-supplies the test's mocks. Two in scope is not an error, but which one wins depends on where each is
-declared, which is not a thing to rely on.
-:::
-
-## The same test in each
-
-Only the configuration lines differ — `[Mock]`, the injection and the assertions around them are
-identical. The example above is NSubstitute; here are all three side by side:
-
-::: code-group
-
-```csharp [NSubstitute]
-// arrange
-temperatureProvider.GetTemperature().Returns(38);
-
-// assert on the interaction
-temperatureProvider.Received().GetTemperature();
-temperatureProvider.Received(1).Record(Arg.Any<string>());
-```
-
-```csharp [Moq]
-// arrange
-Mock.Get(temperatureProvider).Setup(x => x.GetTemperature()).Returns(38);
-
-// assert on the interaction
-Mock.Get(temperatureProvider).Verify(x => x.GetTemperature());
-Mock.Get(temperatureProvider).Verify(x => x.Record(It.IsAny<string>()), Times.Once);
-```
-
-```csharp [FakeItEasy]
-// arrange
-A.CallTo(() => temperatureProvider.GetTemperature()).Returns(38);
-
-// assert on the interaction
-A.CallTo(() => temperatureProvider.GetTemperature()).MustHaveHappened();
-A.CallTo(() => temperatureProvider.Record(A<string>._)).MustHaveHappenedOnceExactly();
-```
-
-:::
-
-Mocks are **loose** in all three: an unconfigured member returns `default` rather than throwing. That
-is each library's own default, kept rather than overridden.
-
-## NSubstitute
-
-The substitute is both what gets injected and what you configure, so a `[Mock]` parameter can be set
-up directly:
+Add one of these packages and a test package to the test project. Put the attribute of the mock package on the test method, on the test class, or on the assembly. An attribute on the assembly is applicable to all tests:
 
 ```csharp
 using DependencyModules.NSubstitute;
@@ -134,156 +18,125 @@ using DependencyModules.NSubstitute;
 [assembly: NSubstituteSupport]
 ```
 
-```csharp
-[ModuleTest]
-public void SendsTheMail(IEmailSender sender, [Mock] IAuditLog log)
-{
-    sender.Send("someone@example.com");
+If more than one mock support attribute is applicable to a test, `[Mock]` uses only one attribute. It uses the attribute on the method. If the method has no such attribute, it uses the attribute on the class. If the class has no such attribute, it uses the attribute on the assembly. Each applicable `[MoqSupport]` attribute also registers the `Mock<T>` parameters.
 
-    log.Received().Write(Arg.Any<string>());
+## `[Mock]`
+
+Put `[Mock]` on a test parameter. `[Mock]` is in the `DependencyModules.Testing.Attributes` namespace.
+
+```csharp
+using DependencyModules.NSubstitute;
+using DependencyModules.Testing.Attributes;
+using DependencyModules.xUnit.Attributes;
+using NSubstitute;
+using Xunit;
+
+namespace Weather.Tests;
+
+public interface ITemperatureSource
+{
+    int Celsius();
+}
+
+public class Forecast(ITemperatureSource source)
+{
+    public string Describe() => source.Celsius() > 25 ? "hot" : "mild";
+}
+
+[NSubstituteSupport]
+public class ForecastTests
+{
+    [ModuleTest]
+    public void HotAbove25([Mock] ITemperatureSource source, Forecast forecast)
+    {
+        source.Celsius().Returns(30);
+
+        Assert.Equal("hot", forecast.Describe());
+    }
 }
 ```
 
-Nothing else to know — the parameter is the substitute.
+For each `[Mock]` parameter, the test package does these steps:
 
-## FakeItEasy
+1. Makes a mock of the parameter type with the mock library.
+2. Registers the mock as a singleton, after the modules and after `[TestExport]`.
+3. Gives the mock to the parameter.
 
-Same shape. The fake is what gets injected and what you configure, through `A.CallTo`:
+Because the mock registration is the last registration, the service provider gives the mock to all services that get the type. If the parameter has `[FromKeyedServices("key")]`, the registration is a keyed registration with that key.
 
-```csharp
-using DependencyModules.FakeItEasy;
+The NSubstitute and FakeItEasy packages make the mocks with the default configuration of the library: `Substitute.For` and `FakeItEasy.Sdk.Create.Fake`. The parameter and the other services get the same object. Thus the configuration that the test makes on the parameter is applicable to the other services.
 
-[assembly: FakeItEasySupport]
-```
+Each test, each data row, and each iteration gets new mocks.
 
-```csharp
-[ModuleTest]
-public void SendsTheMail(IEmailSender sender, [Mock] IAuditLog log)
-{
-    sender.Send("someone@example.com");
+If no mock support attribute is applicable to the test, the test fails with the message "Mock library not found".
 
-    A.CallTo(() => log.Write(A<string>._)).MustHaveHappened();
-}
-```
-
-Fakes are built through `FakeItEasy.Sdk.Create.Fake(type)` rather than `A.Fake<T>()`, because the
-type is not known until the test asks for it. The result is the same object either would produce.
+::: info NOTE
+A mock support attribute does not make mocks for services that have no registration. Only the `[Mock]` parameters and, for Moq, the `Mock<T>` parameters get mocks. A service with a dependency that has no registration and no mock parameter causes an error when the test gets the service.
+:::
 
 ## Moq
 
-Moq is the one that needs a paragraph, because it keeps the mock and the object it produces apart.
-`[Mock] IFoo` gives you the **object**, so configuring it means going back through `Mock.Get`:
+If `[MoqSupport]` is applicable to the test, the test can have a `Mock<T>` parameter. The parameter gets the `Mock<T>` object. The service provider gives `mock.Object` for `T`.
 
 ```csharp
-[ModuleTest]
-public void SendsTheMail(IEmailSender sender, [Mock] IAuditLog log)
-{
-    Mock.Get(log).Verify(x => x.Write(It.IsAny<string>()));
-}
-```
+using DependencyModules.Moq;
+using DependencyModules.xUnit.Attributes;
+using Moq;
+using Xunit;
 
-### Ask for the `Mock<T>` instead
+namespace Weather.Tests;
 
-You can skip that by naming the mock in the parameter type. No `[Mock]` needed — the type already
-says what it is:
-
-```csharp
-[ModuleTest]
-public void GetStaticForecast(
-    Weather weather,
-    Mock<ITemperatureProvider> temperatureProvider,
-    Mock<IAiSummaryProvider> aiSummaryProvider)
-{
-    temperatureProvider.Setup(x => x.GetTemperature()).Returns(38);
-    aiSummaryProvider.Setup(x => x.GetSummary()).Returns("Sunny");
-
-    var forecast = weather.GetWeatherForecast().ToArray();
-
-    Assert.All(forecast, day => Assert.Equal(38, day.TemperatureC));
-}
-```
-
-This does the same thing `[Mock]` does — `ITemperatureProvider` is replaced in the container before
-anything is resolved, so `Weather` is built against the same mock. Both the `Mock<T>` and its
-`Object` are registered, which is what lines the two halves up: you hold the mock, and everything the
-container builds gets its object. `mock.Object` reaches the object yourself when you want it.
-
-### The two spellings agree
-
-Ask for `[Mock] ITemperatureProvider` and `Mock<ITemperatureProvider>` on one test and you get **one
-mock seen two ways**, not two mocks. Two parameters naming the same `Mock<T>` are likewise one mock.
-
-`[Mock]` on a `Mock<T>` parameter is allowed and does nothing — the type is already enough.
-
-::: warning `Mock<T>` without `[MoqSupport]` silently does nothing useful
-A `Mock<T>` parameter only means anything when `[MoqSupport]` is in scope. Without it the parameter
-still resolves — the container constructs a `Mock<T>` like any other concrete type — but nothing
-registers it, so the service under test gets the real implementation and your setups apply to a mock
-nobody can see.
-:::
-
-## What wins when two things register the same service {#precedence}
-
-**The narrowest declaration decides.** `[Mock]` sits on a parameter and names one argument;
-`[TestExport]` applies to a method, a class or an assembly. So a `[Mock]` parameter overrides a
-`[TestExport]` naming the same service, and that is the shape having both is for — the class sets the
-default and one test opts out:
-
-```csharp
-[TestExport(typeof(IClock), Implementation = typeof(SystemClock))]   // the fixture default
-public class ExpiryTests
+[MoqSupport]
+public class MoqForecastTests
 {
     [ModuleTest]
-    public void UsesTheRealClock(IClock clock) { }                   // SystemClock
+    public void MildAt20(Mock<ITemperatureSource> source, Forecast forecast)
+    {
+        source.Setup(temperature => temperature.Celsius()).Returns(20);
 
-    [ModuleTest]
-    public void Expires([Mock] IClock clock) { }                     // the mock
+        Assert.Equal("mild", forecast.Describe());
+    }
 }
 ```
 
-Written on the **same method** the two are contradictory rather than useful — the parameter wins and
-the `[TestExport]` beside it does nothing — so that is
-[DM0021](/reference/diagnostics#dm0021).
+This list gives information about the Moq package:
 
-`Mock<T>` deliberately does not get this. Asking for the mock object is not the same as declaring the
-service mocked, so a `[TestExport]` still beats it:
+- `Mock<T>` and `[Mock] Mock<T>` give the same result.
+- `[Mock] T` gives `mock.Object`. `Mock.Get(value)` gives the `Mock<T>` for the value.
+- If a test has a `[Mock] T` parameter and a `Mock<T>` parameter, the two parameters use one mock.
+- Two `Mock<T>` parameters for the same `T` get the same mock.
+- The package makes each mock with `new Mock<T>()`. If you do not set a member, the member gives the default value of Moq. For example, a member gives an empty array, an empty sequence, or a completed task. A member with a different reference type, for example `string`, gives `null`.
+
+If `[MoqSupport]` is not applicable to the test, a `Mock<T>` parameter gets a new `Mock<T>` from `ActivatorUtilities`. But the service provider does not give `mock.Object` for `T`. The other services then get the usual implementation of `T`.
+
+## Mocks and `[TestExport]`
+
+The test package registers a `[Mock]` parameter after `[TestExport]`. Thus the mock replaces a `[TestExport]` registration of the same service type. A `[Mock]` parameter with `[FromKeyedServices]` does not replace a `[TestExport]` registration without a key.
+
+For Moq, the test package registers a `Mock<T>` parameter before `[TestExport]`. Thus a `[TestExport]` for `T` replaces the registration of `mock.Object`. The `Mock<T>` parameter gets its mock. But the other services get the `[TestExport]` service, not `mock.Object`. If the test also has a `[Mock] T` parameter, this parameter also gets the `[TestExport]` service.
+
+If the test project references `DependencyModules.SourceGenerator`, the generator examines the test methods. If a `[Mock]` parameter replaces a `[TestExport]` registration on the same test method, the generator gives the warning DM0021. It gives no DM0021 for the two exceptions in this section, because the `[TestExport]` registration stays in use.
+
+To set a default for many tests, put `[TestExport]` on the class or on the assembly. A `[Mock]` parameter can then replace the default in one test.
+
+## Other mock libraries
+
+To use a different mock library, write an attribute that implements `IMockSupportAttribute` from `DependencyModules.Testing.Attributes.Interfaces`:
+
+| Member | Function |
+| --- | --- |
+| `object ProvideMock(Type type)` | Gives a new mock of the type. |
+| `bool RegistersService(ITestMethodContext testMethod, Type serviceType)` | Gives `true` if the attribute registers the type. `[Mock]` then does not register a mock for this type. The default implementation gives `false`. |
 
 ```csharp
-[ModuleTest]
-[TestExport(typeof(IClock), Implementation = typeof(SystemClock))]
-public void RealClock(IClock clock, Mock<IClock> mock)
+using DependencyModules.Testing.Attributes.Interfaces;
+
+namespace Weather.Tests;
+
+[AttributeUsage(AttributeTargets.Method | AttributeTargets.Class | AttributeTargets.Assembly)]
+public class StubSupportAttribute : Attribute, IMockSupportAttribute
 {
-    Assert.IsType<SystemClock>(clock);      // the export won
+    public object ProvideMock(Type type) =>
+        throw new NotSupportedException($"No stub for {type.Name}");
 }
 ```
-
-Underneath, registrations are last-one-wins and the order is fixed:
-
-1. **Mock support** registers the `Mock<T>` pairs.
-2. **`[TestExport]`** and other setup attributes.
-3. **`[Mock]` parameters**, last — which is what makes them win.
-
-A `[Mock]` stands aside for a type the mock library registers itself, which is what keeps
-`[Mock] IFoo` and `Mock<IFoo>` on one test resolving to a matched pair rather than two unrelated
-mocks.
-
-::: warning This changed in 1.2.0
-Before 1.2.0 `[TestExport]` won everywhere, including for a `[Mock]`-decorated parameter — so a test
-declaring `[Mock] IFoo` alongside a `[TestExport]` for `IFoo` silently held the real implementation,
-and the first arrange line threw a mocking-library error naming neither attribute. If you were
-relying on that, drop the `[Mock]`.
-:::
-
-## When not to mock
-
-A mock is right when you intend to **assert on the interaction** — what was called, with which
-arguments. When you want a working implementation that simply behaves differently, a mock makes you
-stub out every member you touch, and
-[`[TestExport]`](/guide/testing#when-you-want-a-real-object-not-a-mock) is the better tool. When the
-parameter is data rather than a service,
-[`[InjectValues]`](/guide/testing#when-the-parameter-is-not-a-service-at-all) is.
-
-## Next
-
-- [Testing modules](/guide/testing) — the parts shared by both test frameworks
-- [Testing registrations](/guide/testing-registrations) — asserting on what a module registered

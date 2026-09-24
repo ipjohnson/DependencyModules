@@ -1,88 +1,65 @@
-# Trimming and Native AOT
+# Native AOT and trimming
 
-## The problem
+You can use DependencyModules in applications that you publish with Native AOT or with trimming. The generator finds the services when you compile. The generated code references each service type directly.
 
-You publish trimmed, or as Native AOT, and the application dies at startup:
+## The runtime package
 
-```
-System.InvalidOperationException: Unable to resolve service for type 'MyApp.IHandler'
-```
+`DependencyModules.Runtime` sets `IsAotCompatible` to `true`. Its build makes the trimming and AOT warnings IL2026, IL2055, IL2067, IL2072, IL2075, IL2087, and IL3050 into errors. The runtime does not examine assemblies to find services.
 
-Nothing changed in your code, and it works perfectly in development. This is the classic failure of
-runtime assembly scanning, and it is worth understanding why it happens rather than which flag
-suppresses it.
+## Generated registrations
 
-A reflection-based scanner enumerates an assembly's types when the application starts. The trimmer
-runs long before that, and its job is to remove any type nothing references. It has no way to know
-your scanner will go looking for `CreateOrderHandler`, because nothing in your code mentions
-`CreateOrderHandler` — that is the whole appeal of scanning. So the trimmer removes it, the scan
-finds nothing, and the container has no registration.
+The generated code registers each class with its type, for example `services.AddSingleton(typeof(IClock), typeof(SystemClock))`. The service provider then calls the constructor of the class. The registration methods of `Microsoft.Extensions.DependencyInjection` tell the trimmer to keep the public constructors of the class.
 
-The failure only appears in a published build, which is the worst place to discover it.
+Each generated method with registrations has a static field. The initializer of the field gives the method to the module. The field has a `[DynamicDependency]` attribute that identifies the method. Thus the trimmer keeps these methods.
 
-## How DependencyModules helps
+The generated code examines the environment conditions at run time with `if` statements. Thus the generated code references all classes that have conditions, and the trimmer keeps these classes.
 
-The same work happens during the build instead, and each match is emitted as a literal `typeof()`
-into your assembly:
+Decorators and interceptor wrappers use constructor calls in the generated code. They do not use reflection to make instances. The interceptor wrapper for a generic class is different. The service provider makes that wrapper from its type.
+
+## Generated factories
+
+The generator can also write a factory for each registration. The factory calls the constructor of the class in the generated code:
 
 ```csharp
-services.AddScoped(typeof(IHandler<CreateOrder, OrderId>), typeof(CreateOrderHandler));
+services.AddSingleton(
+    typeof(global::Shop.IPriceCalculator),
+    provider => new global::Shop.PriceCalculator()
+);
 ```
 
-Two things follow from that one line, and together they are the whole story.
+To use generated factories for all modules of a project, set the `DependencyModules_GenerateFactories` MSBuild property:
 
-**The trimmer roots the type.** A `typeof()` in your code is an ordinary static reference — exactly
-the thing the trimmer is looking for. There is nothing dynamic to see through.
-
-**The constructor survives too.** `ServiceDescriptor`'s implementation-type parameter carries
-`[DynamicallyAccessedMembers(PublicConstructors)]`, and that annotation can only flow to a type the
-compiler knows about. Because the type is named literally, it does.
-
-Both hold for [types in a referenced package](/guide/scanning) as well, which is the case runtime
-scanners handle worst.
-
-## What this covers
-
-- Attribute registration
-- Conventions, including open generics and referenced-assembly scanning
-- Decorators and interception — the wrapper is generated code in your own assembly
-
-## What it does not cover
-
-**Environment conditions decide behaviour, not size.** The test runs at run time, so both branches
-compile and every conditionally registered type stays referenced. Removing a service from a build is
-a compile-time decision, and belongs to `#if`. See
-[what conditions cost](/guide/environments#what-conditions-cost).
-
-**Open generic registration is the least AOT-friendly part of the container itself**, independent of
-this library — the container has to construct a closed type at run time, and Native AOT only has code
-for the instantiations the compiler could see.
-
-In practice the line falls between reference and value type arguments. Measured on a published
-`osx-arm64` binary, with `[SingletonService]` on `Bin<T> : IBin<T>`:
-
-```
-GetRequiredService<IBin<string>>()   works — reference types share one instantiation
-GetRequiredService<IBin<int>>()      InvalidOperationException: Unable to create a generic service
-                                     for type 'IBin`1[System.Int32]' because 'System.Int32' is a
-                                     ValueType. Native code to support creating generic services
-                                     might not be available with native AOT.
+```xml
+<PropertyGroup>
+  <DependencyModules_GenerateFactories>true</DependencyModules_GenerateFactories>
+</PropertyGroup>
 ```
 
-This is the container, not the generator: an [intercepted](/guide/interception) open generic behaves
-exactly the same way, because it is registered the same way. If you are targeting Native AOT, register
-closed constructions — a [convention](/guide/conventions) over the open generic does that for you,
-emitting one registration per implementation.
+To use generated factories for one module, set `GenerateFactories = true` on `[DependencyModule]`. If a module sets `GenerateFactories`, the generator uses the value of the module and not the MSBuild property.
 
-**Runtime assembly discovery is not supported**, because there would be nothing to resolve at build
-time. See [Scanning a package](/guide/scanning).
+For a factory, the generator selects the constructor in this sequence:
 
-## The generator never ships
+1. A constructor with `[ActivatorUtilitiesConstructor]`.
+2. The primary constructor, if it has parameters.
+3. The constructor with the most parameters.
 
-Worth stating plainly, since "source generator" sometimes reads as "extra thing in my output".
+Without generated factories, the service provider selects the constructor.
 
-The analyzer packages contain no `lib/` folder, so they cannot reach your build output at all, and
-`DevelopmentDependency=true` stops them flowing transitively to anything referencing your library.
+The generator does not use `private` constructors. It gets each constructor parameter from the service provider:
 
-Only `DependencyModules.Runtime` is a run-time dependency, and it holds interfaces, attributes and a
-small registry — no Roslyn, and no reflection over your types.
+| Parameter | Generated call |
+| --- | --- |
+| `IServiceProvider` | The service provider. |
+| A nullable type, for example `IClock?` | `GetService`. The value is `null` if there is no registration. |
+| A parameter with `[FromKeyedServices("key")]` | `GetRequiredKeyedService`, or `GetKeyedService` for a nullable type. |
+| All other parameters | `GetRequiredService`. |
+
+The generator does not write factories for generic classes. It also does not write factories for the service types that a class with `[Intercept]` registers.
+
+Each factory that the generator writes returns its class. Thus a decorator that sets `Implementation` finds the implementation of the registration. For more information, refer to [Decorate one implementation](./decorators.md#decorate-one-implementation).
+
+## Test packages
+
+`DependencyModules.Testing`, the test packages, and the mock packages use reflection to make modules, mocks, and test parameters.
+
+Use these packages only in test projects. Do not publish them with Native AOT.

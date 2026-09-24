@@ -9,7 +9,7 @@
         <IsPackable>True</IsPackable>
         <Nullable>enable</Nullable>
         <PackageId>DependencyModules.SourceGenerator.Impl</PackageId>
-        <Description>Source-only package containing the DependencyModules generator internals. Set PackageDependencyModuleIncludeSource=true to compile these sources into your own Roslyn generator and extend DependencyModules with custom attributes and registration logic. The CSharpAuthor sources that they use are included. Most projects want DependencyModules.SourceGenerator instead.</Description>
+        <Description>The source code of the DependencyModules generator, for the source generator of a framework. Set PackageDependencyModuleIncludeSource to true to compile the source code into your generator. The package also contains the source code of CSharpAuthor, which the generator source code uses. For usual projects, use DependencyModules.SourceGenerator.</Description>
         <DevelopmentDependency>true</DevelopmentDependency>
         <IncludeBuildOutput>false</IncludeBuildOutput>
         <!-- Source-only package: ships .cs under src/ and no lib/, which is exactly what NU5128 flags. -->

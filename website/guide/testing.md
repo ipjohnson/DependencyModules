@@ -1,307 +1,269 @@
-# Testing modules
+# Testing
 
-## The problem
+The test packages build a service provider from your modules for each test. The test method gets services as parameters. Thus a test uses the same registrations as the application.
 
-Here is a service with two dependencies, one of which has a dependency of its own:
+## Packages
+
+| Package | Contents |
+| --- | --- |
+| `DependencyModules.xUnit` | `[ModuleTest]` for xUnit v3. |
+| `DependencyModules.NUnit` | `[ModuleTest]` and `[ModuleTestCase]` for NUnit 4. |
+| `DependencyModules.Testing` | The attributes and interfaces that the two test packages use. The test packages reference this package. |
+| `DependencyModules.NSubstitute` | `[NSubstituteSupport]` for mocks. |
+| `DependencyModules.Moq` | `[MoqSupport]` for mocks. |
+| `DependencyModules.FakeItEasy` | `[FakeItEasySupport]` for mocks. |
+
+Add one test package to the test project. Also add a reference to the project that contains your modules. If the test project declares modules or services, also add `DependencyModules.SourceGenerator`.
+
+For more information about each framework, refer to [xUnit](./testing-xunit.md) and [NUnit](./testing-nunit.md).
+
+## Write a test
+
+Replace `[Fact]` or `[Test]` with `[ModuleTest]`. Give the module types to the attribute. Declare a parameter for each service that the test uses.
 
 ```csharp
-[SingletonService]
-public class Weather(ISummaryProvider summaryProvider, ITemperatureProvider temperatureProvider)
+using DependencyModules.xUnit.Attributes;
+using Shop;
+using Xunit;
+
+namespace Shop.Tests;
+
+public class PriceCalculatorTests
 {
-    public IEnumerable<WeatherForecast> GetWeatherForecast() { /* … */ }
-}
-```
-
-To test it, you have two options and neither is good.
-
-**Construct it by hand.** You end up rebuilding the object graph in the test:
-
-```csharp
-var weather = new Weather(
-    new SummaryProvider(new AiSummaryProvider()),
-    new TemperatureProvider());
-```
-
-Every constructor change breaks every test that touches the type, and the wiring you are testing is
-the wiring you just wrote — not the wiring your application actually uses.
-
-**Build a provider in each test.** Correct, but it is four lines of ceremony before you get to the
-part you care about, repeated in every test, and now you have a provider to dispose:
-
-```csharp
-var services = new ServiceCollection();
-services.AddModule<ApplicationModule>();
-using var provider = services.BuildServiceProvider();
-
-var weather = provider.GetRequiredService<Weather>();
-```
-
-## How DependencyModules helps
-
-A test framework integration does the second thing for you. You say which modules to load, and the
-services your test needs arrive as **method parameters**, resolved from a provider built out of your
-real modules:
-
-```csharp
-public class WeatherTests
-{
-    [ModuleTest]
-    [ApplicationModule]
-    public void GetForecast(Weather weather)
+    [ModuleTest(typeof(ShopModule))]
+    public void TotalMultipliesPriceAndQuantity(IPriceCalculator calculator)
     {
-        var forecast = weather.GetWeatherForecast().ToArray();
-
-        // assert on forecast
+        Assert.Equal(10m, calculator.Total(2.5m, 4));
     }
 }
 ```
 
-Three things are happening in that test:
+## Modules for a test
 
-- **`[ModuleTest]`** replaces your framework's test attribute. It builds a service provider and runs
-  your method against it.
-- **`[ApplicationModule]`** says which modules to load. It is the attribute the generator produced
-  for your module — see [composing modules](/guide/modules#composing-modules).
-- **`Weather weather`** is resolved from the resulting provider, along with its whole dependency
-  graph.
+A test loads the modules from these locations:
 
-Change `Weather`'s constructor and the test keeps compiling, because the test never mentioned the
-constructor.
-
-## Pick an integration
-
-One package per test framework. Install the one matching the framework you already use:
-
-| Package | Framework | |
-|---|---|---|
-| `DependencyModules.xUnit` | xUnit v3 | [xUnit](/guide/testing-xunit) |
-| `DependencyModules.NUnit` | NUnit | [NUnit](/guide/testing-nunit) |
-
-```shell
-dotnet add package DependencyModules.xUnit
-```
-
-This page is the part they share, and it is most of it. The two framework pages cover only what
-differs — how data rows are supplied, and what each framework's own attributes do around a module
-test.
-
-::: warning Reference one integration, not both
-Each defines a `ModuleTestAttribute`. They share a name and nothing else, because each has to derive
-from what its own framework requires. A project referencing both would need to disambiguate every
-`[ModuleTest]`, which is not a configuration worth having.
-:::
-
-Everything else — `[Mock]`, `[TestExport]`, `[InjectValues]`, keyed services — lives in
-`DependencyModules.Testing`, which your integration brings in. Those types name no test framework, so
-both integrations hand you the *same* attribute rather than a copy of it. They need a
-`using DependencyModules.Testing.Attributes;` alongside the one for `[ModuleTest]`.
-
-## Stop repeating the module list
-
-Module attributes apply at **assembly, class or method level**, and they accumulate. Put the ones
-every test needs in one file at the assembly level:
+- The types in `[ModuleTest]`. Each type must have a constructor without parameters.
+- The module attributes on the test method, for example `[ShopModule]`.
+- The module attributes on the test class.
+- The module attributes on the assembly, for example `[assembly: ShopModule]`.
 
 ```csharp
-// Bootstrap.cs
-using DependencyModules.NSubstitute;
-using MyApp.Tests;                  // the namespace the module is declared in
+using DependencyModules.xUnit.Attributes;
+using Shop;
+using Xunit;
 
-[assembly: ApplicationModule]
-[assembly: NSubstituteSupport]      // or [MoqSupport] / [FakeItEasySupport]
-```
+namespace Shop.Tests;
 
-That second `using` is easy to miss. A module generates its attribute in the module's own
-namespace, and an assembly-level attribute has no namespace context to inherit — so without it the
-build fails with `CS0246: The type or namespace name 'ApplicationModuleAttribute' could not be
-found`, naming a type you never wrote. Importing the namespace or writing the attribute qualified,
-`[assembly: MyApp.Tests.ApplicationModule]`, both work.
-[DM0016](/reference/diagnostics#dm0016) reports it and names the namespace to import, for a module
-declared here or one from a referenced package.
-
-A test project has no entry point, so [DM0019](/reference/diagnostics#dm0019) — which reports an
-assembly-level module attribute in the wrong file — stays quiet here. That is deliberate: assembly
-attributes are read at run time by the test integration, and a file of their own is exactly where
-they belong.
-
-Every test in the project now gets `ApplicationModule` without saying so:
-
-```csharp
-public class WeatherTests
+[ShopModule]
+public class OrderTests
 {
     [ModuleTest]
-    public void UsesTheAssemblyModules(Weather weather) { }
-
-    [ModuleTest]
-    [DiagnosticsModule]                 // this test gets DiagnosticsModule as well
-    public void AddsOneMore(Weather weather, IProfiler profiler) { }
+    public void CalculatorIsAvailable(IPriceCalculator calculator)
+    {
+        Assert.NotNull(calculator);
+    }
 }
 ```
 
-`NSubstituteSupport` is what enables [`[Mock]`](/guide/testing-mocking), and it comes from a separate
-package — one per mocking library, so use whichever you already have. See
-[Mocking frameworks](/guide/testing-mocking).
+A module attribute on the assembly is applicable to all tests of the assembly. A module attribute can also give module parameters, for example `[MailModule("localhost", 25)]`.
 
-## A container per test
+The modules load in this sequence:
 
-Each test gets **its own provider**, built before the test runs and disposed after it, so a singleton
-mutated in one test cannot leak into another. That holds per *iteration*, not merely per method — a
-data row, a repeat and a retry each get a fresh container.
+1. The modules of `[ModuleTest]`, in the sequence of the list.
+2. The modules from the assembly.
+3. The modules from the test class.
+4. The modules from the test method.
 
-Within a test, ask for `IServiceProvider` and create scopes as usual:
+Thus a registration from a method attribute is after a registration from a class attribute. When a parameter has more than one registration, it gets the instance from the last registration. Module dependencies can change this sequence. For more information, refer to [Module load sequence](./modules.md#module-load-sequence).
+
+If two locations give modules that are equal, the module loads one time. The test package keeps the instance from the first location in this list: the method, the class, the assembly, and `[ModuleTest]`. The load operation compares modules with `Equals`. For the `Equals` method of a module, refer to [Module equality](./modules.md#module-equality).
+
+## A new service provider for each test
+
+Each test gets a new service collection and a new service provider. A test does not use the service provider of a different test.
+
+- A data row gets a new service provider.
+- In NUnit, `[Repeat]` and `[Retry]` run a test more than one time. Each iteration gets a new service provider.
+- The test package disposes the service provider. The service provider then disposes the services that it made. NUnit disposes the service provider after each iteration of the test. xUnit disposes the service providers of all data rows after the last row.
+
+## Test parameters
+
+The test package gets a value for each parameter in this sequence:
+
+1. The test package gives the values of the data row to the first parameters.
+2. A parameter of type `IServiceProvider` gets the service provider of the test.
+3. A parameter attribute that gives values, for example `[Mock]`, gives the value. If a parameter has more than one of these attributes, the first value that is not `null` is the value.
+4. A parameter with `[FromKeyedServices("key")]` gets the keyed service from the service provider. If there is no keyed registration, the value is `null`.
+5. The service provider gives the service.
+6. If the service provider has no registration for the type, the test package makes an instance with `ActivatorUtilities.CreateInstance`. The service provider gives the constructor parameters.
+
+Step 6 lets a test get a class that has no registration, for example the class that the test examines. Step 6 is not applicable to a parameter with `[FromKeyedServices]`.
+
+### Give constructor values: `[InjectValues]`
+
+When the test package makes an instance of a class that has no registration, `[InjectValues]` gives more constructor arguments. The service provider gives the other arguments.
 
 ```csharp
-[ModuleTest]
-public void ScopedServicesAreScoped(IServiceProvider provider)
+using DependencyModules.Testing.Attributes;
+using DependencyModules.xUnit.Attributes;
+using Shop;
+using Xunit;
+
+namespace Shop.Tests;
+
+public class CheckoutReport(IPriceCalculator calculator, string customer)
 {
-    using var first = provider.CreateScope();
-    using var second = provider.CreateScope();
-
-    var one = first.ServiceProvider.GetRequiredService<IUnitOfWork>();
-
-    // one is the same instance within first, and a different one in second
+    public string Line(decimal price, int quantity) =>
+        $"{customer}: {calculator.Total(price, quantity)}";
 }
-```
 
-`IServiceProvider` is special-cased: it is the test's container itself, since a container cannot
-resolve itself out of itself.
-
-## How a parameter gets filled
-
-Worth knowing when a parameter does not arrive as you expected. Each one is tried in this order, and
-the first step that answers wins:
-
-1. **A data row**, if the test has one. Row arguments fill the leading parameters, so anything the
-   row supplies is never resolved from the container.
-2. **Attributes on the parameter** — `[Mock]`, `[InjectValues]` and anything else implementing
-   `ITestParameterValueProvider`. Several may sit on one parameter; one returning nothing stands
-   aside for the next.
-3. **The container**, honouring `[FromKeyedServices]` when present.
-4. **Direct construction.** A concrete type the container does not know is built anyway, through
-   `ActivatorUtilities`, with its dependencies resolved from the container.
-
-That last step is why a test can name the class under test directly without registering it:
-
-```csharp
-[ModuleTest]
-public void ConstructsTheSubjectDirectly(OrderCalculator calculator) { }   // never registered
-```
-
-## Keyed services
-
-`[FromKeyedServices]` works on a test parameter the way it does on a constructor parameter:
-
-```csharp
-[ModuleTest]
-public void ResolvesTheKeyedOne([FromKeyedServices("primary")] IRepository repository) { }
-```
-
-See [registering services](/guide/services) for how a registration acquires a key.
-
-## When you want a real object, not a mock
-
-A [mock](/guide/testing-mocking) is right when you intend to **assert on the interaction** — what was
-called, with which arguments. When you instead want a working implementation that simply behaves
-differently, a mock makes you stub out every member you touch.
-
-`[TestExport]` registers a real type into the test's container without touching the module:
-
-```csharp
-public class FixedClock : IClock
+public class CheckoutReportTests
 {
-    public DateTime UtcNow => new(2026, 1, 1);
+    [ModuleTest(typeof(ShopModule))]
+    public void LineContainsTheCustomer([InjectValues("Ada")] CheckoutReport report)
+    {
+        Assert.StartsWith("Ada:", report.Line(1m, 1));
+    }
 }
-
-[ModuleTest]
-[TestExport(typeof(IClock), Implementation = typeof(FixedClock), Lifetime = ServiceLifetime.Singleton)]
-public void OrdersAreStampedWithTheCurrentTime(IOrderService service) { }
 ```
 
-`FixedClock` is constructed by the container, so it can have dependencies of its own.
+## Replace a service for a test: `[TestExport]`
 
-| Property | |
-|---|---|
-| *(constructor)* | the service type |
-| `Implementation` | defaults to the service type when omitted |
-| `Lifetime` | defaults to `Transient` |
-
-Like the module attributes it applies at assembly, class or method level, so a stub every test needs
-can sit in your bootstrap file once. A `[TestExport]` also beats a mock for the same service,
-whatever order the two are declared in — see [ordering](/guide/testing-mocking#what-wins-when-two-things-register-the-same-service).
-
-## When the parameter is not a service at all
-
-Sometimes a test parameter is a type the container cannot build on its own, because part of it is
-data rather than a service. `[InjectValues]` supplies the parts the container cannot:
+`[TestExport]` registers a service for the tests that it is applicable to. Put it on a test method, on a test class, or on the assembly.
 
 ```csharp
-public record InjectModel(IDependencyOne DependencyOne, string StringValue);
+using DependencyModules.Testing.Attributes;
+using DependencyModules.xUnit.Attributes;
+using Microsoft.Extensions.DependencyInjection;
+using Shop;
+using Xunit;
 
-[ModuleTest]
-public void InjectTestValue([InjectValues("Hello World!")] InjectModel model)
+namespace Shop.Tests;
+
+public class FixedPriceCalculator : IPriceCalculator
 {
-    // model.DependencyOne came from the container
-    // model.StringValue came from the attribute
+    public decimal Total(decimal price, int quantity) => 1m;
 }
-```
 
-The values are matched against the constructor parameters the container **cannot** supply, so you
-list only what it could not work out for itself.
-
-They are the parameter type's *constructor arguments*, not the parameter's own value — so a
-parameter that should simply **be** a value wants a data row instead. `[InlineData]` and NUnit's
-`[TestCase]` both compose with `[ModuleTest]`, and the container fills whatever the row does not:
-
-```csharp
-[ModuleTest]
-[InlineData("978-0132350884")]
-[InlineData("978-0201616224")]
-public async Task GetBook_FindsEachIsbn(string isbn, IRequestHandler<GetBook, Book?> handler)
+public class ExportTests
 {
-    // isbn came from the row, handler from the container
+    [ModuleTest(typeof(ShopModule))]
+    [TestExport(
+        typeof(IPriceCalculator),
+        Implementation = typeof(FixedPriceCalculator),
+        Lifetime = ServiceLifetime.Singleton
+    )]
+    public void UsesTheExport(IPriceCalculator calculator)
+    {
+        Assert.Equal(1m, calculator.Total(100m, 3));
+    }
 }
 ```
 
-Asking for a bare `string` through `[InjectValues]` fails with *"A suitable constructor for type
-'System.String' could not be located"*, because that is exactly what it tried to do.
+| Property | Default | Function |
+| --- | --- | --- |
+| `Service` | Not applicable | The service type. You give it in the constructor. |
+| `Implementation` | The service type | The class that the registration makes. |
+| `Lifetime` | `Transient` | The lifetime of the registration. |
+| `Shared` | `false` | If the value is `true`, the service providers from `ITestContainerSource` give the same instance of the service. Refer to [More service providers in a test](./testing-container-source.md). |
 
-## Choosing between the three
+The test package adds the `[TestExport]` registrations after the modules. Thus they are after the registrations of the modules.
 
-| | Reach for it when |
-|---|---|
-| [`[Mock]`](/guide/testing-mocking) | you want to assert on the interaction — what was called, with what |
-| `[TestExport]` | you want a real object with different behaviour, constructed by the container |
-| `[InjectValues]` | the parameter is a type the container cannot finish building, because part of it is data |
-| `[InlineData]` / `[TestCase]` | the parameter simply **is** a value — one test per row |
+The decorators of the modules do not change a `[TestExport]` registration. The decorators change the registrations when the modules load, before the test package adds the `[TestExport]` registrations. This is also true for `[Mock]`.
 
-## What is worth testing
+## Test information: `ITestCaseInfo`
 
-Asserting that `[SingletonService]` produced an `AddSingleton` call is testing this library, and this
-library has its own tests. Spend your assertions on the things the compiler cannot check:
+The service provider of a test contains an `ITestCaseInfo` service. It has the test method, the argument values, and the attributes of the test. Each test package has an `ITestCaseInfo` interface in its `Impl` namespace.
 
-- a [convention](/guide/conventions) matched the types you meant — and, more usefully, did **not**
-  match the ones you did not
-- a [conditional registration](/guide/environments) picks the right implementation per environment
-- [decorators](/guide/decorators) nest in the order you intended
-- a service resolves at all, which catches a missing registration in a module you compose
+## Environment for a test
 
-The build already covers a good deal of the rest. A convention that matches nothing is
-[DM0005](/reference/diagnostics#dm0005), and a service that cannot be constructed is
-[DM0002](/reference/diagnostics#dm0002) — both before a test runs.
-
-## A trap worth knowing about
-
-An [intercepted](/guide/interception) service resolves as a **generated wrapper**, not as your class.
-So this fails, confusingly:
+To give an environment to a test, write an attribute that implements `IModuleEnvironmentProvider` from `DependencyModules.Runtime.Interfaces`:
 
 ```csharp
-Assert.IsType<Orders>(provider.GetRequiredService<IOrders>());   // it is Orders_Intercepted
+using System.Reflection;
+using DependencyModules.Runtime;
+using DependencyModules.Runtime.Interfaces;
+
+namespace Shop.Tests;
+
+[AttributeUsage(AttributeTargets.Assembly | AttributeTargets.Class | AttributeTargets.Method)]
+public class TestEnvironmentAttribute(string name) : Attribute, IModuleEnvironmentProvider
+{
+    public IModuleEnvironment? ProvideEnvironment(MethodInfo testMethod) =>
+        new ModuleEnvironment(false, name);
+}
 ```
 
-Assert on the interface, or on behaviour. The same applies to a [decorated](/guide/decorators)
-service, where what resolves is the outermost decorator.
+Put the attribute on a test method, a test class, or the assembly. If attributes at more than one level give an environment, the test uses the environment from the method. If the method has no such attribute, the test uses the environment from the class. If the class has no such attribute, the test uses the environment from the assembly. If no attribute gives an environment, the modules use the default environment.
 
-## Next
+```csharp
+using DependencyModules.xUnit.Attributes;
+using Shop;
+using Xunit;
 
-- [xUnit](/guide/testing-xunit) and [NUnit](/guide/testing-nunit) — what differs per framework
-- [Mocking frameworks](/guide/testing-mocking) — faking one service while the rest stays real
-- [Testing registrations](/guide/testing-registrations) — asserting on what a module registered
+namespace Shop.Tests;
+
+public class EnvironmentTests
+{
+    [ModuleTest(typeof(ShopModule))]
+    [TestEnvironment("Development")]
+    public void RunsInDevelopment(DependencyModules.Runtime.Interfaces.IModuleEnvironment environment)
+    {
+        Assert.Equal("Development", environment.EnvironmentName);
+    }
+}
+```
+
+## Attributes that you write for tests
+
+The `DependencyModules.Testing.Attributes.Interfaces` namespace has interfaces for attributes that you write. Put an `ITestParameterValueProvider` attribute on a parameter. Put the other attributes on a test method, a test class, or the assembly.
+
+| Interface | Function |
+| --- | --- |
+| `ITestServiceSetupAttribute` | Adds registrations to the service collection of the test, after the modules. |
+| `IServiceProviderBuilderAttribute` | Builds the service provider from the service collection. If there are attributes at more than one level, the test uses only one attribute. It uses the attribute on the method. If the method has no such attribute, it uses the attribute on the class. If the class has no such attribute, it uses the attribute on the assembly. |
+| `ITestStartupAttribute` | Runs code after the test package builds the service provider, before the test. |
+| `ITestParameterValueProvider` | A parameter attribute that registers services and gives the value of the parameter. `[Mock]` uses it. |
+
+If no `IServiceProviderBuilderAttribute` is applicable, the test package calls `BuildServiceProvider()` without `ServiceProviderOptions`. Thus the service provider does not validate scopes. It also does not validate the registrations when the test package builds it. The example that follows enables these two checks.
+
+The methods of these interfaces get an `ITestMethodContext` value. In xUnit, you can cast this value to `IXunitTestMethodContext`. In NUnit, you can cast it to `INUnitTestMethodContext`.
+
+```csharp
+using DependencyModules.Testing.Attributes.Interfaces;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Shop.Tests;
+
+public class ValidatedProviderAttribute : Attribute, IServiceProviderBuilderAttribute
+{
+    public IServiceProvider BuildServiceProvider(
+        ITestMethodContext testMethod,
+        IServiceCollection serviceCollection
+    ) =>
+        serviceCollection.BuildServiceProvider(
+            new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true }
+        );
+}
+```
+
+## The steps of a test
+
+For each test, the test package does these steps:
+
+1. Makes a service collection.
+2. Registers `ITestCaseInfo` and `ITestContainerSource`.
+3. Registers the environment from an `IModuleEnvironmentProvider` attribute, if there is one.
+4. Loads the modules.
+5. Uses the `ITestServiceSetupAttribute` attributes. It uses the mock support attributes first. Then it uses the other attributes, for example `[TestExport]`.
+6. Uses the parameter attributes, for example `[Mock]`.
+7. Builds the service provider.
+8. Runs the `ITestStartupAttribute` attributes.
+9. Gets the parameter values and runs the test.
+10. Disposes the service provider. In xUnit, this step occurs after the last data row of the test method.
+
+## More information
+
+- [xUnit](./testing-xunit.md) and [NUnit](./testing-nunit.md) tell you about the two test packages.
+- [Mocks](./testing-mocking.md) tells you how to replace services with mocks.
+- [More service providers in a test](./testing-container-source.md) tells you how to make more service providers in one test.
