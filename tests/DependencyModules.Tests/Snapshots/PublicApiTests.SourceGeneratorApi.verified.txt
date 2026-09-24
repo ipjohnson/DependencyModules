@@ -1266,6 +1266,7 @@ namespace DependencyModules.SourceGenerator.Impl
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor OpenGenericCannotBeDecorated;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor RegisteredConditionally;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ServiceCannotBeConstructed;
+        public static Microsoft.CodeAnalysis.Diagnostic GeneratorFailureFrom(System.Exception exception) { }
     }
     public class DependencyModuleWriter
     {
@@ -1896,6 +1897,7 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities
         public void Error(string message, object data) { }
         public void Info(string message) { }
         public void Info(string message, object data) { }
+        public static void Wrap(string loggerName, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel configurationModel, Microsoft.CodeAnalysis.SourceProductionContext context, System.Action<DependencyModules.SourceGenerator.Impl.Utilities.FileLogger> logger) { }
         public static void Wrap(string loggerName, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel configurationModel, System.Action<DependencyModules.SourceGenerator.Impl.Utilities.FileLogger> logger, System.Action<System.Exception>? reportFailure = null) { }
     }
     public static class ITypeDefinitionExtensions

@@ -46,8 +46,20 @@ internal static class TestAttributeDiagnostics
 
         // With the compilation, so the location carries its syntax tree and .editorconfig and
         // #pragma can reach this like any other code. Emits nothing, so re-running it per keystroke
-        // costs a walk over findings that are almost always none.
-        context.RegisterSourceOutput(methods.Combine(context.CompilationProvider), Report);
+        // costs a walk over findings that are almost always none. The configuration is here only
+        // for the log folder, because a test project often declares no module to take it from.
+        context.RegisterSourceOutput(
+            methods
+                .Combine(BaseSourceGenerator.CreateConfigurationValueProvider(context))
+                .Combine(context.CompilationProvider),
+            (productionContext, input) =>
+                FileLogger.Wrap(
+                    "TestAttributeDiagnostics",
+                    input.Left.Right,
+                    productionContext,
+                    _ => Report(productionContext, (input.Left.Left, input.Right))
+                )
+        );
     }
 
     /// <summary>

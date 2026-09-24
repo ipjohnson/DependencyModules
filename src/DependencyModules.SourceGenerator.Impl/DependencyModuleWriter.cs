@@ -42,7 +42,18 @@ public class DependencyModuleWriter
 
         context.RegisterSourceOutput(
             valuesProvider.Combine(context.CompilationProvider),
-            ModuleEntryPointDiagnostics.Report
+            (productionContext, input) =>
+            {
+                if (input.Left.Length > 0)
+                {
+                    FileLogger.Wrap(
+                        "ModuleEntryPointDiagnostics",
+                        input.Left[0].Right,
+                        productionContext,
+                        _ => ModuleEntryPointDiagnostics.Report(productionContext, input)
+                    );
+                }
+            }
         );
     }
 
@@ -59,6 +70,23 @@ public class DependencyModuleWriter
             return;
         }
 
+        FileLogger.Wrap(
+            "DependencyModuleWriter",
+            allEntryPoints[0].Right,
+            context,
+            logger => GenerateModules(context, allEntryPoints, logger)
+        );
+    }
+
+    private void GenerateModules(
+        SourceProductionContext context,
+        ImmutableArray<(
+            ModuleEntryPointModel Left,
+            DependencyModuleConfigurationModel Right
+        )> allEntryPoints,
+        FileLogger logger
+    )
+    {
         var (entryPointList, configurationModel) = EntryModelUtil.ConsolidateEntryPointModels(
             allEntryPoints
         );
@@ -67,11 +95,26 @@ public class DependencyModuleWriter
         {
             context.CancellationToken.ThrowIfCancellationRequested();
 
-            ProcessEntryPoint(
-                context,
-                WithDelegateTarget(entryPointModel, entryPointList),
-                configurationModel
-            );
+            // A failure stops only its own module. A module with no generated part does not
+            // implement IDependencyModule, so every AddModule call that names it fails with CS0311.
+            try
+            {
+                ProcessEntryPoint(
+                    context,
+                    WithDelegateTarget(entryPointModel, entryPointList),
+                    configurationModel
+                );
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                logger.Error(
+                    $"{entryPointModel.EntryPointType.Name}: {exception.Message}\n{exception.StackTrace}"
+                );
+
+                context.ReportDiagnostic(
+                    DependencyModuleDiagnostics.GeneratorFailureFrom(exception)
+                );
+            }
         }
     }
 

@@ -32,10 +32,10 @@ public static class ITypeDefinitionExtensions
     /// </summary>
     /// <remarks>
     /// The RootNamespace prefix is dropped so the common case reads as <c>Thing.Module.g.cs</c>
-    /// rather than repeating the project's namespace in every file. That leaves one pair of distinct
-    /// types sharing a name: a type in the root namespace, whose prefix is stripped to nothing, and
-    /// a type in the global namespace, which had none to begin with. They are different types and
-    /// need different files, so the global namespace is named rather than left blank.
+    /// rather than repeating the project's namespace in every file. A type outside the root
+    /// namespace, the global namespace included, keeps its full name behind <c>global-</c>. Without
+    /// that mark, <c>Root.Sub.Thing</c> and <c>Sub.Thing</c> both become <c>Sub.Thing</c>. A
+    /// namespace cannot contain '-', so no stripped name can take that form.
     /// </remarks>
     public static string GetFileNameHint(
         this ITypeDefinition typeDefinition,
@@ -43,23 +43,31 @@ public static class ITypeDefinitionExtensions
         string uniquePart
     )
     {
-        var nameString = typeDefinition.Namespace;
+        var typeNamespace = typeDefinition.Namespace;
 
-        if (nameString == rootNamespace || nameString.StartsWith(rootNamespace + "."))
+        var fullName = string.IsNullOrEmpty(typeNamespace)
+            ? typeDefinition.Name
+            : typeNamespace + "." + typeDefinition.Name;
+
+        string name;
+
+        if (string.IsNullOrEmpty(rootNamespace))
         {
-            nameString = nameString.Substring(rootNamespace.Length);
-            nameString = nameString.TrimStart('.');
+            name = fullName;
         }
-        else if (string.IsNullOrWhiteSpace(nameString))
+        else if (typeNamespace == rootNamespace)
         {
-            nameString = "global";
+            name = typeDefinition.Name;
+        }
+        else if (typeNamespace.StartsWith(rootNamespace + "."))
+        {
+            name = fullName.Substring(rootNamespace.Length + 1);
+        }
+        else
+        {
+            name = "global-" + fullName;
         }
 
-        if (!string.IsNullOrWhiteSpace(nameString))
-        {
-            nameString += ".";
-        }
-
-        return $"{nameString}{typeDefinition.Name}.{uniquePart}.g.cs";
+        return $"{name}.{uniquePart}.g.cs";
     }
 }

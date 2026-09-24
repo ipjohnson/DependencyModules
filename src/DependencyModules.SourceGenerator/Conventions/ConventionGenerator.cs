@@ -272,9 +272,12 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator
 
         var configuration = entryPoints.First().Right;
 
+        // Surfaced as a build error rather than discarded, matching the attribute generators. A
+        // generator that fails quietly produces a green build with no registrations.
         FileLogger.Wrap(
             LoggerName,
             configuration,
+            context,
             logger =>
                 Generate(
                     context,
@@ -287,16 +290,6 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator
                     DiagnosticReporter.Silent,
                     emit: true,
                     logger
-                ),
-            // Surfaced as a build error rather than discarded, matching the attribute generators. A
-            // generator that fails quietly produces a green build with no registrations.
-            exception =>
-                context.ReportDiagnostic(
-                    Diagnostic.Create(
-                        DependencyModuleDiagnostics.GeneratorFailure,
-                        Location.None,
-                        $"{exception.GetType().Name}: {exception.Message}"
-                    )
                 )
         );
     }
@@ -353,8 +346,9 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator
         );
 
         FileLogger.Wrap(
-            LoggerName,
+            LoggerName + ".Diagnostics",
             configuration,
+            context,
             logger =>
                 Generate(
                     context,
@@ -367,14 +361,6 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator
                     report,
                     emit: false,
                     logger
-                ),
-            exception =>
-                context.ReportDiagnostic(
-                    Diagnostic.Create(
-                        DependencyModuleDiagnostics.GeneratorFailure,
-                        Location.None,
-                        $"{exception.GetType().Name}: {exception.Message}"
-                    )
                 )
         );
     }
