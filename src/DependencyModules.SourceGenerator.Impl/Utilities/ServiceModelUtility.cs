@@ -655,13 +655,18 @@ public class ServiceModelUtility
                             break;
 
                         case "Using":
-                            registrationType = BaseSourceGenerator.GetRegistrationType(
-                                argumentSyntax.Expression.ToString()
+                            registrationType = ConstantArgumentReader.ReadRegistrationType(
+                                context,
+                                argumentSyntax.Expression
                             );
                             break;
 
                         case "Lifetime":
-                            lifestyle = GetLifestyle(argumentSyntax.Expression.ToString());
+                            lifestyle =
+                                ConstantArgumentReader.ReadLifetime(
+                                    context,
+                                    argumentSyntax.Expression
+                                ) ?? ServiceLifestyle.Singleton;
                             break;
 
                         case "Realm":
@@ -672,15 +677,9 @@ public class ServiceModelUtility
                             break;
 
                         case "Order":
-                            if (
-                                int.TryParse(
-                                    argumentSyntax.Expression.ToString(),
-                                    out var parsedOrder
-                                )
-                            )
-                            {
-                                order = parsedOrder;
-                            }
+                            order =
+                                ConstantArgumentReader.ReadInt(context, argumentSyntax.Expression)
+                                ?? 0;
                             break;
                     }
                 }
@@ -776,24 +775,6 @@ public class ServiceModelUtility
         return false;
     }
 
-    private static ServiceLifestyle GetLifestyle(string toString)
-    {
-        // The value arrives as written in source, normally qualified: "ServiceLifetime.Scoped".
-        // Parsing that whole string fails, and the silent fallback below then registered every
-        // cross-wired service as a singleton regardless of the lifetime the developer asked for.
-        var separatorIndex = toString.LastIndexOf('.');
-
-        var value =
-            separatorIndex >= 0 ? toString.Substring(separatorIndex + 1).Trim() : toString.Trim();
-
-        if (Enum.TryParse(value, out ServiceLifestyle lifestyle))
-        {
-            return lifestyle;
-        }
-
-        return ServiceLifestyle.Singleton;
-    }
-
     private static ServiceRegistrationModel GetServiceRegistration(
         SyntaxTransformContext context,
         AttributeSyntax attributeSyntax,
@@ -843,8 +824,9 @@ public class ServiceModelUtility
                             }
                             break;
                         case "Using":
-                            registrationType = BaseSourceGenerator.GetRegistrationType(
-                                argumentSyntax.Expression.ToString()
+                            registrationType = ConstantArgumentReader.ReadRegistrationType(
+                                context,
+                                argumentSyntax.Expression
                             );
                             break;
 
@@ -872,15 +854,9 @@ public class ServiceModelUtility
                             break;
 
                         case "Order":
-                            if (
-                                int.TryParse(
-                                    argumentSyntax.Expression.ToString(),
-                                    out var parsedOrder
-                                )
-                            )
-                            {
-                                order = parsedOrder;
-                            }
+                            order =
+                                ConstantArgumentReader.ReadInt(context, argumentSyntax.Expression)
+                                ?? 0;
                             break;
                     }
                 }
