@@ -5,6 +5,7 @@ using DependencyModules.Runtime.Interfaces;
 using DependencyModules.Testing.Attributes.Interfaces;
 using DependencyModules.Testing.Impl;
 using Microsoft.Extensions.DependencyInjection;
+using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
 using NUnit.Framework.Internal.Commands;
 
@@ -29,6 +30,19 @@ public class ModuleTestCommand(TestCommand innerCommand) : DelegatingTestCommand
     {
         var testMethod = (TestMethod)Test;
         var method = testMethod.Method!.MethodInfo;
+
+        // NUnit built this test from one of its own data attributes. It has no row, so no container
+        // is built for it.
+        if (!testMethod.Properties.ContainsKey(ModuleTestAttribute.RowPropertyName))
+        {
+            context.CurrentResult.SetResult(
+                ResultState.NotRunnable,
+                ModuleTestAttribute.NUnitDataMessage(method)
+                    ?? $"NUnit built this test of '{method.Name}', so [ModuleTest] cannot give it arguments."
+            );
+
+            return context.CurrentResult;
+        }
 
         // Widest scope first: assembly, then declaring type, then the method.
         var knownAttributes = method.GetTestAttributes<Attribute>().ToArray();
