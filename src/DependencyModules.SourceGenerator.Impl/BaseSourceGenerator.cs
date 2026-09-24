@@ -37,7 +37,7 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator
         return new[] { KnownTypes.DependencyModules.Attributes.DependencyModuleAttribute };
     }
 
-    private IncrementalValueProvider<DependencyModuleConfigurationModel> CreateConfigurationValueProvider(
+    internal static IncrementalValueProvider<DependencyModuleConfigurationModel> CreateConfigurationValueProvider(
         IncrementalGeneratorInitializationContext context
     )
     {

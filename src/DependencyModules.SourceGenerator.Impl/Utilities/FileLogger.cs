@@ -1,5 +1,6 @@
 using System.Text;
 using DependencyModules.SourceGenerator.Impl.Models;
+using Microsoft.CodeAnalysis;
 
 namespace DependencyModules.SourceGenerator.Impl.Utilities;
 
@@ -30,7 +31,8 @@ public class FileLogger : IDisposable
         {
             logger(fileLogger);
         }
-        catch (Exception e)
+        // Cancellation is Roslyn stopping the run, not a failure of the generator.
+        catch (Exception e) when (e is not OperationCanceledException)
         {
             fileLogger.Error($"{e.Message}\n{e.StackTrace}");
 
@@ -46,6 +48,30 @@ public class FileLogger : IDisposable
             fileLogger.Dispose();
         }
     }
+
+    /// <summary>
+    /// Runs one output of the generator, and reports a failure as DM0001.
+    /// </summary>
+    /// <remarks>
+    /// Every output needs this, including the ones that only report diagnostics. Roslyn answers an
+    /// exception that escapes any output with CS8785 and drops every file the generator wrote in
+    /// that run, so each module then fails <c>AddModule</c> with CS0311.
+    /// </remarks>
+    public static void Wrap(
+        string loggerName,
+        DependencyModuleConfigurationModel configurationModel,
+        SourceProductionContext context,
+        Action<FileLogger> logger
+    ) =>
+        Wrap(
+            loggerName,
+            configurationModel,
+            logger,
+            exception =>
+                context.ReportDiagnostic(
+                    DependencyModuleDiagnostics.GeneratorFailureFrom(exception)
+                )
+        );
 
     public FileLogger(DependencyModuleConfigurationModel configurationModel, string loggerName)
     {
@@ -96,7 +122,10 @@ public class FileLogger : IDisposable
             return;
         }
 
-        var fileName = $"{_loggerName}.{DateTimeOffset.Now.ToUnixTimeMilliseconds()}.txt";
+        // The time alone is not unique. Two outputs of one stage often finish in the same
+        // millisecond, and File.WriteAllText replaces a file that has the same name.
+        var fileName =
+            $"{_loggerName}.{DateTimeOffset.Now.ToUnixTimeMilliseconds()}.{Guid.NewGuid().ToString("N").Substring(0, 8)}.txt";
 
 #pragma warning disable RS1035
         try

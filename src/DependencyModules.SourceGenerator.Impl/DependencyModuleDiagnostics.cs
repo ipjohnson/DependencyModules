@@ -30,6 +30,16 @@ public static class DependencyModuleDiagnostics
     );
 
     /// <summary>
+    /// DM0001 for an exception that the generator caught.
+    /// </summary>
+    public static Diagnostic GeneratorFailureFrom(Exception exception) =>
+        Diagnostic.Create(
+            GeneratorFailure,
+            Location.None,
+            $"{exception.GetType().Name}: {exception.Message}"
+        );
+
+    /// <summary>
     /// Raised for a service the container could never construct. Without this the generator emits a
     /// registration that throws when the provider is built, far from the declaration that caused it.
     /// </summary>
