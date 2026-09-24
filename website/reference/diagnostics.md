@@ -25,7 +25,10 @@ The generator gives these diagnostics when you compile. Their category is `Depen
 | [DM0019](#dm0019) | Error | Assembly-level module attribute is not composed |
 | [DM0020](#dm0020) | Warning | Interception is applied by no module |
 | [DM0021](#dm0021) | Warning | [Mock] and [TestExport] name one service on the same method |
-| [DM0022](#dm0022) | Warning | Decorator names an implementation while factories are generated |
+| [DM0022](#dm0022) | Removed | Decorator names an implementation while factories are generated |
+| [DM0023](#dm0023) | Warning | Factory method cannot be called |
+| [DM0024](#dm0024) | Warning | Cross-wired class declares no interface |
+| [DM0025](#dm0025) | Warning | Decorator is not applied |
 
 The table shows the title of each diagnostic. The compiler shows a message with more information, for example the names of the types.
 
@@ -41,9 +44,9 @@ Info diagnostics show in the IDE and in a SARIF log. The `dotnet build` output d
 
 ## DM0001
 
-An exception occurred when the service part, the interceptor part, or the convention part of the generator wrote code. Some registrations can be missing.
+An exception occurred in the generator. Some registrations can be missing. The message gives the type and the message of the exception.
 
-An exception in a different step of the generator gives the compiler warning CS8785 and not DM0001. The generator then writes no code, and `AddModule<T>()` gives the error CS0311.
+If the exception occurred for one module, the generator writes the code of the other modules. The log files also record the exception.
 
 To correct the problem:
 
@@ -60,7 +63,7 @@ To correct the problem, put the attribute on a class that is not abstract. You c
 
 ## DM0003
 
-A class with `[DependencyModule]` is not partial. The generator does not write the other part of the module. If the project has services, the generator writes the registrations as a partial class. Thus the compiler also gives the error CS0260.
+A class with `[DependencyModule]` is not partial. The generator writes no code for the module.
 
 To correct the problem, add the `partial` modifier to the class.
 
@@ -86,9 +89,11 @@ To correct the problem:
 
 ## DM0006
 
-A convention selects a class that has no constructor that the generated code can use. The generator does not register the class.
+A convention selects a class that has no constructor that its registration can use. The generator does not register the class.
 
-In the project, the generator gives DM0006 if the class has only `private` or `protected` constructors. In a referenced assembly, it gives DM0006 if the class has no `public` constructor. The service provider uses only `public` constructors. Thus a class with only `internal` constructors gets no DM0006, but the service provider cannot make it, unless the module uses generated factories.
+The service provider uses only `public` constructors. Thus the generator gives DM0006 if the class has no `public` constructor. A class from a referenced assembly must also have a `public` constructor.
+
+If the module uses [generated factories](../guide/aot.md#generated-factories), the generated code calls the constructor. Then an `internal` or `protected internal` constructor is also correct. This is not true for a class with `[Intercept]`, because the generator does not write a factory for it. The message tells which constructors are correct.
 
 To correct the problem, add a `public` constructor to the class. You can also add a filter that removes the class.
 
@@ -117,7 +122,7 @@ The generator cannot read a convention statement. The message gives the cause an
 - The `Conventions` method has no statement body, or a statement is not a chain of calls on the parameter.
 - A chain does not start with `RegisterAll`.
 - A call is not a convention call.
-- An argument is not a value that the compiler knows.
+- An argument is not a value that the compiler knows. The message gives the argument.
 - The convention has no lifetime or more than one lifetime.
 - The convention has more than one of `AsSelf()`, `AsSelfWithInterfaces()`, and `AlsoAsSelf()`.
 - `RegisterAll()` without a service type has no registration shape or no filter that selects.
@@ -143,7 +148,14 @@ This diagnostic gives information only.
 
 An environment condition has no environment name or no key. Thus it does not examine the environment. The generator ignores the condition. The generator ignores arguments that are not string constants. Thus a condition with only such arguments, for example an array, also gives DM0012.
 
-The generator gives DM0012 only for classes with a service attribute. On a `[Decorator]` class or on a class that a convention selects, it ignores the condition and gives no diagnostic. On a convention statement, a condition call without a name or a key gives DM0009.
+The generator gives DM0012 for these classes:
+
+- A class with a service attribute
+- A `[Decorator]` class
+- A decorator that `[Decorate]` adds. The diagnostic is at the module.
+- A class that a convention selects. For a class from a referenced assembly, the diagnostic is at the convention statement.
+
+On a convention statement, a condition call without a name or a key gives DM0009.
 
 To correct the problem, give a name or a key. You can also remove the attribute.
 
@@ -157,9 +169,14 @@ To correct the problem, register closed types of the service. For example, decla
 
 ## DM0014
 
-`[CrossWireService]` is on a generic class. The generator cannot cross-wire a generic class and does not register it.
+The generator cannot cross-wire a generic class. It gives DM0014 in these conditions, and it does not register the class:
 
-To correct the problem, use `[SingletonService]`, `[ScopedService]`, or `[TransientService]`. To register the class as more than one interface, use one attribute for each interface.
+- `[CrossWireService]` is on a generic class.
+- A convention with `AlsoAsSelf()` or `AsSelfWithInterfaces()` selects a generic class.
+
+To correct the problem for `[CrossWireService]`, use `[SingletonService]`, `[ScopedService]`, or `[TransientService]`. To register the class as more than one interface, use one attribute for each interface.
+
+To correct the problem for a convention, remove `AlsoAsSelf()` or `AsSelfWithInterfaces()`. You can also select the generic classes with a different convention.
 
 ## DM0015
 
@@ -183,7 +200,9 @@ To correct the problem, move the module to the namespace level.
 
 ## DM0018
 
-A module has properties with a `set` accessor, but it does not declare `Equals`. The generated `Equals` method compares only the module type. Thus, two instances with different values are one module. Only the first instance loads.
+A module has properties that the generator puts on the module attribute, but the module does not declare `Equals`. The generated `Equals` method compares only the module type. Thus, two instances with different values are one module. Only the first instance loads.
+
+The generator examines all partial declarations of the module. If the module declares `Equals` for its own type, for example `IEquatable<T>.Equals(T)`, the generator gives no DM0018. The generated `Equals(object)` then calls that method.
 
 To correct the problem, declare `Equals` and `GetHashCode` on the module. If each module of this type loads only one time, you can also suppress the warning with `NoWarn` or `.editorconfig`.
 
@@ -191,7 +210,7 @@ To correct the problem, declare `Equals` and `GetHashCode` on the module. If eac
 
 An assembly-level module attribute is in a file that the generator does not use for `ApplicationModule`. The generator reads assembly-level module attributes only from `Program.cs`. Thus, it ignores this attribute. The module does not register its services.
 
-The generator gives DM0019 only for an attribute without its namespace. It ignores an attribute with its full name in a different file, and it gives no diagnostic. It examines the files only if the project has a module or a generated `ApplicationModule`.
+The generator gives DM0019 for an attribute without its namespace and for an attribute with its full name, for example `[assembly: Catalog.CatalogModule]`. It examines the files only if the project has a module or a generated `ApplicationModule`.
 
 To correct the problem, move the attribute to `Program.cs`. You can also load the module with `AddModule`.
 
@@ -203,14 +222,46 @@ To correct the problem, set `Realm` on `[Intercept]` to the module that register
 
 ## DM0021
 
-A test method has `[TestExport]` for a service type and a `[Mock]` parameter of the same type. The test uses the mock and not the `[TestExport]` registration, with two exceptions. For the exceptions, refer to [Mocks and `[TestExport]`](../guide/testing-mocking.md#mocks-and-testexport). The generator gives DM0021 only if the test project references `DependencyModules.SourceGenerator`.
+A test method has `[TestExport]` for a service type and a `[Mock]` parameter of the same type. The mock replaces the `[TestExport]` registration. The generator gives DM0021 only if the test project references `DependencyModules.SourceGenerator`.
+
+The generator gives no DM0021 for the two exceptions, because the `[TestExport]` registration stays in use:
+
+- The `[Mock]` parameter has `[FromKeyedServices]`.
+- For Moq, the test also has a `Mock<T>` parameter of the same type.
+
+For more information, refer to [Mocks and `[TestExport]`](../guide/testing-mocking.md#mocks-and-testexport).
 
 To correct the problem, if the `[TestExport]` is a default, move it to the test class or to the assembly. You can also remove the attribute that you do not want.
 
 ## DM0022
 
-A decorator sets `Implementation`, and the module uses generated factories. If the generator writes factories, a registration does not show its implementation. Thus the decorator changes all registrations of the service type.
+The generator does not give DM0022 now. It gave DM0022 when a decorator set `Implementation` in a module with generated factories.
 
-The module uses generated factories if `[DependencyModule]` sets `GenerateFactories = true`. If the module does not set `GenerateFactories`, the `DependencyModules_GenerateFactories` MSBuild property sets it.
+Each generated factory now returns its class. Thus the decorator changes only the registration of the implementation that it names. For more information, refer to [Decorate one implementation](../guide/decorators.md#decorate-one-implementation).
 
-To correct the problem, remove `Implementation` and decorate all registrations. You can also disable the generated factories for the module. Set `GenerateFactories = false` on the module, or set the MSBuild property to `false`.
+## DM0023
+
+A static factory method has a service attribute, but the generated code cannot call the method. The generator does not register the method. The message gives the cause:
+
+- The method is not `static`.
+- The method is `private`, `protected`, or `private protected`. A method without an access modifier is `private`.
+- A class that contains the method is `private` or `protected`.
+
+To correct the problem, make the method `static`, and `public` or `internal`. The classes that contain the method must not be `private` or `protected`.
+
+## DM0024
+
+A class has `[CrossWireService]`, but it declares no interface. It gets one or more interfaces from a base class. The generator registers only the class type. It does not cross-wire the interfaces of a base class.
+
+To correct the problem, write the interfaces in the declaration of the class. For example, write `class Store : ReaderBase, IReader`.
+
+## DM0025
+
+A class has `[Decorator]`, but the generator cannot apply the decorator. The generator does not write code for the decorator. The message gives the cause:
+
+- The class implements no type that one of its constructor parameters has. Thus the generator finds no service type.
+- The class has no constructor that the generated code can call. The constructor must be `public`, `internal`, or `protected internal`.
+- No constructor parameter has the service type. Thus the decorator cannot get the service.
+- The type parameters of a generic decorator are not the type arguments of the service type in the same sequence.
+
+To correct the problem, correct the cause that the message gives. For example, set `Service` on the attribute, or give the class a `public` constructor.

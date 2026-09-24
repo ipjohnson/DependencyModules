@@ -92,9 +92,10 @@ At the first `CreateAsync()` call, the test package gets the instances of all sh
 - For a singleton service, the service provider of the test and all new service providers give the same instance.
 - For a transient service, all new service providers give one instance. This instance is not the instance of the test parameter. The service provider of the test continues to make new instances.
 - The test package makes an instance of each shared service at the first `CreateAsync()` call, also if the test does not use the service.
-- If the service provider of the test cannot make a shared service, the test package does not share this service. It gives no message.
+- If the service provider of the test cannot make a service that an attribute shares, `CreateAsync()` throws an `InvalidOperationException`. An example is a `[TestExport]` with `Shared = true`. The message gives the service type, and the inner exception gives the cause.
+- If the service provider of the test cannot make the type of a parameter, the test package does not share this type. It gives no message.
 - A parameter type without a registration is not in the new service providers. For example, a class that the test package makes with `ActivatorUtilities` is not in the new service providers.
-- If a shared type has registrations with a key and without a key, the new service providers get only the instances without a key.
+- The new service providers keep the registrations with a key of a shared type. Each new service provider makes its own instances of these registrations. Thus a `[FromKeyedServices]` parameter does not get the same instance as a new service provider.
 
 A `[TestExport]` with `Shared = true` is shared, also for a transient lifetime. A `[TestExport]` without `Shared = true` is also shared if the test has a parameter of that type. If the export is not shared, each new service provider makes new instances of the export.
 

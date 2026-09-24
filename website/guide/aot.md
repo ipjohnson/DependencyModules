@@ -56,7 +56,7 @@ The generator does not use `private` constructors. It gets each constructor para
 
 The generator does not write factories for generic classes. It also does not write factories for the service types that a class with `[Intercept]` registers.
 
-If the generator writes factories, `[Decorator(Implementation = ...)]` cannot find the implementation. The generator then gives the warning DM0022. For more information, refer to [Decorate one implementation](./decorators.md#decorate-one-implementation).
+Each factory that the generator writes returns its class. Thus a decorator that sets `Implementation` finds the implementation of the registration. For more information, refer to [Decorate one implementation](./decorators.md#decorate-one-implementation).
 
 ## Test packages
 

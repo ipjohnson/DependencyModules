@@ -52,7 +52,7 @@ For the attributes, refer to [Attributes](./attributes.md).
 | `IModuleEnvironment` | `EnvironmentName`, `Value(string)` | The environment. |
 | `IModuleEnvironmentProvider` | `ProvideEnvironment(MethodInfo testMethod)` | Gives the environment for a test. |
 
-`IDependencyModule` also has members with the `Internal` prefix. The generated code uses them. Do not call these members from your code.
+`IDependencyModule` also has members with the `Internal` prefix. The generated code uses them. Do not call these members from your code. They have `[EditorBrowsable(EditorBrowsableState.Never)]`. Thus IntelliSense does not show them in a project that references the package.
 
 ## `DependencyModules.Runtime.Features`
 

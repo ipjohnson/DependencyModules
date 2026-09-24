@@ -141,9 +141,9 @@ The generator writes an `if` statement around the registrations of the class. Th
 
 ## Conditions on decorators and conventions
 
-You can put the same attributes on a `[Decorator]` class. The decorator then changes the registrations only when the conditions are true. The generator ignores these attributes on a decorator that `[Decorate]` adds. For more information, refer to [Decorators](./decorators.md#environment-conditions).
+You can put the same attributes on a `[Decorator]` class. The decorator then changes the registrations only when the conditions are true. The generator also reads these attributes on a decorator that `[Decorate]` adds. For more information, refer to [Decorators](./decorators.md#environment-conditions).
 
-A convention can also have conditions. For more information, refer to [Conventions](./conventions.md#environment-conditions).
+A convention can also have conditions. The conditions of a class that a convention selects are also applicable, also for a class from a referenced assembly. For more information, refer to [Conventions](./conventions.md#environment-conditions).
 
 ## Read the environment in a module
 
@@ -175,7 +175,7 @@ public partial class MailOptionsModule : IEnvironmentServiceCollectionConfigurat
 | DM0011 | Info | A service has conditions. The message shows the conditions. |
 | DM0012 | Warning | A condition has no environment name or no key. The generator ignores this condition. |
 
-The generator gives these diagnostics only for classes with a service attribute. A condition attribute can have no name or no key on a `[Decorator]` class or on a class that a convention selects. The generator then ignores the condition and gives no diagnostic. On a convention statement, a condition call without a name or a key gives the error DM0009.
+The generator gives DM0011 only for classes with a service attribute. It gives DM0012 also for a `[Decorator]` class, for a decorator that `[Decorate]` adds, and for a class that a convention selects. For a decorator that `[Decorate]` adds, DM0012 is at the module. For a class from a referenced assembly, DM0012 is at the convention statement. On a convention statement, a condition call without a name or a key gives the error DM0009.
 
 ## Environments in tests
 

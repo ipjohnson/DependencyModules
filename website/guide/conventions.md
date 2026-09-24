@@ -50,7 +50,7 @@ The generator reads the `Conventions` method when you compile. The method does n
 
 If the generator cannot read a statement, it gives the error DM0009 and does not use the statement.
 
-For `WithName`, `WithoutName`, and the environment calls, the generator does not always find an argument that is not a compile-time value. If the call has a different argument that is a compile-time value, the generator ignores the argument that is not a compile-time value. It gives no diagnostic. For example, the generator reads `IfEnvironmentValue(Keys.Feature, "on")` as `IfEnvironmentValue("on")` if `Keys.Feature` is a `static readonly` field. Use string literals or `const` fields for these arguments.
+If one argument of a call is not a value that the compiler knows, the generator gives DM0009 for the statement. For example, `IfEnvironmentValue(Keys.Feature, "on")` gives DM0009 if `Keys.Feature` is a `static readonly` field. Use string literals or `const` fields for these arguments.
 
 You can implement the method as a public method or as an explicit interface implementation: `void IConventionModule.Conventions(IConventionDefinitions conventions)`. If a type has the two methods, the generator reads the explicit interface implementation.
 
@@ -84,14 +84,14 @@ A convention examines only the classes of the project that contains the module. 
 
 - It is a class, a record class, or a record struct.
 - It is not `static` and not `abstract`.
-- It is not `private` and not `protected`. An `internal` class is a candidate.
+- The generated code can use it. Thus it is not `private`, `protected`, or `file`, and it is not in a `private` or `protected` class. An `internal` class and a `protected internal` class are candidates.
 - It does not have a service attribute or `[Decorator]`.
 
 A class with a service attribute keeps the registration from its attribute. The convention does not register this class again.
 
-A nested class can be a candidate. Write an access modifier on a nested class. A nested class without an access modifier is private, but the generator examines only the modifiers that you write. Thus the convention selects this class, and the generated code does not compile.
+A nested class can be a candidate. A nested class without an access modifier is `private`. Thus the convention does not select it.
 
-A selected class must have a `public` constructor, or no declared constructor. The service provider uses only `public` constructors. If the class has only `private` or `protected` constructors, the generator gives the warning DM0006 and does not register the class. If the class has only `internal` constructors, the generator registers the class and gives no diagnostic. The service provider then cannot make the service, unless the module uses [generated factories](./aot.md#generated-factories).
+A selected class must have a `public` constructor, or no declared constructor. The service provider uses only `public` constructors. If the module uses [generated factories](./aot.md#generated-factories), the generated code calls the constructor. Then an `internal` or `protected internal` constructor is also correct. This is not true for a class with `[Intercept]`, because the generator does not write a factory for it. If the class has no constructor that its registration can use, the generator gives the warning DM0006 and does not register the class.
 
 ## Lifetime
 
@@ -120,9 +120,7 @@ For `AsSelfWithInterfaces()`, the interfaces of the class are the interfaces in 
 
 If a convention calls `AsSelfWithInterfaces()` or `AlsoAsSelf()`, the interface registrations get the instance from the registration of the class type. Thus, for the `Singleton` and `Scoped` lifetimes, all these registrations give the same instance in a scope. If `AsSelfWithInterfaces()` finds no interface, it registers only the class type.
 
-::: warning
-Do not use `AlsoAsSelf()` or `AsSelfWithInterfaces()` for generic classes or with `WithKey`. In these conditions, the generated code does not compile.
-:::
+The generator cannot cross-wire a generic class. If a convention with `AlsoAsSelf()` or `AsSelfWithInterfaces()` selects a generic class, the generator gives the warning DM0014 and does not register that class. Select the generic classes with a different convention that does not use these calls.
 
 Use only one of `AsSelf()`, `AsSelfWithInterfaces()`, and `AlsoAsSelf()` in a convention. If you use more than one, the generator gives the error DM0009.
 
@@ -280,19 +278,15 @@ In a referenced assembly, a class is a candidate when all these conditions are t
 
 A selected class must have a `public` constructor.
 
-The generator ignores the environment attributes of a class from a referenced assembly. The conditions of the convention are applicable.
+The generator reads the environment attributes of a class from a referenced assembly. The conditions of the class and the conditions of the convention are applicable. If a condition of the class has no name or no key, the generator gives the warning DM0012 at the convention statement.
 
 A class from a referenced assembly has no location in your source code. Thus the generator shows its diagnostics, for example DM0010, at the convention statement.
 
 ## Keys and registration type
 
-`WithKey(key)` registers each class as a keyed service. The generator writes the key into the generated code without changes.
+`WithKey(key)` registers each class as a keyed service. The generator writes the key into the generated code without changes. With `AlsoAsSelf()` or `AsSelfWithInterfaces()`, all registrations of a class use the key.
 
-::: warning
-Do not use `WithKey` with `AlsoAsSelf()` or `AsSelfWithInterfaces()`. The generated code does not compile.
-:::
-
-`Using(RegistrationType.Try)` sets the registration type. For the values, refer to [Registration type](./services.md#registration-type). Write the argument as `RegistrationType.Try`. If you write the full name of the enum or use a constant, the generator uses `Add` and gives no diagnostic.
+`Using(RegistrationType.Try)` sets the registration type. For the values, refer to [Registration type](./services.md#registration-type). The generator reads the value of the argument. Thus you can also write the full name of the enum member or use a constant. If the argument is not a value that the compiler knows, the generator gives the error DM0009.
 
 ```csharp
 conventions.RegisterAll<IStore>().WithKey("archive").Using(RegistrationType.Try).AsScoped();
@@ -311,7 +305,7 @@ A convention can register its classes only in some environments. Use these calls
 | `IfNotEnvironmentValue("FEATURE_X")` | The environment has no value for the key. |
 | `IfNotEnvironmentValue("FEATURE_X", "on")` | The value for the key is not equal to the given value. |
 
-If a class in the project has environment attributes, for example `[IfEnvironment("Development")]`, the conditions of the class are also applicable. All conditions must be true. For more information, refer to [Environments](./environments.md).
+If a selected class has environment attributes, for example `[IfEnvironment("Development")]`, the conditions of the class are also applicable. This is also true for a class from a referenced assembly. All conditions must be true. For more information, refer to [Environments](./environments.md).
 
 ## Diagnostics
 
@@ -319,9 +313,11 @@ If a class in the project has environment attributes, for example `[IfEnvironmen
 | --- | --- | --- |
 | DM0004 | Error | Two conventions in one module register the same class as the same service type. The generator does not write these two registrations. |
 | DM0005 | Warning | A convention selects no classes. |
-| DM0006 | Warning | A selected class has no constructor that the generated code can use. |
+| DM0006 | Warning | A selected class has no constructor that its registration can use. |
 | DM0009 | Error | The generator cannot read a convention statement. |
 | DM0010 | Info | The generator registered a class from a convention. The message shows the service type and the module. |
+| DM0012 | Warning | An environment condition of a selected class has no name or no key. |
+| DM0014 | Warning | A convention with `AlsoAsSelf()` or `AsSelfWithInterfaces()` selects a generic class. |
 
 If two conventions select one class for two different service types, this is not an error. The class then gets two registrations. For example, a class that implements `IFirstRole` and `ISecondRole` can have a singleton registration as `IFirstRole` and a scoped registration as `ISecondRole`.
 

@@ -101,7 +101,7 @@ public class TypedRowTests
 
 A `TheoryDataRow` can set its `Skip`, `SkipType`, `SkipUnless`, `SkipWhen`, `Timeout`, `Traits`, `TestDisplayName`, and `Label`. These values are applicable only to that row.
 
-The test of a data row gets only the traits of the row, for example from the `Traits` property of `[InlineData]`. It does not get the traits of the method or the class.
+The test of a data row gets the traits of the class, of the method, and of the row. The traits of the row are, for example, from the `Traits` property of `[InlineData]`. A `[Theory]` row gets its traits in the same way.
 
 ## Lifetime of the service provider
 

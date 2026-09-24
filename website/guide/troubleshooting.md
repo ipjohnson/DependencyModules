@@ -12,7 +12,7 @@ Set `EmitCompilerGeneratedFiles` to `true` in the project file. The compiler the
 
 Most IDEs also show the generated files below the analyzers of the project.
 
-The generator writes these files for each module. The name of each file starts with the namespace of the module and the module name. The generator removes the root namespace of the project from the start of the name.
+The generator writes these files for each module. The name of each file starts with the namespace of the module and the module name. The generator removes the root namespace of the project from the start of the name. If the module is not in the root namespace, the name starts with `global-` and the full namespace, for example `global-Sub.FooModule.Module.g.cs`.
 
 | File | Contents |
 | --- | --- |
@@ -33,9 +33,9 @@ Set `DependencyModules_LogOutputDirectory` to a folder. The generator then write
 </PropertyGroup>
 ```
 
-Three parts of the generator write log files: the service part, the interceptor part, and the convention part. The name of each file is the name of the part, the time in milliseconds, and the extension `.txt`. Each part writes two files each time that the generator runs. If the two files get the same name, the last file replaces the first file. Thus a log file can be empty.
+Each part of the generator writes a log file each time that the generator runs. The name of each file is the name of the part, the time in milliseconds, eight random characters, and the extension `.txt`. Thus no log file replaces a different log file. The service part, the interceptor part, and the convention part write two files. The name of the second file has the suffix `.Diagnostics` after the name of the part. A log file can be empty.
 
-The log of `ServiceSourceGenerator` shows the configuration, the modules, and the services that the generator found. The logs also show the errors. If a log is empty, build the project again with `dotnet build --no-incremental`. The usual build does not run the generator when no file changed.
+The log of `ServiceSourceGenerator` shows the configuration, the modules, and the services that the generator found. The logs also show the errors and the exceptions. If the folder has no new log files, build the project again with `dotnet build --no-incremental`. The usual build does not run the generator when no file changed.
 
 ## A service has no registration
 
@@ -44,13 +44,14 @@ Examine these causes:
 1. The module is not partial. The generator gives the error DM0003.
 2. The module is in a different class. The generator gives the error DM0017.
 3. The class is abstract or static. The generator gives the warning DM0002.
-4. The attributes must be from `DependencyModules.Runtime.Attributes`.
-5. The service sets `Realm` to a different module.
-6. The module has `OnlyRealm = true`, and the service does not set `Realm` to this module.
-7. The service has environment conditions that are false. For each class with a service attribute and conditions, the generator gives DM0011, which shows the conditions. DM0011 has the severity Info. Thus the build output does not show it at the usual verbosity.
-8. The service type of the registration is not the type that you use to get the service. For more information, refer to [Service type](./services.md#service-type).
-9. The application must call `AddModule` or `AddModules`, or load a module that has the module attribute.
-10. The service is in a different project. The application must load the module of that project. For more information, refer to [Module dependencies](./modules.md#module-dependencies).
+4. The service is a static factory method that the generated code cannot call. The generator gives the warning DM0023.
+5. The attributes must be from `DependencyModules.Runtime.Attributes`.
+6. The service sets `Realm` to a different module.
+7. The module has `OnlyRealm = true`, and the service does not set `Realm` to this module.
+8. The service has environment conditions that are false. For each class with a service attribute and conditions, the generator gives DM0011, which shows the conditions. DM0011 has the severity Info. Thus the build output does not show it at the usual verbosity.
+9. The service type of the registration is not the type that you use to get the service. For more information, refer to [Service type](./services.md#service-type).
+10. The application must call `AddModule` or `AddModules`, or load a module that has the module attribute.
+11. The service is in a different project. The application must load the module of that project. For more information, refer to [Module dependencies](./modules.md#module-dependencies).
 
 If the generator does not write the other part of a module, the module does not implement `IDependencyModule`. Then `AddModule<T>()` gives the error CS0311.
 
@@ -90,11 +91,9 @@ The `DependencyModules.SourceGenerator` package declares the MSBuild properties 
 
 ## The generator failed
 
-If an exception occurs when the service part, the interceptor part, or the convention part writes code, the generator gives the error DM0001. Some registrations of the project can then be missing.
+If an exception occurs in the generator, the generator gives the error DM0001. Some registrations of the project can then be missing. If the exception occurs for one module, the generator writes the code of the other modules.
 
-If an exception occurs in a different step of the generator, the compiler gives the warning CS8785. The generator then writes no code, and `AddModule<T>()` gives the error CS0311.
-
-In the two conditions, do these steps:
+Do these steps:
 
 1. Set `DependencyModules_LogOutputDirectory` to a folder.
 2. Build the project again.
