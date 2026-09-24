@@ -419,8 +419,8 @@ public class DependencyFileWriter
     /// An intercepted implementation is always emitted as <c>typeof</c>, whatever
     /// <c>DependencyModules_GenerateFactories</c> says. Interception rewrites the one registration
     /// its wrapper was generated from, and it finds that registration by asking each descriptor
-    /// which implementation it was built from. A factory from the property returns object, which
-    /// names no implementation, so the class would not be intercepted at all.
+    /// which implementation it was built from. A generated factory is typed to return its class, so
+    /// it would answer too, and the exemption is wider than interception needs.
     ///
     /// The exemption costs that one service the property's benefit. It costs nothing else: the
     /// wrapper is still emitted as a literal <c>new</c>, and <c>typeof</c> is what every
@@ -441,8 +441,8 @@ public class DependencyFileWriter
     /// </summary>
     /// <remarks>
     /// The exemption is by service type rather than by implementation, so an unmarked sibling keeps
-    /// <c>typeof</c> too. That is wider than interception needs: a sibling built by a factory names
-    /// no implementation, so interception leaves it alone.
+    /// <c>typeof</c> too. Interception does not need that: a generated factory names its class, and
+    /// interception leaves every other class alone.
     /// </remarks>
     private bool IsInterceptedServiceType(ServiceModel serviceModel) =>
         serviceModel.Registrations.Any(registration =>
@@ -473,10 +473,17 @@ public class DependencyFileWriter
 
     private HashSet<ITypeDefinition> _interceptedServiceTypes = new();
 
+    /// <summary>
+    /// The factory that <c>DependencyModules_GenerateFactories</c> writes for a registration.
+    /// </summary>
+    /// <remarks>
+    /// Typed to return the class, so every registration the generator writes names its
+    /// implementation. TryAddEnumerable, an interceptor and a decorator that names an
+    /// implementation all read it from there.
+    /// </remarks>
     private static object GenerateNewFactory(
         ServiceModel serviceModel,
-        ServiceRegistrationModel registrationModel,
-        bool typed = false
+        ServiceRegistrationModel registrationModel
     )
     {
         var parameter = new ParameterDefinition(
@@ -493,11 +500,11 @@ public class DependencyFileWriter
             GetArgumentsForParameterList(parameter, serviceModel.Constructor!.Parameters)
         );
 
-        var factory = new WrapStatement(newStatement, provider, null);
-
-        return typed
-            ? TypedFactory(serviceModel.ImplementationType, registrationModel, factory)
-            : factory;
+        return TypedFactory(
+            serviceModel.ImplementationType,
+            registrationModel,
+            new WrapStatement(newStatement, provider, null)
+        );
     }
 
     /// <summary>
@@ -584,7 +591,7 @@ public class DependencyFileWriter
                 && ShouldGenerateFactory(serviceModel, entryPointModel, configurationModel)
             )
             {
-                parameters.Add(GenerateNewFactory(serviceModel, registrationModel, typed));
+                parameters.Add(GenerateNewFactory(serviceModel, registrationModel));
             }
             else
             {
