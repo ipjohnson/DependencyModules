@@ -520,7 +520,17 @@ public class ServiceModelUtility
     {
         var list = new List<ServiceRegistrationModel>();
 
-        foreach (var attributeSyntax in context.Node.DescendantNodes().OfType<AttributeSyntax>())
+        // The declaration's own attributes only. An attribute on a nested class or on a factory
+        // method in this class registers that class or that method, not this one.
+        var attributeLists = context.Node is MemberDeclarationSyntax member
+            ? member.AttributeLists
+            : default;
+
+        foreach (
+            var attributeSyntax in attributeLists.SelectMany(attributeList =>
+                attributeList.Attributes
+            )
+        )
         {
             foreach (var typeDefinition in _attributeTypes)
             {
