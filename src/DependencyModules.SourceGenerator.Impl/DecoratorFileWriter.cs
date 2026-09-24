@@ -36,8 +36,8 @@ public class DecoratorFileWriter
         // else, so the namespace is asked for by name; Global mode derives no usings on its own.
         classDefinition.AddUsingNamespace("Microsoft.Extensions.DependencyInjection");
 
-        // Applied per method rather than to the class. ExcludeFromCodeCoverage is not AllowMultiple,
-        // and the same partial class also carries it from the registrations file.
+        // ExcludeFromCodeCoverage goes on each method rather than on the class. The class is the
+        // module, and the members the developer writes in it must still be measured.
         // Anything that cannot be constructed by generated code has already been reported and
         // dropped. There is no reflective shape left to fall back to, so reaching the writer means
         // the decoration can be emitted.

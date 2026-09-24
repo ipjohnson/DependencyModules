@@ -11,22 +11,20 @@ namespace DependencyModules.SourceGenerator.Impl;
 public class DependencyFileWriter
 {
     private readonly FileLogger _logger;
-    private readonly bool _coverageAttributeOnMethod;
 
     /// <param name="logger">Receives the discovery log.</param>
-    /// <param name="coverageAttributeOnMethod">
-    /// Puts ExcludeFromCodeCoverage on the generated method instead of on the partial class.
-    ///
-    /// ExcludeFromCodeCoverage is not AllowMultiple, and attributes on partial parts combine, so two
-    /// generated parts of one module each carrying it at class level is CS0579. Only one writer can
-    /// own the class-level attribute; every other file contributing to the same partial has to apply
-    /// it per member, which is what DecoratorFileWriter already does.
-    /// </param>
-    public DependencyFileWriter(FileLogger logger, bool coverageAttributeOnMethod = false)
+    public DependencyFileWriter(FileLogger logger)
     {
         _logger = logger;
-        _coverageAttributeOnMethod = coverageAttributeOnMethod;
     }
+
+    /// <param name="logger">Receives the discovery log.</param>
+    /// <param name="coverageAttributeOnMethod">Has no effect.</param>
+    [Obsolete(
+        "ExcludeFromCodeCoverage is always put on the generated members. Use the constructor that takes only the logger."
+    )]
+    public DependencyFileWriter(FileLogger logger, bool coverageAttributeOnMethod)
+        : this(logger) { }
 
     public string Write(
         ModuleEntryPointModel entryPointModel,
@@ -58,6 +56,8 @@ public class DependencyFileWriter
         var csharpFile = new CSharpFileDefinition(entryPointModel.EntryPointType.Namespace);
 
         GenerateClass(entryPointModel, configurationModel, serviceModels, csharpFile, uniqueId);
+
+        GeneratedCodeCoverage.ExcludeMembers(csharpFile, configurationModel);
 
         var output = new OutputContext(
             new OutputContextOptions
@@ -101,13 +101,6 @@ public class DependencyFileWriter
         // own source, and a build break under TreatWarningsAsErrors. The module and attribute
         // writers already do this; the registrations file is where the annotations actually land.
         classDefinition.EnableNullable();
-
-        if (configurationModel.ExcludeGeneratedCodeFromCoverage && !_coverageAttributeOnMethod)
-        {
-            classDefinition.AddAttribute(
-                TypeDefinition.Get("System.Diagnostics.CodeAnalysis", "ExcludeFromCodeCoverage")
-            );
-        }
 
         var methodName = GenerateDependencyMethod(
             entryPointModel,
@@ -170,15 +163,6 @@ public class DependencyFileWriter
 
         method.Modifiers |= ComponentModifier.Private | ComponentModifier.Static;
 
-        // The glue factories GenerateGlueFactory may add are not covered here. They exist only for
-        // [Factory] registrations, which the attribute path produces and the convention path — the
-        // only caller that sets this — cannot.
-        if (configurationModel.ExcludeGeneratedCodeFromCoverage && _coverageAttributeOnMethod)
-        {
-            method.AddAttribute(
-                TypeDefinition.Get("System.Diagnostics.CodeAnalysis", "ExcludeFromCodeCoverage")
-            );
-        }
         var services = method.AddParameter(
             KnownTypes.Microsoft.DependencyInjection.IServiceCollection,
             "services"

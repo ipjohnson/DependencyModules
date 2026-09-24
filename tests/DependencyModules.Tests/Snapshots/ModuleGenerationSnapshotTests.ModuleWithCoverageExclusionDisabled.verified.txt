@@ -22,8 +22,6 @@ namespace TestNamespace
 }
 
 // ---- TestModule.Module.g.cs ----
-using System.ComponentModel;
-
 namespace TestNamespace
 {
     #nullable enable
@@ -42,13 +40,13 @@ namespace TestNamespace
             );
         }
 
-        [Browsable(false)]
+        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
         void global::DependencyModules.Runtime.Interfaces.IDependencyModule.InternalApplyServices(global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)
         {
             global::DependencyModules.Runtime.Helpers.DependencyRegistry<global::TestNamespace.TestModule>.ApplyServices(services);
         }
 
-        [Browsable(false)]
+        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
         void global::DependencyModules.Runtime.Interfaces.IDependencyModule.InternalApplyServices(global::Microsoft.Extensions.DependencyInjection.IServiceCollection services, global::DependencyModules.Runtime.Interfaces.IModuleEnvironment environment)
         {
             global::DependencyModules.Runtime.Helpers.DependencyRegistry<global::TestNamespace.TestModule>.ApplyServices(
@@ -57,13 +55,13 @@ namespace TestNamespace
             );
         }
 
-        [Browsable(false)]
+        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
         global::System.Collections.Generic.IEnumerable<object> global::DependencyModules.Runtime.Interfaces.IDependencyModule.InternalGetModules()
         {
             return global::DependencyModules.Runtime.Helpers.DependencyRegistry<global::TestNamespace.TestModule>.GetModules();
         }
 
-        [Browsable(false)]
+        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
         global::System.Collections.Generic.IEnumerable<global::DependencyModules.Runtime.Helpers.DecoratorRegistration> global::DependencyModules.Runtime.Interfaces.IDependencyModule.InternalGetDecorators()
         {
             return global::DependencyModules.Runtime.Helpers.DependencyRegistry<global::TestNamespace.TestModule>.GetDecorators();
