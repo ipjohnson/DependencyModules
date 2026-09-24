@@ -59,8 +59,10 @@ public class InterceptAttribute(params Type[] interceptors) : Attribute
     /// life of the container. Nothing said so unless <c>ValidateScopes</c> was on, and
     /// <c>DependencyModules_GenerateFactories</c> turns that off for the whole project.
     ///
-    /// The registration is still <c>TryAdd</c>, so an interceptor carrying its own service
-    /// attribute keeps that lifetime and this is ignored for it.
+    /// The registration is <c>TryAdd</c>. An interceptor that its own service attribute registers as
+    /// its class, with <c>As</c> naming that class, keeps that lifetime, and this one is ignored for
+    /// it. Without <c>As</c>, the service attribute registers the interceptor as its first
+    /// interface, so this lifetime still applies to the class.
     /// </remarks>
     public ServiceLifetime Lifetime { get; set; } = ServiceLifetime.Singleton;
 

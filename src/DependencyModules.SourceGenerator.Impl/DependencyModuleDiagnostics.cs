@@ -228,14 +228,11 @@ public static class DependencyModuleDiagnostics
             + "instances are the same.",
         category: Category,
         // A warning rather than informational. The identity of a module with parameters is genuinely
-        // ambiguous, and the generator picks type-only on the developer's behalf — so the choice is
-        // being made either way, and only one of the two makes it visible. Informational would not:
-        // a generator's diagnostics arrive with their severity already fixed and Roslyn's
-        // .editorconfig mapping applies to analyzer diagnostics, so an Info here could never be
-        // raised into a build by anyone who wanted it enforced.
+        // ambiguous, and the generator picks type-only on the developer's behalf. The choice is
+        // made either way, and only a warning shows it in a default build.
         //
-        // Silencing still works per project, through NoWarn or .editorconfig, for a codebase whose
-        // parameterised modules are each composed once.
+        // .editorconfig can raise it to an error, and NoWarn or .editorconfig can silence it, for a
+        // codebase whose parameterised modules are each composed once.
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true
     );
