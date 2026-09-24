@@ -11,22 +11,6 @@ A module is a partial class that registers the services of a project. A module c
 
 Documentation: [ipjohnson.github.io/DependencyModules](https://ipjohnson.github.io/DependencyModules/)
 
-## Packages
-
-| Package | Contents |
-| --- | --- |
-| [DependencyModules.Runtime](https://www.nuget.org/packages/DependencyModules.Runtime/) | The attributes, the interfaces, and the `AddModule` methods. |
-| [DependencyModules.SourceGenerator](https://www.nuget.org/packages/DependencyModules.SourceGenerator/) | The source generator. It operates only when you compile. |
-| [DependencyModules.xUnit](https://www.nuget.org/packages/DependencyModules.xUnit/) | `[ModuleTest]` for xUnit v3. |
-| [DependencyModules.NUnit](https://www.nuget.org/packages/DependencyModules.NUnit/) | `[ModuleTest]` and `[ModuleTestCase]` for NUnit 4. |
-| [DependencyModules.Testing](https://www.nuget.org/packages/DependencyModules.Testing/) | The test attributes and interfaces that the xUnit and NUnit packages use. |
-| [DependencyModules.NSubstitute](https://www.nuget.org/packages/DependencyModules.NSubstitute/) | `[Mock]` parameters with NSubstitute. |
-| [DependencyModules.Moq](https://www.nuget.org/packages/DependencyModules.Moq/) | `[Mock]` and `Mock<T>` parameters with Moq. |
-| [DependencyModules.FakeItEasy](https://www.nuget.org/packages/DependencyModules.FakeItEasy/) | `[Mock]` parameters with FakeItEasy. |
-| [DependencyModules.SourceGenerator.Impl](https://www.nuget.org/packages/DependencyModules.SourceGenerator.Impl/) | The source code of the generator. A framework can compile this code into a different source generator. |
-
-The target frameworks of the runtime package, `DependencyModules.Testing`, the test packages, and the mock packages are `net8.0` and `net10.0`. The generator is compatible with Roslyn 4.10 and all subsequent versions.
-
 ## Install
 
 ```shell
@@ -116,6 +100,22 @@ The `integ-tests` folder contains projects that reference the source projects of
 - `SutProject.NUnitTests`: NUnit tests of these modules.
 - `ConsoleTestProject`: a console application.
 - `web/WebApiApp` and `web/WebApiApp.Tests`: an ASP.NET Core application and its tests.
+
+## Packages
+
+| Package | Contents |
+| --- | --- |
+| [DependencyModules.Runtime](https://www.nuget.org/packages/DependencyModules.Runtime/) | The attributes, the interfaces, and the `AddModule` methods. |
+| [DependencyModules.SourceGenerator](https://www.nuget.org/packages/DependencyModules.SourceGenerator/) | The source generator. It operates only when you compile. |
+| [DependencyModules.xUnit](https://www.nuget.org/packages/DependencyModules.xUnit/) | `[ModuleTest]` for xUnit v3. |
+| [DependencyModules.NUnit](https://www.nuget.org/packages/DependencyModules.NUnit/) | `[ModuleTest]` and `[ModuleTestCase]` for NUnit 4. |
+| [DependencyModules.Testing](https://www.nuget.org/packages/DependencyModules.Testing/) | The test attributes and interfaces that the xUnit and NUnit packages use. |
+| [DependencyModules.NSubstitute](https://www.nuget.org/packages/DependencyModules.NSubstitute/) | `[Mock]` parameters with NSubstitute. |
+| [DependencyModules.Moq](https://www.nuget.org/packages/DependencyModules.Moq/) | `[Mock]` and `Mock<T>` parameters with Moq. |
+| [DependencyModules.FakeItEasy](https://www.nuget.org/packages/DependencyModules.FakeItEasy/) | `[Mock]` parameters with FakeItEasy. |
+| [DependencyModules.SourceGenerator.Impl](https://www.nuget.org/packages/DependencyModules.SourceGenerator.Impl/) | The source code of the generator. A framework can compile this code into a different source generator. |
+
+The target frameworks of the runtime package, `DependencyModules.Testing`, the test packages, and the mock packages are `net8.0` and `net10.0`. The generator is compatible with Roslyn 4.10 and all subsequent versions.
 
 ## License
 
