@@ -5,6 +5,101 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-09-24
+
+This release fixes the 32 defects that the documentation review of 2026-09-23 found, issues #63
+to #94. Some fixes change what the generator reports or registers. Read "Changed" before you
+update.
+
+### Added
+
+- DM0023, a warning for a factory method that the generated module cannot call. That is an
+  instance method, or a method that is private or protected or is in such a type. Before, the
+  build failed with CS0122, or the method was dropped with no message. (#67)
+- DM0024, a warning for a `[CrossWireService]` class that declares no interface but inherits one.
+  The class is registered on its own. (#76)
+- DM0025, a warning for a `[Decorator]` class that the generator does not apply. The message gives
+  the reason. (#70, #77)
+- `[CrossWireService]` on a static factory method registers the return type, and cross-wires the
+  interfaces that the return type declares. (#76)
+- `DependencyModules.SourceGenerator.Impl` contains the CSharpAuthor sources, so a generator
+  project needs no CSharpAuthor reference of its own. (#91)
+
+### Changed
+
+- Interception wraps only the registrations of the intercepted class. A registration that you write
+  with an untyped factory, for example `AddSingleton<IGreeter>(_ => new Loud())`, is not
+  intercepted. (#80)
+- The factories that `DependencyModules_GenerateFactories` writes return their class, not
+  `object`. `TryAddEnumerable`, interception and `[Decorator(Implementation = ...)]` use this to
+  identify the registration.
+- The generator reads `Order`, `Using`, `Members`, `Lifetime` and the `[DependencyModule]` flags as
+  constant values. A constant declared elsewhere, `1_000`, or a qualified enum member now has its
+  value. Before, it fell back to the default with no message. (#74)
+- A convention call with an argument that is not a constant gives DM0009, which is an error.
+  Before, the argument was dropped. A build that compiled with such an argument now fails. (#75)
+- A class that a convention selects needs a public constructor, or an internal one when the module
+  generates factories. Otherwise it gets DM0006 and is not registered. DM0006 says which
+  constructor is missing. (#79)
+- A convention skips a nested class that generated code cannot use, and a file-local class. It now
+  registers a protected internal nested class. (#66)
+- DM0014 is also reported for a convention with `AlsoAsSelf()` or `AsSelfWithInterfaces()` that
+  selects a generic class. (#65)
+- DM0019 is also reported for a namespace-qualified assembly module attribute outside
+  `Program.cs`. (#81)
+- DM0021 is reported only when the `[Mock]` parameter replaces the `[TestExport]` registration.
+  (#88)
+- DM0012 is also reported for decorators and for the classes that a convention selects. (#78)
+- A declared `ApplicationModule` loads the modules that `Program.cs` names. (#82)
+- `[ExcludeFromCodeCoverage]` goes on the generated members, not on the module class, so the members
+  that you write in a module are measured. The `coverageAttributeOnMethod` parameter of
+  `DependencyFileWriter` is obsolete. (#83)
+- The `Internal*` members of `IDependencyModule` have `[EditorBrowsable(EditorBrowsableState.Never)]`
+  in place of `[Browsable(false)]`. (#92)
+- Each generator log file name ends with a random part, and the diagnostics output of each stage
+  logs as `<Stage>.Diagnostics`. (#90)
+- NUnit: a test that NUnit builds from `[TestCase]`, `[TestCaseSource]`, `[Values]` or `[Range]` on
+  a `[ModuleTest]` method is not runnable, and its message names the attribute. (#87)
+- `ITestContainerSource.CreateAsync` throws when it cannot build a service that an attribute
+  shares, for example a `[TestExport(Shared = true)]`. (#89)
+
+### Fixed
+
+- `[CrossWireService]` with `Key`, with each `RegistrationType`, and on a class that inherits its
+  interfaces. (#63, #64, #76)
+- A module with `GenerateFactories` and `TryEnumerable` threw `ArgumentException` in `AddModule`
+  for a service registered as an interface.
+- A convention with `AlsoAsSelf()` or `AsSelfWithInterfaces()` over a generic class failed with
+  CS7003. (#65)
+- A convention registered a nested class that is private by default, and named a nested class
+  without its containing class. (#66)
+- A module property with a private setter, or a property of a class nested in a module, gave
+  generated code that did not compile. (#68)
+- An intercepted method with a `ref struct` return type gave CS9244. It now gives DM0008. (#69)
+- A `[Decorator]` with a protected constructor gave CS0122. (#70)
+- `Equals` and `GetHashCode` in another partial declaration of a module gave CS0111. A module that
+  declares only `Equals(T)` loaded twice. Its generated `Equals(object)` now calls `Equals(T)`. (#71)
+- A module that DM0003 or DM0017 rejects still got partial classes from the other writers. (#72)
+- A service attribute on a nested class or on a factory method added a second registration of the
+  containing class. (#73)
+- A `[Decorator]` that inherits its service type was ignored, and so were environment attributes
+  on `[Decorate]` decorators and on `InAssemblyOf<T>()` classes. (#77, #78)
+- An exception in the module writer or in a diagnostics output gave CS8785 and dropped all
+  generated code. It now gives DM0001. (#84)
+- xUnit: the tests of data rows lost the method and class traits. (#85)
+- NUnit: `TestName` named the wrong row when a method had another row source. (#86)
+- `ITestContainerSource` dropped the keyed registrations of a shared type. (#89)
+- Two modules whose names differ only by the root namespace got the same file name, and the
+  generator failed. A type outside the root namespace now gets a file name that starts with
+  `global-`. (#94)
+- The XML documentation of `NSubstituteSupportAttribute`, `FakeItEasySupportAttribute`,
+  `InterceptAttribute.Lifetime` and `ModuleEnvironment.None`. (#93)
+
+### Removed
+
+- DM0022. A decorator that names an implementation now works in a module with generated
+  factories.
+
 ## [1.5.0] - 2026-09-08
 
 ### Changed
