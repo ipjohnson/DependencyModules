@@ -177,7 +177,8 @@ public class ModuleEnvironment : IModuleEnvironment, IEnumerable<KeyValuePair<st
     public static IModuleEnvironment CreateDefault() => new ProcessModuleEnvironment();
 
     /// <summary>
-    /// An environment with no name and no values, so every condition evaluates false.
+    /// An environment with no name and no values, so every test of a name or a value fails. A
+    /// condition from <c>[IfNotEnvironment]</c> or <c>[IfNotEnvironmentValue]</c> then holds.
     /// </summary>
     /// <remarks>
     /// Pass this to <c>AddModules</c> to state that this application has no environment, rather

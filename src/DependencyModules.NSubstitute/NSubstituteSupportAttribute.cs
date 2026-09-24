@@ -4,7 +4,8 @@ using NSub = NSubstitute;
 namespace DependencyModules.NSubstitute;
 
 /// <summary>
-/// Resolves any dependency that is not registered as an NSubstitute substitute.
+/// Supplies an NSubstitute substitute for each test parameter marked <c>[Mock]</c>. A dependency
+/// that is not registered does not get one.
 /// </summary>
 /// <remarks>
 /// Applies to a method, a class, or a whole assembly, so a test project can switch substitutes on

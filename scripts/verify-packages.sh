@@ -10,7 +10,7 @@
 #   * MSBuild properties not reaching the generator through the packaged .targets
 #   * Roslyn/compiler dependencies leaking into consumers' dependency graphs
 #
-# Usage: build/verify-packages.sh [version]
+# Usage: scripts/verify-packages.sh [version]
 
 set -euo pipefail
 

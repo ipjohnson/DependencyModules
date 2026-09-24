@@ -3,7 +3,8 @@ using DependencyModules.Testing.Attributes.Interfaces;
 namespace DependencyModules.FakeItEasy;
 
 /// <summary>
-/// Resolves any dependency that is not registered as a FakeItEasy fake.
+/// Supplies a FakeItEasy fake for each test parameter marked <c>[Mock]</c>. A dependency that is
+/// not registered does not get one.
 /// </summary>
 /// <remarks>
 /// Applies to a method, a class, or a whole assembly, so a test project can switch fakes on once in
