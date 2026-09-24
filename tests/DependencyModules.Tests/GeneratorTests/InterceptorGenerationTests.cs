@@ -901,6 +901,41 @@ public class InterceptorGenerationTests
         Assert.Contains("by ref", diagnostic.GetMessage());
     }
 
+    /// <summary>
+    /// The invocation state keeps the arguments and the result in fields, and a class cannot hold a
+    /// ref struct in a field.
+    /// </summary>
+    [Theory]
+    [InlineData(
+        "System.ReadOnlySpan<char> Name();",
+        "public System.ReadOnlySpan<char> Name() => System.MemoryExtensions.AsSpan(\"name\");",
+        "returns a ref struct"
+    )]
+    [InlineData(
+        "int Count(System.ReadOnlySpan<char> text);",
+        "public int Count(System.ReadOnlySpan<char> text) => text.Length;",
+        "which is a ref struct"
+    )]
+    [InlineData(
+        "System.ReadOnlySpan<char> Name { get; }",
+        "public System.ReadOnlySpan<char> Name => default;",
+        "is a ref struct"
+    )]
+    public void RefStructMember_ReportsDM0008AndWritesNoWrapper(
+        string interfaceMember,
+        string implementation,
+        string reason
+    )
+    {
+        var result = GeneratorTestHarness.Run(Source(interfaceMember, implementation));
+
+        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0008");
+
+        Assert.Contains(reason, diagnostic.GetMessage());
+        Assert.DoesNotContain(result.GeneratedSources.Keys, name => name.Contains("_Intercepted"));
+        result.AssertNoErrors();
+    }
+
     [Fact]
     public void ServiceWithNoInterface_ReportsDM0008()
     {
