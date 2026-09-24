@@ -82,11 +82,14 @@ public static class ModuleDecoratorResolver
             );
         }
 
+        // Read from the decorator's symbol, as they are read from the declaration of a
+        // [Decorator] class. A condition left out applies the decorator in every environment.
         return new Resolution(
             decorator with
             {
                 Constructor = constructor,
                 InnerParameterIndex = innerIndex,
+                Conditions = EnvironmentConditionUtility.GetConditions(symbol),
             },
             null
         );

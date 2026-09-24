@@ -82,7 +82,9 @@ public class EntryModelUtil
     /// <remarks>
     /// Every writer that emits registrations, decorations or interceptions into a module filters
     /// through this, so an auto-generated module that defers to a declared one is skipped by all of
-    /// them rather than by whichever ones remembered to.
+    /// them rather than by whichever ones remembered to. So is a module that DM0003 or DM0017
+    /// rejects. A partial class written for a module that is not partial is CS0260, and one written
+    /// for a nested module is a second type at namespace level.
     /// </remarks>
     public static IList<ModuleEntryPointModel> RegistrationTargets(
         IList<ModuleEntryPointModel> entryPoints
@@ -92,7 +94,11 @@ public class EntryModelUtil
 
         for (var i = 0; i < entryPoints.Count; i++)
         {
-            if (DelegateTargetFor(entryPoints[i], entryPoints) == null)
+            if (
+                DelegateTargetFor(entryPoints[i], entryPoints) == null
+                && !ModuleEntryPointDiagnostics.IsNotPartial(entryPoints[i])
+                && !ModuleEntryPointDiagnostics.IsNestedInType(entryPoints[i])
+            )
             {
                 filtered?.Add(entryPoints[i]);
                 continue;
@@ -251,9 +257,53 @@ public class EntryModelUtil
 
         if (firstNonAuto != null)
         {
-            return firstNonAuto;
+            return WithProgramModules(firstNonAuto, grouping, configurationModel);
         }
 
         return grouping.First();
+    }
+
+    /// <summary>
+    /// The declared module, which also loads the modules that <c>Program.cs</c> names.
+    /// </summary>
+    /// <remarks>
+    /// <c>Program.cs</c> names modules with assembly attributes and with calls to their static
+    /// methods, and the generated model carries them. The declared module takes the place of the
+    /// generated one, so it has to load them as well.
+    /// </remarks>
+    private static ModuleEntryPointModel WithProgramModules(
+        ModuleEntryPointModel declared,
+        IEnumerable<ModuleEntryPointModel> grouping,
+        DependencyModuleConfigurationModel configurationModel
+    )
+    {
+        var programPath = Path.Combine(configurationModel.ProjectDir, "Program.cs");
+
+        var program = grouping.FirstOrDefault(m =>
+            m.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.AutoGenerateModule)
+            && m.FileLocation == programPath
+        );
+
+        if (
+            program == null
+            || (program.AttributeModels.Count == 0 && program.AdditionalModules.Count == 0)
+        )
+        {
+            return declared;
+        }
+
+        return declared with
+        {
+            AttributeModels = declared
+                .AttributeModels.Concat(
+                    program.AttributeModels.Where(a => !declared.AttributeModels.Contains(a))
+                )
+                .ToList(),
+            AdditionalModules = declared
+                .AdditionalModules.Concat(
+                    program.AdditionalModules.Where(m => !declared.AdditionalModules.Contains(m))
+                )
+                .ToList(),
+        };
     }
 }

@@ -41,10 +41,8 @@ public enum RegistrationFeature
     /// <remarks>
     /// Interception is applied by rewriting the one registration the wrapper was generated from,
     /// and finding it means asking a descriptor which implementation it was built from. A factory
-    /// descriptor cannot answer, so under <c>DependencyModules_GenerateFactories</c> the filter
-    /// matched nothing and interception went back to wrapping every registration of the service
-    /// type - the exact behaviour 1.1.0 shipped to fix, restored by the property the AOT guidance
-    /// recommends turning on.
+    /// from <c>DependencyModules_GenerateFactories</c> returns object, so it names no
+    /// implementation, and the class would not be intercepted at all.
     ///
     /// So an intercepted implementation keeps its <c>typeof</c> registration whatever the property
     /// says. It costs that one service the property's benefit and nothing else: the wrapper around
@@ -52,6 +50,30 @@ public enum RegistrationFeature
     /// shape everywhere else, trimmer-annotated and already proven under Native AOT.
     /// </remarks>
     Intercepted = 8,
+
+    /// <summary>
+    /// The service comes from a factory method that is not static. The generated module has no
+    /// instance to call it on.
+    /// </summary>
+    FactoryMethodNotStatic = 16,
+
+    /// <summary>
+    /// The service comes from a factory method that the generated module cannot use, because the
+    /// method or a type that contains it is private or protected.
+    /// </summary>
+    FactoryMethodInaccessible = 32,
+
+    /// <summary>
+    /// The class has <c>[CrossWireService]</c> and declares no interface, but gets at least one from
+    /// a base class. Only the class is registered.
+    /// </summary>
+    CrossWireInheritedInterfaces = 64,
+
+    /// <summary>
+    /// The service comes from a factory method that returns a class, so its delegate can be typed
+    /// to return that class.
+    /// </summary>
+    FactoryReturnsClass = 128,
 }
 
 public record ServiceFactoryModel(

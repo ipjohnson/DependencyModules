@@ -22,4 +22,12 @@
     <ItemGroup Condition="'$(PackageDependencyModuleIncludeSource)' == 'true'">
         <Compile Include="$(MSBuildThisFileDirectory)../src/**/*.cs" Visible="false"/>
     </ItemGroup>
+
+    <!--
+        The CSharpAuthor sources that the sources above use. A project that references CSharpAuthor
+        and sets PackageCSharpAuthorIncludeSource compiles them already, so this copy is skipped there.
+    -->
+    <ItemGroup Condition="'$(PackageDependencyModuleIncludeSource)' == 'true' and '$(PackageCSharpAuthorIncludeSource)' != 'true'">
+        <Compile Include="$(MSBuildThisFileDirectory)../srcCSharpAuthor/**/*.cs" Visible="false"/>
+    </ItemGroup>
 </Project>

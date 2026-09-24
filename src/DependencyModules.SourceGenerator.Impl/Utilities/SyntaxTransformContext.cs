@@ -26,6 +26,20 @@ public readonly struct SyntaxTransformContext
 
     public SemanticModel SemanticModel { get; }
 
+    /// <summary>
+    /// Whether code that the generator writes into this assembly can use <paramref name="symbol"/>.
+    /// </summary>
+    /// <remarks>
+    /// The generated code is in a module class, which derives from nothing the developer wrote. So
+    /// it can use a public, internal or protected internal member of a type that it can also use,
+    /// and nothing else. A nested type with no access modifier is private.
+    /// </remarks>
+    public bool GeneratedCodeCanUse(ISymbol symbol) =>
+        SemanticModel.Compilation.IsSymbolAccessibleWithin(
+            symbol,
+            SemanticModel.Compilation.Assembly
+        );
+
     public static implicit operator SyntaxTransformContext(GeneratorSyntaxContext context) =>
         new(context.Node, context.SemanticModel);
 

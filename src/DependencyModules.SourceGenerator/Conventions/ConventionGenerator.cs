@@ -272,9 +272,12 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator
 
         var configuration = entryPoints.First().Right;
 
+        // Surfaced as a build error rather than discarded, matching the attribute generators. A
+        // generator that fails quietly produces a green build with no registrations.
         FileLogger.Wrap(
             LoggerName,
             configuration,
+            context,
             logger =>
                 Generate(
                     context,
@@ -287,16 +290,6 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator
                     DiagnosticReporter.Silent,
                     emit: true,
                     logger
-                ),
-            // Surfaced as a build error rather than discarded, matching the attribute generators. A
-            // generator that fails quietly produces a green build with no registrations.
-            exception =>
-                context.ReportDiagnostic(
-                    Diagnostic.Create(
-                        DependencyModuleDiagnostics.GeneratorFailure,
-                        Location.None,
-                        $"{exception.GetType().Name}: {exception.Message}"
-                    )
                 )
         );
     }
@@ -353,8 +346,9 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator
         );
 
         FileLogger.Wrap(
-            LoggerName,
+            LoggerName + ".Diagnostics",
             configuration,
+            context,
             logger =>
                 Generate(
                     context,
@@ -367,14 +361,6 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator
                     report,
                     emit: false,
                     logger
-                ),
-            exception =>
-                context.ReportDiagnostic(
-                    Diagnostic.Create(
-                        DependencyModuleDiagnostics.GeneratorFailure,
-                        Location.None,
-                        $"{exception.GetType().Name}: {exception.Message}"
-                    )
                 )
         );
     }
@@ -403,6 +389,23 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator
             $"Discovered {conventionModules.Length} convention module(s) and "
                 + $"{candidates.Count} candidate type(s)."
         );
+
+        // Once for the compilation, not per module: a [Decorator] class is declared once.
+        ReportIgnoredDecorators(report, decorators, logger);
+
+        foreach (var decorator in decorators)
+        {
+            if (!decorator.IsIgnored)
+            {
+                EnvironmentConditionUtility.ReportEmpty(
+                    report,
+                    logger,
+                    decorator.DecoratorType.Name,
+                    decorator.Conditions,
+                    decorator.Location
+                );
+            }
+        }
 
         var claimed = new HashSet<ConventionModuleModel>();
 
@@ -464,6 +467,9 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator
                     withNamespace,
                     conventionModule,
                     candidates,
+                    withNamespace.GenerateFactories.GetValueOrDefault(
+                        configurationModel.GenerateFactories
+                    ),
                     report,
                     logger
                 );
@@ -487,10 +493,7 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator
             return;
         }
 
-        // coverageAttributeOnMethod: the registrations file already puts ExcludeFromCodeCoverage on
-        // the partial class, and the attribute is not AllowMultiple, so a second class-level one on
-        // the same type is CS0579.
-        var writer = new DependencyFileWriter(logger, coverageAttributeOnMethod: true);
+        var writer = new DependencyFileWriter(logger);
 
         var output = writer.Write(withNamespace, configurationModel, serviceModels, "Convention");
 
@@ -593,14 +596,6 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator
 
         ReportOpenGenericDecoration(report, refusedForOpenGenericRegistration, logger);
 
-        ReportImplementationUnderFactories(
-            report,
-            decorators,
-            entryPointModel,
-            configurationModel,
-            logger
-        );
-
         if (expanded.Count == 0 || !emit)
         {
             return;
@@ -675,6 +670,18 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator
                         + $"code: {resolution.Reason}."
                 );
             }
+            else
+            {
+                // The decorator may have no declaration in this compilation, so the module that
+                // names it is where this is reported.
+                EnvironmentConditionUtility.ReportEmpty(
+                    report,
+                    logger,
+                    resolution.Model.DecoratorType.Name,
+                    resolution.Model.Conditions,
+                    entryPointModel.Location
+                );
+            }
 
             decorators.Add(resolution.Model);
         }
@@ -685,50 +692,30 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator
     }
 
     /// <summary>
-    /// Reports a decorator naming an implementation in a project that emits factories.
+    /// Reports each <c>[Decorator]</c> class that the generator does not apply.
     /// </summary>
-    /// <remarks>
-    /// The decorator would wrap every registration of the service instead of the one it named,
-    /// because a factory descriptor cannot say what it built. An intercepted service is exempted
-    /// from the property automatically - the interception is declared on the class being registered,
-    /// so the writer emitting that registration sees it. A decorator is declared on the decorator,
-    /// and the registration it targets is written by a pass that never learns about it.
-    /// </remarks>
-    private static void ReportImplementationUnderFactories(
+    private static void ReportIgnoredDecorators(
         DiagnosticReporter report,
-        IReadOnlyList<DecoratorModel> decorators,
-        ModuleEntryPointModel entryPointModel,
-        DependencyModuleConfigurationModel configurationModel,
+        ImmutableArray<DecoratorModel> decorators,
         FileLogger logger
     )
     {
-        if (
-            !entryPointModel.GenerateFactories.GetValueOrDefault(
-                configurationModel.GenerateFactories
-            )
-        )
-        {
-            return;
-        }
-
         foreach (var decorator in decorators)
         {
-            if (decorator.Implementation == null)
+            if (decorator.IgnoredReason == null)
             {
                 continue;
             }
 
-            logger.Error(
-                $"'{decorator.DecoratorType.Name}' names an implementation, which generated "
-                    + "factories cannot be told apart by."
-            );
+            var decoratorName = decorator.DecoratorType.Name;
+
+            logger.Error($"'{decoratorName}' is not applied. {decorator.IgnoredReason}.");
 
             report.Report(
-                DependencyModuleDiagnostics.DecoratorImplementationNeedsTypeRegistration,
+                DependencyModuleDiagnostics.DecoratorIgnored,
                 decorator.Location,
-                decorator.DecoratorType.Name,
-                decorator.Implementation.Name,
-                decorator.ServiceType.Name
+                decoratorName,
+                decorator.IgnoredReason
             );
         }
     }

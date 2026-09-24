@@ -42,7 +42,18 @@ public class DependencyModuleWriter
 
         context.RegisterSourceOutput(
             valuesProvider.Combine(context.CompilationProvider),
-            ModuleEntryPointDiagnostics.Report
+            (productionContext, input) =>
+            {
+                if (input.Left.Length > 0)
+                {
+                    FileLogger.Wrap(
+                        "ModuleEntryPointDiagnostics",
+                        input.Left[0].Right,
+                        productionContext,
+                        _ => ModuleEntryPointDiagnostics.Report(productionContext, input)
+                    );
+                }
+            }
         );
     }
 
@@ -59,6 +70,23 @@ public class DependencyModuleWriter
             return;
         }
 
+        FileLogger.Wrap(
+            "DependencyModuleWriter",
+            allEntryPoints[0].Right,
+            context,
+            logger => GenerateModules(context, allEntryPoints, logger)
+        );
+    }
+
+    private void GenerateModules(
+        SourceProductionContext context,
+        ImmutableArray<(
+            ModuleEntryPointModel Left,
+            DependencyModuleConfigurationModel Right
+        )> allEntryPoints,
+        FileLogger logger
+    )
+    {
         var (entryPointList, configurationModel) = EntryModelUtil.ConsolidateEntryPointModels(
             allEntryPoints
         );
@@ -67,11 +95,26 @@ public class DependencyModuleWriter
         {
             context.CancellationToken.ThrowIfCancellationRequested();
 
-            ProcessEntryPoint(
-                context,
-                WithDelegateTarget(entryPointModel, entryPointList),
-                configurationModel
-            );
+            // A failure stops only its own module. A module with no generated part does not
+            // implement IDependencyModule, so every AddModule call that names it fails with CS0311.
+            try
+            {
+                ProcessEntryPoint(
+                    context,
+                    WithDelegateTarget(entryPointModel, entryPointList),
+                    configurationModel
+                );
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                logger.Error(
+                    $"{entryPointModel.EntryPointType.Name}: {exception.Message}\n{exception.StackTrace}"
+                );
+
+                context.ReportDiagnostic(
+                    DependencyModuleDiagnostics.GeneratorFailureFrom(exception)
+                );
+            }
         }
     }
 
@@ -137,6 +180,8 @@ public class DependencyModuleWriter
         GenerateUseMethod(entryPointModel, configurationModel, csharpFile);
 
         GenerateAttribute(entryPointModel, csharpFile);
+
+        GeneratedCodeCoverage.ExcludeMembers(csharpFile, configurationModel);
 
         var outputContext = new OutputContext(
             new OutputContextOptions
@@ -240,14 +285,14 @@ public class DependencyModuleWriter
 
         FeatureMethod(classDefinition, model);
 
-        if (
-            (model.ModuleFeatures & ModuleEntryPointFeatures.ShouldImplementEquals)
-            == ModuleEntryPointFeatures.ShouldImplementEquals
-        )
+        if (model.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.ShouldImplementEquals))
         {
             EqualMethod(classDefinition, model);
 
-            HashMethod(classDefinition, model);
+            if (model.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.ShouldImplementGetHashCode))
+            {
+                HashMethod(classDefinition, model);
+            }
         }
     }
 
@@ -272,8 +317,7 @@ public class DependencyModuleWriter
 
         method.Modifiers |= ComponentModifier.Virtual | ComponentModifier.Public;
 
-        method.AddLeadingTrait(CodeOutputComponent.Get("[Browsable(false)]", true));
-        method.AddUsingNamespace("System.ComponentModel");
+        HideFromIntelliSense(method);
 
         method.InterfaceImplementation = KnownTypes
             .DependencyModules
@@ -344,7 +388,11 @@ public class DependencyModuleWriter
 
         equalMethod.AddParameter(TypeDefinition.Get(typeof(object)).MakeNullable(), "obj");
 
-        equalMethod.Return($"obj is {model.EntryPointType.Name}");
+        equalMethod.Return(
+            model.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.DeclaresTypedEquals)
+                ? $"obj is {model.EntryPointType.Name} other && Equals(other)"
+                : $"obj is {model.EntryPointType.Name}"
+        );
     }
 
     /// <summary>
@@ -359,8 +407,7 @@ public class DependencyModuleWriter
     {
         var method = classDefinition.AddMethod("InternalGetDecorators");
 
-        method.AddLeadingTrait(CodeOutputComponent.Get("[Browsable(false)]", true));
-        method.AddUsingNamespace("System.ComponentModel");
+        HideFromIntelliSense(method);
 
         method.InterfaceImplementation = KnownTypes.DependencyModules.Interfaces.IDependencyModule;
         method.SetReturnType(
@@ -394,8 +441,7 @@ public class DependencyModuleWriter
 
         var getModulesMethod = classDefinition.AddMethod("InternalGetModules");
 
-        getModulesMethod.AddLeadingTrait(CodeOutputComponent.Get("[Browsable(false)]", true));
-        getModulesMethod.AddUsingNamespace("System.ComponentModel");
+        HideFromIntelliSense(getModulesMethod);
 
         getModulesMethod.InterfaceImplementation = KnownTypes
             .DependencyModules
@@ -505,8 +551,7 @@ public class DependencyModuleWriter
     {
         var loadDependenciesMethod = classDefinition.AddMethod("InternalApplyServices");
 
-        loadDependenciesMethod.AddLeadingTrait(CodeOutputComponent.Get("[Browsable(false)]", true));
-        loadDependenciesMethod.AddUsingNamespace("System.ComponentModel");
+        HideFromIntelliSense(loadDependenciesMethod);
 
         loadDependenciesMethod.InterfaceImplementation = KnownTypes
             .DependencyModules
@@ -577,4 +622,14 @@ public class DependencyModuleWriter
     {
         classDefinition.AddConstructor().Modifiers = ComponentModifier.Static;
     }
+
+    /// <remarks>
+    /// Only <c>EditorBrowsable</c> hides a member from IntelliSense. <c>Browsable</c> is read by the
+    /// Properties window of a designer.
+    /// </remarks>
+    private static void HideFromIntelliSense(MethodDefinition method) =>
+        method.AddAttribute(
+            TypeDefinition.Get("System.ComponentModel", "EditorBrowsable"),
+            "global::System.ComponentModel.EditorBrowsableState.Never"
+        );
 }

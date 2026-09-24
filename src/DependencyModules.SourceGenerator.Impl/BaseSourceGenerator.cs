@@ -37,7 +37,7 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator
         return new[] { KnownTypes.DependencyModules.Attributes.DependencyModuleAttribute };
     }
 
-    private IncrementalValueProvider<DependencyModuleConfigurationModel> CreateConfigurationValueProvider(
+    internal static IncrementalValueProvider<DependencyModuleConfigurationModel> CreateConfigurationValueProvider(
         IncrementalGeneratorInitializationContext context
     )
     {
@@ -327,7 +327,6 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator
         }
 
         var dependencyFlags = GetDependencyFlags(context);
-        var implementsEqualsFlag = GetEqualsFlag(context);
         var modelInfo = AttributeModelHelper.GetAttributeClassInfo(context, cancellation);
 
         if (dependencyFlags.OnlyRealm)
@@ -339,9 +338,9 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator
         {
             features |= ModuleEntryPointFeatures.IsRecord;
         }
-        else if (!implementsEqualsFlag)
+        else
         {
-            features |= ModuleEntryPointFeatures.ShouldImplementEquals;
+            features |= GetEqualityFeatures(context, typeDeclarationSyntax, cancellation);
         }
 
         if (!typeDeclarationSyntax.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword)))
@@ -439,12 +438,69 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator
         );
     }
 
-    private bool GetEqualsFlag(GeneratorSyntaxContext context)
+    /// <summary>
+    /// Which equality members the generator writes for a module.
+    /// </summary>
+    /// <remarks>
+    /// Read from the symbol, so a member in any partial declaration counts. Only
+    /// <c>Equals(object)</c> is what the load operation calls, so a module that declares only
+    /// <c>Equals</c> for its own type still gets a generated <c>Equals(object)</c>, which calls it.
+    /// </remarks>
+    private static ModuleEntryPointFeatures GetEqualityFeatures(
+        GeneratorSyntaxContext context,
+        TypeDeclarationSyntax typeDeclarationSyntax,
+        CancellationToken cancellation
+    )
     {
-        return context
-            .Node.DescendantNodes()
-            .OfType<MethodDeclarationSyntax>()
-            .Any(m => m.Identifier.ToString().Equals("Equals"));
+        if (
+            context.SemanticModel.GetDeclaredSymbol(typeDeclarationSyntax, cancellation)
+            is not { } module
+        )
+        {
+            return ModuleEntryPointFeatures.ShouldImplementEquals
+                | ModuleEntryPointFeatures.ShouldImplementGetHashCode;
+        }
+
+        var features = ModuleEntryPointFeatures.None;
+
+        var declaresEqualsObject = false;
+
+        foreach (var member in module.GetMembers("Equals"))
+        {
+            if (member is not IMethodSymbol { IsStatic: false, Parameters.Length: 1 } equals)
+            {
+                continue;
+            }
+
+            var parameterType = equals.Parameters[0].Type;
+
+            if (parameterType.SpecialType == SpecialType.System_Object)
+            {
+                declaresEqualsObject = true;
+            }
+            else if (SymbolEqualityComparer.Default.Equals(parameterType, module))
+            {
+                features |= ModuleEntryPointFeatures.DeclaresTypedEquals;
+            }
+        }
+
+        if (declaresEqualsObject)
+        {
+            return features;
+        }
+
+        features |= ModuleEntryPointFeatures.ShouldImplementEquals;
+
+        var declaresGetHashCode = module
+            .GetMembers("GetHashCode")
+            .Any(member => member is IMethodSymbol { IsStatic: false, Parameters.Length: 0 });
+
+        if (!declaresGetHashCode)
+        {
+            features |= ModuleEntryPointFeatures.ShouldImplementGetHashCode;
+        }
+
+        return features;
     }
 
     private record DependencyFlags(
@@ -480,27 +536,39 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator
                     switch (name)
                     {
                         case "OnlyRealm":
-                            onlyRealm = argumentSyntax.Expression.ToString() == "true";
+                            onlyRealm =
+                                ConstantArgumentReader.ReadBool(context, argumentSyntax.Expression)
+                                ?? false;
                             break;
                         case "Using":
-                            registrationType = GetRegistrationType(
-                                argumentSyntax.Expression.ToString()
+                            registrationType = ConstantArgumentReader.ReadRegistrationType(
+                                context,
+                                argumentSyntax.Expression
                             );
                             break;
                         case "GenerateAttribute":
-                            generateAttribute =
-                                argumentSyntax.Expression.ToString().Trim('"') == "true";
+                            generateAttribute = ConstantArgumentReader.ReadBool(
+                                context,
+                                argumentSyntax.Expression
+                            );
                             break;
                         case "RegisterJsonSerializers":
-                            registerGenerator =
-                                argumentSyntax.Expression.ToString().Trim('"') == "true";
+                            registerGenerator = ConstantArgumentReader.ReadBool(
+                                context,
+                                argumentSyntax.Expression
+                            );
                             break;
                         case "GenerateUseMethod":
-                            useMethod = argumentSyntax.Expression.ToString().Trim('"');
+                            useMethod = ConstantArgumentReader.ReadString(
+                                context,
+                                argumentSyntax.Expression
+                            );
                             break;
                         case "GenerateFactories":
-                            generateFactories =
-                                argumentSyntax.Expression.ToString().Trim('"') == "true";
+                            generateFactories = ConstantArgumentReader.ReadBool(
+                                context,
+                                argumentSyntax.Expression
+                            );
                             break;
                     }
                 }

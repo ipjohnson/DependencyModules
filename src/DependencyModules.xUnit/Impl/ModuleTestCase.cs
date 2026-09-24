@@ -135,6 +135,7 @@ public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase
             services: serviceCollection,
             pinned: provider,
             pinnedServices: SharedRegistrations.Collect(TestMethod.Method, knownAttributes),
+            namedServices: SharedRegistrations.CollectNamed(TestMethod.Method, knownAttributes),
             build: services => BuildServiceProvider(context, services, knownAttributes),
             start: built => StartAsync(context, knownAttributes, built),
             track: _providers.Add
@@ -435,8 +436,11 @@ public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase
                         skipWhen: theoryDataRow.SkipWhen ?? SkipWhen,
                         testDisplayName: GetRowDisplayName(theoryDataRow, data),
                         testIndex: unitTests.Count,
-                        traits: theoryDataRow.Traits?.ToReadOnlyTraits()
-                            ?? Traits.ToReadOnlyTraits(),
+                        // The row adds its traits to those of the method and the class, which is
+                        // what [Theory] does with the same helper.
+                        traits: TestIntrospectionHelper
+                            .GetTraits(TestMethod, theoryDataRow)
+                            .ToReadOnlyTraits(),
                         timeout: theoryDataRow.Timeout ?? Timeout,
                         testMethodArguments: await ResolveArguments(data, startupValues)
                     )

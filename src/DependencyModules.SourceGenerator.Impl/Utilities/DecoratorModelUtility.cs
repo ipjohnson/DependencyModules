@@ -34,7 +34,7 @@ public static class DecoratorModelUtility
         }
 
         var decoratorType = GetDeclaredType(typeDeclarationSyntax, context);
-        var implemented = GetImplementedInterfaces(typeDeclarationSyntax, context);
+        var implemented = GetImplementedTypes(typeDeclarationSyntax, context, cancellationToken);
 
         var order = 0;
         ITypeDefinition? realm = null;
@@ -48,10 +48,7 @@ public static class DecoratorModelUtility
                 switch (argument.NameEquals?.Name.ToString())
                 {
                     case "Order":
-                        if (int.TryParse(argument.Expression.ToString(), out var parsed))
-                        {
-                            order = parsed;
-                        }
+                        order = ConstantArgumentReader.ReadInt(context, argument.Expression) ?? 0;
                         break;
                     case "Service":
                         explicitService = GetTypeOfArgument(argument, context);
@@ -71,7 +68,12 @@ public static class DecoratorModelUtility
 
         if (written == null)
         {
-            return null;
+            return Ignored(
+                decoratorType,
+                typeDeclarationSyntax,
+                "It implements no type that one of its constructor parameters takes, so it has no "
+                    + "service to decorate. Set Service on the attribute to name one"
+            );
         }
 
         var serviceType = written;
@@ -95,8 +97,41 @@ public static class DecoratorModelUtility
         var constructor = ServiceModelUtility.GetConstructorInfo(
             context,
             typeDeclarationSyntax,
-            cancellationToken
+            cancellationToken,
+            callableOnly: true
         );
+
+        if (constructor == null)
+        {
+            return Ignored(
+                decoratorType,
+                typeDeclarationSyntax,
+                "It has no constructor that generated code can call. Give it a public or internal "
+                    + "constructor"
+            );
+        }
+
+        var innerParameterIndex = IndexOfInnerParameter(constructor, written);
+
+        if (innerParameterIndex < 0)
+        {
+            return Ignored(
+                decoratorType,
+                typeDeclarationSyntax,
+                $"No parameter of its constructor takes '{written.Name}', so there is nowhere to "
+                    + "pass the instance it wraps"
+            );
+        }
+
+        if (!TypeParametersMatchService(typeDeclarationSyntax, written))
+        {
+            return Ignored(
+                decoratorType,
+                typeDeclarationSyntax,
+                $"Its type parameters are not the type arguments of '{written.Name}' in the same "
+                    + "order, so it cannot be closed over a registration"
+            );
+        }
 
         return new DecoratorModel(
             serviceType,
@@ -105,12 +140,27 @@ public static class DecoratorModelUtility
             realm,
             conditions,
             constructor,
-            IndexOfInnerParameter(constructor, written),
-            TypeParametersMatchService(typeDeclarationSyntax, written),
+            innerParameterIndex,
+            true,
             implementation,
             LocationModel.From(typeDeclarationSyntax)
         );
     }
+
+    /// <summary>
+    /// A <c>[Decorator]</c> class that the generator does not apply, carrying the reason for DM0025.
+    /// </summary>
+    private static DecoratorModel Ignored(
+        ITypeDefinition decoratorType,
+        TypeDeclarationSyntax typeDeclarationSyntax,
+        string reason
+    ) =>
+        DecoratorModel.Ignore with
+        {
+            DecoratorType = decoratorType,
+            Location = LocationModel.From(typeDeclarationSyntax),
+            IgnoredReason = reason,
+        };
 
     /// <summary>
     /// Which constructor parameter takes the service being wrapped.
@@ -301,29 +351,44 @@ public static class DecoratorModelUtility
         }
     }
 
-    private static IReadOnlyList<ITypeDefinition> GetImplementedInterfaces(
+    /// <summary>
+    /// The types a decorator can decorate: its base classes and every interface it implements.
+    /// </summary>
+    /// <remarks>
+    /// From the symbol, not the base list as written. A decorator can get its service through a base
+    /// class, or through an interface that extends it, and the base list names neither.
+    /// </remarks>
+    private static IReadOnlyList<ITypeDefinition> GetImplementedTypes(
         TypeDeclarationSyntax typeDeclarationSyntax,
-        SyntaxTransformContext context
+        SyntaxTransformContext context,
+        CancellationToken cancellationToken
     )
     {
-        var interfaces = new List<ITypeDefinition>();
+        var types = new List<ITypeDefinition>();
 
-        if (typeDeclarationSyntax.BaseList == null)
+        if (
+            context.SemanticModel.GetDeclaredSymbol(typeDeclarationSyntax, cancellationToken)
+            is not INamedTypeSymbol symbol
+        )
         {
-            return interfaces;
+            return types;
         }
 
-        foreach (var baseType in typeDeclarationSyntax.BaseList.Types)
+        for (
+            var baseType = symbol.BaseType;
+            baseType is { SpecialType: not SpecialType.System_Object };
+            baseType = baseType.BaseType
+        )
         {
-            var type = baseType.Type.GetTypeDefinition(context);
-
-            if (type != null)
-            {
-                interfaces.Add(type);
-            }
+            types.Add(baseType.GetTypeDefinition());
         }
 
-        return interfaces;
+        foreach (var interfaceSymbol in symbol.AllInterfaces)
+        {
+            types.Add(interfaceSymbol.GetTypeDefinition());
+        }
+
+        return types;
     }
 
     /// <summary>

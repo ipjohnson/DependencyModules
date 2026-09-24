@@ -132,22 +132,6 @@ public class ServiceModelUtility
         CancellationToken cancellationToken
     )
     {
-        // only support public or internal factory methods
-        if (
-            methodDeclarationSyntax.Modifiers.Any(m =>
-                m.IsKind(SyntaxKind.PrivateKeyword) || m.IsKind(SyntaxKind.ProtectedKeyword)
-            )
-        )
-        {
-            return null;
-        }
-
-        // only support static methods
-        if (!methodDeclarationSyntax.Modifiers.Any(m => m.IsKind(SyntaxKind.StaticKeyword)))
-        {
-            return null;
-        }
-
         var returnType = methodDeclarationSyntax.ReturnType.GetTypeDefinition(context);
         var factoryModel = GetFactoryModel(context, methodDeclarationSyntax, cancellationToken);
 
@@ -168,9 +152,46 @@ public class ServiceModelUtility
             factoryModel,
             null,
             GetRegistrations(context, returnType, models, cancellationToken),
-            RegistrationFeature.None,
+            FactoryMethodFeatures(context, methodDeclarationSyntax, cancellationToken),
             Location: LocationModel.From(context.Node)
         );
+    }
+
+    /// <summary>
+    /// Why the generated module cannot call a factory method, and whether the method returns a
+    /// class.
+    /// </summary>
+    /// <remarks>
+    /// Read from the symbol, not from the written modifiers. A method with no access modifier is
+    /// private, and a public method in a private class is out of reach too.
+    /// </remarks>
+    private static RegistrationFeature FactoryMethodFeatures(
+        SyntaxTransformContext context,
+        MethodDeclarationSyntax methodDeclarationSyntax,
+        CancellationToken cancellationToken
+    )
+    {
+        if (
+            context.SemanticModel.GetDeclaredSymbol(methodDeclarationSyntax, cancellationToken)
+            is not { } method
+        )
+        {
+            return RegistrationFeature.None;
+        }
+
+        if (!method.IsStatic)
+        {
+            return RegistrationFeature.FactoryMethodNotStatic;
+        }
+
+        if (!context.GeneratedCodeCanUse(method))
+        {
+            return RegistrationFeature.FactoryMethodInaccessible;
+        }
+
+        return method.ReturnType.TypeKind == TypeKind.Class
+            ? RegistrationFeature.FactoryReturnsClass
+            : RegistrationFeature.None;
     }
 
     private static ServiceFactoryModel? GetFactoryModel(
@@ -318,13 +339,20 @@ public class ServiceModelUtility
             factoryOutput = FactoryOutput;
         }
 
+        var features = GetConstructionFeatures(context, cancellationToken);
+
+        if (CrossWiresOnlyInheritedInterfaces(context, cancellationToken))
+        {
+            features |= RegistrationFeature.CrossWireInheritedInterfaces;
+        }
+
         return new ServiceModel(
             classDefinition,
             GetConstructorInfo(context, context.Node, cancellationToken),
             null,
             factoryOutput,
             registrations,
-            GetConstructionFeatures(context, cancellationToken),
+            features,
             EnvironmentConditionUtility.GetConditions(context, context.Node, cancellationToken),
             LocationModel.From(context.Node)
         );
@@ -347,13 +375,20 @@ public class ServiceModelUtility
     /// type's parameters.
     /// </para>
     /// </remarks>
+    /// <param name="callableOnly">
+    /// Skip every constructor that generated code cannot call, and return null when that leaves
+    /// none. A decorator is always built with a literal <c>new</c>, so a protected constructor there
+    /// is CS0122 in generated code.
+    /// </param>
     public static ConstructorInfoModel? GetConstructorInfo(
         SyntaxTransformContext context,
         SyntaxNode node,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        bool callableOnly = false
     )
     {
         var constructorList = new List<ConstructorDeclarationSyntax>();
+        var declaredAny = false;
 
         var members = node is TypeDeclarationSyntax declaration
             ? declaration.Members.OfType<ConstructorDeclarationSyntax>()
@@ -363,7 +398,28 @@ public class ServiceModelUtility
         {
             if (constructor.Modifiers.Any(m => m.IsKind(SyntaxKind.PrivateKeyword)))
             {
+                declaredAny = true;
+
                 continue;
+            }
+
+            if (callableOnly)
+            {
+                if (constructor.Modifiers.Any(m => m.IsKind(SyntaxKind.StaticKeyword)))
+                {
+                    continue;
+                }
+
+                declaredAny = true;
+
+                if (
+                    context.SemanticModel.GetDeclaredSymbol(constructor, cancellationToken)
+                        is not { } symbol
+                    || !context.GeneratedCodeCanUse(symbol)
+                )
+                {
+                    continue;
+                }
             }
 
             if (
@@ -397,7 +453,9 @@ public class ServiceModelUtility
 
         if (constructorList.Count == 0)
         {
-            return new ConstructorInfoModel(ImmutableArray<ParameterInfoModel>.Empty);
+            return callableOnly && declaredAny
+                ? null
+                : new ConstructorInfoModel(ImmutableArray<ParameterInfoModel>.Empty);
         }
 
         if (constructorList.Count == 1)
@@ -505,7 +563,17 @@ public class ServiceModelUtility
     {
         var list = new List<ServiceRegistrationModel>();
 
-        foreach (var attributeSyntax in context.Node.DescendantNodes().OfType<AttributeSyntax>())
+        // The declaration's own attributes only. An attribute on a nested class or on a factory
+        // method in this class registers that class or that method, not this one.
+        var attributeLists = context.Node is MemberDeclarationSyntax member
+            ? member.AttributeLists
+            : default;
+
+        foreach (
+            var attributeSyntax in attributeLists.SelectMany(attributeList =>
+                attributeList.Attributes
+            )
+        )
         {
             foreach (var typeDefinition in _attributeTypes)
             {
@@ -587,13 +655,18 @@ public class ServiceModelUtility
                             break;
 
                         case "Using":
-                            registrationType = BaseSourceGenerator.GetRegistrationType(
-                                argumentSyntax.Expression.ToString()
+                            registrationType = ConstantArgumentReader.ReadRegistrationType(
+                                context,
+                                argumentSyntax.Expression
                             );
                             break;
 
                         case "Lifetime":
-                            lifestyle = GetLifestyle(argumentSyntax.Expression.ToString());
+                            lifestyle =
+                                ConstantArgumentReader.ReadLifetime(
+                                    context,
+                                    argumentSyntax.Expression
+                                ) ?? ServiceLifestyle.Singleton;
                             break;
 
                         case "Realm":
@@ -604,60 +677,102 @@ public class ServiceModelUtility
                             break;
 
                         case "Order":
-                            if (
-                                int.TryParse(
-                                    argumentSyntax.Expression.ToString(),
-                                    out var parsedOrder
-                                )
-                            )
-                            {
-                                order = parsedOrder;
-                            }
+                            order =
+                                ConstantArgumentReader.ReadInt(context, argumentSyntax.Expression)
+                                ?? 0;
                             break;
                     }
                 }
             }
         }
 
-        if (context.Node is TypeDeclarationSyntax { BaseList: not null } typeDeclarationSyntax)
-        {
-            foreach (var baseTypeSyntax in typeDeclarationSyntax.BaseList.Types)
-            {
-                var type = baseTypeSyntax.Type.GetTypeDefinition(context);
+        // The interfaces the implementation declares, from every partial declaration. For a
+        // factory method, the implementation is the return type.
+        var declared = CrossWiredImplementation(context)?.Interfaces ?? default;
 
-                if (type?.TypeDefinitionEnum == TypeDefinitionEnum.InterfaceDefinition)
-                {
-                    yield return new ServiceRegistrationModel(
-                        type,
-                        lifestyle,
-                        registrationType,
-                        realm,
-                        key,
-                        true,
-                        namespaces,
-                        order
-                    );
-                }
-            }
+        if (declared.IsDefaultOrEmpty)
+        {
+            // Nothing to share the instance with, so the implementation is registered on its own.
+            yield return new ServiceRegistrationModel(
+                classDefinition,
+                lifestyle,
+                registrationType,
+                realm,
+                key,
+                false,
+                namespaces,
+                order
+            );
+
+            yield break;
+        }
+
+        foreach (var interfaceSymbol in declared)
+        {
+            yield return new ServiceRegistrationModel(
+                interfaceSymbol.GetTypeDefinition(),
+                lifestyle,
+                registrationType,
+                realm,
+                key,
+                true,
+                namespaces,
+                order
+            );
         }
     }
 
-    private static ServiceLifestyle GetLifestyle(string toString)
-    {
-        // The value arrives as written in source, normally qualified: "ServiceLifetime.Scoped".
-        // Parsing that whole string fails, and the silent fallback below then registered every
-        // cross-wired service as a singleton regardless of the lifetime the developer asked for.
-        var separatorIndex = toString.LastIndexOf('.');
-
-        var value =
-            separatorIndex >= 0 ? toString.Substring(separatorIndex + 1).Trim() : toString.Trim();
-
-        if (Enum.TryParse(value, out ServiceLifestyle lifestyle))
+    private static INamedTypeSymbol? CrossWiredImplementation(SyntaxTransformContext context) =>
+        context.Node switch
         {
-            return lifestyle;
+            TypeDeclarationSyntax type => context.SemanticModel.GetDeclaredSymbol(type),
+            MethodDeclarationSyntax method => context
+                .SemanticModel.GetDeclaredSymbol(method)
+                ?.ReturnType as INamedTypeSymbol,
+            _ => null,
+        };
+
+    /// <summary>
+    /// Whether a <c>[CrossWireService]</c> class declares no interface but gets one from a base
+    /// class.
+    /// </summary>
+    /// <remarks>
+    /// Cross-wiring takes only the interfaces the class declares. The class is then registered on
+    /// its own, and a service that asks for the inherited interface does not get it.
+    /// </remarks>
+    private static bool CrossWiresOnlyInheritedInterfaces(
+        SyntaxTransformContext context,
+        CancellationToken cancellationToken
+    )
+    {
+        if (
+            context.Node is not TypeDeclarationSyntax typeDeclaration
+            || context.SemanticModel.GetDeclaredSymbol(typeDeclaration, cancellationToken)
+                is not { Interfaces.Length: 0, AllInterfaces.Length: > 0 }
+        )
+        {
+            return false;
         }
 
-        return ServiceLifestyle.Singleton;
+        foreach (var attributeList in typeDeclaration.AttributeLists)
+        {
+            foreach (var attribute in attributeList.Attributes)
+            {
+                if (
+                    AttributeTypeMatcher.Matches(
+                        context.SemanticModel,
+                        attribute,
+                        _crossWireService,
+                        cancellationToken
+                    )
+                )
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private static ServiceRegistrationModel GetServiceRegistration(
@@ -709,8 +824,9 @@ public class ServiceModelUtility
                             }
                             break;
                         case "Using":
-                            registrationType = BaseSourceGenerator.GetRegistrationType(
-                                argumentSyntax.Expression.ToString()
+                            registrationType = ConstantArgumentReader.ReadRegistrationType(
+                                context,
+                                argumentSyntax.Expression
                             );
                             break;
 
@@ -738,15 +854,9 @@ public class ServiceModelUtility
                             break;
 
                         case "Order":
-                            if (
-                                int.TryParse(
-                                    argumentSyntax.Expression.ToString(),
-                                    out var parsedOrder
-                                )
-                            )
-                            {
-                                order = parsedOrder;
-                            }
+                            order =
+                                ConstantArgumentReader.ReadInt(context, argumentSyntax.Expression)
+                                ?? 0;
                             break;
                     }
                 }

@@ -325,15 +325,10 @@ namespace DependencyModules.Runtime.Interfaces
     {
         bool LoadModule { get; }
         System.Collections.Generic.IEnumerable<DependencyModules.Runtime.Interfaces.IDependencyModule> GetModules();
-        [System.ComponentModel.Browsable(false)]
         void InternalApplyDecorators(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection);
-        [System.ComponentModel.Browsable(false)]
         void InternalApplyServices(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection);
-        [System.ComponentModel.Browsable(false)]
         void InternalApplyServices(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection, DependencyModules.Runtime.Interfaces.IModuleEnvironment environment);
-        [System.ComponentModel.Browsable(false)]
         System.Collections.Generic.IEnumerable<DependencyModules.Runtime.Helpers.DecoratorRegistration> InternalGetDecorators();
-        [System.ComponentModel.Browsable(false)]
         System.Collections.Generic.IEnumerable<object> InternalGetModules();
         void PopulateServiceCollection(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection);
     }

@@ -87,13 +87,16 @@ public static class ConventionCandidateUtility
 
         var typeDeclaration = (TypeDeclarationSyntax)node;
 
+        // Only what the written modifiers settle. The transform reads the symbol of a nested type,
+        // because a nested type with no access modifier is private, and a protected internal one
+        // can be used by generated code.
         foreach (var modifier in typeDeclaration.Modifiers)
         {
             if (
                 modifier.IsKind(SyntaxKind.StaticKeyword)
                 || modifier.IsKind(SyntaxKind.AbstractKeyword)
                 || modifier.IsKind(SyntaxKind.PrivateKeyword)
-                || modifier.IsKind(SyntaxKind.ProtectedKeyword)
+                || modifier.IsKind(SyntaxKind.FileKeyword)
             )
             {
                 return false;
@@ -148,12 +151,31 @@ public static class ConventionCandidateUtility
         // the second run after an edit took 40 ms with the symbol and 12 ms without.
         if (typeDeclaration.BaseList is not { Types.Count: > 0 })
         {
+            // Except for a nested or partial type. Its access, its containing type, or a constructor
+            // on another declaration is not in this syntax. Both are rare.
+            INamedTypeSymbol? bound = null;
+
+            if (
+                typeDeclaration.Parent is TypeDeclarationSyntax
+                || typeDeclaration.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword))
+            )
+            {
+                bound = context.SemanticModel.GetDeclaredSymbol(typeDeclaration, cancellationToken);
+
+                if (bound == null || !context.GeneratedCodeCanUse(bound))
+                {
+                    return ConventionCandidateModel.Ignore;
+                }
+            }
+
             return new ConventionCandidateModel(
-                typeDeclaration.GetTypeDefinition(),
+                bound != null ? ImplementationTypeOf(bound) : typeDeclaration.GetTypeDefinition(),
                 Array.Empty<ImplementedInterfaceModel>(),
                 Array.Empty<ImplementedInterfaceModel>(),
                 ServiceModelUtility.GetConstructorInfo(context, typeDeclaration, cancellationToken),
-                DeclaresAccessibleConstructor(typeDeclaration),
+                bound != null
+                    ? ConstructorAccessOf(bound)
+                    : DeclaredConstructorAccess(typeDeclaration),
                 LocationModel.From(typeDeclaration),
                 EnvironmentConditionUtility.GetConditions(
                     context,
@@ -164,7 +186,10 @@ public static class ConventionCandidateUtility
             );
         }
 
-        if (context.SemanticModel.GetDeclaredSymbol(typeDeclaration) is not INamedTypeSymbol symbol)
+        if (
+            context.SemanticModel.GetDeclaredSymbol(typeDeclaration) is not INamedTypeSymbol symbol
+            || !context.GeneratedCodeCanUse(symbol)
+        )
         {
             return ConventionCandidateModel.Ignore;
         }
@@ -186,7 +211,7 @@ public static class ConventionCandidateUtility
             declared,
             viaBaseClass,
             ServiceModelUtility.GetConstructorInfo(context, typeDeclaration, cancellationToken),
-            HasAccessibleConstructor(symbol),
+            ConstructorAccessOf(symbol),
             LocationModel.From(typeDeclaration),
             EnvironmentConditionUtility.GetConditions(context, typeDeclaration, cancellationToken),
             CollectAttributeKeys(context, typeDeclaration, cancellationToken)
@@ -403,29 +428,24 @@ public static class ConventionCandidateUtility
     }
 
     /// <summary>
-    /// Whether the container could construct this type at all.
-    /// </summary>
-    /// <remarks>
-    /// A concrete class whose constructors are all private is the case DM0006 exists for. It is
-    /// surprising in a way an abstract base is not, which is why abstract types are dropped by the
-    /// predicate and this is reported.
-    /// </remarks>
-    /// <summary>
-    /// The syntactic counterpart of <see cref="HasAccessibleConstructor"/>, for the path that has no
+    /// The syntactic counterpart of <see cref="ConstructorAccessOf"/>, for the path that has no
     /// symbol.
     /// </summary>
     /// <remarks>
-    /// A type declaring no constructor has the implicit public parameterless one; a primary
-    /// constructor is public; otherwise any constructor not marked private or protected will do.
+    /// A type that declares no constructor has the implicit public one, and a primary constructor is
+    /// public. A declared constructor with no access modifier is private.
     /// </remarks>
-    private static bool DeclaresAccessibleConstructor(TypeDeclarationSyntax typeDeclaration)
+    private static ConstructorAccess DeclaredConstructorAccess(
+        TypeDeclarationSyntax typeDeclaration
+    )
     {
-        if (typeDeclaration.ParameterList is { Parameters.Count: >= 0 })
+        if (typeDeclaration.ParameterList != null)
         {
-            return true;
+            return ConstructorAccess.Public;
         }
 
         var declaredAny = false;
+        var widest = ConstructorAccess.None;
 
         foreach (var constructor in typeDeclaration.Members.OfType<ConstructorDeclarationSyntax>())
         {
@@ -436,39 +456,46 @@ public static class ConventionCandidateUtility
 
             declaredAny = true;
 
-            var hidden = constructor.Modifiers.Any(m =>
-                m.IsKind(SyntaxKind.PrivateKeyword) || m.IsKind(SyntaxKind.ProtectedKeyword)
-            );
-
-            if (!hidden)
+            if (constructor.Modifiers.Any(m => m.IsKind(SyntaxKind.PublicKeyword)))
             {
-                return true;
+                return ConstructorAccess.Public;
+            }
+
+            if (constructor.Modifiers.Any(m => m.IsKind(SyntaxKind.InternalKeyword)))
+            {
+                widest = ConstructorAccess.Assembly;
             }
         }
 
-        return !declaredAny;
+        return declaredAny ? widest : ConstructorAccess.Public;
     }
 
-    private static bool HasAccessibleConstructor(INamedTypeSymbol symbol)
+    /// <summary>
+    /// The widest access among the constructors of the type.
+    /// </summary>
+    /// <remarks>
+    /// A concrete class that nothing outside it can construct is the case DM0006 exists for. It is
+    /// surprising in a way an abstract base is not, which is why abstract types are dropped by the
+    /// predicate and this is reported.
+    /// </remarks>
+    private static ConstructorAccess ConstructorAccessOf(INamedTypeSymbol symbol)
     {
-        if (symbol.InstanceConstructors.Length == 0)
-        {
-            return true;
-        }
+        var widest = ConstructorAccess.None;
 
         foreach (var constructor in symbol.InstanceConstructors)
         {
-            if (
-                constructor.DeclaredAccessibility
-                is Accessibility.Public
-                    or Accessibility.Internal
-                    or Accessibility.ProtectedOrInternal
-            )
+            switch (constructor.DeclaredAccessibility)
             {
-                return true;
+                case Accessibility.Public:
+                    return ConstructorAccess.Public;
+
+                case Accessibility.Internal:
+                case Accessibility.ProtectedOrInternal:
+                    widest = ConstructorAccess.Assembly;
+                    break;
             }
         }
 
-        return false;
+        return widest;
     }
 }

@@ -25,6 +25,17 @@ public enum ModuleEntryPointFeatures
     /// namespace level, the nested declaration never became a module, and the build stayed green.
     /// </remarks>
     NestedInType = 32,
+
+    /// <summary>
+    /// The module declares no <c>GetHashCode()</c>. Read only with <see cref="ShouldImplementEquals"/>.
+    /// </summary>
+    ShouldImplementGetHashCode = 64,
+
+    /// <summary>
+    /// The module declares <c>Equals</c> for its own type, which the generated
+    /// <c>Equals(object)</c> calls.
+    /// </summary>
+    DeclaresTypedEquals = 128,
 }
 
 public record ModuleEntryPointModel(

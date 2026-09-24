@@ -59,6 +59,28 @@ public static class SharedRegistrations
     public static IReadOnlyCollection<Type> Collect(
         MethodInfo method,
         IEnumerable<Attribute> knownAttributes
+    ) => Pins(method, knownAttributes).Pinned;
+
+    /// <summary>
+    /// The services in <see cref="Collect"/> that an attribute names in
+    /// <see cref="ISharedTestRegistration.SharedServices"/>.
+    /// </summary>
+    /// <remarks>
+    /// The test asked for each of these by name. So the container source reports one that the
+    /// test's container cannot produce, where it leaves a type drawn from a signature alone.
+    /// </remarks>
+    /// <param name="method">The test method, for its parameters.</param>
+    /// <param name="knownAttributes">
+    /// The attributes in scope for the test, widest first, as the runner collected them.
+    /// </param>
+    public static IReadOnlyCollection<Type> CollectNamed(
+        MethodInfo method,
+        IEnumerable<Attribute> knownAttributes
+    ) => Pins(method, knownAttributes).Named;
+
+    private static (HashSet<Type> Pinned, HashSet<Type> Named) Pins(
+        MethodInfo method,
+        IEnumerable<Attribute> knownAttributes
     )
     {
         var attributes =
@@ -75,6 +97,7 @@ public static class SharedRegistrations
         }
 
         var pinned = new HashSet<Type>();
+        var named = new HashSet<Type>();
 
         foreach (var parameter in method.GetParameters())
         {
@@ -99,6 +122,7 @@ public static class SharedRegistrations
                 foreach (var service in declaration.SharedServices)
                 {
                     pinned.Add(service);
+                    named.Add(service);
                 }
             }
         }
@@ -113,11 +137,13 @@ public static class SharedRegistrations
             foreach (var service in registration.SharedServices)
             {
                 pinned.Add(service);
+                named.Add(service);
             }
         }
 
         pinned.ExceptWith(isolated);
+        named.ExceptWith(isolated);
 
-        return pinned;
+        return (pinned, named);
     }
 }

@@ -53,7 +53,12 @@ public record DecoratorModel(
     /// project. Null for a decorator declared through [Decorate] on a module, which names two types
     /// and has no declaration of its own to point at.
     /// </summary>
-    LocationModel? Location = null
+    LocationModel? Location = null,
+    /// <summary>
+    /// Why a <c>[Decorator]</c> class is not applied, as the sentence DM0025 reports. Null for a
+    /// decorator that can be applied.
+    /// </summary>
+    string? IgnoredReason = null
 )
 {
     /// <summary>
@@ -100,7 +105,11 @@ public record DecoratorModel(
         null
     );
 
-    public bool IsIgnored => ReferenceEquals(this, Ignore);
+    /// <summary>
+    /// A decorator that produces nothing: the sentinel, or a <c>[Decorator]</c> class the generator
+    /// cannot apply, which DM0025 reports.
+    /// </summary>
+    public bool IsIgnored => ReferenceEquals(this, Ignore) || IgnoredReason != null;
 }
 
 /// <summary>
@@ -132,7 +141,8 @@ public class DecoratorModelComparer : IEqualityComparer<DecoratorModel>
             && x.InnerParameterIndex == y.InnerParameterIndex
             && x.TypeParametersMatchService == y.TypeParametersMatchService
             && Equals(x.Constructor, y.Constructor)
-            && ConditionsEqual(x.Conditions, y.Conditions);
+            && ConditionsEqual(x.Conditions, y.Conditions)
+            && x.IgnoredReason == y.IgnoredReason;
     }
 
     // Structural rather than by reference: two runs build separate lists, so comparing references
@@ -154,6 +164,7 @@ public class DecoratorModelComparer : IEqualityComparer<DecoratorModel>
             hash = hash * 31 + obj.InnerParameterIndex;
             hash = hash * 31 + (obj.Constructor?.GetHashCode() ?? 0);
             hash = hash * 31 + ModelEquality.ListHashCode(obj.Conditions);
+            hash = hash * 31 + (obj.IgnoredReason?.GetHashCode() ?? 0);
 
             return hash;
         }

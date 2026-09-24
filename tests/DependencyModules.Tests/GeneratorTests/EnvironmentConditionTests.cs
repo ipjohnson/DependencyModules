@@ -481,6 +481,60 @@ public class EnvironmentConditionTests
         );
     }
 
+    [Fact]
+    public void AConditionThatTestsNothingOnAConventionClassIsRefused()
+    {
+        var result = GeneratorTestHarness.Run(
+            """
+            using DependencyModules.Runtime.Attributes;
+            using DependencyModules.Runtime.Conventions;
+
+            namespace TestNamespace;
+
+            public interface IRule { }
+
+            [IfEnvironment]
+            public class EmptyRule : IRule { }
+
+            [DependencyModule]
+            public partial class TestModule : IConventionModule
+            {
+                public void Conventions(IConventionDefinitions conventions)
+                {
+                    conventions.RegisterAll<IRule>().AsSingleton();
+                }
+            }
+            """
+        );
+
+        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0012");
+
+        Assert.Contains("EmptyRule", diagnostic.GetMessage());
+    }
+
+    [Fact]
+    public void AConditionThatTestsNothingOnADecoratorIsRefused()
+    {
+        var result = GeneratorTestHarness.Run(
+            Preamble
+                + """
+                public interface IThing { }
+
+                [SingletonService]
+                public class Thing : IThing { }
+
+                [Decorator]
+                [IfEnvironmentValue("")]
+                public class LoggingThing(IThing inner) : IThing { }
+                """
+                + Module
+        );
+
+        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0012");
+
+        Assert.Contains("LoggingThing", diagnostic.GetMessage());
+    }
+
     /// <summary>
     /// A const rather than a literal has to read as the string it evaluates to, or a codebase that
     /// keeps its environment names in one place would silently never match.

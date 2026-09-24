@@ -99,9 +99,10 @@ public class InterceptorRegistrationWriter
         // interface instead made every interceptor visible to every wrapper, and two services with
         // different interceptors cross-applied each other's.
         //
-        // TryAdd keeps a registration the developer made themselves, so an interceptor carrying its
-        // own service attribute keeps that lifetime; services are applied before decorators, so
-        // theirs is the one already in the collection.
+        // TryAdd keeps a registration of the interceptor class that the developer made. Services are
+        // applied before decorators, so that registration is already in the collection. A service
+        // attribute without As registers the interceptor as its first interface, not as its class,
+        // so the class still gets this registration.
         var registered = new HashSet<ITypeDefinition>();
 
         foreach (var interceptor in model.Interceptors)
@@ -228,9 +229,10 @@ public class InterceptorRegistrationWriter
     /// The TryAdd overload for an interceptor's declared lifetime.
     /// </summary>
     /// <remarks>
-    /// Still TryAdd whichever it is, so an interceptor carrying its own service attribute keeps the
-    /// lifetime that attribute gave it - services are applied before decorators, so that
-    /// registration is already in the collection by the time this runs.
+    /// Still TryAdd whichever it is, so a registration of the interceptor class that the developer
+    /// made keeps its lifetime. Services are applied before decorators, so that registration is
+    /// already in the collection by the time this runs. A service attribute without As registers the
+    /// interceptor as its first interface, so it does not make that registration.
     /// </remarks>
     private static string TryAddMethodFor(ServiceLifestyle lifestyle) =>
         lifestyle switch

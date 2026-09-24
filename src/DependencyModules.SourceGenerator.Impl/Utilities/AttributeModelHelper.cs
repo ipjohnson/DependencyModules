@@ -43,32 +43,38 @@ public static class AttributeModelHelper
     {
         var propertyList = new List<PropertyInfoModel>();
 
-        foreach (var syntax in context.Node.DescendantNodes())
+        // The module's own members only. A property of a nested type is not a module parameter.
+        var members = context.Node is TypeDeclarationSyntax typeDeclaration
+            ? typeDeclaration.Members
+            : default;
+
+        foreach (var propertyDeclarationSyntax in members.OfType<PropertyDeclarationSyntax>())
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (syntax is PropertyDeclarationSyntax propertyDeclarationSyntax)
+            var setter = propertyDeclarationSyntax.AccessorList?.Accessors.FirstOrDefault(x =>
+                x.IsKind(SyntaxKind.SetAccessorDeclaration)
+            );
+
+            var propertyType = propertyDeclarationSyntax.Type.GetTypeDefinition(context);
+
+            if (propertyType != null)
             {
-                var setter = propertyDeclarationSyntax.AccessorList?.Accessors.FirstOrDefault(x =>
-                    x.IsKind(SyntaxKind.SetAccessorDeclaration)
+                propertyList.Add(
+                    new PropertyInfoModel(
+                        propertyType,
+                        propertyDeclarationSyntax.Identifier.ToString(),
+                        setter == null,
+                        propertyDeclarationSyntax.Modifiers.Any(m =>
+                            m.IsKind(SyntaxKind.StaticKeyword)
+                        ),
+                        IsVisibleToAttribute(propertyDeclarationSyntax.Modifiers)
+                            && (
+                                setter is not { Modifiers.Count: > 0 }
+                                || IsVisibleToAttribute(setter.Modifiers)
+                            )
+                    )
                 );
-
-                var propertyType = propertyDeclarationSyntax.Type.GetTypeDefinition(context);
-
-                if (propertyType != null)
-                {
-                    propertyList.Add(
-                        new PropertyInfoModel(
-                            propertyType,
-                            propertyDeclarationSyntax.Identifier.ToString(),
-                            setter == null,
-                            propertyDeclarationSyntax.Modifiers.Any(m =>
-                                m.IsKind(SyntaxKind.StaticKeyword)
-                            ),
-                            IsVisibleToAttribute(propertyDeclarationSyntax.Modifiers)
-                        )
-                    );
-                }
             }
         }
 
@@ -80,8 +86,9 @@ public static class AttributeModelHelper
     }
 
     /// <summary>
-    /// Whether a property with these modifiers can be read and written from another type in the
-    /// same assembly — which is what the generated attribute is.
+    /// Whether a property or a set accessor with these modifiers can be used from another type in
+    /// the same assembly — which is what the generated attribute is. A set accessor with no
+    /// modifier has the access of its property.
     /// </summary>
     /// <remarks>
     /// Read from syntax rather than from the symbol, because everything else in this transform is

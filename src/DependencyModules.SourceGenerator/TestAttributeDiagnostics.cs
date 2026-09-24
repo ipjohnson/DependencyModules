@@ -46,8 +46,20 @@ internal static class TestAttributeDiagnostics
 
         // With the compilation, so the location carries its syntax tree and .editorconfig and
         // #pragma can reach this like any other code. Emits nothing, so re-running it per keystroke
-        // costs a walk over findings that are almost always none.
-        context.RegisterSourceOutput(methods.Combine(context.CompilationProvider), Report);
+        // costs a walk over findings that are almost always none. The configuration is here only
+        // for the log folder, because a test project often declares no module to take it from.
+        context.RegisterSourceOutput(
+            methods
+                .Combine(BaseSourceGenerator.CreateConfigurationValueProvider(context))
+                .Combine(context.CompilationProvider),
+            (productionContext, input) =>
+                FileLogger.Wrap(
+                    "TestAttributeDiagnostics",
+                    input.Left.Right,
+                    productionContext,
+                    _ => Report(productionContext, (input.Left.Left, input.Right))
+                )
+        );
     }
 
     /// <summary>
@@ -75,18 +87,36 @@ internal static class TestAttributeDiagnostics
             return null;
         }
 
+        var pairedByMoq = MoqMockedTypes(method, context);
+
         foreach (var parameter in method.ParameterList.Parameters)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (!CarriesMock(parameter, context, cancellationToken))
+            // A keyed mock is registered under its key, so the unkeyed export stays in use.
+            if (
+                !Carries(
+                    parameter,
+                    KnownTypes.DependencyModules.Testing.MockAttribute,
+                    context,
+                    cancellationToken
+                )
+                || Carries(
+                    parameter,
+                    KnownTypes.Microsoft.DependencyInjection.FromKeyedServicesAttribute,
+                    context,
+                    cancellationToken
+                )
+            )
             {
                 continue;
             }
 
             var parameterType = parameter.Type?.GetTypeDefinition(context);
 
-            if (parameterType == null)
+            // Moq registers T itself when the test also takes Mock<T>, and [Mock] T then registers
+            // nothing. The export replaces mock.Object, so the parameter gets the export.
+            if (parameterType == null || pairedByMoq.Contains(parameterType))
             {
                 continue;
             }
@@ -152,8 +182,33 @@ internal static class TestAttributeDiagnostics
         return services;
     }
 
-    private static bool CarriesMock(
+    /// <summary>
+    /// The <c>T</c> of each <c>Moq.Mock&lt;T&gt;</c> parameter.
+    /// </summary>
+    private static HashSet<ITypeDefinition> MoqMockedTypes(
+        MethodDeclarationSyntax method,
+        SyntaxTransformContext context
+    )
+    {
+        var mocked = new HashSet<ITypeDefinition>();
+
+        foreach (var parameter in method.ParameterList.Parameters)
+        {
+            if (
+                parameter.Type?.GetTypeDefinition(context) is
+                { Namespace: "Moq", Name: "Mock", TypeArguments.Count: 1 } mock
+            )
+            {
+                mocked.Add(mock.TypeArguments[0]);
+            }
+        }
+
+        return mocked;
+    }
+
+    private static bool Carries(
         ParameterSyntax parameter,
+        ITypeDefinition attributeType,
         SyntaxTransformContext context,
         System.Threading.CancellationToken cancellationToken
     )
@@ -166,7 +221,7 @@ internal static class TestAttributeDiagnostics
                     AttributeTypeMatcher.Matches(
                         context.SemanticModel,
                         attribute,
-                        KnownTypes.DependencyModules.Testing.MockAttribute,
+                        attributeType,
                         cancellationToken
                     )
                 )

@@ -10,7 +10,7 @@
 #   * MSBuild properties not reaching the generator through the packaged .targets
 #   * Roslyn/compiler dependencies leaking into consumers' dependency graphs
 #
-# Usage: build/verify-packages.sh [version]
+# Usage: scripts/verify-packages.sh [version]
 
 set -euo pipefail
 
@@ -29,6 +29,28 @@ trap cleanup EXIT
 
 fail() { printf 'FAIL: %b\n' "$*" >&2; exit 1; }
 pass() { echo "  ok: $*"; }
+
+write_nuget_config() {
+    cat >"$1/nuget.config" <<EOF
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <packageSources>
+    <clear/>
+    <add key="local" value="${FEED}"/>
+    <add key="nuget.org" value="https://api.nuget.org/v3/index.json"/>
+  </packageSources>
+  <!--
+    A private extraction cache, so this really consumes the packages just packed. NuGet keys the
+    global cache on id/version alone: with a fixed VERSION like 1.0.0-verify, an extraction left
+    over from an earlier run shadows the new .nupkg entirely and the script grades stale bits.
+    That silently hid a package whose lib/ layout had changed underneath it.
+  -->
+  <config>
+    <add key="globalPackagesFolder" value="${WORK_DIR}/nuget-cache"/>
+  </config>
+</configuration>
+EOF
+}
 
 echo "==> Packing ${VERSION} into a local feed"
 mkdir -p "${FEED}"
@@ -143,25 +165,7 @@ case "${TFM}" in
 esac
 
 mkdir -p "${APP}"
-cat >"${APP}/nuget.config" <<EOF
-<?xml version="1.0" encoding="utf-8"?>
-<configuration>
-  <packageSources>
-    <clear/>
-    <add key="local" value="${FEED}"/>
-    <add key="nuget.org" value="https://api.nuget.org/v3/index.json"/>
-  </packageSources>
-  <!--
-    A private extraction cache, so this really consumes the packages just packed. NuGet keys the
-    global cache on id/version alone: with a fixed VERSION like 1.0.0-verify, an extraction left
-    over from an earlier run shadows the new .nupkg entirely and the script grades stale bits.
-    That silently hid a package whose lib/ layout had changed underneath it.
-  -->
-  <config>
-    <add key="globalPackagesFolder" value="${WORK_DIR}/nuget-cache"/>
-  </config>
-</configuration>
-EOF
+write_nuget_config "${APP}"
 
 cat >"${APP}/ConsumerApp.csproj" <<EOF
 <Project Sdk="Microsoft.NET.Sdk">
@@ -295,6 +299,37 @@ output="$(dotnet run --project "${APP}/ConsumerApp.csproj" -c Release --no-build
 pass "${TFM} resolved a generated registration at run time"
 
 done
+
+echo "==> Building a generator project against DependencyModules.SourceGenerator.Impl"
+
+# The package ships sources for another generator to compile. They must compile with only this
+# package referenced, or the package works only for a consumer who knows what else to add.
+GEN="${WORK_DIR}/ConsumerGenerator"
+mkdir -p "${GEN}"
+write_nuget_config "${GEN}"
+
+cat >"${GEN}/ConsumerGenerator.csproj" <<EOF
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <PackageDependencyModuleIncludeSource>true</PackageDependencyModuleIncludeSource>
+    <!-- Release tracking of the DM diagnostics, which this project has no files for. -->
+    <NoWarn>\$(NoWarn);RS2008</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="DependencyModules.SourceGenerator.Impl" Version="${VERSION}" PrivateAssets="all"/>
+  </ItemGroup>
+</Project>
+EOF
+
+dotnet build "${GEN}/ConsumerGenerator.csproj" -c Release --nologo -v quiet \
+    || fail "a generator project that references only DependencyModules.SourceGenerator.Impl failed to build"
+pass "DependencyModules.SourceGenerator.Impl sources compile with nothing else referenced"
 
 echo
 echo "All package verification checks passed for: ${TFMS[*]}"

@@ -180,13 +180,14 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
     /// Drops what the container could never construct and what cannot be cross-wired. Emitting
     /// either produces code that fails a long way from the declaration responsible — at provider
     /// build for an abstract or static type, and at compile time for a cross-wired generic. Each is
-    /// explained by a diagnostic; this only decides what not to write.
+    /// explained by a diagnostic; this only decides what not to write. A factory method that the
+    /// module cannot call is dropped for the same reason.
     /// </remarks>
     private static ImmutableArray<ServiceModel> Registerable(
         ImmutableArray<ServiceModel> serviceModels
     )
     {
-        if (!serviceModels.Any(m => IsUnconstructable(m) || IsCrossWiredGeneric(m)))
+        if (!serviceModels.Any(IsDropped))
         {
             return serviceModels;
         }
@@ -195,13 +196,39 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
 
         foreach (var serviceModel in serviceModels)
         {
-            if (!IsUnconstructable(serviceModel) && !IsCrossWiredGeneric(serviceModel))
+            if (!IsDropped(serviceModel))
             {
                 builder.Add(serviceModel);
             }
         }
 
         return builder.ToImmutable();
+    }
+
+    private static bool IsDropped(ServiceModel serviceModel) =>
+        IsUnconstructable(serviceModel)
+        || IsCrossWiredGeneric(serviceModel)
+        || UncallableFactoryReason(serviceModel) != null;
+
+    /// <summary>
+    /// Why the generated module cannot call a factory method, phrased for the message, or null
+    /// when it can.
+    /// </summary>
+    private static string? UncallableFactoryReason(ServiceModel serviceModel)
+    {
+        if (serviceModel.Factory == null)
+        {
+            return null;
+        }
+
+        if (serviceModel.Features.HasFlag(RegistrationFeature.FactoryMethodNotStatic))
+        {
+            return "not static";
+        }
+
+        return serviceModel.Features.HasFlag(RegistrationFeature.FactoryMethodInaccessible)
+            ? "private or protected, or in a private or protected type"
+            : null;
     }
 
     /// <summary>Why a service cannot be constructed, phrased for the message.</summary>
@@ -287,6 +314,30 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
         {
             context.CancellationToken.ThrowIfCancellationRequested();
 
+            if (UncallableFactoryReason(serviceModel) is not { } factoryReason)
+            {
+                continue;
+            }
+
+            var methodName =
+                $"{serviceModel.Factory!.TypeDefinition.Name}.{serviceModel.Factory.MethodName}";
+
+            logger.Error($"Skipping '{methodName}' because it is {factoryReason}.");
+
+            context.ReportDiagnostic(
+                Diagnostic.Create(
+                    DependencyModuleDiagnostics.FactoryMethodCannotBeCalled,
+                    serviceModel.Location?.ToLocationOrNone(lookup) ?? Location.None,
+                    methodName,
+                    factoryReason
+                )
+            );
+        }
+
+        foreach (var serviceModel in data.Right)
+        {
+            context.CancellationToken.ThrowIfCancellationRequested();
+
             if (!IsCrossWiredGeneric(serviceModel))
             {
                 continue;
@@ -299,6 +350,31 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
             context.ReportDiagnostic(
                 Diagnostic.Create(
                     DependencyModuleDiagnostics.CrossWireCannotBeGeneric,
+                    serviceModel.Location?.ToLocationOrNone(lookup) ?? Location.None,
+                    typeName,
+                    "[CrossWireService]",
+                    "Use [SingletonService], [ScopedService] or [TransientService] to register it, "
+                        + "applying one per interface if it needs to answer to more than one"
+                )
+            );
+        }
+
+        foreach (var serviceModel in data.Right)
+        {
+            context.CancellationToken.ThrowIfCancellationRequested();
+
+            if (!serviceModel.Features.HasFlag(RegistrationFeature.CrossWireInheritedInterfaces))
+            {
+                continue;
+            }
+
+            var typeName = serviceModel.ImplementationType.Name;
+
+            logger.Error($"'{typeName}' is cross-wired but declares no interface.");
+
+            context.ReportDiagnostic(
+                Diagnostic.Create(
+                    DependencyModuleDiagnostics.CrossWireInheritedInterfaces,
                     serviceModel.Location?.ToLocationOrNone(lookup) ?? Location.None,
                     typeName
                 )
@@ -346,8 +422,7 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
                     continue;
                 }
 
-                var kind =
-                    condition.Kind == EnvironmentConditionKind.Name ? "environment name" : "key";
+                var kind = EnvironmentConditionUtility.Subject(condition);
 
                 logger.Error($"'{typeName}' has an environment condition that names no {kind}.");
 

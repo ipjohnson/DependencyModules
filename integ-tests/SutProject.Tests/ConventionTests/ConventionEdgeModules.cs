@@ -207,8 +207,8 @@ public partial class ConventionLifetimeModule : IConventionModule
 }
 
 // ---------------------------------------------------------------------------
-// A decorator whose own dependencies are convention-registered. Decoration builds through
-// ActivatorUtilities, so everything but the inner instance is resolved from the container.
+// A decorator whose own dependencies are convention-registered. The generated code calls the
+// decorator's constructor, and resolves each argument except the inner instance from the container.
 // ---------------------------------------------------------------------------
 
 public interface IDecoratorDependency

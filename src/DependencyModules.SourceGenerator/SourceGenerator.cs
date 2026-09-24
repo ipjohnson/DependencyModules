@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using DependencyModules.SourceGenerator.Impl;
 using DependencyModules.SourceGenerator.Impl.Models;
+using DependencyModules.SourceGenerator.Impl.Utilities;
 using Microsoft.CodeAnalysis;
 
 namespace DependencyModules.SourceGenerator;
@@ -43,7 +44,18 @@ public class SourceGenerator : BaseSourceGenerator
             valuesProvider
                 .Combine(AssemblyModuleAttributeDiagnostics.Collect(context))
                 .Combine(context.CompilationProvider),
-            AssemblyModuleAttributeDiagnostics.Report
+            (productionContext, input) =>
+            {
+                if (input.Left.Left.Length > 0)
+                {
+                    FileLogger.Wrap(
+                        "AssemblyModuleAttributeDiagnostics",
+                        input.Left.Left[0].Right,
+                        productionContext,
+                        _ => AssemblyModuleAttributeDiagnostics.Report(productionContext, input)
+                    );
+                }
+            }
         );
     }
 }

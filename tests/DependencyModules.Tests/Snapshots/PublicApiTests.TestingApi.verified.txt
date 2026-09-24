@@ -97,12 +97,14 @@ namespace DependencyModules.Testing.Impl
     public static class SharedRegistrations
     {
         public static System.Collections.Generic.IReadOnlyCollection<System.Type> Collect(System.Reflection.MethodInfo method, System.Collections.Generic.IEnumerable<System.Attribute> knownAttributes) { }
+        public static System.Collections.Generic.IReadOnlyCollection<System.Type> CollectNamed(System.Reflection.MethodInfo method, System.Collections.Generic.IEnumerable<System.Attribute> knownAttributes) { }
     }
     public sealed class TestContainerSource : DependencyModules.Testing.Attributes.Interfaces.ITestContainerSource
     {
         public TestContainerSource() { }
         public System.Threading.Tasks.ValueTask<System.IServiceProvider> CreateAsync() { }
         public void Initialize(Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.IServiceProvider pinned, System.Collections.Generic.IReadOnlyCollection<System.Type> pinnedServices, System.Func<Microsoft.Extensions.DependencyInjection.IServiceCollection, System.IServiceProvider> build, System.Func<System.IServiceProvider, System.Threading.Tasks.ValueTask> start, System.Action<System.IServiceProvider> track) { }
+        public void Initialize(Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.IServiceProvider pinned, System.Collections.Generic.IReadOnlyCollection<System.Type> pinnedServices, System.Collections.Generic.IReadOnlyCollection<System.Type> namedServices, System.Func<Microsoft.Extensions.DependencyInjection.IServiceCollection, System.IServiceProvider> build, System.Func<System.IServiceProvider, System.Threading.Tasks.ValueTask> start, System.Action<System.IServiceProvider> track) { }
     }
     public sealed class TestParameterResolver
     {

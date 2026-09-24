@@ -131,6 +131,43 @@ public class FileLoggerTests : IDisposable
     }
 
     [Fact]
+    public void Wrap_LetsCancellationThrough()
+    {
+        var reported = false;
+
+        Assert.Throws<OperationCanceledException>(() =>
+            FileLogger.Wrap(
+                "generator",
+                Configuration(_outputFolder),
+                _ => throw new OperationCanceledException(),
+                _ => reported = true
+            )
+        );
+
+        Assert.False(reported);
+    }
+
+    /// <summary>
+    /// Loggers with one name, disposed together, usually get the same millisecond.
+    /// </summary>
+    [Fact]
+    public void LoggersWithOneName_EachWriteTheirOwnFile()
+    {
+        for (var i = 0; i < 10; i++)
+        {
+            using var logger = new FileLogger(Configuration(_outputFolder), "generator");
+            logger.Info($"logger {i}");
+        }
+
+        var contents = Directory
+            .GetFiles(_outputFolder)
+            .Select(file => File.ReadAllText(file).Trim())
+            .OrderBy(content => content, StringComparer.Ordinal);
+
+        Assert.Equal(Enumerable.Range(0, 10).Select(i => $"INFO: logger {i}"), contents);
+    }
+
+    [Fact]
     public void Wrap_RunsTheCallbackAndDisposesTheLogger()
     {
         var ran = false;

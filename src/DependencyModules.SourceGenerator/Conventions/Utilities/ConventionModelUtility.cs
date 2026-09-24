@@ -371,9 +371,7 @@ public static class ConventionModelUtility
                 registrationType =
                     argument == null
                         ? null
-                        : SourceGenerator.Impl.BaseSourceGenerator.GetRegistrationType(
-                            argument.ToString()
-                        );
+                        : ConstantArgumentReader.ReadRegistrationType(context, argument);
 
                 if (registrationType == null)
                 {
@@ -449,7 +447,14 @@ public static class ConventionModelUtility
 
             if (name is WithNameCall or WithoutNameCall)
             {
-                var patterns = ReadPatterns(context, call);
+                var patterns = ReadPatterns(context, call, out var unreadable);
+
+                if (unreadable != null)
+                {
+                    reason = NotConstant(name, unreadable);
+
+                    return null;
+                }
 
                 if (patterns.Count == 0)
                 {
@@ -473,7 +478,14 @@ public static class ConventionModelUtility
                 // Read as literals for the same reason every other filter is: the declaration is
                 // parsed, never executed, so anything the build cannot see is refused rather than
                 // quietly dropped.
-                var arguments = ReadPatterns(context, call);
+                var arguments = ReadPatterns(context, call, out var unreadable);
+
+                if (unreadable != null)
+                {
+                    reason = NotConstant(name, unreadable);
+
+                    return null;
+                }
 
                 if (arguments.Count == 0)
                 {
@@ -619,25 +631,40 @@ public static class ConventionModelUtility
     /// </summary>
     /// <remarks>
     /// <c>GetConstantValue</c> rather than the literal text, so a <c>const</c> declared elsewhere
-    /// reads as the string it evaluates to.
+    /// reads as the string it evaluates to. One argument that is not a constant refuses the whole
+    /// call, as the namespace calls do. Dropping it would read <c>IfEnvironmentValue(key, "on")</c>
+    /// as a test for the key <c>on</c>.
     /// </remarks>
     private static IReadOnlyList<string> ReadPatterns(
         SyntaxTransformContext context,
-        InvocationExpressionSyntax call
+        InvocationExpressionSyntax call,
+        out ArgumentSyntax? unreadable
     )
     {
         var values = new List<string>();
 
         foreach (var argument in call.ArgumentList.Arguments)
         {
-            if (context.SemanticModel.GetConstantValue(argument.Expression).Value is string value)
+            if (
+                context.SemanticModel.GetConstantValue(argument.Expression).Value
+                is not string value
+            )
             {
-                values.Add(value);
+                unreadable = argument;
+
+                return values;
             }
+
+            values.Add(value);
         }
+
+        unreadable = null;
 
         return values;
     }
+
+    private static string NotConstant(string callName, ArgumentSyntax argument) =>
+        $"'{argument}' in '{callName}' is not a compile-time constant";
 
     /// <summary>
     /// The name of the assembly the call's marker type lives in.

@@ -1,3 +1,4 @@
+using System.Reflection;
 using DependencyModules.NUnit.Attributes;
 using DependencyModules.Testing.Attributes;
 using NUnit.Framework;
@@ -72,6 +73,27 @@ public class DataRowTests
     public void NamedRow(int number)
     {
         Assert.That(number, Is.EqualTo(1));
+    }
+
+    /// <summary>A name stays with its own row when another row source comes first.</summary>
+    [ModuleTest(typeof(SutModule))]
+    [TenAndTwenty]
+    [ModuleTestCase(99, TestName = "NinetyNine")]
+    public void ANameStaysWithItsOwnRow(int number)
+    {
+        var expected = number == 99 ? "NinetyNine" : $"{nameof(ANameStaysWithItsOwnRow)}({number})";
+
+        Assert.That(TestContext.CurrentContext.Test.Name, Is.EqualTo(expected));
+    }
+
+    [AttributeUsage(AttributeTargets.Method)]
+    public class TenAndTwentyAttribute : Attribute, IModuleTestDataAttribute
+    {
+        public IEnumerable<object?[]> GetRows(MethodInfo method) =>
+            [
+                [10],
+                [20],
+            ];
     }
 
     public class NeedsAValue(ISingletonService singletonService, string text)

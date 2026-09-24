@@ -57,7 +57,8 @@ public static class ModuleEntryPointDiagnostics
     /// </remarks>
     public static bool ReliesOnGeneratedEquality(ModuleEntryPointModel model) =>
         model.PropertyInfoModels.Any(p => p.IsModuleParameter)
-        && model.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.ShouldImplementEquals);
+        && model.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.ShouldImplementEquals)
+        && !model.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.DeclaresTypedEquals);
 
     public static void Report(
         SourceProductionContext context,

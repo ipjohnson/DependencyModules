@@ -1008,17 +1008,23 @@ namespace DependencyModules.Conventions.Models
         public bool Exclude { get; init; }
         public string TypeKey { get; init; }
     }
+    public enum ConstructorAccess
+    {
+        None = 0,
+        Assembly = 1,
+        Public = 2,
+    }
     public class ConventionCandidateModel : System.IEquatable<DependencyModules.Conventions.Models.ConventionCandidateModel>
     {
         public static readonly DependencyModules.Conventions.Models.ConventionCandidateModel Ignore;
-        public ConventionCandidateModel(CSharpAuthor.ITypeDefinition ImplementationType, System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ImplementedInterfaceModel> DeclaredInterfaces, System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ImplementedInterfaceModel> BaseClassInterfaces, DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? Constructor, bool HasAccessibleConstructor, DependencyModules.SourceGenerator.Impl.Models.LocationModel Location, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? Conditions = null, System.Collections.Generic.IReadOnlyList<string>? AttributeTypeKeys = null, string? AssemblyName = null) { }
+        public ConventionCandidateModel(CSharpAuthor.ITypeDefinition ImplementationType, System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ImplementedInterfaceModel> DeclaredInterfaces, System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ImplementedInterfaceModel> BaseClassInterfaces, DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? Constructor, DependencyModules.Conventions.Models.ConstructorAccess ConstructorAccess, DependencyModules.SourceGenerator.Impl.Models.LocationModel Location, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? Conditions = null, System.Collections.Generic.IReadOnlyList<string>? AttributeTypeKeys = null, string? AssemblyName = null) { }
         public string? AssemblyName { get; init; }
         public System.Collections.Generic.IReadOnlyList<string>? AttributeTypeKeys { get; init; }
         public System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ImplementedInterfaceModel> BaseClassInterfaces { get; init; }
         public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? Conditions { get; init; }
         public DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? Constructor { get; init; }
+        public DependencyModules.Conventions.Models.ConstructorAccess ConstructorAccess { get; init; }
         public System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ImplementedInterfaceModel> DeclaredInterfaces { get; init; }
-        public bool HasAccessibleConstructor { get; init; }
         public CSharpAuthor.ITypeDefinition ImplementationType { get; init; }
         public bool IsIgnored { get; }
         public DependencyModules.SourceGenerator.Impl.Models.LocationModel Location { get; init; }
@@ -1144,7 +1150,7 @@ namespace DependencyModules.Conventions.Utilities
     }
     public static class ConventionMatcher
     {
-        public static System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ServiceModel> Match(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel, DependencyModules.Conventions.Models.ConventionModuleModel conventionModule, System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ConventionCandidateModel> candidates, DependencyModules.SourceGenerator.Impl.Models.DiagnosticReporter report, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
+        public static System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ServiceModel> Match(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel, DependencyModules.Conventions.Models.ConventionModuleModel conventionModule, System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ConventionCandidateModel> candidates, bool generatesFactories, DependencyModules.SourceGenerator.Impl.Models.DiagnosticReporter report, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
     }
     public static class ConventionModelUtility
     {
@@ -1239,7 +1245,10 @@ namespace DependencyModules.SourceGenerator.Impl
     }
     public class DependencyFileWriter
     {
-        public DependencyFileWriter(DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger, bool coverageAttributeOnMethod = false) { }
+        public DependencyFileWriter(DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
+        [System.Obsolete("ExcludeFromCodeCoverage is always put on the generated members. Use the construct" +
+            "or that takes only the logger.")]
+        public DependencyFileWriter(DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger, bool coverageAttributeOnMethod) { }
         public string Write(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel configurationModel, System.Collections.Generic.IEnumerable<DependencyModules.SourceGenerator.Impl.Models.ServiceModel> serviceModels, string uniqueId) { }
     }
     public static class DependencyModuleDiagnostics
@@ -1252,9 +1261,11 @@ namespace DependencyModules.SourceGenerator.Impl
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ConventionMatchNotConstructable;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ConventionMatchedNothing;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor CrossWireCannotBeGeneric;
-        public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor DecoratorImplementationNeedsTypeRegistration;
+        public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor CrossWireInheritedInterfaces;
+        public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor DecoratorIgnored;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor EmptyEnvironmentCondition;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ExposedByConvention;
+        public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor FactoryMethodCannotBeCalled;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor GeneratorFailure;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor InterceptionAppliedByNoModule;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor InterceptorCannotServeMembers;
@@ -1266,6 +1277,7 @@ namespace DependencyModules.SourceGenerator.Impl
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor OpenGenericCannotBeDecorated;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor RegisteredConditionally;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ServiceCannotBeConstructed;
+        public static Microsoft.CodeAnalysis.Diagnostic GeneratorFailureFrom(System.Exception exception) { }
     }
     public class DependencyModuleWriter
     {
@@ -1453,12 +1465,13 @@ namespace DependencyModules.SourceGenerator.Impl.Models
     public class DecoratorModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.DecoratorModel>
     {
         public static readonly DependencyModules.SourceGenerator.Impl.Models.DecoratorModel Ignore;
-        public DecoratorModel(CSharpAuthor.ITypeDefinition ServiceType, CSharpAuthor.ITypeDefinition DecoratorType, int Order, CSharpAuthor.ITypeDefinition? Realm, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? Conditions = null, DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? Constructor = null, int InnerParameterIndex = -1, bool TypeParametersMatchService = true, CSharpAuthor.ITypeDefinition? Implementation = null, DependencyModules.SourceGenerator.Impl.Models.LocationModel? Location = null) { }
+        public DecoratorModel(CSharpAuthor.ITypeDefinition ServiceType, CSharpAuthor.ITypeDefinition DecoratorType, int Order, CSharpAuthor.ITypeDefinition? Realm, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? Conditions = null, DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? Constructor = null, int InnerParameterIndex = -1, bool TypeParametersMatchService = true, CSharpAuthor.ITypeDefinition? Implementation = null, DependencyModules.SourceGenerator.Impl.Models.LocationModel? Location = null, string? IgnoredReason = null) { }
         public bool CanMonomorphise { get; }
         public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? Conditions { get; init; }
         public DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? Constructor { get; init; }
         public CSharpAuthor.ITypeDefinition DecoratorType { get; init; }
         public bool HasUnboundServiceType { get; }
+        public string? IgnoredReason { get; init; }
         public CSharpAuthor.ITypeDefinition? Implementation { get; init; }
         public int InnerParameterIndex { get; init; }
         public bool IsIgnored { get; }
@@ -1663,6 +1676,8 @@ namespace DependencyModules.SourceGenerator.Impl.Models
         IsRecord = 8,
         NotPartial = 16,
         NestedInType = 32,
+        ShouldImplementGetHashCode = 64,
+        DeclaresTypedEquals = 128,
     }
     public class ModuleEntryPointModel : DependencyModules.SourceGenerator.Impl.Models.IClassModel, System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel>
     {
@@ -1721,6 +1736,10 @@ namespace DependencyModules.SourceGenerator.Impl.Models
         AbstractImplementation = 2,
         StaticImplementation = 4,
         Intercepted = 8,
+        FactoryMethodNotStatic = 16,
+        FactoryMethodInaccessible = 32,
+        CrossWireInheritedInterfaces = 64,
+        FactoryReturnsClass = 128,
     }
     public enum RegistrationType
     {
@@ -1841,6 +1860,15 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities
         protected abstract bool TestForTypes(Microsoft.CodeAnalysis.SyntaxNode node, System.Threading.CancellationToken token);
         public bool Where(Microsoft.CodeAnalysis.SyntaxNode node, System.Threading.CancellationToken token) { }
     }
+    public static class ConstantArgumentReader
+    {
+        public static bool? ReadBool(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, Microsoft.CodeAnalysis.CSharp.Syntax.ExpressionSyntax expression) { }
+        public static int? ReadInt(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, Microsoft.CodeAnalysis.CSharp.Syntax.ExpressionSyntax expression) { }
+        public static DependencyModules.SourceGenerator.Impl.Models.ServiceLifestyle? ReadLifetime(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, Microsoft.CodeAnalysis.CSharp.Syntax.ExpressionSyntax expression) { }
+        public static DependencyModules.SourceGenerator.Impl.Models.InterceptedMemberKinds? ReadMemberKinds(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, Microsoft.CodeAnalysis.CSharp.Syntax.ExpressionSyntax expression) { }
+        public static DependencyModules.SourceGenerator.Impl.Models.RegistrationType? ReadRegistrationType(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, Microsoft.CodeAnalysis.CSharp.Syntax.ExpressionSyntax expression) { }
+        public static string? ReadString(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, Microsoft.CodeAnalysis.CSharp.Syntax.ExpressionSyntax expression) { }
+    }
     public static class ConstructorArgumentWriter
     {
         public static object[] Arguments(CSharpAuthor.ParameterDefinition serviceProvider, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ParameterInfoModel> parameters) { }
@@ -1881,8 +1909,11 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities
     public static class EnvironmentConditionUtility
     {
         public static string Describe(DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel condition) { }
+        public static System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? GetConditions(Microsoft.CodeAnalysis.ISymbol symbol) { }
         public static System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? GetConditions(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, Microsoft.CodeAnalysis.SyntaxNode node, System.Threading.CancellationToken cancellationToken) { }
         public static bool IsEmpty(DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel condition) { }
+        public static void ReportEmpty(DependencyModules.SourceGenerator.Impl.Models.DiagnosticReporter report, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger, string typeName, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? conditions, DependencyModules.SourceGenerator.Impl.Models.LocationModel? location) { }
+        public static string Subject(DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel condition) { }
     }
     public static class EnvironmentConditionWriter
     {
@@ -1896,6 +1927,7 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities
         public void Error(string message, object data) { }
         public void Info(string message) { }
         public void Info(string message, object data) { }
+        public static void Wrap(string loggerName, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel configurationModel, Microsoft.CodeAnalysis.SourceProductionContext context, System.Action<DependencyModules.SourceGenerator.Impl.Utilities.FileLogger> logger) { }
         public static void Wrap(string loggerName, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel configurationModel, System.Action<DependencyModules.SourceGenerator.Impl.Utilities.FileLogger> logger, System.Action<System.Exception>? reportFailure = null) { }
     }
     public static class ITypeDefinitionExtensions
@@ -1924,7 +1956,7 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities
     public class ServiceModelUtility
     {
         public ServiceModelUtility() { }
-        public static DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? GetConstructorInfo(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, Microsoft.CodeAnalysis.SyntaxNode node, System.Threading.CancellationToken cancellationToken) { }
+        public static DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? GetConstructorInfo(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, Microsoft.CodeAnalysis.SyntaxNode node, System.Threading.CancellationToken cancellationToken, bool callableOnly = false) { }
         public static DependencyModules.SourceGenerator.Impl.Models.ServiceModel? GetServiceModel(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, System.Threading.CancellationToken cancellationToken) { }
     }
     public static class SymbolConstructorReader
@@ -1966,6 +1998,7 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities
         public SyntaxTransformContext(Microsoft.CodeAnalysis.SyntaxNode node, Microsoft.CodeAnalysis.SemanticModel semanticModel) { }
         public Microsoft.CodeAnalysis.SyntaxNode Node { get; }
         public Microsoft.CodeAnalysis.SemanticModel SemanticModel { get; }
+        public bool GeneratedCodeCanUse(Microsoft.CodeAnalysis.ISymbol symbol) { }
         public static DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext op_Implicit(Microsoft.CodeAnalysis.GeneratorAttributeSyntaxContext context) { }
         public static DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext op_Implicit(Microsoft.CodeAnalysis.GeneratorSyntaxContext context) { }
     }

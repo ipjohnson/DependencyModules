@@ -45,9 +45,41 @@ public sealed class TestContainerSource : ITestContainerSource
         Func<IServiceCollection, IServiceProvider> build,
         Func<IServiceProvider, ValueTask> start,
         Action<IServiceProvider> track
+    ) => Initialize(services, pinned, pinnedServices, [], build, start, track);
+
+    /// <summary>
+    /// What the runner knows and this does not, handed over once the test's container exists.
+    /// </summary>
+    /// <param name="services">The collection the test's container was built from.</param>
+    /// <param name="pinned">The container to take pinned instances out of.</param>
+    /// <param name="pinnedServices">The service types to keep, from <see cref="SharedRegistrations.Collect"/>.</param>
+    /// <param name="namedServices">
+    /// The pinned services an attribute named, from <see cref="SharedRegistrations.CollectNamed"/>.
+    /// <see cref="CreateAsync"/> fails for one of these that <paramref name="pinned"/> cannot
+    /// produce.
+    /// </param>
+    /// <param name="build">Builds a provider the same way the runner built the first one.</param>
+    /// <param name="start">Runs the test's startup attributes against a newly built provider.</param>
+    /// <param name="track">Hands a built provider to the runner, which disposes it when the case has run.</param>
+    public void Initialize(
+        IServiceCollection services,
+        IServiceProvider pinned,
+        IReadOnlyCollection<Type> pinnedServices,
+        IReadOnlyCollection<Type> namedServices,
+        Func<IServiceCollection, IServiceProvider> build,
+        Func<IServiceProvider, ValueTask> start,
+        Action<IServiceProvider> track
     )
     {
-        _composition = new Composition(services, pinned, pinnedServices, build, start, track);
+        _composition = new Composition(
+            services,
+            pinned,
+            pinnedServices,
+            namedServices,
+            build,
+            start,
+            track
+        );
     }
 
     /// <inheritdoc />
@@ -111,6 +143,10 @@ public sealed class TestContainerSource : ITestContainerSource
     /// container built from this collection already, which is how the module environment is shared
     /// without anyone asking. An open generic is left alone too, having no closed type to resolve.
     /// </para>
+    /// <para>
+    /// A keyed descriptor is left alone as well. <c>IEnumerable&lt;T&gt;</c> holds no keyed
+    /// registration, so the instances above do not replace one.
+    /// </para>
     /// </remarks>
     private static IServiceCollection BuildTemplate(Composition composition)
     {
@@ -124,7 +160,8 @@ public sealed class TestContainerSource : ITestContainerSource
             var serviceType = descriptor.ServiceType;
 
             if (
-                !instances.TryGetValue(serviceType, out var pinned)
+                descriptor.IsKeyedService
+                || !instances.TryGetValue(serviceType, out var pinned)
                 || descriptor.ImplementationInstance != null
             )
             {
@@ -167,6 +204,10 @@ public sealed class TestContainerSource : ITestContainerSource
     /// wrote.
     /// </para>
     /// <para>
+    /// <b>A service that an attribute named is the exception.</b> The test asked to share it, so
+    /// leaving it alone would give every later container its own instance with no message.
+    /// </para>
+    /// <para>
     /// Resolved through <c>IEnumerable&lt;T&gt;</c> rather than as a single service, so a type
     /// registered more than once keeps every registration and its order. Taking the single service
     /// would collapse the set to its last member and leave anything injecting the sequence one
@@ -198,8 +239,19 @@ public sealed class TestContainerSource : ITestContainerSource
                     .Where(instance => instance != null)
                     .ToArray();
             }
-            catch (Exception)
+            catch (Exception exception)
             {
+                if (composition.NamedServices.Contains(serviceType))
+                {
+                    throw new InvalidOperationException(
+                        $"The test shares {serviceType} across the containers it builds, because an "
+                            + $"attribute names it in {nameof(ISharedTestRegistration.SharedServices)}, "
+                            + "as [TestExport(Shared = true)] does. The test's own container could not "
+                            + $"produce the instance to share: {exception.Message}",
+                        exception
+                    );
+                }
+
                 continue;
             }
 
@@ -216,6 +268,7 @@ public sealed class TestContainerSource : ITestContainerSource
         IServiceCollection Services,
         IServiceProvider Pinned,
         IReadOnlyCollection<Type> PinnedServices,
+        IReadOnlyCollection<Type> NamedServices,
         Func<IServiceCollection, IServiceProvider> Build,
         Func<IServiceProvider, ValueTask> Start,
         Action<IServiceProvider> Track

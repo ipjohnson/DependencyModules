@@ -32,6 +32,9 @@ public class TestContainerSourceUnitTests
         public IServiceProvider Pin { get; }
 
         public Harness(Action<IServiceCollection> compose, params Type[] pinned)
+            : this(compose, pinned, named: []) { }
+
+        public Harness(Action<IServiceCollection> compose, Type[] pinned, Type[] named)
         {
             var services = new ServiceCollection();
 
@@ -42,17 +45,18 @@ public class TestContainerSourceUnitTests
             Pin = services.BuildServiceProvider();
 
             Source.Initialize(
-                services,
-                Pin,
-                pinned,
-                collection => collection.BuildServiceProvider(),
-                provider =>
+                services: services,
+                pinned: Pin,
+                pinnedServices: pinned,
+                namedServices: named,
+                build: collection => collection.BuildServiceProvider(),
+                start: provider =>
                 {
                     Started.Add(provider);
 
                     return ValueTask.CompletedTask;
                 },
-                Tracked.Add
+                track: Tracked.Add
             );
         }
     }
@@ -129,6 +133,55 @@ public class TestContainerSourceUnitTests
 
         Assert.Equal(2, built.GetServices<IThing>().Count());
         Assert.Equal(harness.Pin.GetServices<IThing>(), built.GetServices<IThing>());
+    }
+
+    /// <summary>
+    /// Pinning takes the instances from <c>IEnumerable&lt;T&gt;</c>, which holds no keyed
+    /// registration. The keyed registrations of a pinned service stay as they were written.
+    /// </summary>
+    [Fact]
+    public async Task PinningKeepsTheKeyedRegistrationsOfAService()
+    {
+        var harness = new Harness(
+            services =>
+            {
+                services.AddKeyedSingleton<IThing, Thing>("before");
+                services.AddSingleton<IThing, Thing>();
+                services.AddKeyedSingleton<IThing, Thing>("after");
+            },
+            typeof(IThing)
+        );
+
+        var built = await harness.Source.CreateAsync();
+
+        Assert.Same(harness.Pin.GetRequiredService<IThing>(), built.GetRequiredService<IThing>());
+        Assert.NotNull(built.GetRequiredKeyedService<IThing>("before"));
+        Assert.NotNull(built.GetRequiredKeyedService<IThing>("after"));
+    }
+
+    /// <summary>
+    /// A service an attribute names is one the test asked to share. When the test's container cannot
+    /// produce it, every container built after it would get its own instance with no message.
+    /// </summary>
+    [Fact]
+    public async Task ANamedServiceThatCannotBeBuiltIsReported()
+    {
+        var harness = new Harness(
+            services =>
+                services.AddSingleton<IThing>(_ =>
+                    throw new InvalidOperationException("cannot build it")
+                ),
+            pinned: [typeof(IThing)],
+            named: [typeof(IThing)]
+        );
+
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await harness.Source.CreateAsync()
+        );
+
+        Assert.Contains(typeof(IThing).FullName!, refused.Message);
+        Assert.Contains("cannot build it", refused.Message);
+        Assert.Equal("cannot build it", refused.InnerException?.Message);
     }
 
     /// <summary>
