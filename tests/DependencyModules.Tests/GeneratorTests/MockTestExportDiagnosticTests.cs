@@ -130,6 +130,53 @@ public class MockTestExportDiagnosticTests
     }
 
     /// <summary>
+    /// A keyed <c>[Mock]</c> is registered under its key. The unkeyed export stays in use.
+    /// </summary>
+    [Fact]
+    public void AKeyedMock_IsNotReported()
+    {
+        var result = Run(
+            """
+            [TestExport(typeof(IThing), Implementation = typeof(RealThing))]
+            public void Keyed([Mock] [Microsoft.Extensions.DependencyInjection.FromKeyedServices("k")] IThing thing) { }
+            """
+        );
+
+        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0021");
+    }
+
+    /// <summary>
+    /// Moq registers <c>T</c> itself when the test also takes <c>Mock&lt;T&gt;</c>, and
+    /// <c>[Mock] T</c> then registers nothing. The export replaces <c>mock.Object</c>, so the
+    /// parameter gets the export.
+    /// </summary>
+    [Fact]
+    public void AMockPairedWithAMoqMock_IsNotReported()
+    {
+        var result = Run(
+            """
+            [TestExport(typeof(IThing), Implementation = typeof(RealThing))]
+            public void Paired([Mock] IThing thing, Moq.Mock<IThing> mock) { }
+            """
+        );
+
+        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0021");
+    }
+
+    [Fact]
+    public void AMoqMockOfAnotherService_IsStillReported()
+    {
+        var result = Run(
+            """
+            [TestExport(typeof(IThing), Implementation = typeof(RealThing))]
+            public void Unpaired([Mock] IThing thing, Moq.Mock<IOther> other) { }
+            """
+        );
+
+        Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0021");
+    }
+
+    /// <summary>
     /// Resolved rather than string-matched, the way every other attribute this generator reads is.
     /// </summary>
     [Fact]
