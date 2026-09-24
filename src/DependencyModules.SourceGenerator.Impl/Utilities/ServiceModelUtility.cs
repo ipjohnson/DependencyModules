@@ -333,13 +333,20 @@ public class ServiceModelUtility
             factoryOutput = FactoryOutput;
         }
 
+        var features = GetConstructionFeatures(context, cancellationToken);
+
+        if (CrossWiresOnlyInheritedInterfaces(context, cancellationToken))
+        {
+            features |= RegistrationFeature.CrossWireInheritedInterfaces;
+        }
+
         return new ServiceModel(
             classDefinition,
             GetConstructorInfo(context, context.Node, cancellationToken),
             null,
             factoryOutput,
             registrations,
-            GetConstructionFeatures(context, cancellationToken),
+            features,
             EnvironmentConditionUtility.GetConditions(context, context.Node, cancellationToken),
             LocationModel.From(context.Node)
         );
@@ -634,27 +641,93 @@ public class ServiceModelUtility
             }
         }
 
-        if (context.Node is TypeDeclarationSyntax { BaseList: not null } typeDeclarationSyntax)
-        {
-            foreach (var baseTypeSyntax in typeDeclarationSyntax.BaseList.Types)
-            {
-                var type = baseTypeSyntax.Type.GetTypeDefinition(context);
+        // The interfaces the implementation declares, from every partial declaration. For a
+        // factory method, the implementation is the return type.
+        var declared = CrossWiredImplementation(context)?.Interfaces ?? default;
 
-                if (type?.TypeDefinitionEnum == TypeDefinitionEnum.InterfaceDefinition)
+        if (declared.IsDefaultOrEmpty)
+        {
+            // Nothing to share the instance with, so the implementation is registered on its own.
+            yield return new ServiceRegistrationModel(
+                classDefinition,
+                lifestyle,
+                registrationType,
+                realm,
+                key,
+                false,
+                namespaces,
+                order
+            );
+
+            yield break;
+        }
+
+        foreach (var interfaceSymbol in declared)
+        {
+            yield return new ServiceRegistrationModel(
+                interfaceSymbol.GetTypeDefinition(),
+                lifestyle,
+                registrationType,
+                realm,
+                key,
+                true,
+                namespaces,
+                order
+            );
+        }
+    }
+
+    private static INamedTypeSymbol? CrossWiredImplementation(SyntaxTransformContext context) =>
+        context.Node switch
+        {
+            TypeDeclarationSyntax type => context.SemanticModel.GetDeclaredSymbol(type),
+            MethodDeclarationSyntax method => context
+                .SemanticModel.GetDeclaredSymbol(method)
+                ?.ReturnType as INamedTypeSymbol,
+            _ => null,
+        };
+
+    /// <summary>
+    /// Whether a <c>[CrossWireService]</c> class declares no interface but gets one from a base
+    /// class.
+    /// </summary>
+    /// <remarks>
+    /// Cross-wiring takes only the interfaces the class declares. The class is then registered on
+    /// its own, and a service that asks for the inherited interface does not get it.
+    /// </remarks>
+    private static bool CrossWiresOnlyInheritedInterfaces(
+        SyntaxTransformContext context,
+        CancellationToken cancellationToken
+    )
+    {
+        if (
+            context.Node is not TypeDeclarationSyntax typeDeclaration
+            || context.SemanticModel.GetDeclaredSymbol(typeDeclaration, cancellationToken)
+                is not { Interfaces.Length: 0, AllInterfaces.Length: > 0 }
+        )
+        {
+            return false;
+        }
+
+        foreach (var attributeList in typeDeclaration.AttributeLists)
+        {
+            foreach (var attribute in attributeList.Attributes)
+            {
+                if (
+                    AttributeTypeMatcher.Matches(
+                        context.SemanticModel,
+                        attribute,
+                        _crossWireService,
+                        cancellationToken
+                    )
+                )
                 {
-                    yield return new ServiceRegistrationModel(
-                        type,
-                        lifestyle,
-                        registrationType,
-                        realm,
-                        key,
-                        true,
-                        namespaces,
-                        order
-                    );
+                    return true;
                 }
             }
         }
+
+        return false;
     }
 
     private static ServiceLifestyle GetLifestyle(string toString)

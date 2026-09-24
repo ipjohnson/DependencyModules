@@ -335,22 +335,19 @@ public class DependencyFileWriter
             r.CrossWire.GetValueOrDefault(false)
         );
 
-        var invokeMethod = "";
-        switch (registrationModel.RegistrationType.GetValueOrDefault(RegistrationType.Add))
+        // The same registration type as the interfaces. TryEnumerable becomes TryAdd here, because
+        // TryAddEnumerable refuses a descriptor whose implementation is its own service type, and
+        // for a registration of the class itself the two do the same thing.
+        var invokeMethod = GetRegistrationType(
+            entryPointModel,
+            configurationModel,
+            registrationModel
+        ) switch
         {
-            case RegistrationType.Add:
-                invokeMethod = "Add";
-                break;
-            case RegistrationType.Try:
-                invokeMethod = "Try";
-                break;
-            case RegistrationType.Replace:
-                invokeMethod = "Replace";
-                break;
-            case RegistrationType.TryEnumerable:
-                invokeMethod = "TryEnumerable";
-                break;
-        }
+            RegistrationType.Try or RegistrationType.TryEnumerable => "TryAdd",
+            RegistrationType.Replace => "Replace",
+            _ => "Add",
+        };
 
         var parameters = new List<object> { TypeOf(serviceModel.ImplementationType) };
 
@@ -363,7 +360,10 @@ public class DependencyFileWriter
         {
             if (serviceModel.FactoryOutput != null)
             {
-                parameters.Add(serviceModel.FactoryOutput);
+                parameters.Add(
+                    serviceModel.FactoryOutput.Invoke(serviceModel, registrationModel)
+                        ?? TypeOf(serviceModel.ImplementationType)
+                );
             }
             else if (
                 serviceModel
@@ -473,7 +473,8 @@ public class DependencyFileWriter
 
     private static object GenerateNewFactory(
         ServiceModel serviceModel,
-        ServiceRegistrationModel registrationModel
+        ServiceRegistrationModel registrationModel,
+        bool typed = false
     )
     {
         var parameter = new ParameterDefinition(
@@ -490,7 +491,49 @@ public class DependencyFileWriter
             GetArgumentsForParameterList(parameter, serviceModel.Constructor!.Parameters)
         );
 
-        return new WrapStatement(newStatement, provider, null);
+        var factory = new WrapStatement(newStatement, provider, null);
+
+        return typed
+            ? TypedFactory(serviceModel.ImplementationType, registrationModel, factory)
+            : factory;
+    }
+
+    /// <summary>
+    /// A factory cast to a delegate that returns <paramref name="implementationType"/>.
+    /// </summary>
+    /// <remarks>
+    /// TryAddEnumerable identifies a factory registration by the return type of its delegate. A
+    /// lambda passed as <c>Func&lt;IServiceProvider, object&gt;</c> returns object, and
+    /// TryAddEnumerable then throws ArgumentException.
+    /// </remarks>
+    private static IOutputComponent TypedFactory(
+        ITypeDefinition implementationType,
+        ServiceRegistrationModel registrationModel,
+        IOutputComponent factory
+    )
+    {
+        var arguments =
+            registrationModel.Key == null
+                ? new[]
+                {
+                    KnownTypes.Microsoft.DependencyInjection.IServiceProvider,
+                    implementationType,
+                }
+                : new[]
+                {
+                    KnownTypes.Microsoft.DependencyInjection.IServiceProvider,
+                    TypeDefinition.Get(typeof(object)).MakeNullable(),
+                    implementationType,
+                };
+
+        var delegateType = new GenericTypeDefinition(
+            TypeDefinitionEnum.ClassDefinition,
+            "System",
+            "Func",
+            arguments
+        );
+
+        return StaticCast(delegateType, new WrapStatement(factory, "(", ")"));
     }
 
     private void HandleTryEnumerableAndReplaceRegistrationType(
@@ -515,9 +558,11 @@ public class DependencyFileWriter
             parameters.Add(registrationModel.Key);
         }
 
+        var typed = registrationType == RegistrationType.TryEnumerable;
+
         if (registrationModel.CrossWire == true)
         {
-            AddCrossWireParameter(serviceModel, registrationModel, parameters);
+            AddCrossWireParameter(serviceModel, registrationModel, parameters, typed);
         }
         else if (serviceModel.Factory == null)
         {
@@ -536,7 +581,7 @@ public class DependencyFileWriter
                 && ShouldGenerateFactory(serviceModel, entryPointModel, configurationModel)
             )
             {
-                parameters.Add(GenerateNewFactory(serviceModel, registrationModel));
+                parameters.Add(GenerateNewFactory(serviceModel, registrationModel, typed));
             }
             else
             {
@@ -656,45 +701,49 @@ public class DependencyFileWriter
         block.AddIndentedStatement(services.Invoke(stringBuilder.ToString(), parameters.ToArray()));
     }
 
+    /// <summary>
+    /// The factory of a cross-wired interface registration, which resolves the registration of the
+    /// class with the same key.
+    /// </summary>
+    /// <remarks>
+    /// The key is the source text of the attribute or convention argument, so it is emitted as it
+    /// was written.
+    /// </remarks>
     private static void AddCrossWireParameter(
         ServiceModel serviceModel,
         ServiceRegistrationModel registrationModel,
-        List<object> parameters
+        List<object> parameters,
+        bool typed = false
     )
     {
-        IOutputComponent invoke;
-
         var serviceProvider = new ParameterDefinition(
             KnownTypes.Microsoft.DependencyInjection.IServiceProvider,
             "s"
         );
 
-        if (registrationModel.Key != null)
-        {
-            var key = registrationModel.Key;
+        var invoke =
+            registrationModel.Key != null
+                ? serviceProvider.InvokeGeneric(
+                    "GetRequiredKeyedService",
+                    new[] { serviceModel.ImplementationType },
+                    registrationModel.Key
+                )
+                : serviceProvider.InvokeGeneric(
+                    "GetRequiredService",
+                    new[] { serviceModel.ImplementationType }
+                );
 
-            if (key is string stringValue)
-            {
-                key = QuoteString(stringValue);
-            }
+        var lambda = new WrapStatement(
+            invoke,
+            CodeOutputComponent.Get(registrationModel.Key != null ? "(s, _) => " : "s => "),
+            null
+        );
 
-            invoke = serviceProvider.InvokeGeneric(
-                "GetRequiredKeyedServices",
-                new[] { serviceModel.ImplementationType },
-                key
-            );
-        }
-        else
-        {
-            invoke = serviceProvider.InvokeGeneric(
-                "GetRequiredService",
-                new[] { serviceModel.ImplementationType }
-            );
-        }
-
-        var wrapper = new WrapStatement(CodeOutputComponent.Get(" => "), serviceProvider, invoke);
-
-        parameters.Add(wrapper);
+        parameters.Add(
+            typed
+                ? TypedFactory(serviceModel.ImplementationType, registrationModel, lambda)
+                : lambda
+        );
     }
 
     private static void AddFactoryParameter(

@@ -490,10 +490,23 @@ public static class DependencyModuleDiagnostics
     public static readonly DiagnosticDescriptor CrossWireCannotBeGeneric = new(
         id: "DM0014",
         title: "Generic type cannot be cross-wired",
-        messageFormat: "'{0}' is generic, so [CrossWireService] cannot register it. Cross-wiring shares one instance "
+        messageFormat: "'{0}' is generic, so {1} cannot register it. Cross-wiring shares one instance "
             + "across every service type, which needs a factory, and the container does not allow one for an "
-            + "open generic registration. Use [SingletonService], [ScopedService] or [TransientService] to "
-            + "register it, applying one per interface if it needs to answer to more than one.",
+            + "open generic registration. {2}.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true
+    );
+
+    /// <summary>
+    /// Raised for a <c>[CrossWireService]</c> class that declares no interface but inherits one.
+    /// Cross-wiring takes the declared interfaces only, so the inherited ones are not registered.
+    /// </summary>
+    public static readonly DiagnosticDescriptor CrossWireInheritedInterfaces = new(
+        id: "DM0024",
+        title: "Cross-wired class declares no interface",
+        messageFormat: "'{0}' has [CrossWireService] but declares no interface, so only '{0}' is registered. "
+            + "The interfaces it gets from a base class are not cross-wired. Name them on the declaration of '{0}'.",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true

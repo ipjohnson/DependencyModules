@@ -64,6 +64,12 @@ public enum RegistrationFeature
     /// method or a type that contains it is private or protected.
     /// </summary>
     FactoryMethodInaccessible = 32,
+
+    /// <summary>
+    /// The class has <c>[CrossWireService]</c> and declares no interface, but gets at least one from
+    /// a base class. Only the class is registered.
+    /// </summary>
+    CrossWireInheritedInterfaces = 64,
 }
 
 public record ServiceFactoryModel(
