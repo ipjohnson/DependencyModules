@@ -185,7 +185,9 @@ public static class MetadataCandidateUtility
             declared,
             viaBaseClass,
             GreediestConstructor(type),
-            type.InstanceConstructors.Any(c => c.DeclaredAccessibility == Accessibility.Public),
+            type.InstanceConstructors.Any(c => c.DeclaredAccessibility == Accessibility.Public)
+                ? ConstructorAccess.Public
+                : ConstructorAccess.None,
             LocationModel.None,
             null,
             AttributeKeysOf(type),

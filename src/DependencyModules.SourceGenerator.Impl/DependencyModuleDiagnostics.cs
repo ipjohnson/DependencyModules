@@ -44,6 +44,21 @@ public static class DependencyModuleDiagnostics
     );
 
     /// <summary>
+    /// Raised for a factory method with a service attribute that the generated module cannot call.
+    /// A call to a private method is CS0122 in generated code, and a method that is not static had
+    /// no registration and no message.
+    /// </summary>
+    public static readonly DiagnosticDescriptor FactoryMethodCannotBeCalled = new(
+        id: "DM0023",
+        title: "Factory method cannot be called",
+        messageFormat: "'{0}' has a service attribute, but the generated module cannot call it because it is {1}, "
+            + "so nothing was registered. Make the method static, and public or internal, in a type that is not private.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true
+    );
+
+    /// <summary>
     /// Raised for a module that is not partial. The compiler also reports CS0260 once the generated
     /// half arrives, but that message describes the symptom rather than what to do about it.
     /// </summary>
@@ -266,7 +281,7 @@ public static class DependencyModuleDiagnostics
     public static readonly DiagnosticDescriptor ConventionMatchNotConstructable = new(
         id: "DM0006",
         title: "Convention matched a type that cannot be constructed",
-        messageFormat: "'{0}' matches the convention registering '{1}' in '{2}', but has no accessible constructor, "
+        messageFormat: "'{0}' matches the convention registering '{1}' in '{2}', but has no {3} constructor, "
             + "so it was not registered",
         category: Category,
         defaultSeverity: DiagnosticSeverity.Warning,

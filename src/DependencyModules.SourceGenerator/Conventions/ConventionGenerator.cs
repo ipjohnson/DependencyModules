@@ -464,6 +464,9 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator
                     withNamespace,
                     conventionModule,
                     candidates,
+                    withNamespace.GenerateFactories.GetValueOrDefault(
+                        configurationModel.GenerateFactories
+                    ),
                     report,
                     logger
                 );
