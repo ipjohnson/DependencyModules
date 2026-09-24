@@ -53,6 +53,20 @@ public class ReferencedAssemblyModuleAttributeTests
         Assert.Contains("Program.cs", diagnostic.GetMessage());
     }
 
+    /// <summary>
+    /// A qualified name needs no import, so only DM0019 can apply.
+    /// </summary>
+    [Fact]
+    public void AQualifiedAssemblyAttributeOutsideTheEntryPointFile_ReportsDM0019()
+    {
+        var result = Run(bootstrap: "[assembly: ThePackage.Composition.LibraryModule]");
+
+        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0019");
+
+        Assert.Contains("LibraryModule", diagnostic.GetMessage());
+        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0016");
+    }
+
     [Fact]
     public void AnAssemblyAttributeInTheEntryPointFile_IsSilent()
     {
