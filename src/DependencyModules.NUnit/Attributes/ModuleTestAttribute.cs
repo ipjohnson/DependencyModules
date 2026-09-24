@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Reflection;
 using DependencyModules.NUnit.Impl;
 using DependencyModules.Testing.Attributes.Interfaces;
 using NUnit.Framework.Interfaces;
@@ -50,6 +51,9 @@ public class ModuleTestAttribute
     /// Not passed through <c>TestCaseParameters.Arguments</c>, which by then also holds the
     /// placeholders standing in for the parameters the container will supply. This keeps the row
     /// itself, so execution knows how many leading arguments are real.
+    ///
+    /// Set on every test this builds, as an empty row when the method has none. A test without it
+    /// was built by NUnit from one of its own data attributes.
     /// </remarks>
     internal const string RowPropertyName = "DependencyModules.ModuleTestRow";
 
@@ -84,34 +88,45 @@ public class ModuleTestAttribute
     {
         var parameterCount = method.GetParameters().Length;
 
+        // Each row keeps the name of the attribute it came from. Rows from other data attributes
+        // have no name, so a name matched to a row by its position can go to the wrong row.
         var rows = method
             .MethodInfo.GetCustomAttributes(false)
             .OfType<IModuleTestDataAttribute>()
-            .SelectMany(dataAttribute => dataAttribute.GetRows(method.MethodInfo))
+            .SelectMany(dataAttribute =>
+                dataAttribute
+                    .GetRows(method.MethodInfo)
+                    .Select(row =>
+                        (Row: row, Name: (dataAttribute as ModuleTestCaseAttribute)?.TestName)
+                    )
+            )
             .ToArray();
 
         if (rows.Length == 0)
         {
-            yield return BuildTestMethod(
+            var single = BuildTestMethod(
                 method,
                 suite,
                 new object?[parameterCount],
-                null,
+                [],
                 method.Name
             );
+
+            // Without a row, every parameter comes from the container, and a parameter meant for
+            // the data attribute of NUnit is not in it.
+            if (NUnitDataMessage(method.MethodInfo) is { } message)
+            {
+                single.RunState = RunState.NotRunnable;
+                single.Properties.Set(PropertyNames.SkipReason, message);
+            }
+
+            yield return single;
 
             yield break;
         }
 
-        var names = method
-            .MethodInfo.GetCustomAttributes(false)
-            .OfType<ModuleTestCaseAttribute>()
-            .Select(attribute => attribute.TestName)
-            .ToArray();
-
-        for (var i = 0; i < rows.Length; i++)
+        foreach (var (row, name) in rows)
         {
-            var row = rows[i];
             var arguments = new object?[parameterCount];
 
             if (row.Length <= parameterCount)
@@ -119,7 +134,7 @@ public class ModuleTestAttribute
                 Array.Copy(row, arguments, row.Length);
             }
 
-            var testName = (i < names.Length ? names[i] : null) ?? DisplayName(method.Name, row);
+            var testName = name ?? DisplayName(method.Name, row);
 
             var testMethod = BuildTestMethod(method, suite, arguments, row, testName);
 
@@ -143,11 +158,49 @@ public class ModuleTestAttribute
     /// <inheritdoc />
     public TestCommand Wrap(TestCommand command) => new ModuleTestCommand(command);
 
+    /// <summary>
+    /// Why the data attributes of NUnit on <paramref name="method"/> do not work with
+    /// <c>[ModuleTest]</c>, or null when it has none.
+    /// </summary>
+    /// <remarks>
+    /// NUnit builds tests of its own from them, and <see cref="Wrap"/> puts the container around
+    /// those tests too. They carry no row, so the values of the attribute never reach the method.
+    /// </remarks>
+    internal static string? NUnitDataMessage(MethodInfo method)
+    {
+        var parameterAttributes = method
+            .GetParameters()
+            .SelectMany(parameter => parameter.GetCustomAttributes(false))
+            .Where(attribute => attribute is IParameterDataSource);
+
+        var names = method
+            .GetCustomAttributes(false)
+            .Where(attribute => attribute is ITestBuilder and not ModuleTestAttribute)
+            .Concat(parameterAttributes)
+            .Select(attribute => "[" + TrimAttributeSuffix(attribute.GetType().Name) + "]")
+            .Distinct()
+            .ToArray();
+
+        if (names.Length == 0)
+        {
+            return null;
+        }
+
+        return $"NUnit builds tests of its own for '{method.Name}' from {string.Join(" and ", names)}, "
+            + "and [ModuleTest] cannot give their values to the method. Use [ModuleTestCase] for the "
+            + "rows of a module test, or an attribute that implements IModuleTestDataAttribute.";
+    }
+
+    private static string TrimAttributeSuffix(string name) =>
+        name.EndsWith("Attribute", StringComparison.Ordinal)
+            ? name.Substring(0, name.Length - "Attribute".Length)
+            : name;
+
     private static TestMethod BuildTestMethod(
         IMethodInfo method,
         Test? suite,
         object?[] arguments,
-        object?[]? row,
+        object?[] row,
         string testName
     )
     {
@@ -155,10 +208,7 @@ public class ModuleTestAttribute
 
         var testMethod = new NUnitTestCaseBuilder().BuildTestMethod(method, suite, parameters);
 
-        if (row != null)
-        {
-            testMethod.Properties.Set(RowPropertyName, row);
-        }
+        testMethod.Properties.Set(RowPropertyName, row);
 
         return testMethod;
     }

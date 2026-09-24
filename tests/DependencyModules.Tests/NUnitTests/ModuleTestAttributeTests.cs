@@ -1,7 +1,12 @@
+using System.Reflection;
 using DependencyModules.NUnit.Attributes;
+using DependencyModules.NUnit.Impl;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
+using NUnit.Framework.Internal.Builders;
+using NUnit.Framework.Internal.Commands;
 using Xunit;
+using TestResult = NUnit.Framework.Internal.TestResult;
 
 namespace DependencyModules.Tests.NUnitTests;
 
@@ -53,6 +58,20 @@ public class ModuleTestAttributeTests
         [ModuleTestCase(1, 2)]
         [ModuleTestCase(1, 2, 3)]
         public void OneGoodRowAndOneBad(int first, int second) { }
+
+        [TenAndTwenty]
+        [ModuleTestCase(99, TestName = "NinetyNine")]
+        public void NamedRowAfterAnotherRowSource(int number) { }
+    }
+
+    [AttributeUsage(AttributeTargets.Method)]
+    private class TenAndTwentyAttribute : Attribute, IModuleTestDataAttribute
+    {
+        public IEnumerable<object?[]> GetRows(MethodInfo method) =>
+            [
+                [10],
+                [20],
+            ];
     }
 
     [Fact]
@@ -172,12 +191,108 @@ public class ModuleTestAttributeTests
         Assert.Equal(RunState.NotRunnable, built[1].RunState);
     }
 
-    private static TestMethod[] Build(string methodName)
+    /// <summary>
+    /// A name goes to the row of its own <c>[ModuleTestCase]</c>. It must not go to the row at the
+    /// same position in the rows of all the data attributes.
+    /// </summary>
+    [Fact]
+    public void ANameStaysWithTheRowOfItsOwnAttribute()
     {
-        var method = typeof(Samples).GetMethod(methodName)!;
+        var names = Build(nameof(Samples.NamedRowAfterAnotherRowSource))
+            .ToDictionary(test => (int)test.Arguments[0]!, test => test.Name);
+
+        Assert.Equal("NinetyNine", names[99]);
+        Assert.Equal("NamedRowAfterAnotherRowSource(10)", names[10]);
+        Assert.Equal("NamedRowAfterAnotherRowSource(20)", names[20]);
+    }
+
+    /// <summary>
+    /// NUnit builds tests of its own from these attributes, and <c>[ModuleTest]</c> wraps them as it
+    /// wraps its own. It cannot give their values to the method, so each one fails and says why.
+    /// </summary>
+    [Theory]
+    [InlineData(nameof(NUnitDataSamples.WithTestCase), "[TestCase]")]
+    [InlineData(nameof(NUnitDataSamples.WithTestCaseSource), "[TestCaseSource]")]
+    [InlineData(nameof(NUnitDataSamples.WithValues), "[Values]")]
+    [InlineData(nameof(NUnitDataSamples.WithRange), "[Range]")]
+    public void ATestThatNUnitBuildsFromItsOwnDataAttribute_FailsAndNamesTheAttribute(
+        string methodName,
+        string attributeName
+    )
+    {
+        var tests = BuildAsNUnitDoes(methodName);
+
+        var ownRow = Assert.Single(tests, test => Equals(test.Arguments[0], 1));
+        Assert.Equal(RunState.Runnable, ownRow.RunState);
+
+        var nunitTests = tests.Where(test => !Equals(test.Arguments[0], 1)).ToArray();
+        Assert.NotEmpty(nunitTests);
+
+        Assert.All(
+            nunitTests,
+            test =>
+            {
+                var result = Execute(test);
+
+                Assert.Equal(TestStatus.Failed, result.ResultState.Status);
+                Assert.Contains(attributeName, result.Message);
+                Assert.Contains("[ModuleTestCase]", result.Message);
+            }
+        );
+    }
+
+    /// <summary>
+    /// Without a row of its own, <c>[ModuleTest]</c> builds one test that takes every parameter from
+    /// the container. A parameter meant for <c>[TestCase]</c> is not in the container.
+    /// </summary>
+    [Fact]
+    public void WithoutRows_TheTestOfModuleTestNamesTheDataAttributeToo()
+    {
+        var own = Assert.Single(
+            Build(nameof(NUnitDataSamples.OnlyTestCase), typeof(NUnitDataSamples))
+        );
+
+        Assert.Equal(RunState.NotRunnable, own.RunState);
+
+        var reason = Assert.IsType<string>(own.Properties.Get(PropertyNames.SkipReason));
+
+        Assert.Contains("[TestCase]", reason);
+        Assert.Contains("[ModuleTestCase]", reason);
+    }
+
+    private static TestMethod[] BuildAsNUnitDoes(string methodName)
+    {
+        var method = typeof(NUnitDataSamples).GetMethod(methodName)!;
+
+        var suite = new DefaultTestCaseBuilder().BuildFrom(
+            new MethodWrapper(typeof(NUnitDataSamples), method)
+        );
+
+        return suite.Tests.Cast<TestMethod>().ToArray();
+    }
+
+    /// <summary>
+    /// Runs the command that <c>[ModuleTest]</c> puts around every test of its method.
+    /// </summary>
+    private static TestResult Execute(TestMethod testMethod)
+    {
+        var context = new TestExecutionContext
+        {
+            CurrentTest = testMethod,
+            CurrentResult = testMethod.MakeTestResult(),
+        };
+
+        return new ModuleTestCommand(new TestMethodCommand(testMethod)).Execute(context);
+    }
+
+    private static TestMethod[] Build(string methodName, Type? samples = null)
+    {
+        samples ??= typeof(Samples);
+
+        var method = samples.GetMethod(methodName)!;
 
         return new ModuleTestAttribute()
-            .BuildFrom(new MethodWrapper(typeof(Samples), method), suite: null)
+            .BuildFrom(new MethodWrapper(samples, method), suite: null)
             .ToArray();
     }
 }
