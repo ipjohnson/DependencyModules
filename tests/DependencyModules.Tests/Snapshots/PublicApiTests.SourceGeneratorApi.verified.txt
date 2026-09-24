@@ -1239,7 +1239,10 @@ namespace DependencyModules.SourceGenerator.Impl
     }
     public class DependencyFileWriter
     {
-        public DependencyFileWriter(DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger, bool coverageAttributeOnMethod = false) { }
+        public DependencyFileWriter(DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
+        [System.Obsolete("ExcludeFromCodeCoverage is always put on the generated members. Use the construct" +
+            "or that takes only the logger.")]
+        public DependencyFileWriter(DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger, bool coverageAttributeOnMethod) { }
         public string Write(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel configurationModel, System.Collections.Generic.IEnumerable<DependencyModules.SourceGenerator.Impl.Models.ServiceModel> serviceModels, string uniqueId) { }
     }
     public static class DependencyModuleDiagnostics

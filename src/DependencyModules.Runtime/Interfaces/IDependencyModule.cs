@@ -34,7 +34,7 @@ public interface IDependencyModule
     /// Internal method not intended to be called by general developers
     /// </summary>
     /// <returns></returns>
-    [Browsable(false)]
+    [EditorBrowsable(EditorBrowsableState.Never)]
     IEnumerable<object> InternalGetModules()
     {
         // Array.Empty<object>() rather than an array of the interface, so the runtime's empty check
@@ -46,7 +46,7 @@ public interface IDependencyModule
     /// Internal method not intended to be called by general developers
     /// </summary>
     /// <param name="serviceCollection"></param>
-    [Browsable(false)]
+    [EditorBrowsable(EditorBrowsableState.Never)]
     void InternalApplyServices(IServiceCollection serviceCollection) { }
 
     /// <summary>
@@ -59,7 +59,7 @@ public interface IDependencyModule
     /// </remarks>
     /// <param name="serviceCollection"></param>
     /// <param name="environment">Never null; see <c>ModuleEnvironment.Default</c>.</param>
-    [Browsable(false)]
+    [EditorBrowsable(EditorBrowsableState.Never)]
     void InternalApplyServices(IServiceCollection serviceCollection, IModuleEnvironment environment)
     {
         InternalApplyServices(serviceCollection);
@@ -69,7 +69,7 @@ public interface IDependencyModule
     /// Internal method not intended to be called by general developers
     /// </summary>
     /// <param name="serviceCollection"></param>
-    [Browsable(false)]
+    [EditorBrowsable(EditorBrowsableState.Never)]
     void InternalApplyDecorators(IServiceCollection serviceCollection) { }
 
     /// <summary>
@@ -80,7 +80,7 @@ public interface IDependencyModule
     /// decorators together. Applying them per module would make module discovery order outrank the
     /// order the developer declared.
     /// </remarks>
-    [Browsable(false)]
+    [EditorBrowsable(EditorBrowsableState.Never)]
     IEnumerable<DecoratorRegistration> InternalGetDecorators()
     {
         return Array.Empty<DecoratorRegistration>();

@@ -55,9 +55,14 @@ public class InterceptorFileWriter
         }
 
         wrapper.AddBaseType(model.ServiceType);
-        wrapper.AddAttribute(
-            TypeDefinition.Get("System.Diagnostics.CodeAnalysis", "ExcludeFromCodeCoverage")
-        );
+
+        // On the class, because the wrapper is a whole generated type and not a partial one.
+        if (configurationModel.ExcludeGeneratedCodeFromCoverage)
+        {
+            wrapper.AddAttribute(
+                TypeDefinition.Get("System.Diagnostics.CodeAnalysis", "ExcludeFromCodeCoverage")
+            );
+        }
 
         WriteFields(wrapper, model);
         WriteConstructor(wrapper, model);

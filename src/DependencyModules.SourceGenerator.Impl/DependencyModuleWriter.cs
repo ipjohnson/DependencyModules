@@ -138,6 +138,8 @@ public class DependencyModuleWriter
 
         GenerateAttribute(entryPointModel, csharpFile);
 
+        GeneratedCodeCoverage.ExcludeMembers(csharpFile, configurationModel);
+
         var outputContext = new OutputContext(
             new OutputContextOptions
             {
@@ -272,8 +274,7 @@ public class DependencyModuleWriter
 
         method.Modifiers |= ComponentModifier.Virtual | ComponentModifier.Public;
 
-        method.AddLeadingTrait(CodeOutputComponent.Get("[Browsable(false)]", true));
-        method.AddUsingNamespace("System.ComponentModel");
+        HideFromIntelliSense(method);
 
         method.InterfaceImplementation = KnownTypes
             .DependencyModules
@@ -359,8 +360,7 @@ public class DependencyModuleWriter
     {
         var method = classDefinition.AddMethod("InternalGetDecorators");
 
-        method.AddLeadingTrait(CodeOutputComponent.Get("[Browsable(false)]", true));
-        method.AddUsingNamespace("System.ComponentModel");
+        HideFromIntelliSense(method);
 
         method.InterfaceImplementation = KnownTypes.DependencyModules.Interfaces.IDependencyModule;
         method.SetReturnType(
@@ -394,8 +394,7 @@ public class DependencyModuleWriter
 
         var getModulesMethod = classDefinition.AddMethod("InternalGetModules");
 
-        getModulesMethod.AddLeadingTrait(CodeOutputComponent.Get("[Browsable(false)]", true));
-        getModulesMethod.AddUsingNamespace("System.ComponentModel");
+        HideFromIntelliSense(getModulesMethod);
 
         getModulesMethod.InterfaceImplementation = KnownTypes
             .DependencyModules
@@ -505,8 +504,7 @@ public class DependencyModuleWriter
     {
         var loadDependenciesMethod = classDefinition.AddMethod("InternalApplyServices");
 
-        loadDependenciesMethod.AddLeadingTrait(CodeOutputComponent.Get("[Browsable(false)]", true));
-        loadDependenciesMethod.AddUsingNamespace("System.ComponentModel");
+        HideFromIntelliSense(loadDependenciesMethod);
 
         loadDependenciesMethod.InterfaceImplementation = KnownTypes
             .DependencyModules
@@ -577,4 +575,14 @@ public class DependencyModuleWriter
     {
         classDefinition.AddConstructor().Modifiers = ComponentModifier.Static;
     }
+
+    /// <remarks>
+    /// Only <c>EditorBrowsable</c> hides a member from IntelliSense. <c>Browsable</c> is read by the
+    /// Properties window of a designer.
+    /// </remarks>
+    private static void HideFromIntelliSense(MethodDefinition method) =>
+        method.AddAttribute(
+            TypeDefinition.Get("System.ComponentModel", "EditorBrowsable"),
+            "global::System.ComponentModel.EditorBrowsableState.Never"
+        );
 }

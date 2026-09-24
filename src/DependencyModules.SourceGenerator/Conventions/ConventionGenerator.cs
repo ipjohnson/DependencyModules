@@ -487,10 +487,7 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator
             return;
         }
 
-        // coverageAttributeOnMethod: the registrations file already puts ExcludeFromCodeCoverage on
-        // the partial class, and the attribute is not AllowMultiple, so a second class-level one on
-        // the same type is CS0579.
-        var writer = new DependencyFileWriter(logger, coverageAttributeOnMethod: true);
+        var writer = new DependencyFileWriter(logger);
 
         var output = writer.Write(withNamespace, configurationModel, serviceModels, "Convention");
 
