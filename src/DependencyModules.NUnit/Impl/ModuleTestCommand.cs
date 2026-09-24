@@ -93,6 +93,7 @@ public class ModuleTestCommand(TestCommand innerCommand) : DelegatingTestCommand
                 services: serviceCollection,
                 pinned: serviceProvider,
                 pinnedServices: SharedRegistrations.Collect(method, knownAttributes),
+                namedServices: SharedRegistrations.CollectNamed(method, knownAttributes),
                 build: services => BuildServiceProvider(moduleContext, services, knownAttributes),
                 start: built =>
                 {
