@@ -435,8 +435,11 @@ public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase
                         skipWhen: theoryDataRow.SkipWhen ?? SkipWhen,
                         testDisplayName: GetRowDisplayName(theoryDataRow, data),
                         testIndex: unitTests.Count,
-                        traits: theoryDataRow.Traits?.ToReadOnlyTraits()
-                            ?? Traits.ToReadOnlyTraits(),
+                        // The row adds its traits to those of the method and the class, which is
+                        // what [Theory] does with the same helper.
+                        traits: TestIntrospectionHelper
+                            .GetTraits(TestMethod, theoryDataRow)
+                            .ToReadOnlyTraits(),
                         timeout: theoryDataRow.Timeout ?? Timeout,
                         testMethodArguments: await ResolveArguments(data, startupValues)
                     )
