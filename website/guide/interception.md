@@ -114,7 +114,13 @@ The generator gives the warning DM0008 in these conditions:
 - `Service` is an interface that the class does not implement.
 - The service type has no members.
 
-The interception is applicable only to the registration of the class. The wrapper does not change a registration of a different implementation type. It changes a registration of the service type that has no known implementation type, for example an instance registration or a factory registration.
+The interception is applicable only to the registrations of the class. The wrapper changes a registration only if the implementation of the registration is the class. These registrations have the class as their implementation:
+
+- A registration with the class type
+- An instance of the class
+- A factory that has the class as its return type
+
+The wrapper does not change a factory that has `object` or the service type as its return type, also if the factory makes the class. For example, the wrapper does not change `services.AddSingleton<IStockService>(_ => new StockService())`.
 
 ## Intercepted members
 
@@ -131,7 +137,7 @@ public class MethodsOnlyStockService : IStockService
 }
 ```
 
-The values of `InterceptedMembers` are `Methods`, `Properties`, `Indexers`, `Events`, and `All`. You can use more than one value with the `|` operator. The generator reads the text of the `Members` value. Write the values of `InterceptedMembers` directly. If you use a constant, the wrapper intercepts all members. The wrapper sends the calls to the other members directly to the service.
+The values of `InterceptedMembers` are `Methods`, `Properties`, `Indexers`, `Events`, and `All`. You can use more than one value with the `|` operator. The generator reads the value of `Members`, not its text. Thus you can also use a constant. The wrapper sends the calls to the other members directly to the service.
 
 An interceptor intercepts only the members that its interfaces can intercept. For example, an interceptor that implements only `IInterceptor` does not intercept a method that has the return type `Task`. The generator then gives the warning DM0015 with the names of these members.
 
@@ -143,7 +149,7 @@ If the service collection has a registration for the interceptor class type, the
 
 ## Sequence with decorators
 
-The interception occurs at the same time as the decorators, after all modules add their services. The `Order` property of `[Intercept]` sets the position of the interception in the decorator sequence. Write `Order` as a number, for example `Order = 1000`. If you use a constant or `1_000`, the `Order` value is 0. For more information, refer to [Decorator sequence](./decorators.md#decorator-sequence).
+The interception occurs at the same time as the decorators, after all modules add their services. The `Order` property of `[Intercept]` sets the position of the interception in the decorator sequence. The value can be a number or a constant. For more information, refer to [Decorator sequence](./decorators.md#decorator-sequence).
 
 ## Realms
 
@@ -161,6 +167,7 @@ The generator does not intercept a service type that has one of these members:
 
 - A static member
 - A method or a property that has a `ref` return value
+- A method that has a `ref struct` return type
 - A parameter with `ref`, `out`, or `in`
 - A parameter or a property of a `ref struct` type
 - A property with an `init` accessor
@@ -168,7 +175,7 @@ The generator does not intercept a service type that has one of these members:
 
 In these conditions, the generator gives the warning DM0008 and writes no wrapper. The diagnostic gives the name of one member. Other members can have the same problem. If you move these members to a different interface, the generator can intercept the service type. You can also use a [decorator](./decorators.md).
 
-The generator does not give DM0008 for a method that has a `ref struct` return type. For such a method, the generated wrapper does not compile.
+The generator cannot find a type parameter with the `allows ref struct` constraint. If a return type or a parameter type is such a type parameter, the generator gives no DM0008. The generated wrapper then does not compile.
 
 ## Generated code
 

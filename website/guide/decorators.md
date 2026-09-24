@@ -46,11 +46,11 @@ public class AuditedOrderService(IOrderService inner, IAuditLog log) : IOrderSer
 
 When you get `IOrderService`, the service provider gives `AuditedOrderService`. `AuditedOrderService` gets `OrderService` in the `inner` parameter.
 
-The generator finds the service type from the constructor. The service type is the first constructor parameter with a type that the class declaration of the decorator contains. The generator does not examine the interfaces of base classes or the interfaces that an interface derives from. If the generator finds no service type, it ignores the decorator and gives no diagnostic. The `Service` property can also set the service type, for example `[Decorator(Service = typeof(IOrderService))]`.
+The generator finds the service type from the constructor. The service type is the first constructor parameter with a type that the decorator implements. The generator examines the base classes of the decorator and all its interfaces, also the interfaces that an interface derives from. If the generator finds no service type, it gives the warning DM0025 and does not apply the decorator. The `Service` property can also set the service type, for example `[Decorator(Service = typeof(IOrderService))]`.
 
 The generator does not register the decorator class as a service. The service provider gives the other constructor parameters, for example `IAuditLog` in the example.
 
-Give the decorator a `public` constructor. The generated code calls this constructor.
+The generated code calls the constructor of the decorator. Thus the constructor must be `public`, `internal`, or `protected internal`. If the decorator has no such constructor, the generator gives the warning DM0025 and does not apply the decorator.
 
 ## Which registrations a decorator changes
 
@@ -101,7 +101,7 @@ In this example, `Describe()` gives `outer(inner(price))`.
 
 The decorators of all modules and the interceptors are in one sequence. The default `Order` value is 0. The source code recommends values from 0 to 999 for packages and values of 1000 and more for application code. Then the decorators of the application are the outer decorators. The generator does not examine these ranges.
 
-Write `Order` as a number, for example `Order = 1000`. The generator reads the text of the value. If you use a constant or `1_000`, the `Order` value is 0, and the generator gives no diagnostic. `[Decorate]` also accepts a constant.
+The generator reads the value of `Order`, not its text. Thus you can also use a constant or digit separators, for example `Order = 1_000`.
 
 If two decorators in one module have the same service type and the same `Order` value, the generator gives the error DM0007.
 
@@ -159,7 +159,7 @@ The generator makes a closed decorator for each closed registration of the servi
 
 These conditions are applicable to a generic decorator:
 
-- The decorator must have the same type parameters as the service type, in the same sequence.
+- The decorator must have the same type parameters as the service type, in the same sequence. If it does not, the generator gives the warning DM0025.
 - The generator uses only the closed service types that the same project registers.
 - If a closed service type does not agree with the constraints of the decorator, the generator does not use the decorator for that type.
 
@@ -233,7 +233,7 @@ If a module writes [generated factories](./aot.md#generated-factories), its regi
 
 A `[Decorator]` class can have environment attributes, for example `[IfEnvironment("Development")]`. The decorator then changes the registrations only when the conditions are true. If the conditions are false, the other decorators keep their positions in the sequence. For the attributes, refer to [Environments](./environments.md).
 
-The generator ignores the environment attributes of a decorator that `[Decorate]` adds.
+The generator also reads the environment attributes of a decorator that `[Decorate]` adds. If a condition has no name or no key, the generator gives the warning DM0012.
 
 ## Realms
 

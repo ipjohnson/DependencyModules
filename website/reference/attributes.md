@@ -39,13 +39,13 @@ Guide: [Services](../guide/services.md).
 
 ### `[CrossWireService]`
 
-Registers a class as each interface in its declaration and as the class type. All the registrations use the instance of the class registration. If the class declaration contains no interface, the generator writes no registration. Targets: class, method. On a method, the generator writes no registration.
+Registers a class as each interface that it declares and as the class type. All the registrations use the instance of the class registration. If the class declares no interface, the generator registers only the class type. Targets: class, method. On a static method, the generator registers the return type and each interface that the return type declares.
 
 | Property | Type | Default | Function |
 | --- | --- | --- | --- |
 | `Lifetime` | `ServiceLifetime` | `Singleton` | The lifetime of the registrations. |
-| `Key` | `object?` | `null` | Do not set it. If you set `Key`, the generated code does not compile. |
-| `Using` | `RegistrationType` | Not set | The registration type. Only `Add` and `Replace` are permitted. If it is not set, refer to [Cross-wired services](../guide/services.md#cross-wired-services). |
+| `Key` | `object?` | `null` | The key of all the registrations. |
+| `Using` | `RegistrationType` | Not set | The registration type of all the registrations. If it is not set, the generator uses the value of the module, then the MSBuild property, then `Add`. |
 | `Realm` | `Type?` | `null` | The module that registers the service. |
 
 Guide: [Cross-wired services](../guide/services.md#cross-wired-services).
@@ -56,7 +56,7 @@ Identifies a class as a decorator. Targets: class.
 
 | Property | Type | Default | Function |
 | --- | --- | --- | --- |
-| `Service` | `Type?` | `null` | The service type to decorate. Without `Service`, the generator uses the first constructor parameter with a type that the class declaration contains. |
+| `Service` | `Type?` | `null` | The service type to decorate. Without `Service`, the generator uses the first constructor parameter with a type that the class implements, also through a base class. |
 | `Order` | `int` | `0` | The position of the decorator. If the value of decorator A is less than the value of decorator B, B is the outer decorator. |
 | `Realm` | `Type?` | `null` | The module that uses the decorator. |
 | `Implementation` | `Type?` | `null` | The implementation to decorate. Without `Implementation`, the decorator changes all registrations of the service type. |
@@ -92,7 +92,7 @@ Guide: [Interception](../guide/interception.md).
 
 ### Environment attributes
 
-Targets: class. Put them on a service class or on a `[Decorator]` class. You can also put them on a class in the project that a convention selects. The generator ignores them on a decorator that `[Decorate]` adds and on a class from a referenced assembly.
+Targets: class. Put them on a service class, on a `[Decorator]` class, or on a decorator that `[Decorate]` adds. You can also put them on a class that a convention selects, also in a referenced assembly.
 
 | Attribute | Constructor | More than one on a class |
 | --- | --- | --- |
@@ -122,7 +122,7 @@ For each module, the generator writes an attribute with the name of the module a
 
 - Targets: class, assembly, method, parameter. You can put more than one on an item.
 - The constructor has the constructor parameters of the module.
-- The properties are the `public`, `internal`, and `protected internal` properties of the module that have a `set` accessor.
+- The properties are the `public`, `internal`, and `protected internal` properties of the module that have a `set` accessor. The `set` accessor must also be `public`, `internal`, or `protected internal`. The properties of a nested class are not included.
 - The attribute implements `IDependencyModuleProvider`.
 
 Guide: [Module dependencies](../guide/modules.md#module-dependencies).

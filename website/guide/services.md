@@ -47,7 +47,7 @@ The generator does not use a capability interface as the service type. These are
 - `ISerializable`
 - `INotifyPropertyChanged`, `INotifyPropertyChanging`, and `INotifyCollectionChanged`
 
-If you set `As` to a capability interface, the generator uses it. `[CrossWireService]` does not use this list. It registers all interfaces in the declaration.
+If you set `As` to a capability interface, the generator uses it. `[CrossWireService]` does not use this list. It registers all interfaces that the class declares.
 
 Each attribute registers one service type. To register a class as two service types, put two attributes on the class:
 
@@ -158,7 +158,7 @@ You can set the registration type at three levels. The generator uses the first 
 
 If no level sets a value, the registration type is `Add`.
 
-The generator reads the text of the `Using` value. Write the value as `RegistrationType.Try`, or as `Try` with a `using static` directive. If you write the full name of the enum or use a constant, the generator uses `Add` and gives no diagnostic.
+The generator reads the value of `Using`, not its text. Thus you can also write the full name of the enum member or use a constant.
 
 ## Registration sequence
 
@@ -200,13 +200,13 @@ public class SaleDiscount : IDiscountRule
 
 In this example, `GetService<IDiscountRule>()` gives `SaleDiscount`.
 
-Write `Order` as a number, for example `Order = 1000`. The generator reads the text of the value. If you use a constant or `1_000`, the `Order` value is 0, and the generator gives no diagnostic.
+The generator reads the value of `Order`, not its text. Thus you can also use a constant or digit separators, for example `Order = 1_000`.
 
 For the sequence of registrations from more than one module, refer to [Module load sequence](./modules.md#module-load-sequence).
 
 ## Cross-wired services
 
-`[CrossWireService]` registers a class as each interface in its declaration. It also registers the class as the class type. The interface registrations get the instance from the registration of the class type. Thus, for the `Singleton` and `Scoped` lifetimes, all these registrations give the same instance in a scope.
+`[CrossWireService]` registers a class as each interface that the class declares. It also registers the class as the class type. The interface registrations get the instance from the registration of the class type. Thus, for the `Singleton` and `Scoped` lifetimes, all these registrations give the same instance in a scope.
 
 ```csharp
 using DependencyModules.Runtime.Attributes;
@@ -234,19 +234,17 @@ public class Inventory : IInventoryReader, IInventoryWriter
 }
 ```
 
-The class declaration must contain one or more interfaces. If the class gets its interfaces only from a base class, the generator writes no registration and gives no diagnostic.
+The generator reads the interfaces from all partial declarations of the class. It does not cross-wire the interfaces of a base class. If the class declares no interface, the generator registers only the class type. If the class then gets interfaces from a base class, the generator also gives the warning DM0024. To cross-wire these interfaces, write them in the declaration of the class.
 
 The default lifetime is `Singleton`. To set a different lifetime, set the `Lifetime` property, for example `[CrossWireService(Lifetime = ServiceLifetime.Scoped)]`.
 
-`[CrossWireService]` also has the `Realm`, `Using`, and `Key` properties. It has no `As` property and no `Order` property. `Realm` has the same function as on the other service attributes.
+`[CrossWireService]` also has the `Realm`, `Using`, and `Key` properties. It has no `As` property and no `Order` property. `Realm` has the same function as on the other service attributes. If you set `Key`, all registrations of the class use the key.
 
-If you set `Using` on the attribute, all registrations of the class use this value. If you do not set `Using`, the interface registrations use the value of the module or of the MSBuild property. The registration of the class type then uses `Add`.
-
-::: warning
-Set `Using` on `[CrossWireService]` only to `Add` or `Replace`. If `Using` is `Try` or `TryEnumerable`, the generated code does not compile. If the module or the MSBuild property sets `TryEnumerable`, `AddModule` throws an `ArgumentException`. Do not set `Key` on `[CrossWireService]`. If you set `Key`, the generated code does not compile.
-:::
+The registration of the class type and the interface registrations use the same registration type. The generator selects it in the sequence of [Registration type](#registration-type). For `TryEnumerable`, the registration of the class type uses `TryAdd`. `TryAddEnumerable` cannot add a registration that has its service type as its implementation type.
 
 The generator cannot cross-wire a generic class. It gives the warning DM0014 and does not register the class. For a generic class, you can use one of the other service attributes.
+
+You can also put `[CrossWireService]` on a static factory method. The generator then registers the return type of the method, and it cross-wires each interface that the return type declares.
 
 ## Factory methods
 
@@ -276,7 +274,7 @@ public static class TaxFactories
 
 The generator gets each parameter of the method from the service provider. If the method has one parameter of type `IServiceProvider`, the method gets the service provider.
 
-The method must be `static`, and it must be `public` or `internal`. Write the access modifier. The generator ignores a `private` method, a `protected` method, and a method that is not `static`. It gives no diagnostic for these methods.
+The method must be `static`, and the generated code must be able to call it. Thus the method must be `public` or `internal`. A method without an access modifier is `private`. The classes that contain the method must not be `private` or `protected`. If the generated code cannot call the method, the generator gives the warning DM0023 and does not register the method.
 
 ## Generic services
 
@@ -311,7 +309,7 @@ The generator cannot make an instance of an abstract class or a static class. If
 
 A service can be a record class. A service can also be a nested class.
 
-If a service class has more than one partial declaration, the generator reads only the declaration that has the service attribute. It reads the attributes, the base types, and the constructors from this declaration. Put the interfaces and the [environment attributes](./environments.md) on that declaration.
+If a service class has more than one partial declaration, the generator reads only the declaration that has the service attribute. It reads the attributes, the base types, and the constructors from this declaration. Put the interfaces and the [environment attributes](./environments.md) on that declaration. `[CrossWireService]` is different. It reads the interfaces of all partial declarations.
 
 ## JSON serializer contexts
 

@@ -58,13 +58,13 @@ public class RowTests
 }
 ```
 
-`TestName` sets the name of the row. Without `TestName`, the name is the method name and the values, for example `RowAndService(2, 4)`.
-
-The test package gives the names to the rows by their position in the list of all rows. If the method also has a different row source, the test package can give a name to an incorrect row. Do not use `TestName` on such a method.
+`TestName` sets the name of the row of its `[ModuleTestCase]`. Without `TestName`, the name is the method name and the values, for example `RowAndService(2, 4)`. The rows from a different row source also get this default name.
 
 The number of values in a row can be less than the number of parameters. A row with more values than parameters does not run. NUnit then shows the row as `NotRunnable` and gives the cause.
 
-Do not use `[TestCase]`, `[TestCaseSource]`, `[Values]`, or `[Range]` with `[ModuleTest]`. NUnit makes more tests from these attributes. The test package does not give their values to the parameters. Thus these tests can fail.
+Do not use `[TestCase]`, `[TestCaseSource]`, `[Values]`, or `[Range]` with `[ModuleTest]`. NUnit makes more tests from these attributes, and the test package cannot give their values to the parameters. Thus the test package does not run these tests. NUnit shows each of them as `NotRunnable`, and the message gives the name of the attribute. This is also true for the other NUnit data attributes, for example `[Random]` and `[ValueSource]`.
+
+NUnit makes some of these tests `NotRunnable` before the test package can examine them. An example is a `[TestCaseSource]` row whose number of values is less than the number of parameters. For such a test, NUnit shows its own message.
 
 To get rows from a different source, write an attribute that implements `IModuleTestDataAttribute`. Its `GetRows(MethodInfo method)` method gives the rows. Put the attribute on the test method.
 

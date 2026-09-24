@@ -66,7 +66,7 @@ namespace Shop;
 public partial class ShopModule;
 ```
 
-The class must be `partial`. If the class is not partial, the generator gives the error DM0003. If the project also has services, the compiler gives the error CS0260.
+The class must be `partial`. If the class is not partial, the generator gives the error DM0003 and writes no code for the module.
 
 ## Load the module
 

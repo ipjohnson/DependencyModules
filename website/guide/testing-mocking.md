@@ -115,7 +115,7 @@ The test package registers a `[Mock]` parameter after `[TestExport]`. Thus the m
 
 For Moq, the test package registers a `Mock<T>` parameter before `[TestExport]`. Thus a `[TestExport]` for `T` replaces the registration of `mock.Object`. The `Mock<T>` parameter gets its mock. But the other services get the `[TestExport]` service, not `mock.Object`. If the test also has a `[Mock] T` parameter, this parameter also gets the `[TestExport]` service.
 
-If the test project references `DependencyModules.SourceGenerator`, the generator examines the test methods. If a test method has `[TestExport]` and a `[Mock]` parameter for the same service type, the generator gives the warning DM0021. The generator also gives DM0021 for the two exceptions in this section.
+If the test project references `DependencyModules.SourceGenerator`, the generator examines the test methods. If a `[Mock]` parameter replaces a `[TestExport]` registration on the same test method, the generator gives the warning DM0021. It gives no DM0021 for the two exceptions in this section, because the `[TestExport]` registration stays in use.
 
 To set a default for many tests, put `[TestExport]` on the class or on the assembly. A `[Mock]` parameter can then replace the default in one test.
 

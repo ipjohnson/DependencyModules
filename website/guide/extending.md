@@ -105,9 +105,8 @@ Do these steps:
 
 1. Make a class library that has the target framework `netstandard2.0`.
 2. Add the `DependencyModules.SourceGenerator.Impl` package.
-3. Add the `CSharpAuthor` package, version 2.0.0. The generator source code uses this package.
-4. Set `PackageDependencyModuleIncludeSource` and `PackageCSharpAuthorIncludeSource` to `true`.
-5. Write a class that derives from `BaseSourceGenerator`.
+3. Set `PackageDependencyModuleIncludeSource` to `true`.
+4. Write a class that derives from `BaseSourceGenerator`.
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
@@ -119,14 +118,16 @@ Do these steps:
     <IsRoslynComponent>true</IsRoslynComponent>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <PackageDependencyModuleIncludeSource>true</PackageDependencyModuleIncludeSource>
-    <PackageCSharpAuthorIncludeSource>true</PackageCSharpAuthorIncludeSource>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="DependencyModules.SourceGenerator.Impl" Version="1.5.0" PrivateAssets="all" />
-    <PackageReference Include="CSharpAuthor" Version="2.0.0" PrivateAssets="all" IncludeAssets="build" />
+    <PackageReference Include="DependencyModules.SourceGenerator.Impl" Version="1.6.0" PrivateAssets="all" />
   </ItemGroup>
 </Project>
 ```
+
+The generator source code uses the `CSharpAuthor` package. The `DependencyModules.SourceGenerator.Impl` package contains the source code of `CSharpAuthor`, and the project compiles it with the generator source code. If the project sets `PackageCSharpAuthorIncludeSource` to `true`, the project compiles `CSharpAuthor` from its own `CSharpAuthor` package. The project then does not compile the copy.
+
+Version 1.5.0 and the versions before it do not contain the source code of `CSharpAuthor`. For these versions, also add the `CSharpAuthor` package, version 2.0.0, with `IncludeAssets="build"`. Then set `PackageCSharpAuthorIncludeSource` to `true`.
 
 ```csharp
 using CSharpAuthor;
@@ -178,7 +179,7 @@ To write registrations for attributes that you declare, derive a part from `Base
 
 `DependencyFileWriter` writes the registration code for a list of `ServiceModel` values. Its `Write` method has a `uniqueId` parameter. The name of the generated method is `uniqueId` and the suffix `Dependencies`. Thus each part that adds registrations to a module must use a different `uniqueId`.
 
-The constructor of `DependencyFileWriter` has a `coverageAttributeOnMethod` parameter. If the value is `true`, `DependencyFileWriter` puts `[ExcludeFromCodeCoverage]` on the generated method and not on the class. Only one part of a partial class can have this attribute on the class. If two parts have it, the compiler gives the error CS0579.
+`DependencyFileWriter` puts `[ExcludeFromCodeCoverage]` on the members that it writes, and not on the class. Use the constructor that takes only the logger. The constructor with the `coverageAttributeOnMethod` parameter is obsolete. It ignores the value of the parameter.
 
 The generator source code declares the DM diagnostics. The compiler then gives the warning RS2008 for each diagnostic, because your project has no analyzer release tracking.
 

@@ -11,7 +11,7 @@ namespace Catalog;
 public partial class CatalogModule;
 ```
 
-A module must be `partial`. If it is not partial, the generator gives the error DM0003. A module must be at the namespace level. If you declare a module in a different class, the generator gives the error DM0017 and does not write the other part of the module.
+A module must be `partial`. If it is not partial, the generator gives the error DM0003. A module must be at the namespace level. If you declare a module in a different class, the generator gives the error DM0017. In the two conditions, the generator writes no code for the module.
 
 The generator reads the attributes of a module only from the declaration that has `[DependencyModule]`. If the module has more than one partial declaration, put the module attributes and the `IDependencyModuleFeature<T>` interfaces on that declaration.
 
@@ -210,9 +210,7 @@ public partial class MailModule : IServiceCollectionConfiguration
 public partial class NotificationModule;
 ```
 
-The generator puts the `public`, `internal`, and `protected internal` properties that have a `set` accessor on the attribute. It does not put `static` properties on the attribute.
-
-The generator examines only the modifiers of the property. It does not examine the modifiers of the `set` accessor. If the `set` accessor is `private`, the generated attribute does not compile. The generator also examines the properties of nested classes in the module. If a nested class has a property that the generator puts on the attribute, the generated attribute does not compile.
+The generator puts the `public`, `internal`, and `protected internal` properties that have a `set` accessor on the attribute. The `set` accessor must also be `public`, `internal`, or `protected internal`. Thus a property with a `private set` accessor is not on the attribute. The generator does not put `static` properties or the properties of nested classes on the attribute.
 
 When the attribute does not set a property, the result is as follows:
 
@@ -224,11 +222,11 @@ When the attribute does not set a property, the result is as follows:
 
 A module class that you declare gets a generated `Equals` method and a generated `GetHashCode` method. The generated `Equals` method compares only the module type. Thus, two instances of the same module type are the same module.
 
-If the module declares a method with the name `Equals`, the generator does not write these methods. The generator examines only the declaration that has `[DependencyModule]`. Declare `Equals` and `GetHashCode` in that declaration. If you declare `Equals` in a different partial declaration, the compiler gives the error CS0111.
+If the module declares `Equals(object)`, the generator does not write these methods. The generator examines all partial declarations of the module. If the module declares `GetHashCode` but not `Equals(object)`, the generator writes only `Equals`.
 
-The load operation calls `Equals(object)`. If the module declares only a different `Equals` method, for example `IEquatable<T>.Equals(T)`, two instances are always two modules.
+The load operation calls `Equals(object)`. If the module declares only `Equals` for its own type, for example `IEquatable<T>.Equals(T)`, the generated `Equals(object)` calls that method. Thus your method compares the modules.
 
-If a module has properties that the generator puts on the attribute and no `Equals` method, the generator gives the warning DM0018. Two instances with different values are then one module. Only the first instance loads. If you declare `Equals` and `GetHashCode`, two instances with different values can load, as shown in the `MailModule` example.
+If a module has properties that the generator puts on the attribute and declares no `Equals` method, the generator gives the warning DM0018. Two instances with different values are then one module. Only the first instance loads. If you declare `Equals` and `GetHashCode`, two instances with different values can load, as shown in the `MailModule` example.
 
 The generated `ApplicationModule` does not get these methods.
 
@@ -333,7 +331,7 @@ app.Run();
 
 The generator reads assembly-level module attributes only from `Program.cs`. If you put one in a different file of an application project, the generator gives the error DM0019 and ignores the attribute. An assembly-level attribute must also have a `using` directive for its namespace. If the directive is missing, the generator gives the warning DM0016.
 
-These two diagnostics are only for an attribute without its namespace, for example `[assembly: CatalogModule]`. A `using` directive is not necessary for an attribute with its full name, for example `[assembly: Catalog.CatalogModule]`. In a file that is not `Program.cs`, the generator ignores this attribute and gives no diagnostic.
+A `using` directive is not necessary for an attribute with its full name, for example `[assembly: Catalog.CatalogModule]`. Thus DM0016 is only for an attribute without its namespace. DM0019 is also for an attribute with its full name.
 
 The top-level statements of `Program.cs` can also call a static method of a module. `ApplicationModule` then also loads that module. These conditions are necessary:
 
@@ -343,7 +341,7 @@ The top-level statements of `Program.cs` can also call a static method of a modu
 
 The generated `ApplicationModule` is a partial class. To add registration code to it, declare `partial class ApplicationModule` in the root namespace without `[DependencyModule]`. Then implement `IServiceCollectionConfiguration`.
 
-If you declare a module with the name `ApplicationModule` and `[DependencyModule]` in the root namespace, the generator uses your module. It does not write a different `ApplicationModule`. The generator then ignores the assembly-level module attributes and the static calls in `Program.cs`, and it gives no diagnostic.
+If you declare a module with the name `ApplicationModule` and `[DependencyModule]` in the root namespace, the generator uses your module. It does not write a different `ApplicationModule`. Your module also loads the modules that the assembly-level module attributes and the static calls in `Program.cs` identify.
 
 ## Records as modules
 
