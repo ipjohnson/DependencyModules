@@ -129,9 +129,49 @@ public class ModuleTestCaseDataTests
         Assert.Single(tests);
     }
 
-    private static async Task<IReadOnlyCollection<IXunitTest>> CreateTests(string methodName)
+    /// <summary>
+    /// A row adds its own traits to the traits of the method and the class, as it does under
+    /// [Theory]. A trait filter reads the test case, so it still selected these rows while the
+    /// test of each row had no traits.
+    /// </summary>
+    [Fact]
+    public async Task ARowTest_HasTheTraitsOfTheClassTheMethodAndTheRow()
     {
-        var testMethod = BuildTestMethod(typeof(DataSample), methodName);
+        var tests = await CreateTests(typeof(TraitSample), nameof(TraitSample.Rows));
+
+        Assert.Collection(
+            tests.OrderBy(test => test.TestDisplayName, StringComparer.Ordinal),
+            first =>
+            {
+                Assert.Equal(["Area", "Category"], first.Traits.Keys.Order());
+                Assert.Equal(["Checkout"], first.Traits["Area"]);
+                Assert.Equal(["Fast"], first.Traits["Category"]);
+            },
+            second =>
+            {
+                Assert.Equal(["Area", "Category", "Row"], second.Traits.Keys.Order());
+                Assert.Equal(["Second"], second.Traits["Row"]);
+            }
+        );
+    }
+
+    [Fact]
+    public async Task ATestWithoutRows_HasTheTraitsOfTheClassAndTheMethod()
+    {
+        var tests = await CreateTests(typeof(TraitSample), nameof(TraitSample.NoRows));
+
+        Assert.Equal(["Area", "Category"], Assert.Single(tests).Traits.Keys.Order());
+    }
+
+    private static Task<IReadOnlyCollection<IXunitTest>> CreateTests(string methodName) =>
+        CreateTests(typeof(DataSample), methodName);
+
+    private static async Task<IReadOnlyCollection<IXunitTest>> CreateTests(
+        Type testClass,
+        string methodName
+    )
+    {
+        var testMethod = BuildTestMethod(testClass, methodName);
 
         var testCases = await new ModuleTestDiscoverer().Discover(
             new DiscoveryOptions(),
@@ -240,6 +280,18 @@ public class ModuleTestCaseDataTests
         [InlineData("first")]
         [InlineData("second")]
         public void InlineDataWithContainerParameter(string value, ContainerSupplied supplied) { }
+    }
+
+    [Trait("Area", "Checkout")]
+    private class TraitSample
+    {
+        [Trait("Category", "Fast")]
+        [InlineData("first")]
+        [InlineData("second", Traits = new[] { "Row", "Second" })]
+        public void Rows(string value) { }
+
+        [Trait("Category", "Fast")]
+        public void NoRows() { }
     }
 
     /// <summary>
