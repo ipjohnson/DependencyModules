@@ -65,10 +65,22 @@
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="CSharpAuthor" Version="2.0.0">
+        <PackageReference Include="CSharpAuthor" Version="2.0.0" GeneratePathProperty="true">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>build</IncludeAssets>
         </PackageReference>
+    </ItemGroup>
+
+    <!--
+        The shipped sources use CSharpAuthor, so its sources ship beside them. A package dependency
+        cannot do this: NuGet imports build/ targets only for a direct reference, and CSharpAuthor has
+        no buildTransitive/.
+    -->
+    <ItemGroup>
+        <Content Include="$(PkgCSharpAuthor)/src/**/*.cs" Visible="false">
+            <Pack>true</Pack>
+            <PackagePath>srcCSharpAuthor/</PackagePath>
+        </Content>
     </ItemGroup>
 
     <!-- Release tracking for the DM#### diagnostics (RS2008). -->
