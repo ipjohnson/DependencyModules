@@ -8,9 +8,10 @@ namespace DependencyModules.SourceGenerator.Impl.Models;
 /// <param name="IsReadOnly">No set accessor. Nothing to configure, so not a parameter.</param>
 /// <param name="IsStatic">Belongs to the type rather than the instance, so not a parameter.</param>
 /// <param name="IsVisibleToAttribute">
-/// Reachable from another type in the same assembly, which is where the generated attribute sits.
-/// <c>public</c>, <c>internal</c> and <c>protected internal</c> are; <c>private</c>,
-/// <c>protected</c>, <c>private protected</c> and an unmodified declaration are not.
+/// The property and its set accessor are reachable from another type in the same assembly, which
+/// is where the generated attribute sits. <c>public</c>, <c>internal</c> and
+/// <c>protected internal</c> are; <c>private</c>, <c>protected</c>, <c>private protected</c> and an
+/// unmodified declaration are not.
 /// </param>
 public record PropertyInfoModel(
     ITypeDefinition PropertyType,

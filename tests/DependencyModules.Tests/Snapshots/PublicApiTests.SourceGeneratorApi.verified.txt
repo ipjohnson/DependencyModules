@@ -1676,6 +1676,8 @@ namespace DependencyModules.SourceGenerator.Impl.Models
         IsRecord = 8,
         NotPartial = 16,
         NestedInType = 32,
+        ShouldImplementGetHashCode = 64,
+        DeclaresTypedEquals = 128,
     }
     public class ModuleEntryPointModel : DependencyModules.SourceGenerator.Impl.Models.IClassModel, System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel>
     {
