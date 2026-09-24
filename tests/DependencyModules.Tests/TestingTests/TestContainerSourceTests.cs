@@ -148,6 +148,23 @@ public class TestContainerSourceTests
     }
 
     /// <summary>
+    /// A parameter pins its type, and the keyed registrations of that type cross to every container
+    /// as they were written.
+    /// </summary>
+    [ModuleTest(typeof(ContainerSourceModule))]
+    [KeyedGreeters]
+    public async Task TheKeyedRegistrationsOfAPinnedTypeAreKept(
+        ITestContainerSource source,
+        IGreeter greeter
+    )
+    {
+        var built = await source.CreateAsync();
+
+        Assert.Same(greeter, built.GetRequiredService<IGreeter>());
+        Assert.Equal("HELLO", built.GetRequiredKeyedService<IGreeter>("loud").Greet());
+    }
+
+    /// <summary>
     /// [Shared] on a value parameter is redundant rather than wrong, and says the same thing the
     /// default already says.
     /// </summary>
@@ -245,9 +262,80 @@ public class SharedTestExportTests
     }
 }
 
+/// <summary>
+/// A shared export that the test's own container cannot produce.
+/// </summary>
+/// <remarks>
+/// The container validates scopes, so a scoped export cannot come from its root. Every container
+/// built after it would then get its own instance of an export that asked to be one object.
+/// </remarks>
+public class UnsharableTestExportTests
+{
+    [ModuleTest]
+    [ValidateScopes]
+    [TestExport(
+        typeof(IClock),
+        Implementation = typeof(FakeClock),
+        Lifetime = ServiceLifetime.Scoped,
+        Shared = true
+    )]
+    public async Task ASharedExportTheTestsContainerCannotProduceIsReported(
+        ITestContainerSource source
+    )
+    {
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await source.CreateAsync()
+        );
+
+        Assert.Contains(typeof(IClock).FullName!, refused.Message);
+    }
+}
+
 public class RecordingAudit : IAudit
 {
     public List<string> Records { get; } = [];
 
     public void Record(string what) => Records.Add(what);
+}
+
+public interface IGreeter
+{
+    string Greet();
+}
+
+public class Greeter : IGreeter
+{
+    public string Greet() => "hello";
+}
+
+public class LoudGreeter : IGreeter
+{
+    public string Greet() => "HELLO";
+}
+
+public class KeyedGreetersAttribute : Attribute, ITestServiceSetupAttribute
+{
+    public void SetupServiceCollection(
+        ITestMethodContext testMethod,
+        IServiceCollection serviceCollection
+    )
+    {
+        serviceCollection.AddSingleton<IGreeter, Greeter>();
+        serviceCollection.AddKeyedSingleton<IGreeter, LoudGreeter>("loud");
+    }
+}
+
+public interface IClock;
+
+public class FakeClock : IClock;
+
+public class ValidateScopesAttribute : Attribute, IServiceProviderBuilderAttribute
+{
+    public IServiceProvider BuildServiceProvider(
+        ITestMethodContext testMethod,
+        IServiceCollection serviceCollection
+    ) =>
+        serviceCollection.BuildServiceProvider(
+            new ServiceProviderOptions { ValidateScopes = true }
+        );
 }

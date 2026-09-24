@@ -135,6 +135,7 @@ public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase
             services: serviceCollection,
             pinned: provider,
             pinnedServices: SharedRegistrations.Collect(TestMethod.Method, knownAttributes),
+            namedServices: SharedRegistrations.CollectNamed(TestMethod.Method, knownAttributes),
             build: services => BuildServiceProvider(context, services, knownAttributes),
             start: built => StartAsync(context, knownAttributes, built),
             track: _providers.Add
