@@ -25,7 +25,7 @@ The generator gives these diagnostics when you compile. Their category is `Depen
 | [DM0019](#dm0019) | Error | Assembly-level module attribute is not composed |
 | [DM0020](#dm0020) | Warning | Interception is applied by no module |
 | [DM0021](#dm0021) | Warning | [Mock] and [TestExport] name one service on the same method |
-| [DM0022](#dm0022) | Warning | Decorator names an implementation while factories are generated |
+| [DM0022](#dm0022) | Removed | Decorator names an implementation while factories are generated |
 | [DM0023](#dm0023) | Warning | Factory method cannot be called |
 | [DM0024](#dm0024) | Warning | Cross-wired class declares no interface |
 | [DM0025](#dm0025) | Warning | Decorator is not applied |
@@ -235,11 +235,9 @@ To correct the problem, if the `[TestExport]` is a default, move it to the test 
 
 ## DM0022
 
-A decorator sets `Implementation`, and the module uses generated factories. If the generator writes factories, a registration does not show its implementation. Thus the decorator changes all registrations of the service type.
+The generator does not give DM0022 now. It gave DM0022 when a decorator set `Implementation` in a module with generated factories.
 
-The module uses generated factories if `[DependencyModule]` sets `GenerateFactories = true`. If the module does not set `GenerateFactories`, the `DependencyModules_GenerateFactories` MSBuild property sets it.
-
-To correct the problem, remove `Implementation` and decorate all registrations. You can also disable the generated factories for the module. Set `GenerateFactories = false` on the module, or set the MSBuild property to `false`.
+Each generated factory now returns its class. Thus the decorator changes only the registration of the implementation that it names. For more information, refer to [Decorate one implementation](../guide/decorators.md#decorate-one-implementation).
 
 ## DM0023
 

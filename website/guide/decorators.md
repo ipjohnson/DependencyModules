@@ -225,9 +225,9 @@ public class CardPaymentCheck(IPaymentMethod inner) : IPaymentMethod
 
 `CardPaymentCheck` decorates only the registration of `CardPayment`.
 
-`Implementation` has an effect only on type registrations. In an instance registration or a factory registration, the decorator does not know the implementation type. Thus the decorator changes the registration.
+The decorator finds the implementation of a registration from its type, from its instance, or from the return type of its factory. If a factory returns `object` or the service type, the registration does not show its implementation. The decorator does not change that registration.
 
-If a module writes [generated factories](./aot.md#generated-factories), its registrations are factory registrations. The generator then gives the warning DM0022, because the decorator changes all registrations of the service type. If `[DependencyModule]` sets `GenerateFactories`, the generator uses this value for the module. It does not use the `DependencyModules_GenerateFactories` MSBuild property.
+The factories that the generator writes return their class. Thus `Implementation` also operates in a module that uses [generated factories](./aot.md#generated-factories).
 
 ## Environment conditions
 
