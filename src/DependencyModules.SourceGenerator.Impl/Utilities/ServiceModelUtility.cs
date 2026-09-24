@@ -132,22 +132,6 @@ public class ServiceModelUtility
         CancellationToken cancellationToken
     )
     {
-        // only support public or internal factory methods
-        if (
-            methodDeclarationSyntax.Modifiers.Any(m =>
-                m.IsKind(SyntaxKind.PrivateKeyword) || m.IsKind(SyntaxKind.ProtectedKeyword)
-            )
-        )
-        {
-            return null;
-        }
-
-        // only support static methods
-        if (!methodDeclarationSyntax.Modifiers.Any(m => m.IsKind(SyntaxKind.StaticKeyword)))
-        {
-            return null;
-        }
-
         var returnType = methodDeclarationSyntax.ReturnType.GetTypeDefinition(context);
         var factoryModel = GetFactoryModel(context, methodDeclarationSyntax, cancellationToken);
 
@@ -168,9 +152,40 @@ public class ServiceModelUtility
             factoryModel,
             null,
             GetRegistrations(context, returnType, models, cancellationToken),
-            RegistrationFeature.None,
+            FactoryMethodFeatures(context, methodDeclarationSyntax, cancellationToken),
             Location: LocationModel.From(context.Node)
         );
+    }
+
+    /// <summary>
+    /// Why the generated module cannot call a factory method, or None when it can.
+    /// </summary>
+    /// <remarks>
+    /// Read from the symbol, not from the written modifiers. A method with no access modifier is
+    /// private, and a public method in a private class is out of reach too.
+    /// </remarks>
+    private static RegistrationFeature FactoryMethodFeatures(
+        SyntaxTransformContext context,
+        MethodDeclarationSyntax methodDeclarationSyntax,
+        CancellationToken cancellationToken
+    )
+    {
+        if (
+            context.SemanticModel.GetDeclaredSymbol(methodDeclarationSyntax, cancellationToken)
+            is not { } method
+        )
+        {
+            return RegistrationFeature.None;
+        }
+
+        if (!method.IsStatic)
+        {
+            return RegistrationFeature.FactoryMethodNotStatic;
+        }
+
+        return context.GeneratedCodeCanUse(method)
+            ? RegistrationFeature.None
+            : RegistrationFeature.FactoryMethodInaccessible;
     }
 
     private static ServiceFactoryModel? GetFactoryModel(

@@ -26,6 +26,24 @@ public record ImplementedInterfaceModel(
 );
 
 /// <summary>
+/// The widest access among the instance constructors of a candidate.
+/// </summary>
+public enum ConstructorAccess
+{
+    /// <summary>No constructor that code outside the type can call.</summary>
+    None,
+
+    /// <summary>
+    /// An internal or protected internal constructor. A generated factory can call it, but the
+    /// container calls only public constructors.
+    /// </summary>
+    Assembly,
+
+    /// <summary>A public constructor.</summary>
+    Public,
+}
+
+/// <summary>
 /// A class or record a convention could match.
 /// </summary>
 /// <remarks>
@@ -42,7 +60,7 @@ public record ConventionCandidateModel(
     IReadOnlyList<ImplementedInterfaceModel> DeclaredInterfaces,
     IReadOnlyList<ImplementedInterfaceModel> BaseClassInterfaces,
     ConstructorInfoModel? Constructor,
-    bool HasAccessibleConstructor,
+    ConstructorAccess ConstructorAccess,
     LocationModel Location,
     /// <summary>
     /// Environment conditions declared on the candidate, carried through so that a convention
@@ -80,7 +98,7 @@ public record ConventionCandidateModel(
         Array.Empty<ImplementedInterfaceModel>(),
         Array.Empty<ImplementedInterfaceModel>(),
         null,
-        true,
+        ConstructorAccess.Public,
         LocationModel.None
     );
 
@@ -96,7 +114,7 @@ public record ConventionCandidateModel(
     public virtual bool Equals(ConventionCandidateModel? other) =>
         other is not null
         && ImplementationType.Equals(other.ImplementationType)
-        && HasAccessibleConstructor == other.HasAccessibleConstructor
+        && ConstructorAccess == other.ConstructorAccess
         && Location == other.Location
         && ModelEquality.ListEquals(DeclaredInterfaces, other.DeclaredInterfaces)
         && ModelEquality.ListEquals(BaseClassInterfaces, other.BaseClassInterfaces)
@@ -129,7 +147,7 @@ public record ConventionCandidateModel(
         unchecked
         {
             var hash = ImplementationType.GetHashCode();
-            hash = hash * 31 + HasAccessibleConstructor.GetHashCode();
+            hash = hash * 31 + ConstructorAccess.GetHashCode();
             hash = hash * 31 + ModelEquality.ListHashCode(DeclaredInterfaces);
             hash = hash * 31 + ModelEquality.ListHashCode(BaseClassInterfaces);
             return hash;

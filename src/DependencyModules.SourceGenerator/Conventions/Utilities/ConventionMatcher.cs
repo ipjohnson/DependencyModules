@@ -45,10 +45,14 @@ internal record PendingRegistration(
 /// </remarks>
 public static class ConventionMatcher
 {
+    /// <param name="generatesFactories">
+    /// Whether the module registers a class with a generated factory rather than with its type.
+    /// </param>
     public static IReadOnlyList<ServiceModel> Match(
         ModuleEntryPointModel entryPointModel,
         ConventionModuleModel conventionModule,
         IReadOnlyList<ConventionCandidateModel> candidates,
+        bool generatesFactories,
         DiagnosticReporter report,
         FileLogger logger
     )
@@ -73,7 +77,15 @@ public static class ConventionMatcher
 
         foreach (var convention in conventionModule.Conventions)
         {
-            CollectMatches(convention, merged, moduleName, matches, report, logger);
+            CollectMatches(
+                convention,
+                merged,
+                moduleName,
+                generatesFactories,
+                matches,
+                report,
+                logger
+            );
         }
 
         // Registrations are built before the ambiguity check, not after. A shape like AlsoAsSelf
@@ -101,6 +113,7 @@ public static class ConventionMatcher
         ConventionModel convention,
         IReadOnlyList<ConventionCandidateModel> candidates,
         string moduleName,
+        bool generatesFactories,
         List<ConventionRegistrationMatch> matches,
         DiagnosticReporter report,
         FileLogger logger
@@ -183,12 +196,22 @@ public static class ConventionMatcher
             found++;
 
             // Reported rather than registered: a registration the container cannot construct throws
-            // when the provider is built, a long way from the convention responsible.
-            if (!candidate.HasAccessibleConstructor)
+            // when the provider is built, a long way from the convention responsible. A generated
+            // factory calls the constructor from the module, so an internal one is enough there. The
+            // container calls only public constructors, and an intercepted class keeps its typeof
+            // registration whatever the module generates.
+            var needed =
+                generatesFactories && InterceptionFeature(candidate) == RegistrationFeature.None
+                    ? ConstructorAccess.Assembly
+                    : ConstructorAccess.Public;
+
+            if (candidate.ConstructorAccess < needed)
             {
+                var required = needed == ConstructorAccess.Public ? "public" : "public or internal";
+
                 logger.Error(
                     $"{moduleName}: '{candidate.ImplementationType.Name}' matched '{serviceName}' "
-                        + "but has no accessible constructor."
+                        + $"but has no {required} constructor."
                 );
 
                 report.Report(
@@ -198,7 +221,8 @@ public static class ConventionMatcher
                         : candidate.Location,
                     candidate.ImplementationType.Name,
                     serviceName,
-                    moduleName
+                    moduleName,
+                    required
                 );
 
                 continue;

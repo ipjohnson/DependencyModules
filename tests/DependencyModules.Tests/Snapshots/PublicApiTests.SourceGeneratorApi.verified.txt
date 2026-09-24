@@ -1008,17 +1008,23 @@ namespace DependencyModules.Conventions.Models
         public bool Exclude { get; init; }
         public string TypeKey { get; init; }
     }
+    public enum ConstructorAccess
+    {
+        None = 0,
+        Assembly = 1,
+        Public = 2,
+    }
     public class ConventionCandidateModel : System.IEquatable<DependencyModules.Conventions.Models.ConventionCandidateModel>
     {
         public static readonly DependencyModules.Conventions.Models.ConventionCandidateModel Ignore;
-        public ConventionCandidateModel(CSharpAuthor.ITypeDefinition ImplementationType, System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ImplementedInterfaceModel> DeclaredInterfaces, System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ImplementedInterfaceModel> BaseClassInterfaces, DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? Constructor, bool HasAccessibleConstructor, DependencyModules.SourceGenerator.Impl.Models.LocationModel Location, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? Conditions = null, System.Collections.Generic.IReadOnlyList<string>? AttributeTypeKeys = null, string? AssemblyName = null) { }
+        public ConventionCandidateModel(CSharpAuthor.ITypeDefinition ImplementationType, System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ImplementedInterfaceModel> DeclaredInterfaces, System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ImplementedInterfaceModel> BaseClassInterfaces, DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? Constructor, DependencyModules.Conventions.Models.ConstructorAccess ConstructorAccess, DependencyModules.SourceGenerator.Impl.Models.LocationModel Location, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? Conditions = null, System.Collections.Generic.IReadOnlyList<string>? AttributeTypeKeys = null, string? AssemblyName = null) { }
         public string? AssemblyName { get; init; }
         public System.Collections.Generic.IReadOnlyList<string>? AttributeTypeKeys { get; init; }
         public System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ImplementedInterfaceModel> BaseClassInterfaces { get; init; }
         public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? Conditions { get; init; }
         public DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? Constructor { get; init; }
+        public DependencyModules.Conventions.Models.ConstructorAccess ConstructorAccess { get; init; }
         public System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ImplementedInterfaceModel> DeclaredInterfaces { get; init; }
-        public bool HasAccessibleConstructor { get; init; }
         public CSharpAuthor.ITypeDefinition ImplementationType { get; init; }
         public bool IsIgnored { get; }
         public DependencyModules.SourceGenerator.Impl.Models.LocationModel Location { get; init; }
@@ -1144,7 +1150,7 @@ namespace DependencyModules.Conventions.Utilities
     }
     public static class ConventionMatcher
     {
-        public static System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ServiceModel> Match(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel, DependencyModules.Conventions.Models.ConventionModuleModel conventionModule, System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ConventionCandidateModel> candidates, DependencyModules.SourceGenerator.Impl.Models.DiagnosticReporter report, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
+        public static System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ServiceModel> Match(DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel entryPointModel, DependencyModules.Conventions.Models.ConventionModuleModel conventionModule, System.Collections.Generic.IReadOnlyList<DependencyModules.Conventions.Models.ConventionCandidateModel> candidates, bool generatesFactories, DependencyModules.SourceGenerator.Impl.Models.DiagnosticReporter report, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
     }
     public static class ConventionModelUtility
     {
@@ -1255,6 +1261,7 @@ namespace DependencyModules.SourceGenerator.Impl
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor DecoratorImplementationNeedsTypeRegistration;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor EmptyEnvironmentCondition;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ExposedByConvention;
+        public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor FactoryMethodCannotBeCalled;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor GeneratorFailure;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor InterceptionAppliedByNoModule;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor InterceptorCannotServeMembers;
@@ -1722,6 +1729,8 @@ namespace DependencyModules.SourceGenerator.Impl.Models
         AbstractImplementation = 2,
         StaticImplementation = 4,
         Intercepted = 8,
+        FactoryMethodNotStatic = 16,
+        FactoryMethodInaccessible = 32,
     }
     public enum RegistrationType
     {
@@ -1968,6 +1977,7 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities
         public SyntaxTransformContext(Microsoft.CodeAnalysis.SyntaxNode node, Microsoft.CodeAnalysis.SemanticModel semanticModel) { }
         public Microsoft.CodeAnalysis.SyntaxNode Node { get; }
         public Microsoft.CodeAnalysis.SemanticModel SemanticModel { get; }
+        public bool GeneratedCodeCanUse(Microsoft.CodeAnalysis.ISymbol symbol) { }
         public static DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext op_Implicit(Microsoft.CodeAnalysis.GeneratorAttributeSyntaxContext context) { }
         public static DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext op_Implicit(Microsoft.CodeAnalysis.GeneratorSyntaxContext context) { }
     }

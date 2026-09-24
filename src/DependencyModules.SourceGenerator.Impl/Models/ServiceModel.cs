@@ -52,6 +52,18 @@ public enum RegistrationFeature
     /// shape everywhere else, trimmer-annotated and already proven under Native AOT.
     /// </remarks>
     Intercepted = 8,
+
+    /// <summary>
+    /// The service comes from a factory method that is not static. The generated module has no
+    /// instance to call it on.
+    /// </summary>
+    FactoryMethodNotStatic = 16,
+
+    /// <summary>
+    /// The service comes from a factory method that the generated module cannot use, because the
+    /// method or a type that contains it is private or protected.
+    /// </summary>
+    FactoryMethodInaccessible = 32,
 }
 
 public record ServiceFactoryModel(
