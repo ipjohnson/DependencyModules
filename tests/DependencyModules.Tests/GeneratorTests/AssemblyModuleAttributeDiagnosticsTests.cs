@@ -151,6 +151,54 @@ public class AssemblyModuleAttributeDiagnosticsTests
         Assert.Contains("Program.cs", diagnostic.GetMessage());
     }
 
+    /// <summary>
+    /// A qualified name needs no import, so DM0016 cannot apply. The attribute is still read by
+    /// nobody outside the entry point file.
+    /// </summary>
+    [Theory]
+    [InlineData("[assembly: MyApp.Composition.ApplicationModule]")]
+    [InlineData("[assembly: MyApp.Composition.ApplicationModuleAttribute]")]
+    [InlineData("[assembly: global::MyApp.Composition.ApplicationModule]")]
+    [InlineData(
+        "using Composition = MyApp.Composition;\n[assembly: Composition.ApplicationModule]"
+    )]
+    public void AQualifiedAssemblyAttributeOutsideTheEntryPointFile_IsReported(string bootstrap)
+    {
+        var result = RunWithEntryPoint(bootstrap, program: "System.Console.WriteLine();");
+
+        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0019");
+
+        Assert.Contains("ApplicationModule", diagnostic.GetMessage());
+        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0016");
+    }
+
+    [Fact]
+    public void AQualifiedAssemblyAttributeInTheEntryPointFile_IsSilent()
+    {
+        var result = RunWithEntryPoint(
+            bootstrap: "",
+            program: """
+            [assembly: MyApp.Composition.ApplicationModule]
+
+            System.Console.WriteLine();
+            """
+        );
+
+        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0019");
+    }
+
+    /// <summary>A qualified attribute that names no module is somebody else's.</summary>
+    [Fact]
+    public void AQualifiedAttributeThatNamesNoModule_IsSilent()
+    {
+        var result = RunWithEntryPoint(
+            bootstrap: "[assembly: System.Reflection.AssemblyMetadata(\"key\", \"value\")]",
+            program: "System.Console.WriteLine();"
+        );
+
+        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0019");
+    }
+
     [Fact]
     public void AnAssemblyAttributeInTheEntryPointFile_IsSilent()
     {

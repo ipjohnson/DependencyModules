@@ -251,9 +251,53 @@ public class EntryModelUtil
 
         if (firstNonAuto != null)
         {
-            return firstNonAuto;
+            return WithProgramModules(firstNonAuto, grouping, configurationModel);
         }
 
         return grouping.First();
+    }
+
+    /// <summary>
+    /// The declared module, which also loads the modules that <c>Program.cs</c> names.
+    /// </summary>
+    /// <remarks>
+    /// <c>Program.cs</c> names modules with assembly attributes and with calls to their static
+    /// methods, and the generated model carries them. The declared module takes the place of the
+    /// generated one, so it has to load them as well.
+    /// </remarks>
+    private static ModuleEntryPointModel WithProgramModules(
+        ModuleEntryPointModel declared,
+        IEnumerable<ModuleEntryPointModel> grouping,
+        DependencyModuleConfigurationModel configurationModel
+    )
+    {
+        var programPath = Path.Combine(configurationModel.ProjectDir, "Program.cs");
+
+        var program = grouping.FirstOrDefault(m =>
+            m.ModuleFeatures.HasFlag(ModuleEntryPointFeatures.AutoGenerateModule)
+            && m.FileLocation == programPath
+        );
+
+        if (
+            program == null
+            || (program.AttributeModels.Count == 0 && program.AdditionalModules.Count == 0)
+        )
+        {
+            return declared;
+        }
+
+        return declared with
+        {
+            AttributeModels = declared
+                .AttributeModels.Concat(
+                    program.AttributeModels.Where(a => !declared.AttributeModels.Contains(a))
+                )
+                .ToList(),
+            AdditionalModules = declared
+                .AdditionalModules.Concat(
+                    program.AdditionalModules.Where(m => !declared.AdditionalModules.Contains(m))
+                )
+                .ToList(),
+        };
     }
 }

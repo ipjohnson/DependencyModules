@@ -23,6 +23,11 @@ namespace DependencyModules.SourceGenerator;
 /// compilation is somebody else's; a module in the global namespace needs no import; a qualified
 /// usage already says where to look.
 /// </para>
+/// <para>
+/// A qualified usage can still be in the wrong file, so it is read for DM0019. Its namespace is
+/// bound through the semantic model. The namespace exists even when the attribute does not, and
+/// binding also resolves an alias and <c>global::</c>.
+/// </para>
 /// </remarks>
 internal static class AssemblyModuleAttributeDiagnostics
 {
@@ -69,19 +74,26 @@ internal static class AssemblyModuleAttributeDiagnostics
 
     internal sealed class Usage : IEquatable<Usage>
     {
-        public Usage(string name, Location location)
+        public Usage(string name, string? qualifier, Location location)
         {
             Name = name;
+            Qualifier = qualifier;
             Location = location;
         }
 
         /// <summary>The attribute name exactly as written, without any qualification.</summary>
         public string Name { get; }
 
+        /// <summary>The namespace a qualified usage names, or null when it is not qualified.</summary>
+        public string? Qualifier { get; }
+
         public Location Location { get; }
 
         public bool Equals(Usage? other) =>
-            other != null && Name == other.Name && Location.Equals(other.Location);
+            other != null
+            && Name == other.Name
+            && Qualifier == other.Qualifier
+            && Location.Equals(other.Location);
 
         public override bool Equals(object? obj) => Equals(obj as Usage);
 
@@ -134,13 +146,26 @@ internal static class AssemblyModuleAttributeDiagnostics
 
             foreach (var attribute in attributeList.Attributes)
             {
-                // A qualified usage already names where the attribute lives.
-                if (attribute.Name is not SimpleNameSyntax simpleName)
+                if (attribute.Name is SimpleNameSyntax simpleName)
                 {
-                    continue;
+                    usages.Add(
+                        new Usage(simpleName.Identifier.Text, null, attribute.GetLocation())
+                    );
                 }
-
-                usages.Add(new Usage(simpleName.Identifier.Text, attribute.GetLocation()));
+                else if (
+                    attribute.Name is QualifiedNameSyntax qualifiedName
+                    && context.SemanticModel.GetSymbolInfo(qualifiedName.Left, cancellation).Symbol
+                        is INamespaceSymbol { IsGlobalNamespace: false } qualifier
+                )
+                {
+                    usages.Add(
+                        new Usage(
+                            qualifiedName.Right.Identifier.Text,
+                            qualifier.ToDisplayString(),
+                            attribute.GetLocation()
+                        )
+                    );
+                }
             }
         }
 
@@ -180,6 +205,7 @@ internal static class AssemblyModuleAttributeDiagnostics
         // A module in the global namespace needs no import, and an auto-generated ApplicationModule
         // is never written by hand at the assembly level, so neither can produce this mistake.
         var modulesByName = new Dictionary<string, string>(StringComparer.Ordinal);
+        var modulesByFullName = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var (module, _) in input.Modules)
         {
@@ -194,6 +220,7 @@ internal static class AssemblyModuleAttributeDiagnostics
             }
 
             modulesByName[module.EntryPointType.Name] = moduleNamespace;
+            modulesByFullName.Add(moduleNamespace + "." + module.EntryPointType.Name);
         }
 
         // The file the generated ApplicationModule was built from, which is the only file whose
@@ -226,6 +253,23 @@ internal static class AssemblyModuleAttributeDiagnostics
             foreach (var usage in unit.Usages)
             {
                 context.CancellationToken.ThrowIfCancellationRequested();
+
+                if (usage.Qualifier != null)
+                {
+                    if (
+                        IsOutsideEntryPoint(unit.FilePath, entryPointFile)
+                        && (
+                            IsLocalModule(modulesByFullName, usage.Qualifier, usage.Name)
+                            || referenced.FindImported(usage.Name, new[] { usage.Qualifier })
+                                != null
+                        )
+                    )
+                    {
+                        ReportNotComposed(context, usage, entryPointFile!);
+                    }
+
+                    continue;
+                }
 
                 // Written as [assembly: Foo] or [assembly: FooAttribute]; both name module Foo.
                 var moduleNamespace = LocalModuleNamespace(modulesByName, usage.Name);
@@ -264,24 +308,46 @@ internal static class AssemblyModuleAttributeDiagnostics
                     continue;
                 }
 
-                if (
-                    entryPointFile != null
-                    && !string.IsNullOrEmpty(unit.FilePath)
-                    && !string.Equals(unit.FilePath, entryPointFile, StringComparison.Ordinal)
-                )
+                if (IsOutsideEntryPoint(unit.FilePath, entryPointFile))
                 {
-                    context.ReportDiagnostic(
-                        Diagnostic.Create(
-                            DependencyModuleDiagnostics.AssemblyModuleAttributeNotComposed,
-                            usage.Location,
-                            usage.Name,
-                            System.IO.Path.GetFileName(entryPointFile)
-                        )
-                    );
+                    ReportNotComposed(context, usage, entryPointFile!);
                 }
             }
         }
     }
+
+    private static bool IsOutsideEntryPoint(string filePath, string? entryPointFile) =>
+        entryPointFile != null
+        && !string.IsNullOrEmpty(filePath)
+        && !string.Equals(filePath, entryPointFile, StringComparison.Ordinal);
+
+    private static void ReportNotComposed(
+        SourceProductionContext context,
+        Usage usage,
+        string entryPointFile
+    ) =>
+        context.ReportDiagnostic(
+            Diagnostic.Create(
+                DependencyModuleDiagnostics.AssemblyModuleAttributeNotComposed,
+                usage.Location,
+                usage.Name,
+                System.IO.Path.GetFileName(entryPointFile)
+            )
+        );
+
+    /// <summary>Whether this compilation declares the module that a qualified usage names.</summary>
+    private static bool IsLocalModule(
+        HashSet<string> modulesByFullName,
+        string qualifier,
+        string name
+    ) =>
+        modulesByFullName.Contains(qualifier + "." + name)
+        || (
+            name.EndsWith("Attribute", StringComparison.Ordinal)
+            && modulesByFullName.Contains(
+                qualifier + "." + name.Substring(0, name.Length - "Attribute".Length)
+            )
+        );
 
     /// <summary>The namespace of a module declared in this compilation, or null.</summary>
     private static string? LocalModuleNamespace(
