@@ -390,6 +390,23 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator
                 + $"{candidates.Count} candidate type(s)."
         );
 
+        // Once for the compilation, not per module: a [Decorator] class is declared once.
+        ReportIgnoredDecorators(report, decorators, logger);
+
+        foreach (var decorator in decorators)
+        {
+            if (!decorator.IsIgnored)
+            {
+                EnvironmentConditionUtility.ReportEmpty(
+                    report,
+                    logger,
+                    decorator.DecoratorType.Name,
+                    decorator.Conditions,
+                    decorator.Location
+                );
+            }
+        }
+
         var claimed = new HashSet<ConventionModuleModel>();
 
         // An auto-generated module deferring to a declared one is not among these, so its decorations
@@ -656,6 +673,18 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator
                         + $"code: {resolution.Reason}."
                 );
             }
+            else
+            {
+                // The decorator may have no declaration in this compilation, so the module that
+                // names it is where this is reported.
+                EnvironmentConditionUtility.ReportEmpty(
+                    report,
+                    logger,
+                    resolution.Model.DecoratorType.Name,
+                    resolution.Model.Conditions,
+                    entryPointModel.Location
+                );
+            }
 
             decorators.Add(resolution.Model);
         }
@@ -663,6 +692,35 @@ public class ConventionGenerator : IDependencyModuleSourceGenerator
         ReportAmbiguousOrdering(report, decorators, logger);
 
         return decorators;
+    }
+
+    /// <summary>
+    /// Reports each <c>[Decorator]</c> class that the generator does not apply.
+    /// </summary>
+    private static void ReportIgnoredDecorators(
+        DiagnosticReporter report,
+        ImmutableArray<DecoratorModel> decorators,
+        FileLogger logger
+    )
+    {
+        foreach (var decorator in decorators)
+        {
+            if (decorator.IgnoredReason == null)
+            {
+                continue;
+            }
+
+            var decoratorName = decorator.DecoratorType.Name;
+
+            logger.Error($"'{decoratorName}' is not applied. {decorator.IgnoredReason}.");
+
+            report.Report(
+                DependencyModuleDiagnostics.DecoratorIgnored,
+                decorator.Location,
+                decoratorName,
+                decorator.IgnoredReason
+            );
+        }
     }
 
     /// <summary>

@@ -446,6 +446,20 @@ public static class DependencyModuleDiagnostics
     );
 
     /// <summary>
+    /// Raised for a <c>[Decorator]</c> class that the generator does not apply. Without it, a
+    /// protected constructor is CS0122 in generated code, and the other cases drop the decorator
+    /// with no message.
+    /// </summary>
+    public static readonly DiagnosticDescriptor DecoratorIgnored = new(
+        id: "DM0025",
+        title: "Decorator is not applied",
+        messageFormat: "'{0}' has [Decorator] but is not applied. {1}.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true
+    );
+
+    /// <summary>
     /// Raised for <c>[CrossWireService]</c> on a generic type.
     /// </summary>
     /// <remarks>

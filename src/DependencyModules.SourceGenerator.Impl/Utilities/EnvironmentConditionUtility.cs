@@ -5,7 +5,8 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace DependencyModules.SourceGenerator.Impl.Utilities;
 
 /// <summary>
-/// Reads the <c>[IfEnvironment]</c> family off a service declaration.
+/// Reads the <c>[IfEnvironment]</c> family off a declaration, or off a symbol for a type that has no
+/// declaration in this compilation.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -67,6 +68,86 @@ public static class EnvironmentConditionUtility
         return conditions;
     }
 
+    /// <summary>
+    /// Reads every environment condition on a type that the generator knows only as a symbol: a
+    /// decorator that <c>[Decorate]</c> names, or a class that a convention finds in a referenced
+    /// assembly.
+    /// </summary>
+    /// <returns>Null when the type carries none, as for a declaration.</returns>
+    public static IReadOnlyList<EnvironmentConditionModel>? GetConditions(ISymbol symbol)
+    {
+        List<EnvironmentConditionModel>? conditions = null;
+
+        foreach (var attribute in symbol.GetAttributes())
+        {
+            if (
+                attribute.AttributeClass is not { } attributeType
+                || !IsConditionAttribute(attributeType)
+            )
+            {
+                continue;
+            }
+
+            var condition = BuildCondition(attributeType.Name, ReadStringArguments(attribute));
+
+            if (condition == null)
+            {
+                continue;
+            }
+
+            conditions ??= new List<EnvironmentConditionModel>();
+            conditions.Add(condition);
+        }
+
+        return conditions;
+    }
+
+    /// <summary>
+    /// What an empty condition fails to name, for DM0012.
+    /// </summary>
+    public static string Subject(EnvironmentConditionModel condition) =>
+        condition.Kind == EnvironmentConditionKind.Name ? "environment name" : "key";
+
+    /// <summary>
+    /// Reports DM0012 for each condition that names nothing.
+    /// </summary>
+    /// <remarks>
+    /// An empty condition is left out of the guard, so the declaration applies in every environment.
+    /// That is the result a developer-only class must not get with no message.
+    /// </remarks>
+    public static void ReportEmpty(
+        DiagnosticReporter report,
+        FileLogger logger,
+        string typeName,
+        IReadOnlyList<EnvironmentConditionModel>? conditions,
+        LocationModel? location
+    )
+    {
+        if (conditions == null)
+        {
+            return;
+        }
+
+        foreach (var condition in conditions)
+        {
+            if (!IsEmpty(condition))
+            {
+                continue;
+            }
+
+            var subject = Subject(condition);
+
+            logger.Error($"'{typeName}' has an environment condition that names no {subject}.");
+
+            report.Report(
+                DependencyModuleDiagnostics.EmptyEnvironmentCondition,
+                location,
+                typeName,
+                subject
+            );
+        }
+    }
+
     private static EnvironmentConditionModel? ReadCondition(
         SyntaxTransformContext context,
         AttributeSyntax attribute
@@ -75,14 +156,25 @@ public static class EnvironmentConditionUtility
         if (
             ModelExtensions.GetTypeInfo(context.SemanticModel, attribute).Type
                 is not { } attributeType
-            || attributeType.ContainingNamespace.GetFullName()
-                != KnownTypes.DependencyModules.Attributes.Namespace
+            || !IsConditionAttribute(attributeType)
         )
         {
             return null;
         }
 
-        var kind = attributeType.Name switch
+        return BuildCondition(attributeType.Name, ReadStringArguments(context, attribute));
+    }
+
+    private static bool IsConditionAttribute(ITypeSymbol attributeType) =>
+        attributeType.ContainingNamespace.GetFullName()
+        == KnownTypes.DependencyModules.Attributes.Namespace;
+
+    private static EnvironmentConditionModel? BuildCondition(
+        string attributeName,
+        IReadOnlyList<string> arguments
+    )
+    {
+        var kind = attributeName switch
         {
             IfEnvironment or IfNotEnvironment => EnvironmentConditionKind.Name,
             IfEnvironmentValue or IfNotEnvironmentValue => EnvironmentConditionKind.Value,
@@ -94,8 +186,7 @@ public static class EnvironmentConditionUtility
             return null;
         }
 
-        var negate = attributeType.Name is IfNotEnvironment or IfNotEnvironmentValue;
-        var arguments = ReadStringArguments(context, attribute);
+        var negate = attributeName is IfNotEnvironment or IfNotEnvironmentValue;
 
         if (kind == EnvironmentConditionKind.Name)
         {
@@ -144,6 +235,43 @@ public static class EnvironmentConditionUtility
             if (context.SemanticModel.GetConstantValue(argument.Expression).Value is string value)
             {
                 values.Add(value);
+            }
+        }
+
+        return values;
+    }
+
+    /// <summary>
+    /// The constructor arguments that are strings, as the syntax path reads the constants. The
+    /// <c>params</c> array of <c>[IfEnvironment]</c> arrives as one array argument.
+    /// </summary>
+    private static IReadOnlyList<string> ReadStringArguments(AttributeData attribute)
+    {
+        var values = new List<string>();
+
+        foreach (var argument in attribute.ConstructorArguments)
+        {
+            if (argument.Kind != TypedConstantKind.Array)
+            {
+                if (argument.Value is string value)
+                {
+                    values.Add(value);
+                }
+
+                continue;
+            }
+
+            if (argument.IsNull)
+            {
+                continue;
+            }
+
+            foreach (var element in argument.Values)
+            {
+                if (element.Value is string value)
+                {
+                    values.Add(value);
+                }
             }
         }
 

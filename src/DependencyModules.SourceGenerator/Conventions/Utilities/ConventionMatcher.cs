@@ -284,6 +284,14 @@ public static class ConventionMatcher
                 continue;
             }
 
+            EnvironmentConditionUtility.ReportEmpty(
+                report,
+                logger,
+                candidate.ImplementationType.Name,
+                candidate.Conditions,
+                candidate.Location == LocationModel.None ? convention.Location : candidate.Location
+            );
+
             foreach (var candidateInterface in matched)
             {
                 matches.Add(

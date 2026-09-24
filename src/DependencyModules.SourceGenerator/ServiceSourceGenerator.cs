@@ -422,8 +422,7 @@ public class ServiceSourceGenerator : BaseAttributeSourceGenerator<ServiceModel>
                     continue;
                 }
 
-                var kind =
-                    condition.Kind == EnvironmentConditionKind.Name ? "environment name" : "key";
+                var kind = EnvironmentConditionUtility.Subject(condition);
 
                 logger.Error($"'{typeName}' has an environment condition that names no {kind}.");
 

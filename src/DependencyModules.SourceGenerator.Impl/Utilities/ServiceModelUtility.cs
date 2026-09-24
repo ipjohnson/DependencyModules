@@ -375,13 +375,20 @@ public class ServiceModelUtility
     /// type's parameters.
     /// </para>
     /// </remarks>
+    /// <param name="callableOnly">
+    /// Skip every constructor that generated code cannot call, and return null when that leaves
+    /// none. A decorator is always built with a literal <c>new</c>, so a protected constructor there
+    /// is CS0122 in generated code.
+    /// </param>
     public static ConstructorInfoModel? GetConstructorInfo(
         SyntaxTransformContext context,
         SyntaxNode node,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        bool callableOnly = false
     )
     {
         var constructorList = new List<ConstructorDeclarationSyntax>();
+        var declaredAny = false;
 
         var members = node is TypeDeclarationSyntax declaration
             ? declaration.Members.OfType<ConstructorDeclarationSyntax>()
@@ -391,7 +398,28 @@ public class ServiceModelUtility
         {
             if (constructor.Modifiers.Any(m => m.IsKind(SyntaxKind.PrivateKeyword)))
             {
+                declaredAny = true;
+
                 continue;
+            }
+
+            if (callableOnly)
+            {
+                if (constructor.Modifiers.Any(m => m.IsKind(SyntaxKind.StaticKeyword)))
+                {
+                    continue;
+                }
+
+                declaredAny = true;
+
+                if (
+                    context.SemanticModel.GetDeclaredSymbol(constructor, cancellationToken)
+                        is not { } symbol
+                    || !context.GeneratedCodeCanUse(symbol)
+                )
+                {
+                    continue;
+                }
             }
 
             if (
@@ -425,7 +453,9 @@ public class ServiceModelUtility
 
         if (constructorList.Count == 0)
         {
-            return new ConstructorInfoModel(ImmutableArray<ParameterInfoModel>.Empty);
+            return callableOnly && declaredAny
+                ? null
+                : new ConstructorInfoModel(ImmutableArray<ParameterInfoModel>.Empty);
         }
 
         if (constructorList.Count == 1)
