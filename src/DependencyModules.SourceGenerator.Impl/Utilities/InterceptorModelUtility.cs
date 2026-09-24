@@ -84,7 +84,7 @@ public static class InterceptorModelUtility
                 ref realm
             );
 
-            memberKinds &= ReadMemberKinds(attribute);
+            memberKinds &= ReadMemberKinds(attribute, context);
         }
 
         if (interceptorSymbols.Count == 0)
@@ -245,13 +245,10 @@ public static class InterceptorModelUtility
     /// <summary>
     /// The kinds of member <c>[Intercept]</c> names, as flags. Everything when it names none.
     /// </summary>
-    /// <remarks>
-    /// Read as written rather than resolved, for the reason the lifetime is: the alternative is
-    /// referencing an enum this generator does not. Splitting on the or-operator and taking the last
-    /// segment of each part handles `Methods`, `InterceptedMembers.Methods` and any qualification of
-    /// either.
-    /// </remarks>
-    private static InterceptedMemberKinds ReadMemberKinds(AttributeSyntax attribute)
+    private static InterceptedMemberKinds ReadMemberKinds(
+        AttributeSyntax attribute,
+        SyntaxTransformContext context
+    )
     {
         foreach (
             var argument in attribute.ArgumentList?.Arguments
@@ -263,33 +260,11 @@ public static class InterceptorModelUtility
                 continue;
             }
 
-            var kinds = InterceptedMemberKinds.None;
+            var kinds = ConstantArgumentReader.ReadMemberKinds(context, argument.Expression);
 
-            foreach (var part in argument.Expression.ToString().Split('|'))
-            {
-                var member = part.Substring(part.LastIndexOf('.') + 1).Trim();
-
-                switch (member)
-                {
-                    case "Methods":
-                        kinds |= InterceptedMemberKinds.Methods;
-                        break;
-                    case "Properties":
-                        kinds |= InterceptedMemberKinds.Properties;
-                        break;
-                    case "Indexers":
-                        kinds |= InterceptedMemberKinds.Indexers;
-                        break;
-                    case "Events":
-                        kinds |= InterceptedMemberKinds.Events;
-                        break;
-                    case "All":
-                        kinds |= InterceptedMemberKinds.All;
-                        break;
-                }
-            }
-
-            return kinds == InterceptedMemberKinds.None ? InterceptedMemberKinds.All : kinds;
+            return kinds is null or InterceptedMemberKinds.None
+                ? InterceptedMemberKinds.All
+                : kinds.Value;
         }
 
         return InterceptedMemberKinds.All;
@@ -446,7 +421,7 @@ public static class InterceptorModelUtility
         // Read first, applied below. Lifetime is a named argument and may be written after the
         // interceptors it applies to, so collecting them in one pass would attach whatever the
         // lifetime happened to be at that point in the argument list.
-        var lifestyle = ReadLifetime(attribute);
+        var lifestyle = ReadLifetime(attribute, context);
 
         foreach (var argument in attribute.ArgumentList.Arguments)
         {
@@ -470,10 +445,7 @@ public static class InterceptorModelUtility
             switch (name)
             {
                 case "Order":
-                    if (int.TryParse(argument.Expression.ToString(), out var parsed))
-                    {
-                        order = parsed;
-                    }
+                    order = ConstantArgumentReader.ReadInt(context, argument.Expression) ?? 0;
                     break;
                 case "Service":
                     if (argument.Expression is TypeOfExpressionSyntax serviceTypeOf)
@@ -495,35 +467,20 @@ public static class InterceptorModelUtility
     /// The lifetime one [Intercept] names for the interceptors it lists, Singleton when it names
     /// none.
     /// </summary>
-    /// <remarks>
-    /// Read from the written name rather than resolved, because the alternative is a constant of an
-    /// enum this generator does not reference. Every legal spelling ends in the member name, so the
-    /// last segment is the answer for `Scoped`, `ServiceLifetime.Scoped` and any qualification of
-    /// it alike.
-    /// </remarks>
-    private static ServiceLifestyle ReadLifetime(AttributeSyntax attribute)
+    private static ServiceLifestyle ReadLifetime(
+        AttributeSyntax attribute,
+        SyntaxTransformContext context
+    )
     {
         foreach (
             var argument in attribute.ArgumentList?.Arguments
                 ?? default(SeparatedSyntaxList<AttributeArgumentSyntax>)
         )
         {
-            if (argument.NameEquals?.Name.ToString() != "Lifetime")
+            if (argument.NameEquals?.Name.ToString() == "Lifetime")
             {
-                continue;
-            }
-
-            var written = argument.Expression.ToString();
-            var member = written.Substring(written.LastIndexOf('.') + 1).Trim();
-
-            switch (member)
-            {
-                case "Scoped":
-                    return ServiceLifestyle.Scoped;
-                case "Transient":
-                    return ServiceLifestyle.Transient;
-                case "Singleton":
-                    return ServiceLifestyle.Singleton;
+                return ConstantArgumentReader.ReadLifetime(context, argument.Expression)
+                    ?? ServiceLifestyle.Singleton;
             }
         }
 

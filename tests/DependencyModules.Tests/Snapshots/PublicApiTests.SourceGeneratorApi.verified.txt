@@ -1851,6 +1851,15 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities
         protected abstract bool TestForTypes(Microsoft.CodeAnalysis.SyntaxNode node, System.Threading.CancellationToken token);
         public bool Where(Microsoft.CodeAnalysis.SyntaxNode node, System.Threading.CancellationToken token) { }
     }
+    public static class ConstantArgumentReader
+    {
+        public static bool? ReadBool(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, Microsoft.CodeAnalysis.CSharp.Syntax.ExpressionSyntax expression) { }
+        public static int? ReadInt(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, Microsoft.CodeAnalysis.CSharp.Syntax.ExpressionSyntax expression) { }
+        public static DependencyModules.SourceGenerator.Impl.Models.ServiceLifestyle? ReadLifetime(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, Microsoft.CodeAnalysis.CSharp.Syntax.ExpressionSyntax expression) { }
+        public static DependencyModules.SourceGenerator.Impl.Models.InterceptedMemberKinds? ReadMemberKinds(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, Microsoft.CodeAnalysis.CSharp.Syntax.ExpressionSyntax expression) { }
+        public static DependencyModules.SourceGenerator.Impl.Models.RegistrationType? ReadRegistrationType(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, Microsoft.CodeAnalysis.CSharp.Syntax.ExpressionSyntax expression) { }
+        public static string? ReadString(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, Microsoft.CodeAnalysis.CSharp.Syntax.ExpressionSyntax expression) { }
+    }
     public static class ConstructorArgumentWriter
     {
         public static object[] Arguments(CSharpAuthor.ParameterDefinition serviceProvider, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.ParameterInfoModel> parameters) { }

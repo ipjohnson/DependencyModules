@@ -48,10 +48,7 @@ public static class DecoratorModelUtility
                 switch (argument.NameEquals?.Name.ToString())
                 {
                     case "Order":
-                        if (int.TryParse(argument.Expression.ToString(), out var parsed))
-                        {
-                            order = parsed;
-                        }
+                        order = ConstantArgumentReader.ReadInt(context, argument.Expression) ?? 0;
                         break;
                     case "Service":
                         explicitService = GetTypeOfArgument(argument, context);

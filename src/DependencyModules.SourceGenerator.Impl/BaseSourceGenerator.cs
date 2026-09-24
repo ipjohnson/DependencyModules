@@ -480,27 +480,39 @@ public abstract class BaseSourceGenerator : IIncrementalGenerator
                     switch (name)
                     {
                         case "OnlyRealm":
-                            onlyRealm = argumentSyntax.Expression.ToString() == "true";
+                            onlyRealm =
+                                ConstantArgumentReader.ReadBool(context, argumentSyntax.Expression)
+                                ?? false;
                             break;
                         case "Using":
-                            registrationType = GetRegistrationType(
-                                argumentSyntax.Expression.ToString()
+                            registrationType = ConstantArgumentReader.ReadRegistrationType(
+                                context,
+                                argumentSyntax.Expression
                             );
                             break;
                         case "GenerateAttribute":
-                            generateAttribute =
-                                argumentSyntax.Expression.ToString().Trim('"') == "true";
+                            generateAttribute = ConstantArgumentReader.ReadBool(
+                                context,
+                                argumentSyntax.Expression
+                            );
                             break;
                         case "RegisterJsonSerializers":
-                            registerGenerator =
-                                argumentSyntax.Expression.ToString().Trim('"') == "true";
+                            registerGenerator = ConstantArgumentReader.ReadBool(
+                                context,
+                                argumentSyntax.Expression
+                            );
                             break;
                         case "GenerateUseMethod":
-                            useMethod = argumentSyntax.Expression.ToString().Trim('"');
+                            useMethod = ConstantArgumentReader.ReadString(
+                                context,
+                                argumentSyntax.Expression
+                            );
                             break;
                         case "GenerateFactories":
-                            generateFactories =
-                                argumentSyntax.Expression.ToString().Trim('"') == "true";
+                            generateFactories = ConstantArgumentReader.ReadBool(
+                                context,
+                                argumentSyntax.Expression
+                            );
                             break;
                     }
                 }
