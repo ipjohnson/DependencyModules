@@ -89,6 +89,13 @@ public static class InterceptedMemberReader
             return false;
         }
 
+        if (method.ReturnType.IsRefLikeType)
+        {
+            unsupported =
+                $"'{method.Name}' returns a ref struct, which cannot be held for the duration of a call";
+            return false;
+        }
+
         var parameters = ReadParameters(method.Parameters, method.Name, out unsupported);
 
         if (parameters == null)
