@@ -22,13 +22,17 @@ namespace DependencyModules.xUnit.Impl;
 /// <c>ModuleTestCommand</c> has always disposed in a <c>finally</c> around the test; this is the
 /// same lifetime for xUnit.
 /// </remarks>
-public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase
+public partial class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase
 {
     /// <summary>
     /// One per container this case built: one for a plain test, one per row for a data-driven
     /// one. Runtime state only, never serialized with the case.
     /// </summary>
     private readonly List<IServiceProvider> _providers = [];
+
+    // Here as well as on ModuleTestAttribute, because an attribute of another library can name
+    // ModuleTestDiscoverer, and then this is the first of the package's types that xUnit creates.
+    static ModuleTestCase() => XunitCurrentTestProvider.Install();
 
 #pragma warning disable CS0618 // Type or member is obsolete
     /// <summary>
@@ -292,43 +296,6 @@ public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase
         DependencyRegistry<object>.LoadModules(serviceCollection, modules.ToArray());
     }
 
-    /// <summary>
-    /// Runs the case the way xUnit would have, and disposes every container it built once the
-    /// run has returned - the tests passed, failed, were skipped or were cancelled alike.
-    /// </summary>
-    /// <remarks>
-    /// <see cref="XunitRunnerHelper.RunXunitTestCase"/> is what the method runner calls for a
-    /// case that does not execute itself: it creates the tests, turns a failure or a dynamic skip
-    /// during creation into the case's result, and hands the tests to
-    /// <see cref="XunitTestCaseRunner"/>. Wrapping that call is the whole of the difference.
-    /// Disposal is per case, which for every test but a data-driven one is per test; the rows of
-    /// a data-driven test share the case and are released together when the last has run.
-    /// </remarks>
-    public async ValueTask<RunSummary> Run(
-        ExplicitOption explicitOption,
-        IMessageBus messageBus,
-        object?[] constructorArguments,
-        ExceptionAggregator aggregator,
-        CancellationTokenSource cancellationTokenSource
-    )
-    {
-        try
-        {
-            return await XunitRunnerHelper.RunXunitTestCase(
-                this,
-                messageBus,
-                cancellationTokenSource,
-                aggregator,
-                explicitOption,
-                constructorArguments
-            );
-        }
-        finally
-        {
-            await DisposeProviders();
-        }
-    }
-
     private async ValueTask DisposeProviders()
     {
         var providers = _providers.ToArray();
@@ -419,13 +386,7 @@ public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase
                 var startupValues = await SetupServiceCollection();
 
                 unitTests.Add(
-                    // testIndex is named for more than readability: XunitTest has a second
-                    // nine-parameter constructor differing only at this position, taking a uniqueID
-                    // string. Positionally the two are told apart by the argument's type alone.
-                    new XunitTest(
-                        testCase: this,
-                        testMethod: TestMethod,
-                        @explicit: Explicit,
+                    CreateTest(
                         skipReason: theoryDataRow.Skip ?? SkipReason,
                         // The row's own conditional-skip metadata takes precedence over the case's,
                         // matching how skipReason above already defers to it. These became required
@@ -442,7 +403,9 @@ public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase
                             .GetTraits(TestMethod, theoryDataRow)
                             .ToReadOnlyTraits(),
                         timeout: theoryDataRow.Timeout ?? Timeout,
-                        testMethodArguments: await ResolveArguments(data, startupValues)
+                        testMethodArguments: await ResolveArguments(data, startupValues),
+                        row: theoryDataRow,
+                        dataAttribute: dataAttribute
                     )
                 );
             }
@@ -513,10 +476,7 @@ public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase
 
         return
         [
-            new XunitTest(
-                testCase: this,
-                testMethod: TestMethod,
-                @explicit: Explicit,
+            CreateTest(
                 skipReason: SkipReason,
                 skipType: SkipType,
                 skipUnless: SkipUnless,
@@ -525,7 +485,9 @@ public class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase
                 testIndex: 0,
                 traits: Traits.ToReadOnlyTraits(),
                 timeout: Timeout,
-                testMethodArguments: await ResolveArguments([], startupValues)
+                testMethodArguments: await ResolveArguments([], startupValues),
+                row: null,
+                dataAttribute: null
             ),
         ];
     }

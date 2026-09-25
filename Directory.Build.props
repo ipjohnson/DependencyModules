@@ -35,6 +35,31 @@
         <LibraryTargetFrameworks>net8.0;net10.0</LibraryTargetFrameworks>
     </PropertyGroup>
 
+    <!--
+        The xunit.v3 major that the xUnit test projects build and run against. CI runs both, through
+        scripts/test-xunit.sh for the second. 4 uses xunit.v3.mtp-off, not xunit.v3: the
+        Microsoft.Testing.Platform v2 that xunit.v3 4.x brings refuses the VSTest `dotnet test` on
+        the .NET 10 SDK, and xUnit ships mtp-off for exactly that. XunitV3Version and
+        XunitRunnerVersion can be set from the command line, which the prerelease workflow does.
+    -->
+    <PropertyGroup>
+        <XunitMajor Condition="'$(XunitMajor)' == ''">3</XunitMajor>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(XunitMajor)' == '3'">
+        <XunitV3Package>xunit.v3</XunitV3Package>
+        <XunitV3Version Condition="'$(XunitV3Version)' == ''">3.2.2</XunitV3Version>
+        <XunitRunnerVersion Condition="'$(XunitRunnerVersion)' == ''">3.1.5</XunitRunnerVersion>
+        <DependencyModulesXunitProject>DependencyModules.xUnit</DependencyModulesXunitProject>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(XunitMajor)' == '4'">
+        <XunitV3Package>xunit.v3.mtp-off</XunitV3Package>
+        <XunitV3Version Condition="'$(XunitV3Version)' == ''">4.0.1</XunitV3Version>
+        <XunitRunnerVersion Condition="'$(XunitRunnerVersion)' == ''">4.0.0</XunitRunnerVersion>
+        <DependencyModulesXunitProject>DependencyModules.xUnit4</DependencyModulesXunitProject>
+    </PropertyGroup>
+
     <PropertyGroup>
         <Authors>Ian Johnson</Authors>
         <Company>Ian Johnson</Company>

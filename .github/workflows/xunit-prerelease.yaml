@@ -1,0 +1,50 @@
+name: xunit-prerelease
+
+# Runs the xUnit tests against the newest xunit.v3 on nuget.org, prereleases included. xUnit ships
+# prereleases of a major for months before the release, and the 4.0 breaks were in them: the first
+# on 2026-04-12, four months before 4.0.0. A failure here is notice of a coming break. Without it,
+# the first report comes from a consumer.
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # See build-package.yaml: the 10.0 SDK builds, the 8.0 runtime runs the net8.0 tests.
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Find the newest xunit.v3 and runner
+        id: versions
+        run: |
+          newest() {
+            curl -fsSL "https://api.nuget.org/v3-flatcontainer/$1/index.json" | python3 -c '
+          import json, sys
+
+          def precedence(version):
+              release, _, prerelease = version.partition("-")
+              numbers = [int(part) for part in release.split(".")]
+              if not prerelease:
+                  return (numbers, 1, [])
+              return (numbers, 0, [(0, int(part), "") if part.isdigit() else (1, 0, part) for part in prerelease.split(".")])
+
+          print(max(json.load(sys.stdin)["versions"], key=precedence))
+          '
+          }
+          echo "xunit=$(newest xunit.v3.mtp-off)" >> "$GITHUB_OUTPUT"
+          echo "runner=$(newest xunit.runner.visualstudio)" >> "$GITHUB_OUTPUT"
+
+      # 4 is the newest DependencyModules xUnit build. Raise it when a build for a new major is added.
+      - name: Test on xunit.v3.mtp-off ${{ steps.versions.outputs.xunit }}
+        run: ./scripts/test-xunit.sh 4 "${{ steps.versions.outputs.xunit }}" "${{ steps.versions.outputs.runner }}"

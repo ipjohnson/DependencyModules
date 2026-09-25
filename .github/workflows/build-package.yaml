@@ -70,6 +70,11 @@ jobs:
           name: coverage-report
           path: artifacts/coverage
 
+      # The coverage run is on xunit.v3 3.x. This runs the xUnit tests again on 4.x, against
+      # DependencyModules.xUnit4.
+      - name: Test on xunit.v3 4.x
+        run: ./scripts/test-xunit.sh 4
+
       # Packs and consumes the packages the way a real user would. Catches packaging faults
       # that a ProjectReference-based test suite cannot see.
       - name: Verify packages

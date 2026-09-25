@@ -290,7 +290,13 @@ public class ModuleTestDiscovererTests
 
     private static IXunitTestMethod BuildTestMethod(Type testClass, string methodName)
     {
+#if XUNIT_V4
+        // 4.x marks the one-argument constructor obsolete, and its replacement takes a
+        // configFilePath that 3.x does not have.
+        var assembly = new XunitTestAssembly(testClass.Assembly, configFilePath: null);
+#else
         var assembly = new XunitTestAssembly(testClass.Assembly);
+#endif
         var collection = new XunitTestCollection(assembly, null, false, "Test collection");
         var xunitClass = new XunitTestClass(testClass, collection);
         var method = testClass.GetMethod(methodName, BindingFlags.Public | BindingFlags.Instance)!;

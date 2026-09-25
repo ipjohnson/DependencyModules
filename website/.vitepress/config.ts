@@ -67,6 +67,7 @@ export default defineConfig({
           { text: 'NUnit', link: '/guide/testing-nunit' },
           { text: 'Mocks', link: '/guide/testing-mocking' },
           { text: 'More service providers', link: '/guide/testing-container-source' },
+          { text: 'CurrentTest and test output', link: '/guide/testing-current-test' },
         ],
       },
       {

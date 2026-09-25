@@ -6,9 +6,10 @@ The test packages build a service provider from your modules for each test. The 
 
 | Package | Contents |
 | --- | --- |
-| `DependencyModules.xUnit` | `[ModuleTest]` for xUnit v3. |
+| `DependencyModules.xUnit` | `[ModuleTest]` for xUnit v3, with `xunit.v3` version 3. |
+| `DependencyModules.xUnit4` | `[ModuleTest]` for xUnit v3, with `xunit.v3` version 4. |
 | `DependencyModules.NUnit` | `[ModuleTest]` and `[ModuleTestCase]` for NUnit 4. |
-| `DependencyModules.Testing` | The attributes and interfaces that the two test packages use. The test packages reference this package. |
+| `DependencyModules.Testing` | The attributes and interfaces that the test packages use, `CurrentTest`, and `TestOutputLoggerProvider`. The test packages reference this package. |
 | `DependencyModules.NSubstitute` | `[NSubstituteSupport]` for mocks. |
 | `DependencyModules.Moq` | `[MoqSupport]` for mocks. |
 | `DependencyModules.FakeItEasy` | `[FakeItEasySupport]` for mocks. |
@@ -175,6 +176,10 @@ The decorators of the modules do not change a `[TestExport]` registration. The d
 
 The service provider of a test contains an `ITestCaseInfo` service. It has the test method, the argument values, and the attributes of the test. Each test package has an `ITestCaseInfo` interface in its `Impl` namespace.
 
+## The test that runs: `CurrentTest`
+
+`CurrentTest` in `DependencyModules.Testing.Impl` gives the test that runs to code that does not get the test as a parameter. `TestOutputLoggerProvider` writes log entries to the output of that test. The two types operate with all the test packages. For more information, refer to [`CurrentTest` and test output](./testing-current-test.md).
+
 ## Environment for a test
 
 To give an environment to a test, write an attribute that implements `IModuleEnvironmentProvider` from `DependencyModules.Runtime.Interfaces`:
@@ -264,6 +269,7 @@ For each test, the test package does these steps:
 
 ## More information
 
-- [xUnit](./testing-xunit.md) and [NUnit](./testing-nunit.md) tell you about the two test packages.
+- [xUnit](./testing-xunit.md) and [NUnit](./testing-nunit.md) tell you about the test packages.
 - [Mocks](./testing-mocking.md) tells you how to replace services with mocks.
 - [More service providers in a test](./testing-container-source.md) tells you how to make more service providers in one test.
+- [`CurrentTest` and test output](./testing-current-test.md) tells you how to get the test that runs and how to write the log to its output.

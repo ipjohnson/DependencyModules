@@ -83,3 +83,5 @@ The `ITestCaseInfo` interface in the `DependencyModules.NUnit.Impl` namespace ha
 | `TestMethod` | The NUnit `TestMethod`. |
 | `TestMethodArguments` | The values of the parameters. |
 | `TestMethodAttributes` | The attributes of the test method, the test class, and the assembly. |
+
+Code that does not get the test as a parameter can use `CurrentTest`. In NUnit, all iterations of a `[Repeat]` or `[Retry]` test have the same `CurrentTest.Key`. For more information, refer to [`CurrentTest` and test output](./testing-current-test.md).

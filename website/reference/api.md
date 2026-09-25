@@ -133,6 +133,7 @@ The generated code uses these types:
 | `IMockSupportAttribute` | Makes mocks for `[Mock]`. |
 | `ISharedTestRegistration` | Selects the shared services. |
 | `ITestContainerSource` | `CreateAsync()` builds a new service provider for the test. |
+| `ICurrentTestProvider` | `Key`, `DisplayName`, `Assembly`, and `TryWriteLine` for the test that runs. Each test package has an implementation. |
 | `IOrderedAttribute` | `Order`, with the default value 10. |
 
 Guide: [Testing](../guide/testing.md).
@@ -145,3 +146,7 @@ Guide: [Testing](../guide/testing.md).
 | `TestContainerSource` | The `ITestContainerSource` implementation. |
 | `SharedRegistrations` | Finds the shared services of a test. |
 | `AttributeUtility` | Finds the attributes of a test on the method, the class, and the assembly. |
+| `CurrentTest` | Gives the test that runs, from the `ICurrentTestProvider` of the test package. |
+| `TestOutputLoggerProvider` | An `ILoggerProvider` that writes log entries to the output of the test that runs. |
+
+Guide: [`CurrentTest` and test output](../guide/testing-current-test.md).

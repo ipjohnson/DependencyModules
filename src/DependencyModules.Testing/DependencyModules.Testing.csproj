@@ -6,17 +6,19 @@
         <Nullable>enable</Nullable>
         <IsPackable>True</IsPackable>
         <PackageId>DependencyModules.Testing</PackageId>
-        <Description>The test attributes and interfaces of DependencyModules: [Mock], [InjectValues], [Shared], [TestExport], and the interfaces for mock libraries and test attributes. It also contains the helpers that find the attributes of a test on the method, the class, and the assembly. It does not depend on a test framework. The DependencyModules.xUnit and DependencyModules.NUnit packages use this package. Add one of those packages to a test project.</Description>
+        <Description>The test attributes and interfaces of DependencyModules: [Mock], [InjectValues], [Shared], [TestExport], and the interfaces for mock libraries and test attributes. It also contains the helpers that find the attributes of a test on the method, the class, and the assembly. CurrentTest gives the test that runs. TestOutputLoggerProvider writes log entries to the output of the test that runs. It does not depend on a test framework. The DependencyModules.xUnit, DependencyModules.xUnit4, and DependencyModules.NUnit packages use this package. Add one of those packages to a test project.</Description>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
     </PropertyGroup>
 
     <!-- Framework-matched per TFM; see DependencyModules.Runtime.csproj for why. -->
     <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0"/>
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0"/>
     </ItemGroup>
 
     <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0"/>
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0"/>
     </ItemGroup>
 
 </Project>

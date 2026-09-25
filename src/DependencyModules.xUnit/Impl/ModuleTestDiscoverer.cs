@@ -47,7 +47,8 @@ public class ModuleTestDiscoverer : IXunitTestCaseDiscoverer
         // second GetTestCaseDetails taking a trailing label, and since every added parameter on
         // both is optional, a three-argument call matches the two equally well and is ambiguous.
         // Naming a parameter only the newer one declares resolves it. A module test has no label,
-        // which is what null says.
+        // which is what null says. 4.x has only the one overload, with displayNameIndex added, and
+        // the DependencyModules.xUnit4 build binds the same call to it.
         var details = TestIntrospectionHelper.GetTestCaseDetails(
             discoveryOptions,
             testMethod,
