@@ -27,11 +27,23 @@ public class PublicApiTests
         Snapshot.Match(ApiOf(typeof(DependencyModuleAttribute)));
     }
 
+#if XUNIT_V4
+    /// <summary>
+    /// DependencyModules.xUnit4, which is the xUnit package's sources built against xunit.v3 4.x.
+    /// The two surfaces differ where the xUnit types they expose differ.
+    /// </summary>
+    [Fact]
+    public void XUnit4Api()
+    {
+        Snapshot.Match(ApiOf(typeof(ModuleTestAttribute)));
+    }
+#else
     [Fact]
     public void XUnitApi()
     {
         Snapshot.Match(ApiOf(typeof(ModuleTestAttribute)));
     }
+#endif
 
     /// <summary>
     /// The NUnit integration. Its <c>[ModuleTest]</c> shares a name with xUnit's and nothing else —

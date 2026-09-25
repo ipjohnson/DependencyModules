@@ -22,7 +22,15 @@ To run all tests with code coverage, use the coverage script. The script writes 
 ./scripts/coverage.sh 85
 ```
 
-To do a test of the packages that a user gets, use the package script. The script packs the nine packages. Then it builds and runs a test application for each target framework. The test application references these packages.
+The xUnit test projects use `xunit.v3` version 3 and `DependencyModules.xUnit`. To run them with `xunit.v3` version 4 and `DependencyModules.xUnit4`, use the xUnit script:
+
+```shell
+./scripts/test-xunit.sh 4
+```
+
+The `XunitMajor` property in `Directory.Build.props` selects the version. The script sets it to the major version that you give.
+
+To do a test of the packages that a user gets, use the package script. The script packs the ten packages. Then it builds and runs a test application for each target framework. The test application references these packages.
 
 ```shell
 ./scripts/verify-packages.sh
@@ -63,7 +71,10 @@ The `build-package` workflow runs for each pull request to `main`. It does these
 1. It does a check of the format with CSharpier.
 2. It builds the solution.
 3. It runs all tests with code coverage. The line coverage must be 85 percent or more.
-4. It runs `scripts/verify-packages.sh`.
+4. It runs the xUnit tests again with `xunit.v3` version 4.
+5. It runs `scripts/verify-packages.sh`.
+
+The `xunit-prerelease` workflow runs each week. It runs the xUnit tests with the newest `xunit.v3` on nuget.org, prereleases included. A failure tells you about a change in xUnit before its release.
 
 ## Documentation
 
@@ -96,8 +107,8 @@ git push origin v1.5.0
 The `release` workflow then does these steps:
 
 1. It builds the code.
-2. It runs the tests.
-3. It packs the nine packages.
+2. It runs the tests with `xunit.v3` version 3 and version 4.
+3. It packs the ten packages.
 4. It publishes the packages to nuget.org and to GitHub Packages.
 5. It makes a GitHub release with generated release notes.
 

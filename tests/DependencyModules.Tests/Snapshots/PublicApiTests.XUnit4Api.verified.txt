@@ -1,0 +1,45 @@
+namespace DependencyModules.xUnit.Attributes
+{
+    [System.AttributeUsage(System.AttributeTargets.Method)]
+    [Xunit.v3.XunitTestCaseDiscoverer(typeof(DependencyModules.xUnit.Impl.ModuleTestDiscoverer))]
+    public class ModuleTestAttribute : Xunit.FactAttribute, DependencyModules.Testing.Attributes.Interfaces.IModuleTestAttribute
+    {
+        public ModuleTestAttribute(params System.Type[] modules) { }
+        public ModuleTestAttribute([System.Runtime.CompilerServices.CallerFilePath] string? sourceFilePath = null, [System.Runtime.CompilerServices.CallerLineNumber] int sourceLineNumber = -1) { }
+        public ModuleTestAttribute(System.Type module, [System.Runtime.CompilerServices.CallerFilePath] string? sourceFilePath = null, [System.Runtime.CompilerServices.CallerLineNumber] int sourceLineNumber = -1) { }
+        public System.Type[] ModuleTypes { get; }
+    }
+}
+namespace DependencyModules.xUnit.Impl
+{
+    public interface ITestCaseInfo
+    {
+        Xunit.v3.IXunitTestMethod TestMethod { get; }
+        System.Collections.Generic.IReadOnlyList<object?> TestMethodArguments { get; set; }
+        System.Collections.Generic.IReadOnlyList<System.Attribute> TestMethodAttributes { get; }
+    }
+    public interface IXunitTestMethodContext : DependencyModules.Testing.Attributes.Interfaces.ITestMethodContext
+    {
+        Xunit.v3.IXunitTestMethod XunitTestMethod { get; }
+    }
+    public class ModuleTestCase : Xunit.v3.XunitTestCase, Xunit.Sdk.ITestCase, Xunit.Sdk.ITestCaseMetadata, Xunit.v3.ICoreTestCase, Xunit.v3.ISelfExecutingXunitTestCase, Xunit.v3.IXunitTestCase
+    {
+        public ModuleTestCase() { }
+        public ModuleTestCase(Xunit.v3.IXunitTestMethod testMethod, string testCaseDisplayName, string uniqueID, bool @explicit, System.Type[]? skipExceptions = null, string? skipReason = null, System.Type? skipType = null, string? skipUnless = null, string? skipWhen = null, System.Collections.Generic.Dictionary<string, System.Collections.Generic.HashSet<string>>? traits = null, object?[]? testMethodArguments = null, string? sourceFilePath = null, int? sourceLineNumber = default, int? timeout = default) { }
+        public override System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyCollection<Xunit.v3.IXunitTest>> CreateTests() { }
+        public override void PreInvoke() { }
+        public System.Threading.Tasks.ValueTask<Xunit.v3.RunSummary> Run(Xunit.Sdk.ExplicitOption explicitOption, Xunit.v3.IMessageBus messageBus, object?[] constructorArguments, Xunit.v3.ExceptionAggregator aggregator, System.Threading.CancellationTokenSource cancellationTokenSource, Xunit.Sdk.ParallelMode parallelMode, Xunit.v3.ExecutionScheduler scheduler, Xunit.v3.FixtureMappingManager methodFixtureMappings) { }
+    }
+    public class ModuleTestDiscoverer : Xunit.v3.IXunitTestCaseDiscoverer
+    {
+        public ModuleTestDiscoverer() { }
+        public System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyCollection<Xunit.v3.IXunitTestCase>> Discover(Xunit.Sdk.ITestFrameworkDiscoveryOptions discoveryOptions, Xunit.v3.IXunitTestMethod testMethod, Xunit.v3.IFactAttribute factAttribute) { }
+    }
+    public class TestCaseInfo : DependencyModules.xUnit.Impl.ITestCaseInfo
+    {
+        public TestCaseInfo(Xunit.v3.IXunitTestMethod testMethod, System.Collections.Generic.IReadOnlyList<object> testMethodArguments, System.Collections.Generic.IReadOnlyList<System.Attribute> testMethodAttributes) { }
+        public Xunit.v3.IXunitTestMethod TestMethod { get; }
+        public System.Collections.Generic.IReadOnlyList<object?> TestMethodArguments { get; set; }
+        public System.Collections.Generic.IReadOnlyList<System.Attribute> TestMethodAttributes { get; }
+    }
+}

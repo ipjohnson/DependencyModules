@@ -60,6 +60,7 @@ for proj in \
     src/DependencyModules.SourceGenerator.Impl/DependencyModules.SourceGenerator.Impl.csproj \
     src/DependencyModules.Testing/DependencyModules.Testing.csproj \
     src/DependencyModules.xUnit/DependencyModules.xUnit.csproj \
+    src/DependencyModules.xUnit4/DependencyModules.xUnit4.csproj \
     src/DependencyModules.NUnit/DependencyModules.NUnit.csproj \
     src/DependencyModules.NSubstitute/DependencyModules.NSubstitute.csproj \
     src/DependencyModules.Moq/DependencyModules.Moq.csproj \
@@ -98,6 +99,7 @@ LIB_PACKAGES=(
     DependencyModules.Runtime
     DependencyModules.Testing
     DependencyModules.xUnit
+    DependencyModules.xUnit4
     DependencyModules.NUnit
     DependencyModules.NSubstitute
     DependencyModules.Moq
@@ -129,6 +131,29 @@ for tfm, body in re.findall(r"<group targetFramework=\"([^\"]+)\">(.*?)</group>"
             sys.exit(f"  {tfm} group depends on {dep} {ver}, expected {want}.x")
 ' || fail "${id}: dependency groups are not framework-matched"
     pass "${id} dependency groups are framework-matched"
+done
+
+# A test package is built against one major of its framework and must stop below the next. A bare
+# version packs as an open range, and NuGet then unifies a test project's newer major into it,
+# which loads nothing at run time and warns about nothing at restore.
+for pair in \
+    DependencyModules.xUnit:xunit.v3.extensibility.core \
+    DependencyModules.xUnit4:xunit.v3.extensibility.core \
+    DependencyModules.NUnit:NUnit; do
+    id="${pair%%:*}"
+    dependency="${pair#*:}"
+    unzip -p "${FEED}/${id}.${VERSION}.nupkg" "${id}.nuspec" | python3 -c '
+import re, sys
+dependency = sys.argv[1]
+ranges = set(re.findall(r"id=\"" + re.escape(dependency) + r"\" version=\"([^\"]+)\"", sys.stdin.read()))
+if not ranges:
+    sys.exit(f"  no dependency on {dependency}")
+for value in ranges:
+    match = re.fullmatch(r"\[(\d+)\.\d+\.\d+, (\d+)\.0\.0\)", value)
+    if not match or int(match.group(2)) != int(match.group(1)) + 1:
+        sys.exit(f"  {dependency} is {value}, expected [lowest, next major.0.0)")
+' "${dependency}" || fail "${id}: its ${dependency} range does not stop below the next major"
+    pass "${id} stops ${dependency} below the next major"
 done
 
 # Placeholder metadata must never ship.

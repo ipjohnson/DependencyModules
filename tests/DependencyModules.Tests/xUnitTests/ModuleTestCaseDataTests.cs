@@ -163,6 +163,36 @@ public class ModuleTestCaseDataTests
         Assert.Equal(["Area", "Category"], Assert.Single(tests).Traits.Keys.Order());
     }
 
+#if XUNIT_V4
+    /// <summary>
+    /// 4.x gives a test the label of its row and the row's choice about parallel runs, as it does
+    /// under [Theory]. The obsolete constructor sets neither, so a row marked
+    /// DisableParallelization would run in parallel with the others.
+    /// </summary>
+    [Fact]
+    public async Task ARowTest_HasTheLabelAndTheParallelizationOfItsRow()
+    {
+        var tests = await CreateTests(
+            typeof(ParallelizationSample),
+            nameof(ParallelizationSample.Rows)
+        );
+
+        Assert.Collection(
+            tests.OrderBy(test => test.TestDisplayName, StringComparer.Ordinal),
+            labelled =>
+            {
+                Assert.Equal("serial", labelled.TestLabel);
+                Assert.True(labelled.DisableParallelization);
+            },
+            plain =>
+            {
+                Assert.Null(plain.TestLabel);
+                Assert.False(plain.DisableParallelization);
+            }
+        );
+    }
+#endif
+
     private static Task<IReadOnlyCollection<IXunitTest>> CreateTests(string methodName) =>
         CreateTests(typeof(DataSample), methodName);
 
@@ -186,7 +216,13 @@ public class ModuleTestCaseDataTests
 
     private static IXunitTestMethod BuildTestMethod(Type testClass, string methodName)
     {
+#if XUNIT_V4
+        // 4.x marks the one-argument constructor obsolete, and its replacement takes a
+        // configFilePath that 3.x does not have.
+        var assembly = new XunitTestAssembly(testClass.Assembly, configFilePath: null);
+#else
         var assembly = new XunitTestAssembly(testClass.Assembly);
+#endif
         var collection = new XunitTestCollection(assembly, null, false, "Test collection");
         var xunitClass = new XunitTestClass(testClass, collection);
         var method = testClass.GetMethod(methodName, BindingFlags.Public | BindingFlags.Instance)!;
@@ -299,6 +335,15 @@ public class ModuleTestCaseDataTests
     /// resolver can supply it without any module being loaded.
     /// </summary>
     private class ContainerSupplied { }
+
+#if XUNIT_V4
+    private class ParallelizationSample
+    {
+        [InlineData("first", Label = "serial", DisableParallelization = true)]
+        [InlineData("second")]
+        public void Rows(string value) { }
+    }
+#endif
 #pragma warning restore xUnit1008, xUnit1037
 
     private class SampleClassData : TheoryData<string>

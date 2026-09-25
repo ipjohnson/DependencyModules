@@ -1,14 +1,31 @@
 # xUnit
 
-`DependencyModules.xUnit` adds `[ModuleTest]` to xUnit v3 test projects. The package is compatible with `xunit.v3` version 3.2.2 and all subsequent versions before 4.0.0.
+Two packages add `[ModuleTest]` to xUnit v3 test projects. Use the package for the version of `xunit.v3` in your test project:
+
+| `xunit.v3` version | Package |
+| --- | --- |
+| 3.2.2 and all subsequent versions before 4.0.0 | `DependencyModules.xUnit` |
+| 4.0.0 and all subsequent versions before 5.0.0 | `DependencyModules.xUnit4` |
+
+The two packages have the same types in the same namespaces. Thus, when you change from one package to the other, your tests do not change.
 
 ## Install
+
+For `xunit.v3` version 3:
 
 ```shell
 dotnet add package DependencyModules.xUnit
 ```
 
+For `xunit.v3` version 4:
+
+```shell
+dotnet add package DependencyModules.xUnit4
+```
+
 Also add references to `xunit.v3` and to a test runner, for example `xunit.runner.visualstudio`.
+
+With `xunit.v3` version 4 and the .NET 10 SDK, `dotnet test` in the VSTest mode stops with an error from Microsoft.Testing.Platform. To prevent this error, use the MTP mode of `dotnet test`, or use `xunit.v3.mtp-off` in place of `xunit.v3`. For more information, refer to the [xUnit 4.0.0 release notes](https://xunit.net/releases/v3/4.0.0).
 
 ## `[ModuleTest]`
 

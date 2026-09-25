@@ -6,7 +6,7 @@
         <Nullable>enable</Nullable>
         <IsPackable>True</IsPackable>
         <PackageId>DependencyModules.Testing</PackageId>
-        <Description>The test attributes and interfaces of DependencyModules: [Mock], [InjectValues], [Shared], [TestExport], and the interfaces for mock libraries and test attributes. It also contains the helpers that find the attributes of a test on the method, the class, and the assembly. It does not depend on a test framework. The DependencyModules.xUnit and DependencyModules.NUnit packages use this package. Add one of those packages to a test project.</Description>
+        <Description>The test attributes and interfaces of DependencyModules: [Mock], [InjectValues], [Shared], [TestExport], and the interfaces for mock libraries and test attributes. It also contains the helpers that find the attributes of a test on the method, the class, and the assembly. It does not depend on a test framework. The DependencyModules.xUnit, DependencyModules.xUnit4, and DependencyModules.NUnit packages use this package. Add one of those packages to a test project.</Description>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
     </PropertyGroup>
 

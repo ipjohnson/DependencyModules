@@ -74,6 +74,9 @@ jobs:
             cat artifacts/coverage/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
           fi
 
+      - name: Test on xunit.v3 4.x
+        run: ./scripts/test-xunit.sh 4
+
       - name: Verify packages
         run: ./scripts/verify-packages.sh "${{ steps.version.outputs.version }}"
 
@@ -86,6 +89,7 @@ jobs:
             src/DependencyModules.SourceGenerator.Impl/DependencyModules.SourceGenerator.Impl.csproj \
             src/DependencyModules.Testing/DependencyModules.Testing.csproj \
             src/DependencyModules.xUnit/DependencyModules.xUnit.csproj \
+            src/DependencyModules.xUnit4/DependencyModules.xUnit4.csproj \
             src/DependencyModules.NUnit/DependencyModules.NUnit.csproj \
             src/DependencyModules.NSubstitute/DependencyModules.NSubstitute.csproj \
             src/DependencyModules.Moq/DependencyModules.Moq.csproj \
