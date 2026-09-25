@@ -5,6 +5,38 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-09-25
+
+This release adds a test package for `xunit.v3` version 4. It also lets a library get the test
+that runs and write to its output, with no reference to a test framework.
+
+### Added
+
+- `DependencyModules.xUnit4`, the xUnit package for `xunit.v3` version 4.0.0 and all subsequent
+  versions before 5.0.0. It has the same types in the same namespaces as `DependencyModules.xUnit`.
+  `DependencyModules.xUnit` stays on `xunit.v3` version 3. xunit.v3 4.0 changed
+  `ISelfExecutingXunitTestCase.Run`, and a package built for one version does not load on the
+  other. (#117, #118)
+- With `xunit.v3` version 4, a data row gives its `Label` and its `DisableParallelization` to its
+  test, as it does for `[Theory]`. (#118)
+- `CurrentTest` and `ICurrentTestProvider` in `DependencyModules.Testing`. They give the key, the
+  display name, and the assembly of the test that runs, and write lines to its output. The xUnit
+  packages read `TestContext.Current`, and `DependencyModules.NUnit` reads
+  `TestExecutionContext.CurrentContext`. (#119)
+- `TestOutputLoggerProvider`, an `ILoggerProvider` that writes each log entry to the output of the
+  test that runs. (#119)
+
+### Changed
+
+- `DependencyModules.Testing` depends on `Microsoft.Extensions.Logging.Abstractions`: version 8.0.0
+  for `net8.0` and version 10.0.0 for `net10.0`. (#119)
+
+### Note
+
+With `xunit.v3` version 4 and the .NET 10 SDK, `dotnet test` in the VSTest mode stops with an error
+from Microsoft.Testing.Platform. Use the MTP mode of `dotnet test`, or use `xunit.v3.mtp-off` in
+place of `xunit.v3`. The xUnit guide gives more information.
+
 ## [1.6.1] - 2026-09-24
 
 ### Changed
