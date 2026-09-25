@@ -23,6 +23,9 @@ namespace DependencyModules.xUnit.Attributes;
 [AttributeUsage(AttributeTargets.Method)]
 public class ModuleTestAttribute : FactAttribute, IModuleTestAttribute
 {
+    // xUnit creates the attribute while it discovers the tests, before the first one runs.
+    static ModuleTestAttribute() => XunitCurrentTestProvider.Install();
+
     /// <summary>
     /// Marks a test method, taking no modules.
     /// </summary>

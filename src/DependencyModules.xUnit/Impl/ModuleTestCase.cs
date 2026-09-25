@@ -30,6 +30,10 @@ public partial class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase
     /// </summary>
     private readonly List<IServiceProvider> _providers = [];
 
+    // Here as well as on ModuleTestAttribute, because an attribute of another library can name
+    // ModuleTestDiscoverer, and then this is the first of the package's types that xUnit creates.
+    static ModuleTestCase() => XunitCurrentTestProvider.Install();
+
 #pragma warning disable CS0618 // Type or member is obsolete
     /// <summary>
     /// Represents a specialized implementation of <see cref="XunitTestCase"/>

@@ -110,7 +110,7 @@ The `integ-tests` folder contains projects that reference the source projects of
 | [DependencyModules.xUnit](https://www.nuget.org/packages/DependencyModules.xUnit/) | `[ModuleTest]` for xUnit v3, with `xunit.v3` version 3. |
 | [DependencyModules.xUnit4](https://www.nuget.org/packages/DependencyModules.xUnit4/) | `[ModuleTest]` for xUnit v3, with `xunit.v3` version 4. |
 | [DependencyModules.NUnit](https://www.nuget.org/packages/DependencyModules.NUnit/) | `[ModuleTest]` and `[ModuleTestCase]` for NUnit 4. |
-| [DependencyModules.Testing](https://www.nuget.org/packages/DependencyModules.Testing/) | The test attributes and interfaces that the xUnit and NUnit packages use. |
+| [DependencyModules.Testing](https://www.nuget.org/packages/DependencyModules.Testing/) | The test attributes and interfaces that the xUnit and NUnit packages use. It also gives the test that runs, and a logger that writes to the output of the test. |
 | [DependencyModules.NSubstitute](https://www.nuget.org/packages/DependencyModules.NSubstitute/) | `[Mock]` parameters with NSubstitute. |
 | [DependencyModules.Moq](https://www.nuget.org/packages/DependencyModules.Moq/) | `[Mock]` and `Mock<T>` parameters with Moq. |
 | [DependencyModules.FakeItEasy](https://www.nuget.org/packages/DependencyModules.FakeItEasy/) | `[Mock]` parameters with FakeItEasy. |
