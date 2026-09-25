@@ -31,6 +31,13 @@ namespace DependencyModules.Testing.Attributes
 }
 namespace DependencyModules.Testing.Attributes.Interfaces
 {
+    public interface ICurrentTestProvider
+    {
+        System.Reflection.Assembly? Assembly { get; }
+        string? DisplayName { get; }
+        object? Key { get; }
+        bool TryWriteLine(string message);
+    }
     public interface IInjectValueAttribute
     {
         object[] ProvideValue(System.IServiceProvider serviceProvider, System.Reflection.ParameterInfo parameter);
@@ -94,6 +101,14 @@ namespace DependencyModules.Testing.Impl
         public static System.Collections.Generic.IEnumerable<T> GetTestAttributes<T>(this System.Reflection.ParameterInfo parameterInfo)
             where T :  class { }
     }
+    public static class CurrentTest
+    {
+        public static System.Reflection.Assembly? Assembly { get; }
+        public static string? DisplayName { get; }
+        public static object? Key { get; }
+        public static DependencyModules.Testing.Attributes.Interfaces.ICurrentTestProvider? Provider { get; set; }
+        public static bool TryWriteLine(string message) { }
+    }
     public static class SharedRegistrations
     {
         public static System.Collections.Generic.IReadOnlyCollection<System.Type> Collect(System.Reflection.MethodInfo method, System.Collections.Generic.IEnumerable<System.Attribute> knownAttributes) { }
@@ -105,6 +120,13 @@ namespace DependencyModules.Testing.Impl
         public System.Threading.Tasks.ValueTask<System.IServiceProvider> CreateAsync() { }
         public void Initialize(Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.IServiceProvider pinned, System.Collections.Generic.IReadOnlyCollection<System.Type> pinnedServices, System.Func<Microsoft.Extensions.DependencyInjection.IServiceCollection, System.IServiceProvider> build, System.Func<System.IServiceProvider, System.Threading.Tasks.ValueTask> start, System.Action<System.IServiceProvider> track) { }
         public void Initialize(Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.IServiceProvider pinned, System.Collections.Generic.IReadOnlyCollection<System.Type> pinnedServices, System.Collections.Generic.IReadOnlyCollection<System.Type> namedServices, System.Func<Microsoft.Extensions.DependencyInjection.IServiceCollection, System.IServiceProvider> build, System.Func<System.IServiceProvider, System.Threading.Tasks.ValueTask> start, System.Action<System.IServiceProvider> track) { }
+    }
+    public sealed class TestOutputLoggerProvider : Microsoft.Extensions.Logging.ILoggerProvider, System.IDisposable
+    {
+        public TestOutputLoggerProvider() { }
+        public TestOutputLoggerProvider(DependencyModules.Testing.Attributes.Interfaces.ICurrentTestProvider currentTest) { }
+        public Microsoft.Extensions.Logging.ILogger CreateLogger(string categoryName) { }
+        public void Dispose() { }
     }
     public sealed class TestParameterResolver
     {

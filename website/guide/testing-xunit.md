@@ -150,3 +150,5 @@ public class InfoTests
     }
 }
 ```
+
+Code that does not get the test as a parameter can use `CurrentTest`. In xUnit, `CurrentTest` has no test while the test package builds the service provider. For more information, refer to [`CurrentTest` and test output](./testing-current-test.md).

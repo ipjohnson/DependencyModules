@@ -57,6 +57,9 @@ public class ModuleTestAttribute
     /// </remarks>
     internal const string RowPropertyName = "DependencyModules.ModuleTestRow";
 
+    // NUnit creates the attribute while it builds the tests, before the first one runs.
+    static ModuleTestAttribute() => NUnitCurrentTestProvider.Install();
+
     /// <summary>
     /// Marks a test method, optionally naming the modules to configure its container with.
     /// </summary>
