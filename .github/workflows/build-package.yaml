@@ -106,7 +106,13 @@ jobs:
       - name: Publish Metrics to Job Summary
         run: |
           echo "### 📊 .NET Code Metrics Report" >> $GITHUB_STEP_SUMMARY
-          cat CODE_METRICS.md >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.dotnet-code-metrics.outputs.summary-title }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+        
+          # Using a multi-line HERE doc to safely handle markdown spacing
+          cat << 'EOF' >> $GITHUB_STEP_SUMMARY
+          ${{ steps.dotnet-code-metrics.outputs.summary-details }}
+          EOF
         
       # The badge lives on an orphan branch so README can link to a stable raw URL without
       # adding commit noise to main.
