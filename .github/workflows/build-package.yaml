@@ -84,7 +84,7 @@ jobs:
       - name: Verify packages
         run: ./scripts/verify-packages.sh
 
-      - name: generate stats
+      - name: Generate Metrics
         id: dotnet-code-metrics
         uses: dotnet/samples/github-actions/DotNet.GitHubAction@main
         with:
@@ -102,6 +102,11 @@ jobs:
           commit-message: 'docs: automated .NET code metrics update'
           branch: dotnet-code-metrics-updates
           base: main
+
+      - name: Publish Metrics to Job Summary
+        run: |
+          echo "### 📊 .NET Code Metrics Report" >> $GITHUB_STEP_SUMMARY
+          cat CODE_METRICS.md >> $GITHUB_STEP_SUMMARY
         
       # The badge lives on an orphan branch so README can link to a stable raw URL without
       # adding commit noise to main.
