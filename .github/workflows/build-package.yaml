@@ -103,19 +103,13 @@ jobs:
           branch: dotnet-code-metrics-updates
           base: main
 
-      - name: Publish Metrics to Job Summary
-        run: |
-          echo "### 📊 Detailed .NET Code Metrics Report" >> $GITHUB_STEP_SUMMARY
-        
-          # Dynamically locate the CODE_METRICS.md file wherever it was generated
-          METRICS_FILE=$(find . -name "CODE_METRICS.md" | head -n 1)
-        
-          if [ -f "$METRICS_FILE" ]; then
-            echo "Found metrics file at: $METRICS_FILE"
-            cat "$METRICS_FILE" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ Error: Could not find the generated CODE_METRICS.md file in the workspace." >> $GITHUB_STEP_SUMMARY
-          fi
+      - name: Upload Metrics Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dot-net-code-metrics-report
+          path: |
+            **/CODE_METRICS.md
+          retention-days: 14
         
       # The badge lives on an orphan branch so README can link to a stable raw URL without
       # adding commit noise to main.
