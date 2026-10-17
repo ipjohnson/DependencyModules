@@ -80,6 +80,24 @@ jobs:
       - name: Verify packages
         run: ./scripts/verify-packages.sh
 
+      - name: generate stats
+        id: dotnet-code-metrics
+        uses: dotnet/samples/github-actions/DotNet.GitHubAction@main
+        with:
+          owner: ${{ github.repository_owner }}
+          name: ${{ github.repository }}
+          branch: ${{ github.ref }}
+          dir: ${{ './src' }} # Path to your source code directory
+
+      - name: Create Pull Request for Metrics
+        uses: peter-evans/create-pull-request@v5
+        if: ${{ steps.dotnet-code-metrics.outputs.updated-metrics == 'true' }}
+        with:
+          title: '${{ steps.dotnet-code-metrics.outputs.summary-title }}'
+          body: '${{ steps.dotnet-code-metrics.outputs.summary-details }}'
+          commit-message: 'docs: automated .NET code metrics update'
+          branch: dotnet-code-metrics-updates          
+        
       # The badge lives on an orphan branch so README can link to a stable raw URL without
       # adding commit noise to main.
       - name: Publish coverage badge
