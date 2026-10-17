@@ -105,14 +105,17 @@ jobs:
 
       - name: Publish Metrics to Job Summary
         run: |
-          echo "### 📊 .NET Code Metrics Report" >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.dotnet-code-metrics.outputs.summary-title }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Detailed .NET Code Metrics Report" >> $GITHUB_STEP_SUMMARY
         
-          # Using a multi-line HERE doc to safely handle markdown spacing
-          cat << 'EOF' >> $GITHUB_STEP_SUMMARY
-          ${{ steps.dotnet-code-metrics.outputs.summary-details }}
-          EOF
+          # Dynamically locate the CODE_METRICS.md file wherever it was generated
+          METRICS_FILE=$(find . -name "CODE_METRICS.md" | head -n 1)
+        
+          if [ -f "$METRICS_FILE" ]; then
+            echo "Found metrics file at: $METRICS_FILE"
+            cat "$METRICS_FILE" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Error: Could not find the generated CODE_METRICS.md file in the workspace." >> $GITHUB_STEP_SUMMARY
+          fi
         
       # The badge lives on an orphan branch so README can link to a stable raw URL without
       # adding commit noise to main.
