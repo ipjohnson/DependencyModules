@@ -58,17 +58,30 @@ jobs:
         run: ./scripts/coverage.sh "${{ env.COVERAGE_THRESHOLD }}"
 
       - name: Publish coverage to the job summary
-        if: always()
         run: |
           if [ -f artifacts/coverage/SummaryGithub.md ]; then
             cat artifacts/coverage/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: coverage-report
-          path: artifacts/coverage
+      - name: Format PR Comment Dashboard
+        run: |
+          echo "## 📊 .NET Code Metrics Summary" > pr_summary.md
+          echo "> [!NOTE]" >> pr_summary.md
+          echo "> This automated report analyzes cyclomatic complexity, maintainability index, and code volume." >> pr_summary.md
+          echo "" >> pr_summary.md
+          
+          # Extract a high-level summary (find lines containing highest complexity)
+          echo "### 🔍 High-Level Highlights" >> pr_summary.md
+          grep -i "highest cyclomatic complexity" CODE_METRICS.md | head -n 5 >> pr_summary.md
+          echo "" >> pr_summary.md
+
+          # Collapse the massive, ugly table so it doesn't break the PR view
+          echo "<details>" >> pr_summary.md
+          echo "<summary>📂 Click to view the full detailed metrics breakdown (Large File)</summary>" >> pr_summary.md
+          echo "" >> pr_summary.md
+          cat CODE_METRICS.md >> pr_summary.md
+          echo "" >> pr_summary.md
+          echo "</details>" >> pr_summary.md
 
       # The coverage run is on xunit.v3 3.x. This runs the xUnit tests again on 4.x, against
       # DependencyModules.xUnit4.
