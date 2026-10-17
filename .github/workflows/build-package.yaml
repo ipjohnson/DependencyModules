@@ -91,12 +91,13 @@ jobs:
 
       - name: Create Pull Request for Metrics
         uses: peter-evans/create-pull-request@v5
-        if: ${{ steps.dotnet-code-metrics.outputs.updated-metrics == 'true' }}
+        if: ${{ steps.dotnet-code-metrics.outputs.updated-metrics == 'true' && github.ref == 'refs/heads/main' }}
         with:
           title: '${{ steps.dotnet-code-metrics.outputs.summary-title }}'
           body: '${{ steps.dotnet-code-metrics.outputs.summary-details }}'
           commit-message: 'docs: automated .NET code metrics update'
-          branch: dotnet-code-metrics-updates          
+          branch: dotnet-code-metrics-updates
+          base: main
         
       # The badge lives on an orphan branch so README can link to a stable raw URL without
       # adding commit noise to main.
