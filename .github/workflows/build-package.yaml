@@ -5,8 +5,12 @@ name: build-package
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**.md'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - '**.md'
   workflow_dispatch:
 
 # Superseded runs for the same branch are of no interest once a newer commit lands.
@@ -80,6 +84,33 @@ jobs:
       - name: Verify packages
         run: ./scripts/verify-packages.sh
 
+      - name: Generate Metrics
+        id: dotnet-code-metrics
+        uses: dotnet/samples/github-actions/DotNet.GitHubAction@main
+        with:
+          owner: ${{ github.repository_owner }}
+          name: ${{ github.repository }}
+          branch: ${{ github.ref }}
+          dir: ${{ './src' }} # Path to your source code directory
+
+      - name: Create Pull Request for Metrics
+        uses: peter-evans/create-pull-request@v5
+        if: ${{ steps.dotnet-code-metrics.outputs.updated-metrics == 'true' && github.ref == 'refs/heads/main' }}
+        with:
+          title: '${{ steps.dotnet-code-metrics.outputs.summary-title }}'
+          body: '${{ steps.dotnet-code-metrics.outputs.summary-details }}'
+          commit-message: 'docs: automated .NET code metrics update'
+          branch: dotnet-code-metrics-updates
+          base: main
+
+      - name: Upload Metrics Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dot-net-code-metrics-report
+          path: |
+            **/CODE_METRICS.md
+          retention-days: 14
+        
       # The badge lives on an orphan branch so README can link to a stable raw URL without
       # adding commit noise to main.
       - name: Publish coverage badge
