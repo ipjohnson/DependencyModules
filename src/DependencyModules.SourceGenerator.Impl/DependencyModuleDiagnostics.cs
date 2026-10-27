@@ -457,6 +457,23 @@ public static class DependencyModuleDiagnostics
     );
 
     /// <summary>
+    /// Raised by <c>ServiceTypeAnalyzer</c> for a <c>[SingletonService]</c>, <c>[ScopedService]</c>
+    /// or <c>[TransientService]</c> without <c>As = typeof(...)</c>.
+    /// </summary>
+    /// <remarks>
+    /// Off by default, because inference is the documented behaviour. A project that wants every
+    /// registration written out turns it on with <c>dotnet_diagnostic.DM0026.severity</c>.
+    /// </remarks>
+    public static readonly DiagnosticDescriptor ServiceTypeNotNamed = new(
+        id: "DM0026",
+        title: "A service attribute does not name its service type",
+        messageFormat: "[{0}] on '{1}' does not name its service type with As = typeof(...). {2}.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: false
+    );
+
+    /// <summary>
     /// Raised for <c>[CrossWireService]</c> on a generic type.
     /// </summary>
     /// <remarks>

@@ -1277,6 +1277,7 @@ namespace DependencyModules.SourceGenerator.Impl
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor OpenGenericCannotBeDecorated;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor RegisteredConditionally;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ServiceCannotBeConstructed;
+        public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ServiceTypeNotNamed;
         public static Microsoft.CodeAnalysis.Diagnostic GeneratorFailureFrom(System.Exception exception) { }
     }
     public class DependencyModuleWriter
@@ -2066,6 +2067,15 @@ namespace DependencyModules.SourceGenerator
                 "Right",
                 "Left",
                 "Right"})] System.ValueTuple<System.Collections.Immutable.ImmutableArray<System.ValueTuple<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel, DependencyModules.SourceGenerator.Impl.Models.DependencyModuleConfigurationModel>>, System.Collections.Immutable.ImmutableArray<DependencyModules.SourceGenerator.Impl.Models.ServiceModel>> data, DependencyModules.SourceGenerator.Impl.Models.SyntaxTreeLookup lookup, DependencyModules.SourceGenerator.Impl.Utilities.FileLogger logger) { }
+    }
+    [Microsoft.CodeAnalysis.Diagnostics.DiagnosticAnalyzer("C#", new string[0])]
+    public sealed class ServiceTypeAnalyzer : Microsoft.CodeAnalysis.Diagnostics.DiagnosticAnalyzer
+    {
+        public const string ServiceTypeDisplayProperty = "ServiceTypeDisplay";
+        public const string ServiceTypeProperty = "ServiceType";
+        public ServiceTypeAnalyzer() { }
+        public override System.Collections.Immutable.ImmutableArray<Microsoft.CodeAnalysis.DiagnosticDescriptor> SupportedDiagnostics { get; }
+        public override void Initialize(Microsoft.CodeAnalysis.Diagnostics.AnalysisContext context) { }
     }
     [Microsoft.CodeAnalysis.Generator]
     public class SourceGenerator : DependencyModules.SourceGenerator.Impl.BaseSourceGenerator

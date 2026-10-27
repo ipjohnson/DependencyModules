@@ -29,6 +29,7 @@ The generator gives these diagnostics when you compile. Their category is `Depen
 | [DM0023](#dm0023) | Warning | Factory method cannot be called |
 | [DM0024](#dm0024) | Warning | Cross-wired class declares no interface |
 | [DM0025](#dm0025) | Warning | Decorator is not applied |
+| [DM0026](#dm0026) | Off | A service attribute does not name its service type |
 
 The table shows the title of each diagnostic. The compiler shows a message with more information, for example the names of the types.
 
@@ -265,3 +266,16 @@ A class has `[Decorator]`, but the generator cannot apply the decorator. The gen
 - The type parameters of a generic decorator are not the type arguments of the service type in the same sequence.
 
 To correct the problem, correct the cause that the message gives. For example, set `Service` on the attribute, or give the class a `public` constructor.
+
+## DM0026
+
+A `[SingletonService]`, `[ScopedService]`, or `[TransientService]` attribute has no `As = typeof(...)`. The generator then infers the service type from the class. If you add an interface to the class, the service type can change. The generator also ignores an `As` that is not a `typeof(...)` expression, and the analyzer reports it. `[CrossWireService]` does not get DM0026.
+
+DM0026 is off by default. To turn it on, set its severity in an `.editorconfig` file:
+
+```ini
+[*.cs]
+dotnet_diagnostic.DM0026.severity = error
+```
+
+To correct the problem, add `As = typeof(...)` to the attribute. The code fix "Make service type explicit" adds the type that the generator registers now, so the registration does not change. Fix All works for a document, a project, and a solution. The code fix is not available when the type cannot be written in the attribute, for example `IMap<, int>`.

@@ -8,6 +8,7 @@ Rule ID | Category | Severity | Notes
 DM0023 | DependencyModules | Warning | A factory method with a service attribute cannot be called by the generated module.
 DM0024 | DependencyModules | Warning | A cross-wired class declares no interface but inherits one.
 DM0025 | DependencyModules | Warning | A [Decorator] class is not applied.
+DM0026 | DependencyModules | Disabled | A service attribute does not name its service type.
 
 ### Removed Rules
 
