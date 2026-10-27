@@ -1959,6 +1959,12 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities
         public static DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? GetConstructorInfo(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, Microsoft.CodeAnalysis.SyntaxNode node, System.Threading.CancellationToken cancellationToken, bool callableOnly = false) { }
         public static DependencyModules.SourceGenerator.Impl.Models.ServiceModel? GetServiceModel(DependencyModules.SourceGenerator.Impl.Utilities.SyntaxTransformContext context, System.Threading.CancellationToken cancellationToken) { }
     }
+    public static class ServiceTypeInference
+    {
+        public static System.Collections.Generic.IEnumerable<Microsoft.CodeAnalysis.INamedTypeSymbol> BaseListSymbols(Microsoft.CodeAnalysis.CSharp.Syntax.TypeDeclarationSyntax typeDeclarationSyntax, Microsoft.CodeAnalysis.SemanticModel semanticModel) { }
+        public static CSharpAuthor.ITypeDefinition GetServiceType(CSharpAuthor.ITypeDefinition implementation, System.Collections.Generic.IEnumerable<Microsoft.CodeAnalysis.INamedTypeSymbol> baseListTypes) { }
+        public static CSharpAuthor.ITypeDefinition ReplaceGenericParametersForRegistration(CSharpAuthor.ITypeDefinition registration) { }
+    }
     public static class SymbolConstructorReader
     {
         public static DependencyModules.SourceGenerator.Impl.Models.ConstructorInfoModel? Read(Microsoft.CodeAnalysis.INamedTypeSymbol type) { }

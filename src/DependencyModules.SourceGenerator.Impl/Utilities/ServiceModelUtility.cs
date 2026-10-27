@@ -9,59 +9,6 @@ namespace DependencyModules.SourceGenerator.Impl.Utilities;
 
 public class ServiceModelUtility
 {
-    /// <summary>
-    /// Interfaces that describe a capability rather than a role, keyed by namespace and name.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Passed over when choosing a service type nobody named. Writing <c>: IDisposable</c> says the
-    /// class cleans up after itself; it does not say <c>IDisposable</c> is what callers ask for.
-    /// Without this, <c>class OrderedPool : IDisposable, IPool</c> registers as <c>IDisposable</c>,
-    /// because the first interface in the declaration wins.
-    /// </para>
-    /// <para>
-    /// A list rather than the namespace rule <c>AsSelfWithInterfaces</c> uses, because the two are
-    /// not the same problem. That expansion is additive — excluding too much costs a bonus
-    /// registration. This is an exclusive choice, so excluding too much means the interface the
-    /// developer wanted is not registered at all. <c>System</c> holds plenty of interfaces that are
-    /// genuinely service roles: <c>IEqualityComparer&lt;T&gt;</c>, <c>IJsonTypeInfoResolver</c>,
-    /// <c>IHttpClientFactory</c>. Precision matters more here than a rule stated in one sentence.
-    /// </para>
-    /// <para>
-    /// The list is short and stays short. These are the BCL's language and framework integration
-    /// points, and the set has barely moved in twenty years — unlike the open-ended set of
-    /// interfaces a type happens to reach, which is what makes the namespace rule right over there.
-    /// </para>
-    /// <para>
-    /// <c>IEnumerable</c> earns its place twice over: registering a service as
-    /// <c>IEnumerable&lt;T&gt;</c> collides with how the container represents "every registration of
-    /// T".
-    /// </para>
-    /// <para>
-    /// A service type the developer names is untouched — <c>[SingletonService(As =
-    /// typeof(IDisposable))]</c> still registers <c>IDisposable</c>. This governs inference only.
-    /// </para>
-    /// </remarks>
-    private static readonly HashSet<string> _capabilityInterfaces = new()
-    {
-        "System.IDisposable",
-        "System.IAsyncDisposable",
-        "System.ICloneable",
-        "System.IComparable", // covers IComparable<T>, same name
-        "System.IEquatable",
-        "System.IConvertible",
-        "System.IFormattable",
-        "System.ISpanFormattable",
-        "System.IParsable",
-        "System.ISpanParsable",
-        "System.Collections.IEnumerable",
-        "System.Collections.Generic.IEnumerable",
-        "System.Runtime.Serialization.ISerializable",
-        "System.ComponentModel.INotifyPropertyChanged",
-        "System.ComponentModel.INotifyPropertyChanging",
-        "System.Collections.Specialized.INotifyCollectionChanged",
-    };
-
     private static readonly ITypeDefinition _crossWireService = KnownTypes
         .DependencyModules
         .Attributes
@@ -839,9 +786,10 @@ public class ServiceModelUtility
 
                                 if (registration is GenericTypeDefinition)
                                 {
-                                    registration = ReplaceGenericParametersForRegistration(
-                                        registration
-                                    );
+                                    registration =
+                                        ServiceTypeInference.ReplaceGenericParametersForRegistration(
+                                            registration
+                                        );
                                 }
                             }
                             break;
@@ -880,126 +828,10 @@ public class ServiceModelUtility
         ITypeDefinition classDefinition
     )
     {
-        return GetBaseTypeRegistration(context) ?? classDefinition;
-    }
+        var baseListTypes = context.Node is TypeDeclarationSyntax typeDeclarationSyntax
+            ? ServiceTypeInference.BaseListSymbols(typeDeclarationSyntax, context.SemanticModel)
+            : Enumerable.Empty<INamedTypeSymbol>();
 
-    /// <summary>
-    /// The service type to register a class as when the developer did not name one: the first
-    /// declared interface that is not a <see cref="_capabilityInterfaces">capability</see>, else the
-    /// first one a base class provides.
-    /// </summary>
-    private static ITypeDefinition? GetBaseTypeRegistration(SyntaxTransformContext context)
-    {
-        if (context.Node is TypeDeclarationSyntax { BaseList: not null } typeDeclarationSyntax)
-        {
-            INamedTypeSymbol? baseClassSymbol = null;
-
-            foreach (var baseTypeSyntax in typeDeclarationSyntax.BaseList.Types)
-            {
-                var symbolInfo = ModelExtensions.GetSymbolInfo(
-                    context.SemanticModel,
-                    baseTypeSyntax.Type
-                );
-
-                if (symbolInfo.Symbol is INamedTypeSymbol namedTypeSymbol)
-                {
-                    var baseTypeDefinition = namedTypeSymbol.GetTypeDefinitionFromNamedSymbol();
-
-                    // only auto register interfaces
-                    if (
-                        baseTypeDefinition is
-                        { TypeDefinitionEnum: TypeDefinitionEnum.InterfaceDefinition }
-                    )
-                    {
-                        // Passed over rather than remembered: a skipped interface must not become the
-                        // symbol walked below, or IEnumerable<int> would hand back IEnumerable.
-                        if (SkipInterface(baseTypeDefinition))
-                        {
-                            continue;
-                        }
-
-                        if (baseTypeDefinition is GenericTypeDefinition)
-                        {
-                            baseTypeDefinition = ReplaceGenericParametersForRegistration(
-                                baseTypeDefinition
-                            );
-                        }
-
-                        return baseTypeDefinition;
-                    }
-
-                    baseClassSymbol = namedTypeSymbol;
-                }
-            }
-
-            if (baseClassSymbol != null)
-            {
-                return GetBaseInterface(context, baseClassSymbol);
-            }
-        }
-
-        return null;
-    }
-
-    private static ITypeDefinition? GetBaseInterface(
-        SyntaxTransformContext context,
-        INamedTypeSymbol baseTypeSymbol
-    )
-    {
-        foreach (var interfaceSymbol in baseTypeSymbol.Interfaces)
-        {
-            var interfaceType = interfaceSymbol.GetTypeDefinitionFromNamedSymbol();
-
-            // only auto register interfaces
-            if (interfaceType == null || SkipInterface(interfaceType))
-            {
-                continue;
-            }
-
-            if (interfaceType is GenericTypeDefinition)
-            {
-                interfaceType = ReplaceGenericParametersForRegistration(interfaceType);
-            }
-
-            return interfaceType;
-        }
-
-        if (baseTypeSymbol.BaseType == null)
-        {
-            return null;
-        }
-
-        return GetBaseInterface(context, baseTypeSymbol.BaseType);
-    }
-
-    /// <summary>
-    /// Whether an interface is passed over when choosing a service type nobody named.
-    /// </summary>
-    /// <remarks>
-    /// Matched on namespace and name so one entry covers a generic and its closings —
-    /// <c>IEquatable&lt;Money&gt;</c> and <c>IEquatable&lt;T&gt;</c> both render as
-    /// <c>System.IEquatable</c>.
-    /// </remarks>
-    private static bool SkipInterface(ITypeDefinition interfaceType) =>
-        _capabilityInterfaces.Contains($"{interfaceType.Namespace}.{interfaceType.Name}");
-
-    private static ITypeDefinition ReplaceGenericParametersForRegistration(
-        ITypeDefinition registration
-    )
-    {
-        var argumentTypes = registration
-            .TypeArguments.Select(_ =>
-                _ is TypeParameterDefinition ? TypeDefinition.Get("", "") : _
-            )
-            .ToArray();
-
-        registration = new GenericTypeDefinition(
-            registration.TypeDefinitionEnum,
-            registration.Namespace,
-            registration.Name,
-            argumentTypes
-        );
-
-        return registration;
+        return ServiceTypeInference.GetServiceType(classDefinition, baseListTypes);
     }
 }

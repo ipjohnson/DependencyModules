@@ -235,6 +235,37 @@ public class ServiceRegistrationTests
         Assert.Contains("AddSingleton", generated);
     }
 
+    /// <summary>
+    /// A factory method registers its declared return type. The interfaces of that type are not
+    /// inferred.
+    /// </summary>
+    [Fact]
+    public void FactoryMethod_RegistersItsDeclaredReturnType()
+    {
+        var generated = GeneratedAssembly.Create(
+            """
+            using DependencyModules.Runtime.Attributes;
+
+            namespace TestNamespace;
+
+            public interface IThing;
+
+            public class Thing : IThing;
+
+            public static class ThingFactory {
+                [SingletonService]
+                public static Thing Create() => new Thing();
+            }
+
+            [DependencyModule]
+            public partial class TestModule;
+            """
+        );
+
+        Assert.Single(generated.Descriptors("Thing"));
+        Assert.Empty(generated.Descriptors("IThing"));
+    }
+
     [Fact]
     public void ModuleWithNoServices_DoesNotEmitADependenciesFile()
     {
