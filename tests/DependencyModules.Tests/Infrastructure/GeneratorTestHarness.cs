@@ -22,6 +22,11 @@ public static class GeneratorTestHarness
     );
 
     /// <summary>
+    /// The references every compilation here is built with.
+    /// </summary>
+    internal static ImmutableArray<MetadataReference> MetadataReferences => References.Value;
+
+    /// <summary>
     /// Compiles <paramref name="sources"/>, runs the generator, and returns everything it emitted.
     /// </summary>
     /// <param name="sources">Source files keyed by file name. File names matter: the generator

@@ -87,11 +87,15 @@ unzip -Z1 "${FEED}/DependencyModules.SourceGenerator.${VERSION}.nupkg" \
     | grep -qx "analyzers/dotnet/cs/DependencyModules.SourceGenerator.dll" \
     || fail "DependencyModules.SourceGenerator: analyzer assembly is not at analyzers/dotnet/cs/"
 
+unzip -Z1 "${FEED}/DependencyModules.SourceGenerator.${VERSION}.nupkg" \
+    | grep -qx "analyzers/dotnet/cs/DependencyModules.CodeFixes.dll" \
+    || fail "DependencyModules.SourceGenerator: code fix assembly is not at analyzers/dotnet/cs/"
+
 # No lib/. An analyzer that reaches a consumer's output ships compiler machinery to run time.
 unzip -Z1 "${FEED}/DependencyModules.SourceGenerator.${VERSION}.nupkg" | grep -q '^lib/' \
     && fail "DependencyModules.SourceGenerator: ships a lib/ folder, so the analyzer would flow to consumer output"
 
-pass "DependencyModules.SourceGenerator analyzer assembly is at analyzers/dotnet/cs/ with no lib/"
+pass "DependencyModules.SourceGenerator analyzer and code fix assemblies are at analyzers/dotnet/cs/ with no lib/"
 
 # The shipping libraries multi-target. A missing lib/ folder means one TFM quietly stopped being
 # produced, and consumers on it would resolve no assembly at all.
@@ -322,6 +326,22 @@ output="$(dotnet run --project "${APP}/ConsumerApp.csproj" -c Release --no-build
 [ "${output}" = "hello from a packaged generator" ] \
     || fail "unexpected ${TFM} consumer output: ${output}"
 pass "${TFM} resolved a generated registration at run time"
+
+# DM0026 is off by default, so the build above passed with [SingletonService] and no As. Turned on
+# as an error, the packaged analyzer must fail the build. The emitted files go first, because they
+# sit in the project folder and the next build would compile them a second time. A global config
+# rather than .editorconfig: on macOS the temp folder is reached through a symlink, so csc sees
+# source paths that an .editorconfig section never matches.
+rm -rf "${APP}/generated"
+printf 'is_global = true\ndotnet_diagnostic.DM0026.severity = error\n' >"${APP}/.globalconfig"
+dm0026_output="$(dotnet build "${APP}/ConsumerApp.csproj" -c Release --nologo --no-incremental 2>&1)" \
+    && fail "${TFM} consumer built with DM0026 set to error"
+grep -q 'error DM0026' <<<"${dm0026_output}" \
+    || fail "${TFM} consumer failed to build with DM0026 set to error, but not with DM0026:\n${dm0026_output}"
+grep -q 'CS8032' <<<"${dm0026_output}" \
+    && fail "${TFM} consumer could not load an analyzer from the package:\n${dm0026_output}"
+rm "${APP}/.globalconfig"
+pass "${TFM} DM0026 set to error fails the build"
 
 done
 

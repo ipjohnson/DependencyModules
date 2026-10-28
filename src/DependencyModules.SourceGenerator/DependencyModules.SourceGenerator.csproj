@@ -12,7 +12,7 @@
         <Description>The source generator of DependencyModules. When you compile, it writes the IServiceCollection registration code for each [DependencyModule] and for the classes with [SingletonService], [ScopedService], [TransientService], or [CrossWireService]. The generated code does not use reflection to find services. Use it with the DependencyModules.Runtime package.</Description>
         <DevelopmentDependency>true</DevelopmentDependency>
         <IncludeBuildOutput>false</IncludeBuildOutput>
-        <!-- Analyzer package: ships a single analyzer assembly and no lib/, which is exactly what NU5128 flags. -->
+        <!-- Analyzer package: ships analyzer assemblies and no lib/, which is exactly what NU5128 flags. -->
         <NoWarn>$(NoWarn);NU5128</NoWarn>
     </PropertyGroup>
 
@@ -47,6 +47,18 @@
 
     <ItemGroup>
         <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false"/>
+    </ItemGroup>
+
+    <!--
+        The code fixes ship beside the generator. Referenced for build order only: this assembly must
+        not reference Microsoft.CodeAnalysis.Workspaces (RS1038), and the package must not depend on
+        a DependencyModules.CodeFixes package.
+    -->
+    <ItemGroup>
+        <ProjectReference Include="../DependencyModules.CodeFixes/DependencyModules.CodeFixes.csproj"
+                          ReferenceOutputAssembly="false" PrivateAssets="all"/>
+        <None Include="../DependencyModules.CodeFixes/$(OutputPath)/DependencyModules.CodeFixes.dll"
+              Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false"/>
     </ItemGroup>
 
     <ItemGroup>

@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!--
+        The code fixes for the DM#### diagnostics. Separate from the generator because a code fix
+        needs Microsoft.CodeAnalysis.Workspaces, which a generator assembly must not reference
+        (RS1038). It ships inside the DependencyModules.SourceGenerator package, beside the
+        generator in analyzers/dotnet/cs, and references only assemblies the IDE supplies.
+    -->
+    <PropertyGroup>
+        <TargetFramework>netstandard2.0</TargetFramework>
+        <LangVersion>11</LangVersion>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.10.0" PrivateAssets="all"/>
+    </ItemGroup>
+</Project>

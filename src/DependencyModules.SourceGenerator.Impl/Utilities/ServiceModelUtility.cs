@@ -454,7 +454,7 @@ public class ServiceModelUtility
         return classTypeDefinition;
     }
 
-    private static ITypeDefinition GetTypeDeclarationDefinition(
+    internal static ITypeDefinition GetTypeDeclarationDefinition(
         TypeDeclarationSyntax typeDeclarationSyntax
     )
     {
