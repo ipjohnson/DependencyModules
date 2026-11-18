@@ -21,6 +21,7 @@ concurrency:
 permissions:
   contents: write
   packages: write
+  pull-requests: write
 
 env:
   # Ratchet: raise this as coverage improves. Kept just below the current figure so an
@@ -93,8 +94,11 @@ jobs:
           branch: ${{ github.ref }}
           dir: ${{ './src' }} # Path to your source code directory
 
+      # Metrics are informational. A failure to open their pull request must not skip the badge
+      # and prerelease publish that follow.
       - name: Create Pull Request for Metrics
         uses: peter-evans/create-pull-request@v5
+        continue-on-error: true
         if: ${{ steps.dotnet-code-metrics.outputs.updated-metrics == 'true' && github.ref == 'refs/heads/main' }}
         with:
           title: '${{ steps.dotnet-code-metrics.outputs.summary-title }}'
