@@ -109,7 +109,8 @@ public static class AttributeModelCollector
         {
             if (
                 attribute.AttributeClass is { } attributeClass
-                && attributeClass.Name == candidate.Name
+                // MetadataName, so a generic attribute matches the name with its arity.
+                && attributeClass.MetadataName == candidate.Name
                 && NamespaceOf(attributeClass) == candidate.Namespace
             )
             {

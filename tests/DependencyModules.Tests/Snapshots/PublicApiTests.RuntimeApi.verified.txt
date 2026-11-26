@@ -47,6 +47,16 @@ namespace DependencyModules.Runtime.Attributes
         public bool RegisterJsonSerializers { get; set; }
         public DependencyModules.Runtime.Attributes.RegistrationType Using { get; set; }
     }
+    [System.AttributeUsage(System.AttributeTargets.Parameter, Inherited=false)]
+    public sealed class FromConstructorAttribute : System.Attribute
+    {
+        public FromConstructorAttribute() { }
+    }
+    [System.AttributeUsage(System.AttributeTargets.Parameter, Inherited=false)]
+    public sealed class FromServiceProviderAttribute : System.Attribute
+    {
+        public FromServiceProviderAttribute() { }
+    }
     public interface IServiceRegistrationAttribute
     {
         System.Type? As { get; set; }
@@ -101,6 +111,35 @@ namespace DependencyModules.Runtime.Attributes
         Indexers = 4,
         Events = 8,
         All = 15,
+    }
+    [System.AttributeUsage(System.AttributeTargets.Class, AllowMultiple=true, Inherited=false)]
+    public sealed class IntoListAttribute<T> : System.Attribute
+    {
+        public IntoListAttribute(params System.Type[] dependsOn) { }
+        public System.Type[] DependsOn { get; }
+        public System.Type? Realm { get; set; }
+    }
+    [System.AttributeUsage(System.AttributeTargets.Class, AllowMultiple=true, Inherited=false)]
+    public sealed class IntoListAttribute<T, TOrder> : System.Attribute
+    {
+        public IntoListAttribute(TOrder value, params TOrder[] dependsOn) { }
+        public TOrder[] DependsOn { get; }
+        public System.Type? Realm { get; set; }
+        public TOrder Value { get; }
+    }
+    [System.AttributeUsage(System.AttributeTargets.Class, AllowMultiple=true, Inherited=false)]
+    public sealed class IntoMapAttribute<TKey, TValue> : System.Attribute
+        where TKey :  notnull
+    {
+        public IntoMapAttribute(TKey key) { }
+        public TKey Key { get; }
+        public System.Type? Realm { get; set; }
+    }
+    [System.AttributeUsage(System.AttributeTargets.Class, AllowMultiple=true, Inherited=false)]
+    public sealed class IntoSetAttribute<T> : System.Attribute
+    {
+        public IntoSetAttribute() { }
+        public System.Type? Realm { get; set; }
     }
     public enum RegistrationType
     {
@@ -225,9 +264,11 @@ namespace DependencyModules.Runtime.Helpers
             where TInstance :  class { }
         public static int AddDecorator(DependencyModules.Runtime.Helpers.EnvironmentRegistryFunc registryFunc, int order = 0) { }
         public static int AddDecorator(DependencyModules.Runtime.Helpers.RegistryFunc registryFunc, int order = 0) { }
+        public static int AddGlue(DependencyModules.Runtime.Helpers.GlueFunc glueFunc) { }
         public static int AddModule(params DependencyModules.Runtime.Interfaces.IDependencyModule[] modules) { }
         public static void ApplyDecorators(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection) { }
         public static void ApplyDecorators(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection, DependencyModules.Runtime.Interfaces.IModuleEnvironment environment) { }
+        public static bool ApplyGlue(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection, DependencyModules.Runtime.Interfaces.IModuleEnvironment environment) { }
         public static void ApplyServices(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection) { }
         public static void ApplyServices(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection, DependencyModules.Runtime.Interfaces.IModuleEnvironment environment) { }
         public static System.Collections.Generic.IReadOnlyList<DependencyModules.Runtime.Helpers.DecoratorRegistration> GetDecorators() { }
@@ -241,6 +282,17 @@ namespace DependencyModules.Runtime.Helpers
         public static bool ValueIs(DependencyModules.Runtime.Interfaces.IModuleEnvironment environment, string key, string value) { }
     }
     public delegate void EnvironmentRegistryFunc(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection, DependencyModules.Runtime.Interfaces.IModuleEnvironment environment);
+    public delegate void GlueFunc(DependencyModules.Runtime.Helpers.GlueRegistry glue, DependencyModules.Runtime.Interfaces.IModuleEnvironment environment);
+    public sealed class GlueRegistry
+    {
+        public void AddFunc<TFunc>(System.Func<System.IServiceProvider, TFunc> factory)
+            where TFunc : System.Delegate { }
+        public void AddListItem<T>(System.Type implementationType, System.Type[] dependsOn, System.Func<System.IServiceProvider, T> factory) { }
+        public void AddListItem<T, TOrder>(TOrder value, TOrder[] dependsOn, System.Type implementationType, System.Func<System.IServiceProvider, T> factory) { }
+        public void AddMapItem<TKey, TValue>(TKey key, System.Type implementationType, System.Func<System.IServiceProvider, TValue> factory)
+            where TKey :  notnull { }
+        public void AddSetItem<T>(System.Type implementationType, System.Func<System.IServiceProvider, T> factory) { }
+    }
     public delegate void RegistryFunc(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection);
 }
 namespace DependencyModules.Runtime.Interception
@@ -326,6 +378,7 @@ namespace DependencyModules.Runtime.Interfaces
         bool LoadModule { get; }
         System.Collections.Generic.IEnumerable<DependencyModules.Runtime.Interfaces.IDependencyModule> GetModules();
         void InternalApplyDecorators(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection);
+        bool InternalApplyGlue(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection, DependencyModules.Runtime.Interfaces.IModuleEnvironment environment);
         void InternalApplyServices(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection);
         void InternalApplyServices(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection, DependencyModules.Runtime.Interfaces.IModuleEnvironment environment);
         System.Collections.Generic.IEnumerable<DependencyModules.Runtime.Helpers.DecoratorRegistration> InternalGetDecorators();

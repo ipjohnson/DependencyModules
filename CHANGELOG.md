@@ -5,6 +5,41 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `[IntoMap<TKey, TValue>]`, `[IntoSet<T>]`, `[IntoList<T>]`, and `[IntoList<T, TOrder>]`. They add
+  a class to a map, a set, or a list. A class gets the collection as
+  `IReadOnlyDictionary<TKey, TValue>`, `IReadOnlySet<T>`, or `IReadOnlyList<T>`. The items are not
+  services, and a collection builds an item when it is first read. A collection contains the items
+  of all loaded modules. (#132)
+- Registrations for `Func` constructor parameters. `Func<A, T>` builds the class `T` from the
+  caller arguments and from the service provider. `Func<T>` gets `T` from the service provider, or
+  builds it when `T` is a concrete class with no registration. (#132)
+- DM0027, a warning for a class with an `Into*` attribute that the generated code cannot build.
+  (#132)
+- DM0028, an error for two classes of one module with the same key in one map. (#132)
+- DM0029, an error for a list with items from more than one order scheme. (#132)
+- DM0030, a warning for a `Func` parameter whose caller arguments do not match the constructor of
+  the class that it gives. (#132)
+- `[FromServiceProvider]` and `[FromConstructor]`. They select the source of a constructor
+  parameter of an object that the generated code builds. (#132)
+- DM0031, a warning for a `[FromConstructor]` parameter that the generated code cannot build.
+  (#132)
+- `GlueSourceGenerator` in the `DependencyModules.SourceGenerator.Impl` package, for the source
+  generator of a framework. (#132)
+
+### Changed
+
+- A service with a `Func` constructor parameter that the generator can write now gets that
+  parameter from a generated registration. Before, the service provider gave an exception, or it
+  used the default value of an optional parameter. A registration of the same `Func` type that the
+  application makes has priority. (#132)
+- `IDependencyModule` has the new member `InternalApplyGlue`, with a default implementation. The
+  load of the modules has a last step that adds the collections and the `Func` registrations.
+  (#132)
+
 ## [1.7.0] - 2026-09-25
 
 This release adds a test package for `xunit.v3` version 4. It also lets a library get the test

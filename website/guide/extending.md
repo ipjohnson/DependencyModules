@@ -148,6 +148,7 @@ public class FrameworkGenerator : BaseSourceGenerator
     {
         yield return new ServiceSourceGenerator();
         yield return new ConventionGenerator();
+        yield return new GlueSourceGenerator();
     }
 }
 ```
@@ -170,6 +171,7 @@ The package contains these parts:
 
 - `ServiceSourceGenerator` writes the registrations for the service attributes.
 - `ConventionGenerator` writes the convention registrations and the decorators.
+- `GlueSourceGenerator` writes the collection items and the `Func` registrations. Its constructor has a parameter for the service attributes of your framework. The generator reads the `Func` constructor parameters of the classes with these attributes.
 
 The package does not contain the interception part.
 

@@ -133,7 +133,7 @@ public class GeneratedMemberAttributeTests
             .Where(method => method.Name.StartsWith("Internal"))
             .ToArray();
 
-        Assert.Equal(5, members.Length);
+        Assert.Equal(6, members.Length);
         Assert.All(members, member => Assert.True(Hidden(member), $"{member.Name} is shown"));
     }
 

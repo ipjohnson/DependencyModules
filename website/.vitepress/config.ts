@@ -54,6 +54,7 @@ export default defineConfig({
           { text: 'Services', link: '/guide/services' },
           { text: 'Modules', link: '/guide/modules' },
           { text: 'Conventions', link: '/guide/conventions' },
+          { text: 'Collections and Func parameters', link: '/guide/glue' },
           { text: 'Decorators', link: '/guide/decorators' },
           { text: 'Interception', link: '/guide/interception' },
           { text: 'Environments', link: '/guide/environments' },
