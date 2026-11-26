@@ -30,6 +30,11 @@ The generator gives these diagnostics when you compile. Their category is `Depen
 | [DM0024](#dm0024) | Warning | Cross-wired class declares no interface |
 | [DM0025](#dm0025) | Warning | Decorator is not applied |
 | [DM0026](#dm0026) | Off | A service attribute does not name its service type |
+| [DM0027](#dm0027) | Warning | Collection item cannot be built |
+| [DM0028](#dm0028) | Error | Two map items have the same key |
+| [DM0029](#dm0029) | Error | List items use more than one order scheme |
+| [DM0030](#dm0030) | Warning | Func parameter gets no registration |
+| [DM0031](#dm0031) | Warning | [FromConstructor] parameter cannot be built |
 
 The table shows the title of each diagnostic. The compiler shows a message with more information, for example the names of the types.
 
@@ -279,3 +284,51 @@ dotnet_diagnostic.DM0026.severity = error
 ```
 
 To correct the problem, add `As = typeof(...)` to the attribute. The code fix "Make service type explicit" adds the type that the generator registers now, so the registration does not change. Fix All works for a document, a project, and a solution. The code fix is not available when the type cannot be written in the attribute, for example `IMap<, int>`.
+
+## DM0027
+
+A class has `[IntoMap]`, `[IntoSet]`, or `[IntoList]`, but the generated code cannot build the class or cannot add it to the collection. The class is not in the collection. The message gives the cause:
+
+- The class is abstract, static, or an open generic class.
+- The class is not assignable to the item type of the collection.
+- The class has no constructor that the generated code can call. The constructor must be `public`, `internal`, or `protected internal`.
+- A constructor parameter has a value type or the `string` type. The service provider cannot give such a parameter.
+
+To correct the problem, correct the cause that the message gives. For more information, refer to [Collections and Func parameters](../guide/glue.md).
+
+## DM0028
+
+Two classes of one module have the same key in one map. A key of `[IntoMap<TKey, TValue>]` identifies one item.
+
+To correct the problem, give one of the classes a different key.
+
+The generator finds only the classes of one project. If two modules of different projects have the same key in one map, `AddModule` gives an `InvalidOperationException`.
+
+## DM0029
+
+The items of one list use `[IntoList<T>]` and `[IntoList<T, TOrder>]`, or they use `[IntoList<T, TOrder>]` with different `TOrder` types. Such items have no sequence between them.
+
+To correct the problem, use one attribute with one `TOrder` type for all items of the list.
+
+The generator finds only the classes of one project. If the items are in different projects, `AddModule` gives an `InvalidOperationException`.
+
+## DM0030
+
+A class has a `Func` constructor parameter that gives a concrete class, but the caller arguments of the `Func` do not match a constructor of that class. The generator makes no registration for the `Func`. The message gives the cause:
+
+- The class has no constructor parameter with the type of a caller argument.
+- Two caller arguments have the same type.
+- A constructor parameter has a value type or the `string` type, and no caller argument has that type.
+
+To correct the problem, change the type arguments of the `Func`, or change the constructor of the class. If the application registers the `Func`, you can suppress the warning.
+
+## DM0031
+
+A constructor parameter has `[FromConstructor]`, but the generated code cannot build the type of the parameter. The parameter comes from the service provider. The message gives the cause:
+
+- The type is not a class, for example an interface or `string`.
+- The class is abstract, static, or an open generic class.
+- The class has no constructor that the generated code can call.
+- A constructor parameter of the class has a value type or the `string` type.
+
+To correct the problem, remove the attribute, or correct the cause that the message gives.

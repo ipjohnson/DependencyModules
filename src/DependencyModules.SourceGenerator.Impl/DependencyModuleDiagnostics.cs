@@ -542,4 +542,77 @@ public static class DependencyModuleDiagnostics
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true
     );
+
+    /// <summary>
+    /// Raised for a class with an <c>Into*</c> attribute that the generated module cannot build or
+    /// cannot put in the collection. Without this the generated code does not compile, and the
+    /// error names a line the developer did not write.
+    /// </summary>
+    public static readonly DiagnosticDescriptor CollectionItemCannotBeBuilt = new(
+        id: "DM0027",
+        title: "Collection item cannot be built",
+        messageFormat: "'{0}' is not added to {1}, because {2}",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true
+    );
+
+    /// <summary>
+    /// Raised when two classes of one module have the same key in one map. The load of the module
+    /// gives the same error, but only when the application starts.
+    /// </summary>
+    public static readonly DiagnosticDescriptor DuplicateMapKey = new(
+        id: "DM0028",
+        title: "Two map items have the same key",
+        messageFormat: "'{0}' and '{1}' have the key {2} in the map of {3}. A key identifies one item. "
+            + "Give one of the classes a different key.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true
+    );
+
+    /// <summary>
+    /// Raised when the items of one list use more than one <c>IntoList</c> attribute, or more than
+    /// one order type. Such items have no order between them.
+    /// </summary>
+    public static readonly DiagnosticDescriptor MixedListOrder = new(
+        id: "DM0029",
+        title: "List items use more than one order scheme",
+        messageFormat: "'{0}' uses {1} for the list of {2}, and '{3}' uses {4}. The items of one list "
+            + "must use one IntoList attribute with one order type.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true
+    );
+
+    /// <summary>
+    /// Raised for a <c>Func</c> constructor parameter whose result is a class that the glue builds,
+    /// when the caller arguments do not match a constructor of that class. The delegate then has
+    /// no registration, and the service provider gives an exception when it makes the class that
+    /// takes the delegate.
+    /// </summary>
+    public static readonly DiagnosticDescriptor FuncCannotBeBuilt = new(
+        id: "DM0030",
+        title: "Func parameter gets no registration",
+        messageFormat: "'{0}' takes a '{1}', and the generator cannot write it, because {2}. "
+            + "Register the delegate in the service collection, or change its arguments.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true
+    );
+
+    /// <summary>
+    /// Raised for a constructor parameter with <c>[FromConstructor]</c> that the generated code
+    /// cannot build. The parameter comes from the service provider, which is not what the
+    /// attribute says.
+    /// </summary>
+    public static readonly DiagnosticDescriptor ParameterCannotBeBuilt = new(
+        id: "DM0031",
+        title: "[FromConstructor] parameter cannot be built",
+        messageFormat: "The parameter '{1}' of '{0}' has [FromConstructor], but the generated code cannot "
+            + "build '{2}', because {3}. The parameter comes from the service provider.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true
+    );
 }

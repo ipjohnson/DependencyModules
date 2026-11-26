@@ -39,6 +39,11 @@
             <PackagePath>src/DependencyModules.SourceGenerator/</PackagePath>
             <PackageCopyToOutput>true</PackageCopyToOutput>
         </Content>
+        <Content Include="..\DependencyModules.SourceGenerator\GlueSourceGenerator.cs" Visible="true">
+            <Pack>true</Pack>
+            <PackagePath>src/DependencyModules.SourceGenerator/</PackagePath>
+            <PackageCopyToOutput>true</PackageCopyToOutput>
+        </Content>
         <!--
             Convention registration and decoration, so a framework building on this seam gets them
             against its own module attribute rather than only against [DependencyModule].

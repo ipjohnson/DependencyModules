@@ -1,0 +1,33 @@
+using Microsoft.Extensions.DependencyInjection;
+
+namespace TestNamespace
+{
+    #nullable enable
+    public partial class TestModule
+    {
+        [global::System.Diagnostics.CodeAnalysis.DynamicDependency(nameof(ModuleGlue))]
+        private static int moduleGlueField = global::DependencyModules.Runtime.Helpers.DependencyRegistry<global::TestNamespace.TestModule>.AddGlue(ModuleGlue);
+
+        [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+        private static void ModuleGlue(global::DependencyModules.Runtime.Helpers.GlueRegistry glue, global::DependencyModules.Runtime.Interfaces.IModuleEnvironment environment)
+        {
+            glue.AddMapItem<string, global::TestNamespace.IClock>("a", typeof(global::TestNamespace.AClock), provider => new global::TestNamespace.AClock());
+            glue.AddListItem<global::TestNamespace.IClock, int>(1, global::System.Array.Empty<int>(), typeof(global::TestNamespace.AClock), provider => new global::TestNamespace.AClock());
+            glue.AddMapItem<string, global::TestNamespace.IClock>("b", typeof(global::TestNamespace.BClock), provider => new global::TestNamespace.BClock((provider.GetService<global::TestNamespace.Helper>() ?? new global::TestNamespace.Helper(provider.GetRequiredService<global::TestNamespace.IClock>()))));
+            glue.AddListItem<global::TestNamespace.IClock, int>(2, new int[] { 1 }, typeof(global::TestNamespace.BClock), provider => new global::TestNamespace.BClock((provider.GetService<global::TestNamespace.Helper>() ?? new global::TestNamespace.Helper(provider.GetRequiredService<global::TestNamespace.IClock>()))));
+            glue.AddFunc<global::System.Func<global::TestNamespace.IClock>>(provider => () => provider.GetRequiredService<global::TestNamespace.IClock>());
+            glue.AddFunc<global::System.Func<string, global::TestNamespace.Worker>>(provider => (arg0) => new global::TestNamespace.Worker(arg0, provider.GetRequiredService<global::TestNamespace.IClock>()));
+        }
+
+        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+        [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+        bool global::DependencyModules.Runtime.Interfaces.IDependencyModule.InternalApplyGlue(global::Microsoft.Extensions.DependencyInjection.IServiceCollection services, global::DependencyModules.Runtime.Interfaces.IModuleEnvironment environment)
+        {
+            return global::DependencyModules.Runtime.Helpers.DependencyRegistry<global::TestNamespace.TestModule>.ApplyGlue(
+                services,
+                environment
+            );
+        }
+    }
+    #nullable disable
+}

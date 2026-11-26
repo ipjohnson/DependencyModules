@@ -86,6 +86,7 @@ The test gets its parameters from a new service provider. After the test, the te
 - [Services](https://ipjohnson.github.io/DependencyModules/guide/services): lifetimes, keyed services, registration types, cross-wired services, and factory methods.
 - [Modules](https://ipjohnson.github.io/DependencyModules/guide/modules): module dependencies, realms, module parameters, and the generated `ApplicationModule`.
 - [Conventions](https://ipjohnson.github.io/DependencyModules/guide/conventions): registrations for all classes that implement an interface.
+- [Collections and Func parameters](https://ipjohnson.github.io/DependencyModules/guide/glue): maps, sets, and lists of classes that are not services, and generated `Func` factories.
 - [Decorators](https://ipjohnson.github.io/DependencyModules/guide/decorators) and [interception](https://ipjohnson.github.io/DependencyModules/guide/interception): code around services.
 - [Environments](https://ipjohnson.github.io/DependencyModules/guide/environments): registrations that occur only in some environments.
 - [Testing](https://ipjohnson.github.io/DependencyModules/guide/testing): xUnit, NUnit and VerificationGlue.Tests tests with modules, mocks, and more service providers in a test.

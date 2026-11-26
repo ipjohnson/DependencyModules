@@ -50,6 +50,38 @@ Registers a class as each interface that it declares and as the class type. All 
 
 Guide: [Cross-wired services](../guide/services.md#cross-wired-services).
 
+### `[IntoMap<TKey, TValue>]`, `[IntoSet<T>]`, `[IntoList<T>]`, `[IntoList<T, TOrder>]`
+
+Adds a class to a map, a set, or a list. The class is not registered as a service. Targets: class. You can put more than one on a class.
+
+| Attribute | Constructor | A class gets the collection as |
+| --- | --- | --- |
+| `[IntoMap<TKey, TValue>]` | `(TKey key)` | `IReadOnlyDictionary<TKey, TValue>` |
+| `[IntoSet<T>]` | `()` | `IReadOnlySet<T>` |
+| `[IntoList<T>]` | `(params Type[] dependsOn)` | `IReadOnlyList<T>` |
+| `[IntoList<T, TOrder>]` | `(TOrder value, params TOrder[] dependsOn)` | `IReadOnlyList<T>` |
+
+| Constructor parameter or property | Function |
+| --- | --- |
+| `key` | The key of the class in the map. |
+| `dependsOn` of `[IntoList<T>]` | The class is after each item that is assignable to one of these types. |
+| `value` | The order value of the class. More than one item can have the same value. |
+| `dependsOn` of `[IntoList<T, TOrder>]` | The class is after each item that has one of these values. |
+| `Realm` | The module that adds the class to the collection. The type is `Type?` and the default is `null`. |
+
+Guide: [Collections and Func parameters](../guide/glue.md).
+
+### `[FromServiceProvider]`, `[FromConstructor]`
+
+Selects the source of a constructor parameter of an object that the generated code builds. Targets: parameter. The attributes have no properties.
+
+| Attribute | Result |
+| --- | --- |
+| `[FromServiceProvider]` | The parameter comes from the service provider. |
+| `[FromConstructor]` | The generated code builds the parameter with `new`. |
+
+Guide: [Attributes that change the rules](../guide/glue.md#attributes-that-change-the-rules).
+
 ### `[Decorator]`
 
 Identifies a class as a decorator. Targets: class.
@@ -92,7 +124,7 @@ Guide: [Interception](../guide/interception.md).
 
 ### Environment attributes
 
-Targets: class. Put them on a service class, on a `[Decorator]` class, or on a decorator that `[Decorate]` adds. You can also put them on a class that a convention selects, also in a referenced assembly.
+Targets: class. Put them on a service class, on a class with an `Into*` attribute, on a `[Decorator]` class, or on a decorator that `[Decorate]` adds. You can also put them on a class that a convention selects, also in a referenced assembly.
 
 | Attribute | Constructor | More than one on a class |
 | --- | --- | --- |

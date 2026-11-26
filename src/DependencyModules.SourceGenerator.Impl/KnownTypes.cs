@@ -118,6 +118,31 @@ public static class KnownTypes
                 Namespace,
                 "CrossWireServiceAttribute"
             );
+
+            // The names are metadata names: a generic attribute has its arity after a backtick.
+            public static readonly ITypeDefinition IntoMapAttribute = TypeDefinition.Get(
+                TypeDefinitionEnum.ClassDefinition,
+                Namespace,
+                "IntoMapAttribute`2"
+            );
+
+            public static readonly ITypeDefinition IntoSetAttribute = TypeDefinition.Get(
+                TypeDefinitionEnum.ClassDefinition,
+                Namespace,
+                "IntoSetAttribute`1"
+            );
+
+            public static readonly ITypeDefinition IntoListAttribute = TypeDefinition.Get(
+                TypeDefinitionEnum.ClassDefinition,
+                Namespace,
+                "IntoListAttribute`1"
+            );
+
+            public static readonly ITypeDefinition IntoOrderedListAttribute = TypeDefinition.Get(
+                TypeDefinitionEnum.ClassDefinition,
+                Namespace,
+                "IntoListAttribute`2"
+            );
         }
 
         /// <summary>
@@ -209,6 +234,12 @@ public static class KnownTypes
                 TypeDefinitionEnum.ClassDefinition,
                 Namespace,
                 "DecoratorRegistration"
+            );
+
+            public static readonly ITypeDefinition GlueRegistry = TypeDefinition.Get(
+                TypeDefinitionEnum.ClassDefinition,
+                Namespace,
+                "GlueRegistry"
             );
 
             /// <summary>
