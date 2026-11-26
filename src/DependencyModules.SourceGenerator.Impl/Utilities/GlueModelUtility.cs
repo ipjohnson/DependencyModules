@@ -85,7 +85,7 @@ public static class GlueModelUtility
             builder.RegisterFunc(parameter.Type);
         }
 
-        if (builder.Funcs.Count == 0 && builder.FuncProblems.Count == 0)
+        if (!builder.HasOutput)
         {
             return null;
         }
@@ -99,6 +99,7 @@ public static class GlueModelUtility
             null,
             builder.Funcs.Values.ToArray(),
             builder.FuncProblems.ToArray(),
+            builder.ParameterProblems.ToArray(),
             ServiceRealms(builder, method),
             null
         );
@@ -147,7 +148,7 @@ public static class GlueModelUtility
             }
         }
 
-        if (items.Count == 0 && builder.Funcs.Count == 0 && builder.FuncProblems.Count == 0)
+        if (items.Count == 0 && !builder.HasOutput)
         {
             return null;
         }
@@ -161,6 +162,7 @@ public static class GlueModelUtility
             constructionProblem,
             builder.Funcs.Values.ToArray(),
             builder.FuncProblems.ToArray(),
+            builder.ParameterProblems.ToArray(),
             realms,
             EnvironmentConditionUtility.GetConditions(type)
         );
@@ -438,12 +440,20 @@ public static class GlueModelUtility
         }
     }
 
+    private enum ParameterSource
+    {
+        Rules,
+        ServiceProvider,
+        Constructor,
+    }
+
     private sealed class Builder
     {
         private readonly ISet<string> _serviceAttributeNames;
         private readonly CancellationToken _cancellationToken;
         private readonly HashSet<ITypeSymbol> _building = new(SymbolEqualityComparer.Default);
         private readonly HashSet<string> _funcsSeen = new();
+        private readonly HashSet<string> _parameterProblemsSeen = new();
 
         public Builder(
             Compilation compilation,
@@ -461,6 +471,11 @@ public static class GlueModelUtility
         public Dictionary<string, GlueFuncModel> Funcs { get; } = new();
 
         public List<GlueFuncProblemModel> FuncProblems { get; } = new();
+
+        public List<GlueParameterProblemModel> ParameterProblems { get; } = new();
+
+        public bool HasOutput =>
+            Funcs.Count > 0 || FuncProblems.Count > 0 || ParameterProblems.Count > 0;
 
         public bool IsAccessible(ISymbol symbol) =>
             Compilation.IsSymbolAccessibleWithin(symbol, Compilation.Assembly);
@@ -530,7 +545,11 @@ public static class GlueModelUtility
 
             foreach (var parameter in constructor.Parameters)
             {
-                if (probe?.TryTake(parameter.Type, out _) == true || !IsPlainValue(parameter.Type))
+                if (
+                    SourceOf(parameter) != ParameterSource.Rules
+                    || probe?.TryTake(parameter.Type, out _) == true
+                    || !IsPlainValue(parameter.Type)
+                )
                 {
                     continue;
                 }
@@ -726,7 +745,7 @@ public static class GlueModelUtility
 
             foreach (var parameter in constructor.Parameters)
             {
-                if (IsPlainValue(parameter.Type))
+                if (SourceOf(parameter) == ParameterSource.Rules && IsPlainValue(parameter.Type))
                 {
                     return false;
                 }
@@ -787,7 +806,10 @@ public static class GlueModelUtility
 
             foreach (var parameter in constructor.Parameters)
             {
-                probe.TryTake(parameter.Type, out _);
+                if (SourceOf(parameter) == ParameterSource.Rules)
+                {
+                    probe.TryTake(parameter.Type, out _);
+                }
             }
 
             return probe.FirstUnused() == null;
@@ -826,8 +848,13 @@ public static class GlueModelUtility
         private string Argument(IParameterSymbol parameter, CallerArguments? callerArguments)
         {
             var type = parameter.Type;
+            var source = SourceOf(parameter);
 
-            if (callerArguments != null && callerArguments.TryTake(type, out var callerArgument))
+            if (
+                source == ParameterSource.Rules
+                && callerArguments != null
+                && callerArguments.TryTake(type, out var callerArgument)
+            )
             {
                 return callerArgument;
             }
@@ -864,7 +891,22 @@ public static class GlueModelUtility
 
             RegisterFunc(type);
 
-            if (CanBuildUnnamed(type, out var constructor))
+            if (source == ParameterSource.Constructor)
+            {
+                string? problem = null;
+
+                if (
+                    type is INamedTypeSymbol { TypeKind: TypeKind.Class } named
+                    && named.SpecialType == SpecialType.None
+                    && BuildNamed(named, null, out problem) is { } built
+                )
+                {
+                    return built;
+                }
+
+                AddParameterProblem(parameter, problem ?? "it is not a class");
+            }
+            else if (source == ParameterSource.Rules && CanBuildUnnamed(type, out var constructor))
             {
                 // Null for a cycle. The provider then gives the error for the type.
                 var construction = Construct((INamedTypeSymbol)type, constructor!, null);
@@ -878,6 +920,50 @@ public static class GlueModelUtility
             return optional
                 ? $"{ProviderName}.GetService<{name}>()"
                 : $"{ProviderName}.GetRequiredService<{name}>()";
+        }
+
+        private void AddParameterProblem(IParameterSymbol parameter, string reason)
+        {
+            var owner = parameter.ContainingType?.Name ?? "";
+
+            if (_parameterProblemsSeen.Add(owner + "|" + parameter.Name))
+            {
+                ParameterProblems.Add(
+                    new GlueParameterProblemModel(
+                        owner,
+                        parameter.Name,
+                        parameter.Type.ToDisplayString(QualifiedName),
+                        reason
+                    )
+                );
+            }
+        }
+
+        /// <summary>
+        /// The source that an attribute on the parameter names, or the rules.
+        /// </summary>
+        private static ParameterSource SourceOf(IParameterSymbol parameter)
+        {
+            foreach (var attribute in parameter.GetAttributes())
+            {
+                if (
+                    attribute.AttributeClass is not { } attributeClass
+                    || NamespaceOf(attributeClass) != AttributeNamespace
+                )
+                {
+                    continue;
+                }
+
+                switch (attributeClass.Name)
+                {
+                    case "FromServiceProviderAttribute":
+                        return ParameterSource.ServiceProvider;
+                    case "FromConstructorAttribute":
+                        return ParameterSource.Constructor;
+                }
+            }
+
+            return ParameterSource.Rules;
         }
 
         /// <summary>

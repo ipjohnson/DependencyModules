@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - DM0029, an error for a list with items from more than one order scheme. (#132)
 - DM0030, a warning for a `Func` parameter whose caller arguments do not match the constructor of
   the class that it gives. (#132)
+- `[FromServiceProvider]` and `[FromConstructor]`. They select the source of a constructor
+  parameter of an object that the generated code builds. (#132)
+- DM0031, a warning for a `[FromConstructor]` parameter that the generated code cannot build.
+  (#132)
 - `GlueSourceGenerator` in the `DependencyModules.SourceGenerator.Impl` package, for the source
   generator of a framework. (#132)
 

@@ -71,6 +71,17 @@ Adds a class to a map, a set, or a list. The class is not registered as a servic
 
 Guide: [Collections and Func parameters](../guide/glue.md).
 
+### `[FromServiceProvider]`, `[FromConstructor]`
+
+Selects the source of a constructor parameter of an object that the generated code builds. Targets: parameter. The attributes have no properties.
+
+| Attribute | Result |
+| --- | --- |
+| `[FromServiceProvider]` | The parameter comes from the service provider. |
+| `[FromConstructor]` | The generated code builds the parameter with `new`. |
+
+Guide: [Attributes that change the rules](../guide/glue.md#attributes-that-change-the-rules).
+
 ### `[Decorator]`
 
 Identifies a class as a decorator. Targets: class.

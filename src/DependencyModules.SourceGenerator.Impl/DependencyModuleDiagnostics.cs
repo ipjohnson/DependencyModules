@@ -600,4 +600,19 @@ public static class DependencyModuleDiagnostics
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true
     );
+
+    /// <summary>
+    /// Raised for a constructor parameter with <c>[FromConstructor]</c> that the generated code
+    /// cannot build. The parameter comes from the service provider, which is not what the
+    /// attribute says.
+    /// </summary>
+    public static readonly DiagnosticDescriptor ParameterCannotBeBuilt = new(
+        id: "DM0031",
+        title: "[FromConstructor] parameter cannot be built",
+        messageFormat: "The parameter '{1}' of '{0}' has [FromConstructor], but the generated code cannot "
+            + "build '{2}', because {3}. The parameter comes from the service provider.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true
+    );
 }

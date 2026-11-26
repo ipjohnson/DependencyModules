@@ -66,6 +66,17 @@ public record GlueFuncModel(string FuncType, string Factory);
 public record GlueFuncProblemModel(string FuncType, string Reason);
 
 /// <summary>
+/// A constructor parameter with <c>[FromConstructor]</c> that the generated code cannot build.
+/// </summary>
+/// <param name="Owner">The class whose constructor has the parameter.</param>
+public record GlueParameterProblemModel(
+    string Owner,
+    string Parameter,
+    string ParameterType,
+    string Reason
+);
+
+/// <summary>
 /// What the glue reads from one class or factory method.
 /// </summary>
 /// <param name="Construction">
@@ -86,6 +97,7 @@ public record GlueClassModel(
     string? ConstructionProblem,
     IReadOnlyList<GlueFuncModel> Funcs,
     IReadOnlyList<GlueFuncProblemModel> FuncProblems,
+    IReadOnlyList<GlueParameterProblemModel> ParameterProblems,
     IReadOnlyList<string?> FuncRealms,
     IReadOnlyList<EnvironmentConditionModel>? Conditions
 )
@@ -99,6 +111,7 @@ public record GlueClassModel(
         null,
         Array.Empty<GlueFuncModel>(),
         Array.Empty<GlueFuncProblemModel>(),
+        Array.Empty<GlueParameterProblemModel>(),
         Array.Empty<string?>(),
         null
     );
@@ -124,6 +137,7 @@ public class GlueClassModelComparer : IEqualityComparer<GlueClassModel>
             && ModelEquality.ListEquals(x.Items, y.Items)
             && ModelEquality.ListEquals(x.Funcs, y.Funcs)
             && ModelEquality.ListEquals(x.FuncProblems, y.FuncProblems)
+            && ModelEquality.ListEquals(x.ParameterProblems, y.ParameterProblems)
             && ModelEquality.ListEquals(x.FuncRealms, y.FuncRealms)
             && ModelEquality.ListEquals(x.Conditions, y.Conditions);
     }

@@ -338,6 +338,156 @@ public class GlueFuncTests
     }
 
     [Fact]
+    public void FromConstructor_BuildsTheParameter_AlsoWhenTheProviderHasARegistration()
+    {
+        var assembly = Compile(
+            """
+            public interface IStore { }
+
+            [SingletonService(As = typeof(Store))]
+            public class Store : IStore { }
+
+            public class Worker([FromConstructor] Store built, Store resolved)
+            {
+                public Store Built => built;
+
+                public Store Resolved => resolved;
+            }
+
+            [SingletonService]
+            public class Consumer(Func<Worker> createWorker)
+            {
+                public Worker Create() => createWorker();
+            }
+
+            [DependencyModule]
+            public partial class TestModule;
+            """
+        );
+
+        using var provider = assembly.BuildProvider();
+        dynamic consumer = provider.GetRequiredService(assembly.Type("Consumer"));
+        dynamic worker = consumer.Create();
+        var registered = provider.GetRequiredService(assembly.Type("Store"));
+
+        Assert.Same(registered, (object)worker.Resolved);
+        Assert.NotSame(registered, (object)worker.Built);
+        Assert.NotNull((object)worker.Built);
+    }
+
+    [Fact]
+    public void FromServiceProvider_GetsTheParameterFromTheProvider_AndNotFromNewOrACaller()
+    {
+        var result = Run(
+            """
+            public class Helper { }
+
+            public class Worker(
+                [FromServiceProvider] Helper resolved,
+                Helper built,
+                [FromServiceProvider] string resolvedText,
+                string callerText
+            ) { }
+
+            [SingletonService]
+            public class Consumer(Func<string, Worker> createWorker) { }
+
+            [DependencyModule]
+            public partial class TestModule;
+            """
+        );
+
+        result.AssertNoErrors();
+        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id is "DM0030" or "DM0031");
+
+        Assert.Contains(
+            "(arg0) => new global::TestNamespace.Worker("
+                + "provider.GetRequiredService<global::TestNamespace.Helper>(), "
+                + "(provider.GetService<global::TestNamespace.Helper>() ?? new global::TestNamespace.Helper()), "
+                + "provider.GetRequiredService<string>(), "
+                + "arg0)",
+            Glue(result)
+        );
+    }
+
+    [Fact]
+    public void FromServiceProvider_OnAStringParameter_LetsTheGlueBuildTheClass()
+    {
+        var assembly = Compile(
+            """
+            public class Worker([FromServiceProvider] string name)
+            {
+                public string Name => name;
+            }
+
+            [SingletonService]
+            public class Consumer(Func<Worker> createWorker)
+            {
+                public string Name => createWorker().Name;
+            }
+
+            [DependencyModule]
+            public partial class TestModule : IServiceCollectionConfiguration
+            {
+                public void ConfigureServices(IServiceCollection services)
+                {
+                    services.AddSingleton("registered");
+                }
+            }
+            """
+        );
+
+        using var provider = assembly.BuildProvider();
+        dynamic consumer = provider.GetRequiredService(assembly.Type("Consumer"));
+
+        Assert.Equal("registered", (string)consumer.Name);
+    }
+
+    [Theory]
+    [InlineData("IClock", "it is not a class")]
+    [InlineData("string", "it is not a class")]
+    [InlineData("AbstractHelper", "it is abstract")]
+    [InlineData("PrivateHelper", "it has no constructor that the generated module can call")]
+    public void FromConstructor_OnAParameterThatCannotBeBuilt_IsDM0031(
+        string parameterType,
+        string reason
+    )
+    {
+        var result = Run(
+            $$"""
+            public abstract class AbstractHelper { }
+
+            public class PrivateHelper
+            {
+                private PrivateHelper() { }
+            }
+
+            [IntoSet<Worker>]
+            public class Worker([FromConstructor] {{parameterType}} helper) { }
+
+            [SingletonService]
+            public class Consumer(Func<Worker> createWorker) { }
+
+            [DependencyModule]
+            public partial class TestModule;
+            """
+        );
+
+        result.AssertNoErrors();
+
+        // The set item and the Func build the same class. The parameter is reported one time.
+        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0031");
+
+        Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
+        Assert.Contains(
+            "The parameter 'helper' of 'Worker' has [FromConstructor]",
+            diagnostic.GetMessage()
+        );
+        Assert.Contains(reason, diagnostic.GetMessage());
+        Assert.Contains("provider.GetRequiredService<", Glue(result));
+    }
+
+    [Fact]
     public void AFuncThatTheApplicationRegisters_IsKept()
     {
         var assembly = Compile(

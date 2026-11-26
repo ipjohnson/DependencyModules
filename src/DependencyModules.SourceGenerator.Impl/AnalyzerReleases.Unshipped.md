@@ -13,6 +13,7 @@ DM0027 | DependencyModules | Warning | A collection item cannot be built.
 DM0028 | DependencyModules | Error | Two map items have the same key.
 DM0029 | DependencyModules | Error | List items use more than one order scheme.
 DM0030 | DependencyModules | Warning | A Func parameter gets no registration.
+DM0031 | DependencyModules | Warning | A [FromConstructor] parameter cannot be built.
 
 ### Removed Rules
 

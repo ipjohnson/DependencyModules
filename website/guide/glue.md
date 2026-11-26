@@ -273,6 +273,43 @@ Rule 3 is not applicable to these types. They come from the service provider:
 - A class that has a constructor parameter with a value type or the `string` type.
 - A class that the generated code cannot build, for example a class with no `public` or `internal` constructor.
 
+### Attributes that change the rules
+
+If the rules do not give the result that you want for a parameter, put one of these attributes on the parameter. The attributes are in the `DependencyModules.Runtime.Attributes` namespace.
+
+| Attribute | Result |
+| --- | --- |
+| `[FromServiceProvider]` | The parameter comes from the service provider. The glue does not build it with `new`, and it does not get a caller argument. |
+| `[FromConstructor]` | The glue builds the parameter with `new`. The glue does not get it from the service provider, and it does not get a caller argument. |
+
+```csharp
+using DependencyModules.Runtime.Attributes;
+
+namespace Shop;
+
+public class PriceRules;
+
+public class ReportSettings;
+
+public class Report(
+    [FromConstructor] PriceRules rules,
+    [FromServiceProvider] ReportSettings settings
+);
+
+[SingletonService]
+public class ReportPrinter(Func<Report> createReport);
+```
+
+In this example, each `Report` gets a new `PriceRules`, also when the application registers `PriceRules`. If the application does not register `ReportSettings`, the service provider gives an exception. Without the attribute, the glue builds a new `ReportSettings` when the service provider has no registration.
+
+`[FromConstructor]` is also applicable to a class with a service attribute and to a type from a `System` or `Microsoft` namespace. If the generated code cannot build the type of the parameter, the generator gives the warning DM0031, and the parameter comes from the service provider.
+
+`[FromServiceProvider]` on a parameter with a value type or the `string` type lets the glue build the class. The application must then register that type.
+
+The attributes have an effect only on a constructor parameter of an object that the glue builds. They have no effect on the constructor of a service, because the service provider builds a service.
+
+### Constructor selection
+
 The glue selects the constructor in this sequence:
 
 1. A constructor with `[ActivatorUtilitiesConstructor]`.

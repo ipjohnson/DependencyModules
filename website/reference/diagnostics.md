@@ -34,6 +34,7 @@ The generator gives these diagnostics when you compile. Their category is `Depen
 | [DM0028](#dm0028) | Error | Two map items have the same key |
 | [DM0029](#dm0029) | Error | List items use more than one order scheme |
 | [DM0030](#dm0030) | Warning | Func parameter gets no registration |
+| [DM0031](#dm0031) | Warning | [FromConstructor] parameter cannot be built |
 
 The table shows the title of each diagnostic. The compiler shows a message with more information, for example the names of the types.
 
@@ -320,3 +321,14 @@ A class has a `Func` constructor parameter that gives a concrete class, but the 
 - A constructor parameter has a value type or the `string` type, and no caller argument has that type.
 
 To correct the problem, change the type arguments of the `Func`, or change the constructor of the class. If the application registers the `Func`, you can suppress the warning.
+
+## DM0031
+
+A constructor parameter has `[FromConstructor]`, but the generated code cannot build the type of the parameter. The parameter comes from the service provider. The message gives the cause:
+
+- The type is not a class, for example an interface or `string`.
+- The class is abstract, static, or an open generic class.
+- The class has no constructor that the generated code can call.
+- A constructor parameter of the class has a value type or the `string` type.
+
+To correct the problem, remove the attribute, or correct the cause that the message gives.

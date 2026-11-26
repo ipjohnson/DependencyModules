@@ -47,6 +47,16 @@ namespace DependencyModules.Runtime.Attributes
         public bool RegisterJsonSerializers { get; set; }
         public DependencyModules.Runtime.Attributes.RegistrationType Using { get; set; }
     }
+    [System.AttributeUsage(System.AttributeTargets.Parameter, Inherited=false)]
+    public sealed class FromConstructorAttribute : System.Attribute
+    {
+        public FromConstructorAttribute() { }
+    }
+    [System.AttributeUsage(System.AttributeTargets.Parameter, Inherited=false)]
+    public sealed class FromServiceProviderAttribute : System.Attribute
+    {
+        public FromServiceProviderAttribute() { }
+    }
     public interface IServiceRegistrationAttribute
     {
         System.Type? As { get; set; }

@@ -1357,6 +1357,7 @@ namespace DependencyModules.SourceGenerator.Impl
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ModuleMustBePartial;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ModuleWithPropertiesShouldImplementEquals;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor OpenGenericCannotBeDecorated;
+        public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ParameterCannotBeBuilt;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor RegisteredConditionally;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ServiceCannotBeConstructed;
         public static readonly Microsoft.CodeAnalysis.DiagnosticDescriptor ServiceTypeNotNamed;
@@ -1635,7 +1636,7 @@ namespace DependencyModules.SourceGenerator.Impl.Models
     public class GlueClassModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.GlueClassModel>
     {
         public static readonly DependencyModules.SourceGenerator.Impl.Models.GlueClassModel Ignore;
-        public GlueClassModel(string TypeName, string DisplayName, DependencyModules.SourceGenerator.Impl.Models.LocationModel Location, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.GlueItemModel> Items, string? Construction, string? ConstructionProblem, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.GlueFuncModel> Funcs, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.GlueFuncProblemModel> FuncProblems, System.Collections.Generic.IReadOnlyList<string?> FuncRealms, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? Conditions) { }
+        public GlueClassModel(string TypeName, string DisplayName, DependencyModules.SourceGenerator.Impl.Models.LocationModel Location, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.GlueItemModel> Items, string? Construction, string? ConstructionProblem, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.GlueFuncModel> Funcs, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.GlueFuncProblemModel> FuncProblems, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.GlueParameterProblemModel> ParameterProblems, System.Collections.Generic.IReadOnlyList<string?> FuncRealms, System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? Conditions) { }
         public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.EnvironmentConditionModel>? Conditions { get; init; }
         public string? Construction { get; init; }
         public string? ConstructionProblem { get; init; }
@@ -1646,6 +1647,7 @@ namespace DependencyModules.SourceGenerator.Impl.Models
         public bool IsIgnored { get; }
         public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.GlueItemModel> Items { get; init; }
         public DependencyModules.SourceGenerator.Impl.Models.LocationModel Location { get; init; }
+        public System.Collections.Generic.IReadOnlyList<DependencyModules.SourceGenerator.Impl.Models.GlueParameterProblemModel> ParameterProblems { get; init; }
         public string TypeName { get; init; }
     }
     public class GlueClassModelComparer : System.Collections.Generic.IEqualityComparer<DependencyModules.SourceGenerator.Impl.Models.GlueClassModel>
@@ -1686,6 +1688,14 @@ namespace DependencyModules.SourceGenerator.Impl.Models
         public string? ValueDisplay { get; init; }
         public virtual bool Equals(DependencyModules.SourceGenerator.Impl.Models.GlueItemModel? other) { }
         public override int GetHashCode() { }
+    }
+    public class GlueParameterProblemModel : System.IEquatable<DependencyModules.SourceGenerator.Impl.Models.GlueParameterProblemModel>
+    {
+        public GlueParameterProblemModel(string Owner, string Parameter, string ParameterType, string Reason) { }
+        public string Owner { get; init; }
+        public string Parameter { get; init; }
+        public string ParameterType { get; init; }
+        public string Reason { get; init; }
     }
     public interface IClassModel
     {

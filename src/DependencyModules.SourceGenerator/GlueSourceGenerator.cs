@@ -133,6 +133,8 @@ public class GlueSourceGenerator : BaseAttributeSourceGenerator<GlueClassModel>
             return;
         }
 
+        var parameters = new HashSet<string>();
+
         foreach (var model in models)
         {
             context.CancellationToken.ThrowIfCancellationRequested();
@@ -165,6 +167,26 @@ public class GlueSourceGenerator : BaseAttributeSourceGenerator<GlueClassModel>
                         location,
                         model.DisplayName,
                         Display(problem.FuncType),
+                        problem.Reason
+                    )
+                );
+            }
+
+            foreach (var problem in model.ParameterProblems)
+            {
+                // More than one class can build the same object.
+                if (!parameters.Add(problem.Owner + "|" + problem.Parameter))
+                {
+                    continue;
+                }
+
+                context.ReportDiagnostic(
+                    Diagnostic.Create(
+                        DependencyModuleDiagnostics.ParameterCannotBeBuilt,
+                        location,
+                        problem.Owner,
+                        problem.Parameter,
+                        problem.ParameterType,
                         problem.Reason
                     )
                 );
