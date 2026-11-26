@@ -16,6 +16,10 @@ The generated code examines the environment conditions at run time with `if` sta
 
 Decorators and interceptor wrappers use constructor calls in the generated code. They do not use reflection to make instances. The interceptor wrapper for a generic class is different. The service provider makes that wrapper from its type.
 
+## Collections and Func parameters
+
+The generated code builds each collection item and each object of a `Func` with a constructor call. It does not use reflection. The generated code also gives the type arguments of each collection, thus a map with a value-type key needs no code that the AOT compiler cannot find. For more information, refer to [Collections and Func parameters](./glue.md).
+
 ## Generated factories
 
 The generator can also write a factory for each registration. The factory calls the constructor of the class in the generated code:

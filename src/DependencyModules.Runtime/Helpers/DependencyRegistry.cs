@@ -43,6 +43,7 @@ public class DependencyRegistry<T>
     private static List<EnvironmentRegistryFunc>? RegistryFuncs;
     private static List<DecoratorRegistration>? Decorators;
     private static List<IDependencyModule>? Modules;
+    private static List<GlueFunc>? GlueFuncs;
 
     /// <summary>
     ///     Add registration func
@@ -180,6 +181,21 @@ public class DependencyRegistry<T>
     }
 
     /// <summary>
+    ///     Add a func that adds collection items and Func registrations
+    /// </summary>
+    /// <param name="glueFunc"></param>
+    /// <returns></returns>
+    public static int AddGlue(GlueFunc glueFunc)
+    {
+        lock (SyncLock)
+        {
+            (GlueFuncs ??= []).Add(glueFunc);
+        }
+
+        return 1;
+    }
+
+    /// <summary>
     /// Add module
     /// </summary>
     /// <param name="modules"></param>
@@ -211,6 +227,8 @@ public class DependencyRegistry<T>
         ApplyServices(serviceCollection, modules);
 
         ApplyDecorators(serviceCollection, modules);
+
+        ApplyGlue(serviceCollection, modules);
     }
 
     /// <summary>
@@ -247,6 +265,38 @@ public class DependencyRegistry<T>
         {
             registryFunc(serviceCollection, environment);
         }
+    }
+
+    /// <summary>
+    ///     Add the collection items and Func registrations for a given type to the registry of the
+    ///     service collection
+    /// </summary>
+    /// <param name="serviceCollection"></param>
+    /// <param name="environment"></param>
+    /// <returns>False when the type has nothing to add.</returns>
+    public static bool ApplyGlue(
+        IServiceCollection serviceCollection,
+        IModuleEnvironment environment
+    )
+    {
+        GlueFunc[] snapshot;
+        lock (SyncLock)
+        {
+            if (GlueFuncs == null)
+            {
+                return false;
+            }
+            snapshot = GlueFuncs.ToArray();
+        }
+
+        var glue = GlueRegistry.FindOrAdd(serviceCollection);
+
+        foreach (var glueFunc in snapshot)
+        {
+            glueFunc(glue, environment);
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -457,6 +507,34 @@ public class DependencyRegistry<T>
             {
                 serviceCollectionConfigure.ConfigureDecorators(serviceCollection);
             }
+        }
+    }
+
+    /// <summary>
+    /// The last phase of a load. Merges the collection items of all modules, then registers the
+    /// collections and the Func types that the service collection does not have.
+    /// </summary>
+    /// <remarks>
+    /// Last, so that every registration of the load is in the collection before the TryAdd calls.
+    /// A registration from a module's ConfigureServices or ConfigureDecorators then wins.
+    /// </remarks>
+    private static void ApplyGlue(
+        IServiceCollection serviceCollection,
+        IReadOnlyList<IDependencyModule> modules
+    )
+    {
+        IModuleEnvironment? environment = null;
+        var applied = false;
+
+        for (var i = 0; i < modules.Count; i++)
+        {
+            environment ??= ResolveEnvironment(serviceCollection);
+            applied |= modules[i].InternalApplyGlue(serviceCollection, environment);
+        }
+
+        if (applied)
+        {
+            GlueRegistry.Find(serviceCollection)?.Complete(serviceCollection);
         }
     }
 

@@ -73,6 +73,22 @@ public interface IDependencyModule
     void InternalApplyDecorators(IServiceCollection serviceCollection) { }
 
     /// <summary>
+    /// Internal method not intended to be called by general developers
+    /// </summary>
+    /// <remarks>
+    /// Generated modules add their collection items and Func registrations here. It runs after
+    /// the decorators of all modules.
+    /// </remarks>
+    /// <param name="serviceCollection"></param>
+    /// <param name="environment">Never null; see <c>ModuleEnvironment.Default</c>.</param>
+    /// <returns>False when the module has nothing to add.</returns>
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    bool InternalApplyGlue(IServiceCollection serviceCollection, IModuleEnvironment environment)
+    {
+        return false;
+    }
+
+    /// <summary>
     /// Internal method not intended to be called by general developers.
     /// </summary>
     /// <remarks>

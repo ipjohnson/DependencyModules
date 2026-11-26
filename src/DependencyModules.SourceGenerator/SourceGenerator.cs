@@ -18,6 +18,7 @@ public class SourceGenerator : BaseSourceGenerator
         yield return new ServiceSourceGenerator();
         yield return new InterceptorSourceGenerator();
         yield return new global::DependencyModules.Conventions.ConventionGenerator();
+        yield return new GlueSourceGenerator();
     }
 
     /// <summary>

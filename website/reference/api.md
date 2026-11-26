@@ -115,6 +115,7 @@ The generated code uses these types:
 | Type | Function |
 | --- | --- |
 | `DependencyRegistry<T>` | Keeps the registrations and decorators of module `T`, and loads modules. |
+| `GlueRegistry` | Keeps the collection items and the `Func` registrations of one service collection. The generated code calls it. |
 | `DecoratorHelper` | Adds decorators and interceptor wrappers to the service collection. |
 | `DecoratorRegistration` | A decorator with its `Order`. |
 | `EnvironmentConditions` | Examines the environment conditions. |
