@@ -5,6 +5,24 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `DependencyModules.VerificationGlue`, the package for VerificationGlue.Tests version
+  0.3.0-preview.1 and all subsequent versions before 0.4.0. `[ModuleTest]` and
+  `[ModuleTest<TModule>]` build the test container from your modules, and `[Mock]` parameters
+  replace the matching services. `[TestExport]`, `[InjectValues]`, `[Shared]` and the other
+  `DependencyModules.Testing` hooks apply. With `ContainerScope.Class` or `ContainerScope.Assembly`,
+  `[Shared]` and `[TestExport(Shared = true)]` share instances across the tests. The package targets
+  `net10.0` only. No other package depends on VerificationGlue.
+
+### Changed
+
+- The repository `NuGet.config` adds the `test-tools` feed for the Microsoft.Testing.Platform 3
+  preview. `dotnet test DependencyModules.sln` stops on the VerificationGlue.Tests project. Use
+  the scripts, which run that project as an application.
+
 ## [1.7.0] - 2026-09-25
 
 This release adds a test package for `xunit.v3` version 4. It also lets a library get the test

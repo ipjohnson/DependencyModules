@@ -65,6 +65,7 @@ export default defineConfig({
           { text: 'Write tests', link: '/guide/testing' },
           { text: 'xUnit', link: '/guide/testing-xunit' },
           { text: 'NUnit', link: '/guide/testing-nunit' },
+          { text: 'VerificationGlue.Tests', link: '/guide/testing-verificationglue' },
           { text: 'Mocks', link: '/guide/testing-mocking' },
           { text: 'More service providers', link: '/guide/testing-container-source' },
           { text: 'CurrentTest and test output', link: '/guide/testing-current-test' },

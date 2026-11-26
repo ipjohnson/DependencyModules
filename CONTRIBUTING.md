@@ -13,8 +13,16 @@ Install these tools:
 ```shell
 dotnet restore DependencyModules.sln
 dotnet build DependencyModules.sln --configuration Release
-dotnet test DependencyModules.sln --configuration Release
+./scripts/coverage.sh
 ```
+
+`dotnet test DependencyModules.sln` does not work. `integ-tests/SutProject.VerificationGlueTests` is a VerificationGlue.Tests project, which is a Microsoft.Testing.Platform application, and the VSTest `dotnet test` stops on it with VGT1001. The `global.json` file keeps the VSTest runner, because the `xunit.v3.mtp-off` projects of the xUnit 4 tests, the NUnit adapter and `coverlet.collector` need it. Use `dotnet test` on one of the other test projects, or use the scripts. To run only the VerificationGlue.Tests projects, use this script. It runs the built test applications:
+
+```shell
+./scripts/test-verificationglue.sh
+```
+
+The `restore` step needs the `test-tools` feed in `NuGet.config`, which has the Microsoft.Testing.Platform 3 preview that VerificationGlue.Tests uses.
 
 To run all tests with code coverage, use the coverage script. The script writes the report to `artifacts/coverage`. If you give a percentage, the script fails when the line coverage is less than that value.
 
@@ -30,7 +38,7 @@ The xUnit test projects use `xunit.v3` version 3 and `DependencyModules.xUnit`. 
 
 The `XunitMajor` property in `Directory.Build.props` selects the version. The script sets it to the major version that you give.
 
-To do a test of the packages that a user gets, use the package script. The script packs the ten packages. Then it builds and runs a test application for each target framework. The test application references these packages.
+To do a test of the packages that a user gets, use the package script. The script packs the eleven packages. Then it builds and runs a test application for each target framework, and a VerificationGlue.Tests project on `net10.0`. The test applications reference these packages.
 
 ```shell
 ./scripts/verify-packages.sh
@@ -70,7 +78,7 @@ The `build-package` workflow runs for each pull request to `main`. It does these
 
 1. It does a check of the format with CSharpier.
 2. It builds the solution.
-3. It runs all tests with code coverage. The line coverage must be 85 percent or more.
+3. It runs all tests with code coverage, the VerificationGlue.Tests projects included. The line coverage must be 85 percent or more.
 4. It runs the xUnit tests again with `xunit.v3` version 4.
 5. It runs `scripts/verify-packages.sh`.
 

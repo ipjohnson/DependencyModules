@@ -1,0 +1,28 @@
+namespace DependencyModules.VerificationGlue.Attributes
+{
+    public class ModuleTestAttribute : VerificationGlue.Tests.ContainerAttribute<DependencyModules.VerificationGlue.ModuleBootstrap>, DependencyModules.Testing.Attributes.Interfaces.IModuleTestAttribute
+    {
+        public ModuleTestAttribute() { }
+        public System.Type[] ModuleTypes { get; }
+    }
+    public class ModuleTestAttribute<TModule> : VerificationGlue.Tests.ContainerAttribute<DependencyModules.VerificationGlue.ModuleBootstrap<TModule>>, DependencyModules.Testing.Attributes.Interfaces.IModuleTestAttribute
+        where TModule : DependencyModules.Runtime.Interfaces.IDependencyModule, new ()
+    {
+        public ModuleTestAttribute() { }
+        public System.Type[] ModuleTypes { get; }
+    }
+}
+namespace DependencyModules.VerificationGlue
+{
+    public sealed class ModuleBootstrap : VerificationGlue.Tests.ISupportsChildOverrides, VerificationGlue.Tests.ITestContainerBootstrap
+    {
+        public ModuleBootstrap() { }
+        public static System.Threading.Tasks.ValueTask<VerificationGlue.Tests.ITestContainer> BuildAsync(VerificationGlue.Tests.TestContainerContext context) { }
+    }
+    public sealed class ModuleBootstrap<TModule> : VerificationGlue.Tests.ISupportsChildOverrides, VerificationGlue.Tests.ITestContainerBootstrap
+        where TModule : DependencyModules.Runtime.Interfaces.IDependencyModule, new ()
+    {
+        public ModuleBootstrap() { }
+        public static System.Threading.Tasks.ValueTask<VerificationGlue.Tests.ITestContainer> BuildAsync(VerificationGlue.Tests.TestContainerContext context) { }
+    }
+}

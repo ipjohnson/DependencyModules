@@ -1,3 +1,4 @@
+using System.Reflection;
 using DependencyModules.Runtime.Attributes;
 using DependencyModules.Tests.Infrastructure;
 using DependencyModules.xUnit.Attributes;
@@ -68,6 +69,28 @@ public class PublicApiTests
         Snapshot.Match(ApiOf(typeof(Testing.Attributes.Interfaces.IMockSupportAttribute)));
     }
 
+#if NET10_0_OR_GREATER
+    /// <summary>
+    /// The VerificationGlue.Tests integration, which targets net10.0 only because
+    /// VerificationGlue.Tests does.
+    /// </summary>
+    /// <remarks>
+    /// Read from its build output rather than referenced. A reference would bring the
+    /// Microsoft.Testing.Platform 3 preview into this project, and its MSBuild targets stop the
+    /// VSTest run. The generator reads the file and does not run its code.
+    /// </remarks>
+    [Fact]
+    public void VerificationGlueApi()
+    {
+        var path = typeof(PublicApiTests)
+            .Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
+            .Single(attribute => attribute.Key == "VerificationGlueAssembly")
+            .Value!;
+
+        Snapshot.Match(ApiOf(Assembly.LoadFile(Path.GetFullPath(path))));
+    }
+#endif
+
     [Fact]
     public void NSubstituteApi()
     {
@@ -102,8 +125,10 @@ public class PublicApiTests
         Snapshot.Match(ApiOf(typeof(SourceGenerator.SourceGenerator)));
     }
 
-    private static string ApiOf(Type typeFromAssembly) =>
-        typeFromAssembly.Assembly.GeneratePublicApi(
+    private static string ApiOf(Type typeFromAssembly) => ApiOf(typeFromAssembly.Assembly);
+
+    private static string ApiOf(Assembly assembly) =>
+        assembly.GeneratePublicApi(
             new ApiGeneratorOptions
             {
                 // Assembly-level attributes are build metadata, not API, and several of them

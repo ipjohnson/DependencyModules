@@ -64,7 +64,8 @@ for proj in \
     src/DependencyModules.NUnit/DependencyModules.NUnit.csproj \
     src/DependencyModules.NSubstitute/DependencyModules.NSubstitute.csproj \
     src/DependencyModules.Moq/DependencyModules.Moq.csproj \
-    src/DependencyModules.FakeItEasy/DependencyModules.FakeItEasy.csproj; do
+    src/DependencyModules.FakeItEasy/DependencyModules.FakeItEasy.csproj \
+    src/DependencyModules.VerificationGlue/DependencyModules.VerificationGlue.csproj; do
     dotnet pack "${REPO_ROOT}/${proj}" -c Release -o "${FEED}" \
         "/p:PackageVersion=${VERSION}" --nologo -v quiet
 done
@@ -117,6 +118,43 @@ for id in "${LIB_PACKAGES[@]}"; do
     done
     pass "${id} ships lib/ for every target framework"
 done
+
+# DependencyModules.VerificationGlue has net10.0 only, because VerificationGlue.Tests has. It must
+# ship that one and no other, and its VerificationGlue.Tests range must stop below the next 0.x
+# minor, where VerificationGlue.Tests can change its extension points.
+VG_ID=DependencyModules.VerificationGlue
+entries="$(unzip -Z1 "${FEED}/${VG_ID}.${VERSION}.nupkg")"
+grep -qx "lib/net10.0/${VG_ID}.dll" <<<"${entries}" \
+    || fail "${VG_ID}: no lib/net10.0/${VG_ID}.dll in package, got:\n${entries}"
+[ "$(grep -c '^lib/[^/]*/'"${VG_ID}"'.dll$' <<<"${entries}")" -eq 1 ] \
+    || fail "${VG_ID}: ships lib/ for more than net10.0, got:\n${entries}"
+pass "${VG_ID} ships lib/net10.0 only"
+
+unzip -p "${FEED}/${VG_ID}.${VERSION}.nupkg" "${VG_ID}.nuspec" | python3 -c '
+import re, sys
+nuspec = sys.stdin.read()
+ranges = set(re.findall(r"id=\"VerificationGlue.Tests\" version=\"([^\"]+)\"", nuspec))
+if not ranges:
+    sys.exit("  no dependency on VerificationGlue.Tests")
+for value in ranges:
+    match = re.fullmatch(r"\[0\.(\d+)\.\d+(-[0-9A-Za-z.-]+)?, 0\.(\d+)\.0-0\)", value)
+    if not match or int(match.group(3)) != int(match.group(1)) + 1:
+        sys.exit(f"  VerificationGlue.Tests is {value}, expected [lowest, 0.<next minor>.0-0)")
+for dependency in ("VerificationGlue.Tests", "DependencyModules.Runtime", "DependencyModules.Testing"):
+    if f"id=\"{dependency}\"" not in nuspec:
+        sys.exit(f"  no dependency on {dependency}")
+' || fail "${VG_ID}: its dependencies are wrong"
+pass "${VG_ID} stops VerificationGlue.Tests below the next minor"
+
+# The existing test packages must not bring VerificationGlue in. Only DependencyModules.VerificationGlue
+# depends on it.
+for id in "${LIB_PACKAGES[@]}"; do
+    unzip -p "${FEED}/${id}.${VERSION}.nupkg" "${id}.nuspec" | grep -qi 'id="VerificationGlue' \
+        && fail "${id} depends on a VerificationGlue package"
+done
+pass "no package other than ${VG_ID} depends on VerificationGlue"
+
+LIB_PACKAGES+=("${VG_ID}")
 
 # Framework-matched dependency groups. This is the whole reason the libraries multi-target: a
 # net10.0 group pinning an 8.x Microsoft.Extensions package puts that older assembly into a .NET 10
@@ -344,6 +382,120 @@ rm "${APP}/.globalconfig"
 pass "${TFM} DM0026 set to error fails the build"
 
 done
+
+echo "==> Running a VerificationGlue.Tests project against DependencyModules.VerificationGlue"
+
+# A user's VerificationGlue.Tests project: it references the package and VerificationGlue.Tests, and
+# needs the test-tools feed for the Microsoft.Testing.Platform 3 preview. The DependencyModules
+# packages come from the local feed only, so this runs the bits just packed.
+VG_APP="${WORK_DIR}/ConsumerVerificationGlueTests"
+VG_VERSION="$(dotnet msbuild "${REPO_ROOT}/src/DependencyModules.VerificationGlue/DependencyModules.VerificationGlue.csproj" -getProperty:VerificationGlueVersion)"
+mkdir -p "${VG_APP}"
+
+cat >"${VG_APP}/nuget.config" <<EOF
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <packageSources>
+    <clear/>
+    <add key="local" value="${FEED}"/>
+    <add key="nuget.org" value="https://api.nuget.org/v3/index.json"/>
+    <add key="test-tools" value="https://pkgs.dev.azure.com/dnceng/public/_packaging/test-tools/nuget/v3/index.json"/>
+  </packageSources>
+  <packageSourceMapping>
+    <packageSource key="local">
+      <package pattern="DependencyModules.*"/>
+    </packageSource>
+    <packageSource key="nuget.org">
+      <package pattern="*"/>
+      <package pattern="Microsoft.Testing.*"/>
+    </packageSource>
+    <packageSource key="test-tools">
+      <package pattern="Microsoft.Testing.*"/>
+    </packageSource>
+  </packageSourceMapping>
+  <config>
+    <add key="globalPackagesFolder" value="${WORK_DIR}/nuget-cache"/>
+  </config>
+</configuration>
+EOF
+
+cat >"${VG_APP}/ConsumerVerificationGlueTests.csproj" <<EOF
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="DependencyModules.Runtime" Version="${VERSION}"/>
+    <PackageReference Include="DependencyModules.SourceGenerator" Version="${VERSION}"/>
+    <PackageReference Include="DependencyModules.VerificationGlue" Version="${VERSION}"/>
+    <PackageReference Include="VerificationGlue.Tests" Version="${VG_VERSION}"/>
+  </ItemGroup>
+</Project>
+EOF
+
+cat >"${VG_APP}/Tests.cs" <<'EOF'
+using DependencyModules.Runtime.Attributes;
+using DependencyModules.VerificationGlue.Attributes;
+using VerificationGlue.Mocks;
+using VerificationGlue.Tests;
+using static VerificationGlue.VerifySyntax;
+
+namespace ConsumerVerificationGlueTests;
+
+public interface IClock
+{
+    int Hour();
+}
+
+[SingletonService]
+public class Clock : IClock
+{
+    public int Hour() => 12;
+}
+
+[TransientService]
+public class Greeter(IClock clock)
+{
+    public IClock Clock { get; } = clock;
+}
+
+[DependencyModule]
+public partial class ConsumerModule { }
+
+[ModuleTest<ConsumerModule>]
+public partial class GreeterTests
+{
+    [VerifyTest]
+    public void ResolvesFromTheModule(Greeter greeter)
+    {
+        Verify(greeter.Clock is Clock);
+    }
+
+    [VerifyTest]
+    public void TheServiceReceivesTheMock([Mock] IClock clock, Greeter greeter)
+    {
+        clock.Hour().Returns(7);
+
+        Verify(ReferenceEquals(greeter.Clock, clock));
+        Verify(greeter.Clock.Hour() == 7);
+    }
+}
+EOF
+
+dotnet build "${VG_APP}/ConsumerVerificationGlueTests.csproj" -c Release --nologo -v quiet \
+    || fail "a VerificationGlue.Tests project failed to build against the packed DependencyModules.VerificationGlue"
+pass "a VerificationGlue.Tests project builds against DependencyModules.VerificationGlue"
+
+grep -q '"VerificationGlue.Tests/' "${VG_APP}/obj/project.assets.json" \
+    || fail "the VerificationGlue.Tests consumer did not resolve VerificationGlue.Tests"
+
+vg_output="$(dotnet exec "${VG_APP}/bin/Release/net10.0/ConsumerVerificationGlueTests.dll" 2>&1)" \
+    || fail "the VerificationGlue.Tests consumer's tests failed:\n${vg_output}"
+grep -q 'succeeded: 2' <<<"${vg_output}" \
+    || fail "the VerificationGlue.Tests consumer did not run its two tests:\n${vg_output}"
+pass "a [ModuleTest<T>] test resolves a module service and a [Mock] replaces it"
 
 echo "==> Building a generator project against DependencyModules.SourceGenerator.Impl"
 

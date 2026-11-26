@@ -60,6 +60,15 @@
         <DependencyModulesXunitProject>DependencyModules.xUnit4</DependencyModulesXunitProject>
     </PropertyGroup>
 
+    <!--
+        The VerificationGlue.Tests version that DependencyModules.VerificationGlue builds against and
+        that the VerificationGlue test projects run on. VerificationGlue.Tests targets net10.0 only,
+        so DependencyModules.VerificationGlue does too, and it does not use LibraryTargetFrameworks.
+    -->
+    <PropertyGroup>
+        <VerificationGlueVersion>0.3.0-preview.1</VerificationGlueVersion>
+    </PropertyGroup>
+
     <PropertyGroup>
         <Authors>Ian Johnson</Authors>
         <Company>Ian Johnson</Company>

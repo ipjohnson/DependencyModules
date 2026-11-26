@@ -29,6 +29,22 @@
         <ProjectReference Include="..\..\src\DependencyModules.FakeItEasy\DependencyModules.FakeItEasy.csproj"/>
     </ItemGroup>
 
+    <!--
+        For the public API snapshot only, and only on net10.0, the one framework the package has.
+        A build-order reference with no assembly and no packages: the package depends on
+        VerificationGlue.Tests, which brings the Microsoft.Testing.Platform 3 preview and its
+        MSBuild targets, and those stop the VSTest run of this project. The snapshot test reads the
+        built assembly from the path below.
+    -->
+    <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+        <ProjectReference Include="..\..\src\DependencyModules.VerificationGlue\DependencyModules.VerificationGlue.csproj"
+                          ReferenceOutputAssembly="false" PrivateAssets="all" ExcludeAssets="all"/>
+        <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+            <_Parameter1>VerificationGlueAssembly</_Parameter1>
+            <_Parameter2>$(MSBuildThisFileDirectory)../../src/DependencyModules.VerificationGlue/bin/$(Configuration)/net10.0/DependencyModules.VerificationGlue.dll</_Parameter2>
+        </AssemblyAttribute>
+    </ItemGroup>
+
     <ItemGroup>
         <PackageReference Include="coverlet.collector" Version="6.0.2">
             <PrivateAssets>all</PrivateAssets>

@@ -7,7 +7,7 @@
 
 DependencyModules is a source generator for `Microsoft.Extensions.DependencyInjection`. You put attributes on your classes. When you compile the project, the generator writes the code that registers these classes in an `IServiceCollection`. The generated code does not use reflection to find services at run time.
 
-A module is a partial class that registers the services of a project. A module can use other modules. The test packages build a service provider from your modules for each xUnit or NUnit test.
+A module is a partial class that registers the services of a project. A module can use other modules. The test packages build a service provider from your modules for each xUnit, NUnit or VerificationGlue.Tests test.
 
 Documentation: [ipjohnson.github.io/DependencyModules](https://ipjohnson.github.io/DependencyModules/)
 
@@ -88,7 +88,7 @@ The test gets its parameters from a new service provider. After the test, the te
 - [Conventions](https://ipjohnson.github.io/DependencyModules/guide/conventions): registrations for all classes that implement an interface.
 - [Decorators](https://ipjohnson.github.io/DependencyModules/guide/decorators) and [interception](https://ipjohnson.github.io/DependencyModules/guide/interception): code around services.
 - [Environments](https://ipjohnson.github.io/DependencyModules/guide/environments): registrations that occur only in some environments.
-- [Testing](https://ipjohnson.github.io/DependencyModules/guide/testing): xUnit and NUnit tests with modules, mocks, and more service providers in a test.
+- [Testing](https://ipjohnson.github.io/DependencyModules/guide/testing): xUnit, NUnit and VerificationGlue.Tests tests with modules, mocks, and more service providers in a test.
 - [Native AOT](https://ipjohnson.github.io/DependencyModules/guide/aot): generated factories and trimming.
 
 ## Sample projects
@@ -98,6 +98,7 @@ The `integ-tests` folder contains projects that reference the source projects of
 - `SutProject` and `SecondarySutProject`: modules and services.
 - `SutProject.Tests`: xUnit tests of these modules.
 - `SutProject.NUnitTests`: NUnit tests of these modules.
+- `SutProject.VerificationGlueTests`: VerificationGlue.Tests tests of these modules.
 - `ConsoleTestProject`: a console application.
 - `web/WebApiApp` and `web/WebApiApp.Tests`: an ASP.NET Core application and its tests.
 
@@ -110,6 +111,7 @@ The `integ-tests` folder contains projects that reference the source projects of
 | [DependencyModules.xUnit](https://www.nuget.org/packages/DependencyModules.xUnit/) | `[ModuleTest]` for xUnit v3, with `xunit.v3` version 3. |
 | [DependencyModules.xUnit4](https://www.nuget.org/packages/DependencyModules.xUnit4/) | `[ModuleTest]` for xUnit v3, with `xunit.v3` version 4. |
 | [DependencyModules.NUnit](https://www.nuget.org/packages/DependencyModules.NUnit/) | `[ModuleTest]` and `[ModuleTestCase]` for NUnit 4. |
+| [DependencyModules.VerificationGlue](https://www.nuget.org/packages/DependencyModules.VerificationGlue/) | `[ModuleTest]` and `[ModuleTest<TModule>]` for VerificationGlue.Tests, on `net10.0`. |
 | [DependencyModules.Testing](https://www.nuget.org/packages/DependencyModules.Testing/) | The test attributes and interfaces that the xUnit and NUnit packages use. It also gives the test that runs, and a logger that writes to the output of the test. |
 | [DependencyModules.NSubstitute](https://www.nuget.org/packages/DependencyModules.NSubstitute/) | `[Mock]` parameters with NSubstitute. |
 | [DependencyModules.Moq](https://www.nuget.org/packages/DependencyModules.Moq/) | `[Mock]` and `Mock<T>` parameters with Moq. |

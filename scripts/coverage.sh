@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 #
-# Runs every test project with coverage collection and merges the results into one report.
+# Runs every test project with coverage collection and merges the results into one report. The
+# VSTest projects use coverlet.collector, and the VerificationGlue.Tests projects use
+# coverlet.console through scripts/test-verificationglue.sh.
 #
 # Outputs (under artifacts/coverage):
 #   Summary.txt / SummaryGithub.md  human-readable summaries
@@ -47,6 +49,11 @@ for project in "${PROJECTS[@]}"; do
     [ "${status}" -eq 0 ] || exit "${status}"
 done
 
+# The VerificationGlue.Tests projects are Microsoft.Testing.Platform applications, which
+# coverlet.collector cannot see. The script runs them under coverlet.console and writes their
+# reports under RAW, where the merge below finds them.
+"${REPO_ROOT}/scripts/test-verificationglue.sh" "${RAW}/verificationglue"
+
 # xUnit drops a test case whose unique ID collides with one already discovered, and it does so
 # without failing the run: the suite stays green while tests quietly stop executing. Promote that
 # warning to a build failure so it can never pass unnoticed.
@@ -71,7 +78,7 @@ reportgenerator \
     "-targetdir:${OUT}" \
     "-reporttypes:Html;Cobertura;TextSummary;MarkdownSummaryGithub;Badges" \
     "-title:DependencyModules" \
-    "-assemblyfilters:+DependencyModules.Runtime;+DependencyModules.SourceGenerator;+DependencyModules.Testing;+DependencyModules.xUnit;+DependencyModules.NUnit;+DependencyModules.NSubstitute;+DependencyModules.Moq;+DependencyModules.FakeItEasy" \
+    "-assemblyfilters:+DependencyModules.Runtime;+DependencyModules.SourceGenerator;+DependencyModules.Testing;+DependencyModules.xUnit;+DependencyModules.NUnit;+DependencyModules.NSubstitute;+DependencyModules.Moq;+DependencyModules.FakeItEasy;+DependencyModules.VerificationGlue" \
     "-classfilters:-CSharpAuthor.*" \
     >/dev/null
 
