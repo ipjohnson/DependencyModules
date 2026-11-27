@@ -1,20 +1,19 @@
 using DependencyModules.Runtime.Features;
 using DependencyModules.Runtime.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
-namespace DependencyModules.Tests.RuntimeTests;
+namespace DependencyModules.Specs.RuntimeTests;
 
 /// <summary>
 /// FeatureApplicator is the bridge between a module implementing IDependencyModuleFeature and the
 /// modules carrying that feature. It must hand the handler exactly the modules that implement the
 /// feature type, and nothing else.
 /// </summary>
-public class FeatureApplicatorTests
+public partial class FeatureApplicatorTests
 {
     private interface ISomeFeature;
 
-    [Fact]
+    [VerifyTest]
     public void Apply_PassesOnlyModulesImplementingTheFeature()
     {
         var handler = new RecordingHandler();
@@ -25,11 +24,11 @@ public class FeatureApplicatorTests
 
         applicator.Apply(new ServiceCollection(), [featured, plain]);
 
-        var received = Assert.Single(handler.Received!);
-        Assert.Same(featured, received);
+        var received = Single(handler.Received!);
+        Verify(ReferenceEquals(received, featured));
     }
 
-    [Fact]
+    [VerifyTest]
     public void Apply_WithNoMatchingModules_PassesAnEmptySequence()
     {
         var handler = new RecordingHandler();
@@ -37,10 +36,10 @@ public class FeatureApplicatorTests
 
         applicator.Apply(new ServiceCollection(), [new PlainModule()]);
 
-        Assert.Empty(handler.Received!);
+        Verify(!handler.Received!.Any());
     }
 
-    [Fact]
+    [VerifyTest]
     public void Apply_PassesTheServiceCollectionThrough()
     {
         var handler = new RecordingHandler();
@@ -49,23 +48,23 @@ public class FeatureApplicatorTests
 
         applicator.Apply(collection, [new FeatureModule()]);
 
-        Assert.Same(collection, handler.ReceivedCollection);
+        Verify(ReferenceEquals(handler.ReceivedCollection, collection));
     }
 
-    [Fact]
+    [VerifyTest]
     public void Order_ComesFromTheHandler()
     {
         var applicator = new FeatureApplicator<ISomeFeature>(
             new RecordingHandler { HandlerOrder = 42 }
         );
 
-        Assert.Equal(42, applicator.Order);
+        Verify(applicator.Order == 42);
     }
 
-    [Fact]
+    [VerifyTest]
     public void Order_DefaultsToZero()
     {
-        Assert.Equal(0, new FeatureApplicator<ISomeFeature>(new DefaultOrderHandler()).Order);
+        Verify(new FeatureApplicator<ISomeFeature>(new DefaultOrderHandler()).Order == 0);
     }
 
     private class RecordingHandler : IDependencyModuleFeature<ISomeFeature>

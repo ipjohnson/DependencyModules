@@ -1,6 +1,5 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using Xunit;
 
 namespace DependencyModules.Tests.Infrastructure;
 
@@ -10,7 +9,9 @@ namespace DependencyModules.Tests.Infrastructure;
 ///
 /// To accept new output, re-run the tests with UPDATE_SNAPSHOTS=1:
 ///     UPDATE_SNAPSHOTS=1 dotnet test tests/DependencyModules.Tests
-/// and review the resulting changes under tests/DependencyModules.Tests/Snapshots.
+///     UPDATE_SNAPSHOTS=1 scripts/test-verificationglue.sh
+/// and review the resulting changes under the Snapshots folder of each project. Each project
+/// reads the snapshots of its own folder.
 ///
 /// Snapshots are read from the build output, where they are copied by the project file.
 /// [CallerFilePath] is deliberately not used to locate them: deterministic builds
@@ -55,7 +56,7 @@ public static class Snapshot
 
         var snapshotPath = Path.Combine(OutputSnapshotDirectory, fileName);
 
-        Assert.True(
+        Require.That(
             File.Exists(snapshotPath),
             $"Missing snapshot '{fileName}'. Re-run with {UpdateVariable}=1 to create it."
                 + Environment.NewLine
@@ -74,7 +75,7 @@ public static class Snapshot
             );
             File.WriteAllText(receivedPath, normalized);
 
-            Assert.Fail(
+            Require.Fail(
                 $"Generated output does not match '{fileName}'."
                     + Environment.NewLine
                     + $"Wrote actual output to '{receivedPath}'."
@@ -93,13 +94,13 @@ public static class Snapshot
     /// </summary>
     private static void Update(string fileName, string content)
     {
-        Assert.True(
+        Require.That(
             !string.IsNullOrEmpty(SourceSnapshotDirectory),
             $"Cannot update snapshots: the assembly has no SnapshotDirectory metadata. "
                 + $"Rebuild the test project, then re-run with {UpdateVariable}=1."
         );
 
-        Assert.True(
+        Require.That(
             Directory.Exists(Path.GetDirectoryName(SourceSnapshotDirectory!)),
             $"Cannot update snapshots: '{SourceSnapshotDirectory}' is not reachable from this machine. "
                 + "Snapshots can only be updated from a checkout of the source tree."

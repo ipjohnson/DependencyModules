@@ -8,6 +8,13 @@
         "csharpier"
       ],
       "rollForward": false
+    },
+    "coverlet.console": {
+      "version": "6.0.2",
+      "commands": [
+        "coverlet"
+      ],
+      "rollForward": false
     }
   }
 }

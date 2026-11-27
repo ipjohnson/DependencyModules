@@ -3,21 +3,20 @@ using DependencyModules.Runtime.Features;
 using DependencyModules.Runtime.Helpers;
 using DependencyModules.Runtime.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
-namespace DependencyModules.Tests.RuntimeTests;
+namespace DependencyModules.Specs.RuntimeTests;
 
 /// <summary>
 /// Covers how DependencyRegistry.LoadModules walks a module graph: de-duplication, ordering,
 /// feature application, and environment-aware configuration.
 /// </summary>
-public class ModuleLoadingTests
+public partial class ModuleLoadingTests
 {
     private interface IThing;
 
     private class Thing : IThing;
 
-    [Fact]
+    [VerifyTest]
     public void LoadModules_AppliesEachModuleOnce()
     {
         var module = new CountingModule();
@@ -25,10 +24,10 @@ public class ModuleLoadingTests
         var collection = new ServiceCollection();
         DependencyRegistry<object>.LoadModules(collection, module, module);
 
-        Assert.Equal(1, module.ApplyCount);
+        Verify(module.ApplyCount == 1);
     }
 
-    [Fact]
+    [VerifyTest]
     public void LoadModules_DeduplicatesEqualModules()
     {
         var first = new EquatableModule("same");
@@ -37,10 +36,10 @@ public class ModuleLoadingTests
         var collection = new ServiceCollection();
         DependencyRegistry<object>.LoadModules(collection, first, second);
 
-        Assert.Equal(1, first.ApplyCount + second.ApplyCount);
+        Verify(first.ApplyCount + second.ApplyCount == 1);
     }
 
-    [Fact]
+    [VerifyTest]
     public void LoadModules_KeepsModulesThatCompareUnequal()
     {
         var first = new EquatableModule("one");
@@ -49,11 +48,11 @@ public class ModuleLoadingTests
         var collection = new ServiceCollection();
         DependencyRegistry<object>.LoadModules(collection, first, second);
 
-        Assert.Equal(1, first.ApplyCount);
-        Assert.Equal(1, second.ApplyCount);
+        Verify(first.ApplyCount == 1);
+        Verify(second.ApplyCount == 1);
     }
 
-    [Fact]
+    [VerifyTest]
     public void LoadModules_SkipsModulesThatOptOut()
     {
         var module = new CountingModule { LoadModule = false };
@@ -61,10 +60,10 @@ public class ModuleLoadingTests
         var collection = new ServiceCollection();
         DependencyRegistry<object>.LoadModules(collection, module);
 
-        Assert.Equal(0, module.ApplyCount);
+        Verify(module.ApplyCount == 0);
     }
 
-    [Fact]
+    [VerifyTest]
     public void LoadModules_LoadsNestedModulesReturnedByGetModules()
     {
         var child = new CountingModule();
@@ -73,11 +72,11 @@ public class ModuleLoadingTests
         var collection = new ServiceCollection();
         DependencyRegistry<object>.LoadModules(collection, parent);
 
-        Assert.Equal(1, parent.ApplyCount);
-        Assert.Equal(1, child.ApplyCount);
+        Verify(parent.ApplyCount == 1);
+        Verify(child.ApplyCount == 1);
     }
 
-    [Fact]
+    [VerifyTest]
     public void LoadModules_TerminatesOnCircularModuleReferences()
     {
         var first = new CountingModule();
@@ -87,11 +86,11 @@ public class ModuleLoadingTests
         var collection = new ServiceCollection();
         DependencyRegistry<object>.LoadModules(collection, first);
 
-        Assert.Equal(1, first.ApplyCount);
-        Assert.Equal(1, second.ApplyCount);
+        Verify(first.ApplyCount == 1);
+        Verify(second.ApplyCount == 1);
     }
 
-    [Fact]
+    [VerifyTest]
     public void LoadModules_InvokesServiceCollectionConfiguration()
     {
         var module = new ConfiguringModule();
@@ -99,10 +98,10 @@ public class ModuleLoadingTests
         var collection = new ServiceCollection();
         DependencyRegistry<object>.LoadModules(collection, module);
 
-        Assert.Contains(collection, descriptor => descriptor.ServiceType == typeof(IThing));
+        Verify(collection.Any(descriptor => descriptor.ServiceType == typeof(IThing)));
     }
 
-    [Fact]
+    [VerifyTest]
     public void LoadModules_AppliesFeaturesBeforeServices()
     {
         var module = new FeatureModule();
@@ -110,29 +109,29 @@ public class ModuleLoadingTests
         var collection = new ServiceCollection();
         DependencyRegistry<object>.LoadModules(collection, module);
 
-        Assert.True(module.FeatureApplied);
-        Assert.True(module.FeatureAppliedBeforeConfigure);
+        Verify(module.FeatureApplied);
+        Verify(module.FeatureAppliedBeforeConfigure);
     }
 
     /// <summary>
     /// Regression test: ConfigureDecorators was declared on IServiceCollectionConfiguration and
     /// never invoked by anything, so a module implementing it silently did nothing.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void LoadModules_InvokesConfigureDecorators()
     {
         var module = new DecoratingModule();
 
         DependencyRegistry<object>.LoadModules(new ServiceCollection(), module);
 
-        Assert.True(module.ConfigureDecoratorsCalled);
+        Verify(module.ConfigureDecoratorsCalled);
     }
 
     /// <summary>
     /// Decoration rewrites existing registrations, so it has to run after every module has
     /// registered its services or there would be nothing to decorate.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void LoadModules_RunsConfigureDecoratorsAfterAllServices()
     {
         var decorating = new DecoratingModule();
@@ -141,11 +140,11 @@ public class ModuleLoadingTests
         var collection = new ServiceCollection();
         DependencyRegistry<object>.LoadModules(collection, decorating, registering);
 
-        Assert.True(decorating.ConfigureDecoratorsCalled);
-        Assert.Contains(typeof(IThing), decorating.ServicesVisibleWhenDecorating!);
+        Verify(decorating.ConfigureDecoratorsCalled);
+        Verify(decorating.ServicesVisibleWhenDecorating!.Contains(typeof(IThing)));
     }
 
-    [Fact]
+    [VerifyTest]
     public void LoadModules_CanDecorateARegistrationFromAnotherModule()
     {
         var collection = new ServiceCollection();
@@ -157,10 +156,11 @@ public class ModuleLoadingTests
 
         var provider = collection.BuildServiceProvider();
 
-        Assert.IsType<DecoratedThing>(provider.GetService<IThing>());
+        var thing = provider.GetService<IThing>();
+        Verify(thing?.GetType() == typeof(DecoratedThing));
     }
 
-    [Fact]
+    [VerifyTest]
     public void LoadModules_AppliesFeaturesInOrder()
     {
         var module = new OrderedFeatureModule();
@@ -168,10 +168,10 @@ public class ModuleLoadingTests
         var collection = new ServiceCollection();
         DependencyRegistry<object>.LoadModules(collection, module);
 
-        Assert.Equal([1, 5, 10], module.AppliedOrders);
+        Verify(module.AppliedOrders.SequenceEqual([1, 5, 10]));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AddModules_WithEnvironment_PassesEnvironmentToConfiguration()
     {
         var environment = new StubEnvironment("Staging");
@@ -180,7 +180,7 @@ public class ModuleLoadingTests
         var collection = new ServiceCollection();
         collection.AddModules(environment, module);
 
-        Assert.Same(environment, module.ObservedEnvironment);
+        Verify(ReferenceEquals(module.ObservedEnvironment, environment));
     }
 
     /// <summary>
@@ -191,7 +191,7 @@ public class ModuleLoadingTests
     /// null here while its own conditional registrations evaluated against Production would be
     /// looking at two different answers to the same question.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void AddModules_WithoutEnvironment_PassesTheProcessDefaultToConfiguration()
     {
         var module = new EnvironmentModule();
@@ -202,20 +202,20 @@ public class ModuleLoadingTests
 
         // The instance registered into the collection, rather than whatever CreateDefault hands out
         // next — it builds a fresh one per call, so comparing against it would test nothing.
-        var registered = Assert.Single(
+        var registered = Single(
             collection,
             descriptor => descriptor.ServiceType == typeof(IModuleEnvironment)
         );
 
-        Assert.Same(registered.ImplementationInstance, module.ObservedEnvironment);
-        Assert.Equal(
-            ModuleEnvironment.CreateDefault().EnvironmentName,
+        Verify(ReferenceEquals(module.ObservedEnvironment, registered.ImplementationInstance));
+        Verify(
             module.ObservedEnvironment!.EnvironmentName
+                == ModuleEnvironment.CreateDefault().EnvironmentName
         );
-        Assert.True(module.ConfigureCalled);
+        Verify(module.ConfigureCalled);
     }
 
-    [Fact]
+    [VerifyTest]
     public void AddModules_WithModuleEnvironmentNone_PassesNoneRatherThanTheDefault()
     {
         var module = new EnvironmentModule();
@@ -223,10 +223,10 @@ public class ModuleLoadingTests
         var collection = new ServiceCollection();
         collection.AddModules(ModuleEnvironment.None, module);
 
-        Assert.Same(ModuleEnvironment.None, module.ObservedEnvironment);
+        Verify(ReferenceEquals(module.ObservedEnvironment, ModuleEnvironment.None));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AddModules_WithEnvironment_RegistersEnvironmentAsSingleton()
     {
         var environment = new StubEnvironment("Production");
@@ -235,7 +235,7 @@ public class ModuleLoadingTests
         collection.AddModules(environment, new CountingModule());
 
         var provider = collection.BuildServiceProvider();
-        Assert.Same(environment, provider.GetService<IModuleEnvironment>());
+        Verify(ReferenceEquals(provider.GetService<IModuleEnvironment>(), environment));
     }
 
     private class CountingModule : IDependencyModule

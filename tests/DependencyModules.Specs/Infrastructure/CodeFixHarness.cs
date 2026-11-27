@@ -6,7 +6,6 @@ using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Diagnostics;
-using Xunit;
 
 namespace DependencyModules.Tests.Infrastructure;
 
@@ -164,9 +163,9 @@ public static class CodeFixHarness
 
         var fix = await provider.GetFixAllProvider()!.GetFixAsync(context);
 
-        Assert.NotNull(fix);
+        Require.That(fix != null, "The fix-all provider returned no code action.");
 
-        return await ApplyAsync(fix!);
+        return await ApplyAsync(fix);
     }
 
     private static async Task<Solution> ApplyAsync(CodeAction action)

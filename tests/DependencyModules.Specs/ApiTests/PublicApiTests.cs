@@ -2,9 +2,8 @@ using DependencyModules.Runtime.Attributes;
 using DependencyModules.Tests.Infrastructure;
 using DependencyModules.xUnit.Attributes;
 using PublicApiGenerator;
-using Xunit;
 
-namespace DependencyModules.Tests.ApiTests;
+namespace DependencyModules.Specs.ApiTests;
 
 /// <summary>
 /// Pins the public surface of every package that ships a referenceable assembly.
@@ -16,12 +15,13 @@ namespace DependencyModules.Tests.ApiTests;
 ///
 /// A failure here is not automatically a bug. It means the surface moved, and someone has to decide
 /// whether that is intended and whether it warrants a major version. To accept a change:
-///     UPDATE_SNAPSHOTS=1 dotnet test tests/DependencyModules.Tests
-/// then read the diff carefully before committing it.
+///     UPDATE_SNAPSHOTS=1 scripts/test-verificationglue.sh
+/// then read the diff carefully before committing it. The xUnit 4 snapshot needs
+///     UPDATE_SNAPSHOTS=1 scripts/test-verificationglue.sh -p:XunitMajor=4
 /// </summary>
-public class PublicApiTests
+public partial class PublicApiTests
 {
-    [Fact]
+    [VerifyTest]
     public void RuntimeApi()
     {
         Snapshot.Match(ApiOf(typeof(DependencyModuleAttribute)));
@@ -32,13 +32,13 @@ public class PublicApiTests
     /// DependencyModules.xUnit4, which is the xUnit package's sources built against xunit.v3 4.x.
     /// The two surfaces differ where the xUnit types they expose differ.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void XUnit4Api()
     {
         Snapshot.Match(ApiOf(typeof(ModuleTestAttribute)));
     }
 #else
-    [Fact]
+    [VerifyTest]
     public void XUnitApi()
     {
         Snapshot.Match(ApiOf(typeof(ModuleTestAttribute)));
@@ -50,7 +50,7 @@ public class PublicApiTests
     /// the two attributes derive from what their own framework requires, and only
     /// <c>IModuleTestAttribute</c> is common to both.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void NUnitApi()
     {
         Snapshot.Match(
@@ -62,13 +62,13 @@ public class PublicApiTests
     /// The seam every mocking package implements, and the only assembly they share. It carries no
     /// test framework dependency, which is the point of it — a change here reaches all of them.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void TestingApi()
     {
         Snapshot.Match(ApiOf(typeof(Testing.Attributes.Interfaces.IMockSupportAttribute)));
     }
 
-    [Fact]
+    [VerifyTest]
     public void NSubstituteApi()
     {
         Snapshot.Match(
@@ -76,13 +76,13 @@ public class PublicApiTests
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void MoqApi()
     {
         Snapshot.Match(ApiOf(typeof(global::DependencyModules.Moq.MoqSupportAttribute)));
     }
 
-    [Fact]
+    [VerifyTest]
     public void FakeItEasyApi()
     {
         Snapshot.Match(
@@ -96,7 +96,7 @@ public class PublicApiTests
     /// DependencyModules.SourceGenerator.Impl package invites developers to build their own
     /// generators on top of these base classes.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void SourceGeneratorApi()
     {
         Snapshot.Match(ApiOf(typeof(SourceGenerator.SourceGenerator)));

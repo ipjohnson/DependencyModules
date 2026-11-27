@@ -1,14 +1,13 @@
 using DependencyModules.Runtime.Helpers;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
-namespace DependencyModules.Tests.RuntimeTests;
+namespace DependencyModules.Specs.RuntimeTests;
 
 /// <summary>
 /// The descriptor rewrite is where decoration actually goes wrong, so it is tested directly rather
 /// than only through generated code.
 /// </summary>
-public class DecoratorHelperTests
+public partial class DecoratorHelperTests
 {
     private interface IThing
     {
@@ -77,7 +76,7 @@ public class DecoratorHelperTests
     private static IThing Resolve(IServiceCollection services) =>
         services.BuildServiceProvider().GetRequiredService<IThing>();
 
-    [Fact]
+    [VerifyTest]
     public void Decorate_WrapsAnImplementationTypeRegistration()
     {
         var services = new ServiceCollection();
@@ -89,10 +88,10 @@ public class DecoratorHelperTests
             (_, inner) => new Wrapper((IThing)inner)
         );
 
-        Assert.Equal("wrapped(thing)", Resolve(services).Describe());
+        Verify(Resolve(services).Describe() == "wrapped(thing)");
     }
 
-    [Fact]
+    [VerifyTest]
     public void Decorate_WrapsAFactoryRegistration()
     {
         var services = new ServiceCollection();
@@ -104,10 +103,10 @@ public class DecoratorHelperTests
             (_, inner) => new Wrapper((IThing)inner)
         );
 
-        Assert.Equal("wrapped(thing)", Resolve(services).Describe());
+        Verify(Resolve(services).Describe() == "wrapped(thing)");
     }
 
-    [Fact]
+    [VerifyTest]
     public void Decorate_WrapsAnInstanceRegistration()
     {
         var services = new ServiceCollection();
@@ -119,14 +118,14 @@ public class DecoratorHelperTests
             (_, inner) => new Wrapper((IThing)inner)
         );
 
-        Assert.Equal("wrapped(thing)", Resolve(services).Describe());
+        Verify(Resolve(services).Describe() == "wrapped(thing)");
     }
 
     /// <summary>
     /// The generic overload wraps the same shapes the type-driven one does, without a cast at the
     /// call site.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void DecorateOfT_WrapsAnImplementationTypeRegistration()
     {
         var services = new ServiceCollection();
@@ -138,10 +137,10 @@ public class DecoratorHelperTests
             (_, inner) => new Wrapper(inner)
         );
 
-        Assert.Equal("wrapped(thing)", Resolve(services).Describe());
+        Verify(Resolve(services).Describe() == "wrapped(thing)");
     }
 
-    [Fact]
+    [VerifyTest]
     public void DecorateOfT_WrapsEveryRegistrationOfTheService()
     {
         var services = new ServiceCollection();
@@ -156,11 +155,11 @@ public class DecoratorHelperTests
 
         var all = services.BuildServiceProvider().GetServices<IThing>().ToArray();
 
-        Assert.All(all, thing => Assert.IsType<Wrapper>(thing));
-        Assert.Equal(["wrapped(thing)", "wrapped(other)"], all.Select(t => t.Describe()));
+        Verify(all.All(thing => thing.GetType() == typeof(Wrapper)));
+        Verify(all.Select(t => t.Describe()).SequenceEqual(["wrapped(thing)", "wrapped(other)"]));
     }
 
-    [Fact]
+    [VerifyTest]
     public void DecorateOfT_StacksInApplicationOrder()
     {
         var services = new ServiceCollection();
@@ -177,14 +176,14 @@ public class DecoratorHelperTests
             (_, inner) => new SecondWrapper(inner)
         );
 
-        Assert.Equal("second(wrapped(thing))", Resolve(services).Describe());
+        Verify(Resolve(services).Describe() == "second(wrapped(thing))");
     }
 
     /// <summary>
     /// A closed construction is decorated by naming it, which is what the generator emits for a
     /// generic decorator: one call per closed registration rather than one open-generic call.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void DecorateOfT_WrapsEachClosedConstructionIndependently()
     {
         var services = new ServiceCollection();
@@ -204,14 +203,14 @@ public class DecoratorHelperTests
 
         var provider = services.BuildServiceProvider();
 
-        Assert.Equal("wrapped(repo)", provider.GetRequiredService<IRepo<string>>().Describe());
-        Assert.Equal("wrapped(repo)", provider.GetRequiredService<IRepo<int>>().Describe());
+        Verify(provider.GetRequiredService<IRepo<string>>().Describe() == "wrapped(repo)");
+        Verify(provider.GetRequiredService<IRepo<int>>().Describe() == "wrapped(repo)");
     }
 
     /// <summary>
     /// The inner stays owned by the container here too.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void DecorateOfT_LeavesTheInnerImplementationOwnedByTheContainer()
     {
         var services = new ServiceCollection();
@@ -232,6 +231,6 @@ public class DecoratorHelperTests
             wrapper = (DisposableWrapper)scope.ServiceProvider.GetRequiredService<IThing>();
         }
 
-        Assert.Equal(1, ((DisposableThing)wrapper.Inner).Disposals);
+        Verify(((DisposableThing)wrapper.Inner).Disposals == 1);
     }
 }

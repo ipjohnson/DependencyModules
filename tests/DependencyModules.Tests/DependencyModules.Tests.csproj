@@ -7,7 +7,7 @@
         <IsPackable>False</IsPackable>
     </PropertyGroup>
 
-    <!-- The public API snapshot of the xUnit package differs between the two majors. -->
+    <!-- Some xUnitTests differ between the two majors. -->
     <PropertyGroup Condition="'$(XunitMajor)' == '4'">
         <DefineConstants>$(DefineConstants);XUNIT_V4</DefineConstants>
     </PropertyGroup>
@@ -27,6 +27,14 @@
         <ProjectReference Include="..\..\src\DependencyModules.NSubstitute\DependencyModules.NSubstitute.csproj"/>
         <ProjectReference Include="..\..\src\DependencyModules.Moq\DependencyModules.Moq.csproj"/>
         <ProjectReference Include="..\..\src\DependencyModules.FakeItEasy\DependencyModules.FakeItEasy.csproj"/>
+    </ItemGroup>
+
+    <!--
+        The test harness lives in tests/DependencyModules.Specs and is compiled into both projects
+        while the test folders move there one at a time. It uses no test framework.
+    -->
+    <ItemGroup>
+        <Compile Include="..\DependencyModules.Specs\Infrastructure\**\*.cs" LinkBase="Infrastructure"/>
     </ItemGroup>
 
     <ItemGroup>

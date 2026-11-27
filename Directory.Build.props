@@ -60,6 +60,14 @@
         <DependencyModulesXunitProject>DependencyModules.xUnit4</DependencyModulesXunitProject>
     </PropertyGroup>
 
+    <!--
+        The VerificationGlue.Tests version that the VerificationGlue.Tests projects under tests/ run
+        on. It targets net10.0 only. No shipping package references it.
+    -->
+    <PropertyGroup>
+        <VerificationGlueVersion>0.3.0-preview.1</VerificationGlueVersion>
+    </PropertyGroup>
+
     <PropertyGroup>
         <Authors>Ian Johnson</Authors>
         <Company>Ian Johnson</Company>
