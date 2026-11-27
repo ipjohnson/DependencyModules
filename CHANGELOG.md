@@ -39,6 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `IDependencyModule` has the new member `InternalApplyGlue`, with a default implementation. The
   load of the modules has a last step that adds the collections and the `Func` registrations.
   (#132)
+- DM0021 also reads `[Mock]` from `VerificationGlue.Mocks`. A VerificationGlue test with that
+  `[Mock]` and a `[TestExport]` for the same service on one method now gets DM0021.
 
 ## [1.7.0] - 2026-09-25
 

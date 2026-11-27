@@ -230,6 +230,8 @@ To correct the problem, set `Realm` on `[Intercept]` to the module that register
 
 A test method has `[TestExport]` for a service type and a `[Mock]` parameter of the same type. The mock replaces the `[TestExport]` registration. The generator gives DM0021 only if the test project references `DependencyModules.SourceGenerator`.
 
+`[Mock]` can be `DependencyModules.Testing.Attributes.MockAttribute` or `VerificationGlue.Mocks.MockAttribute`. The generator gives the same DM0021 for both.
+
 The generator gives no DM0021 for the two exceptions, because the `[TestExport]` registration stays in use:
 
 - The `[Mock]` parameter has `[FromKeyedServices]`.

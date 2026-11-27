@@ -304,6 +304,28 @@ public static class KnownTypes
         }
     }
 
+    /// <summary>
+    /// VerificationGlue types, matched by name. No project here references VerificationGlue.
+    /// </summary>
+    public static class VerificationGlue
+    {
+        public static class Mocks
+        {
+            public const string Namespace = "VerificationGlue.Mocks";
+
+            /// <summary>
+            /// VerificationGlue's own <c>[Mock]</c>. Under VerificationGlue it has the same
+            /// precedence over <c>[TestExport]</c> as DependencyModules' <c>[Mock]</c>, so DM0021
+            /// reads both.
+            /// </summary>
+            public static readonly ITypeDefinition MockAttribute = TypeDefinition.Get(
+                TypeDefinitionEnum.ClassDefinition,
+                Namespace,
+                "MockAttribute"
+            );
+        }
+    }
+
     public static class System
     {
         public static readonly ITypeDefinition ArgumentOutOfRangeException = TypeDefinition.Get(

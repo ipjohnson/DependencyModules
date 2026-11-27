@@ -192,6 +192,181 @@ public class MockTestExportDiagnosticTests
         Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0021");
     }
 
+    /// <summary>
+    /// VerificationGlue's <c>[Mock]</c> wins over <c>[TestExport]</c> as DependencyModules' does, so
+    /// the two spellings get the same report at the same place.
+    /// </summary>
+    [Fact]
+    public void VerificationGlueMock_GetsTheSameReportAsDependencyModulesMock()
+    {
+        const string body = """
+            [TestExport(typeof(IThing), Implementation = typeof(RealThing))]
+            public void Conflicting([Mock] IThing thing) { }
+            """;
+
+        var dependencyModules = Assert.Single(
+            Run(body).GeneratorDiagnostics,
+            d => d.Id == "DM0021"
+        );
+        var verificationGlueResult = RunVerificationGlue(body);
+        var verificationGlue = Assert.Single(
+            verificationGlueResult.GeneratorDiagnostics,
+            d => d.Id == "DM0021"
+        );
+
+        Assert.Empty(verificationGlueResult.Errors);
+        Assert.Equal(dependencyModules.GetMessage(), verificationGlue.GetMessage());
+        Assert.Equal(dependencyModules.Severity, verificationGlue.Severity);
+        Assert.Equal(
+            "Test.cs",
+            System.IO.Path.GetFileName(verificationGlue.Location.GetLineSpan().Path)
+        );
+        Assert.Equal(
+            "[Mock] IThing thing",
+            verificationGlue
+                .Location.SourceTree!.GetText()
+                .ToString(verificationGlue.Location.SourceSpan)
+        );
+    }
+
+    [Fact]
+    public void VerificationGlueMock_QualifiedSpelling_IsReported()
+    {
+        var result = RunVerificationGlue(
+            """
+            [TestExport(typeof(IThing), Implementation = typeof(RealThing))]
+            public void Conflicting([global::VerificationGlue.Mocks.Mock] IThing thing) { }
+            """
+        );
+
+        Assert.Empty(result.Errors);
+        Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0021");
+    }
+
+    [Fact]
+    public void VerificationGlueMock_Keyed_IsNotReported()
+    {
+        var result = RunVerificationGlue(
+            """
+            [TestExport(typeof(IThing), Implementation = typeof(RealThing))]
+            public void Keyed([Mock] [Microsoft.Extensions.DependencyInjection.FromKeyedServices("k")] IThing thing) { }
+            """
+        );
+
+        Assert.Empty(result.Errors);
+        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0021");
+    }
+
+    [Fact]
+    public void VerificationGlueMock_NamingAnotherService_IsNotReported()
+    {
+        var result = RunVerificationGlue(
+            """
+            [TestExport(typeof(IOther), Implementation = typeof(RealOther))]
+            public void Unrelated([Mock] IThing thing) { }
+            """
+        );
+
+        Assert.Empty(result.Errors);
+        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0021");
+    }
+
+    [Fact]
+    public void VerificationGlueMock_WithTestExportOnTheClass_IsNotReported()
+    {
+        var result = GeneratorTestHarness.Run(
+            $$"""
+            {{VerificationGluePreamble}}
+
+            namespace TestNamespace
+            {
+                [TestExport(typeof(IThing), Implementation = typeof(RealThing))]
+                public class Fixture {
+                    public void Overriding([Mock] IThing thing) { }
+                }
+            }
+            """
+        );
+
+        Assert.Empty(result.Errors);
+        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0021");
+    }
+
+    /// <summary>
+    /// Matched by namespace and name, so a <c>MockAttribute</c> of another library is not read.
+    /// </summary>
+    [Fact]
+    public void AMockAttributeInAnotherNamespace_IsNotReported()
+    {
+        var result = GeneratorTestHarness.Run(
+            $$"""
+            using DependencyModules.Testing.Attributes;
+
+            namespace Elsewhere
+            {
+                [System.AttributeUsage(System.AttributeTargets.Parameter)]
+                public sealed class MockAttribute : System.Attribute;
+            }
+
+            namespace TestNamespace
+            {
+                public interface IThing;
+
+                public class RealThing : IThing;
+
+                public class Fixture {
+                    [TestExport(typeof(IThing), Implementation = typeof(RealThing))]
+                    public void NotAMock([Elsewhere.Mock] IThing thing) { }
+                }
+            }
+            """
+        );
+
+        Assert.Empty(result.Errors);
+        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0021");
+    }
+
+    /// <summary>
+    /// A VerificationGlue test file. The stub stands in for <c>VerificationGlue.Mocks</c>, which no
+    /// project here references. <c>[TestExport]</c> is imported by alias, because importing both
+    /// namespaces makes <c>[Mock]</c> ambiguous.
+    /// </summary>
+    private const string VerificationGluePreamble = """
+        using VerificationGlue.Mocks;
+        using TestExportAttribute = DependencyModules.Testing.Attributes.TestExportAttribute;
+
+        namespace VerificationGlue.Mocks
+        {
+            [System.AttributeUsage(System.AttributeTargets.Parameter)]
+            public sealed class MockAttribute : System.Attribute;
+        }
+
+        namespace TestNamespace
+        {
+            public interface IThing;
+
+            public interface IOther;
+
+            public class RealThing : IThing;
+
+            public class RealOther : IOther;
+        }
+        """;
+
+    private static GeneratorResult RunVerificationGlue(string body) =>
+        GeneratorTestHarness.Run(
+            $$"""
+            {{VerificationGluePreamble}}
+
+            namespace TestNamespace
+            {
+                public class Fixture {
+                    {{body}}
+                }
+            }
+            """
+        );
+
     private const string Preamble = """
         using DependencyModules.Runtime.Attributes;
         using DependencyModules.Testing.Attributes;

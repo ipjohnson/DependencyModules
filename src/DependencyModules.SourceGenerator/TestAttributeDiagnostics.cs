@@ -25,6 +25,12 @@ namespace DependencyModules.SourceGenerator;
 /// everything under it, and one test overriding that for one argument is what having both scopes is
 /// for — reporting that would be reporting the feature.
 /// </para>
+/// <para>
+/// <c>[Mock]</c> is either <c>DependencyModules.Testing.Attributes.MockAttribute</c> or
+/// <c>VerificationGlue.Mocks.MockAttribute</c>. Under VerificationGlue both win over a
+/// <c>[TestExport]</c> on the same method. VerificationGlue reports no diagnostic of its own for
+/// this, so this is the only report.
+/// </para>
 /// </remarks>
 internal static class TestAttributeDiagnostics
 {
@@ -95,11 +101,19 @@ internal static class TestAttributeDiagnostics
 
             // A keyed mock is registered under its key, so the unkeyed export stays in use.
             if (
-                !Carries(
-                    parameter,
-                    KnownTypes.DependencyModules.Testing.MockAttribute,
-                    context,
-                    cancellationToken
+                !(
+                    Carries(
+                        parameter,
+                        KnownTypes.DependencyModules.Testing.MockAttribute,
+                        context,
+                        cancellationToken
+                    )
+                    || Carries(
+                        parameter,
+                        KnownTypes.VerificationGlue.Mocks.MockAttribute,
+                        context,
+                        cancellationToken
+                    )
                 )
                 || Carries(
                     parameter,
