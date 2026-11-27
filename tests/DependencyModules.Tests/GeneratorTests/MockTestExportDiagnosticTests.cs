@@ -224,7 +224,7 @@ public class MockTestExportDiagnosticTests
         Assert.Equal(
             "[Mock] IThing thing",
             verificationGlue
-                .Location.SourceTree!.GetText()
+                .Location.SourceTree!.GetText(TestContext.Current.CancellationToken)
                 .ToString(verificationGlue.Location.SourceSpan)
         );
     }
