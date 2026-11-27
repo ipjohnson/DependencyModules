@@ -24,7 +24,7 @@ dotnet build DependencyModules.sln --configuration Release
 
 The `restore` step needs the `test-tools` feed in `NuGet.config`, which has the Microsoft.Testing.Platform 3 preview that VerificationGlue.Tests uses. No shipping package references VerificationGlue.
 
-The unit tests are in two projects while they move to VerificationGlue.Tests. `tests/DependencyModules.Specs` has the `RuntimeTests` and `ApiTests` folders and the `GeneratorTests` files whose names start with A to M. `tests/DependencyModules.Tests` has the other folders and files. Both projects compile the test harness in `tests/DependencyModules.Specs/Infrastructure`. Each project reads the snapshots in its own `Snapshots` folder.
+The unit tests are in two projects while they move to VerificationGlue.Tests. `tests/DependencyModules.Specs` has the `RuntimeTests`, `ApiTests` and `GeneratorTests` folders. `tests/DependencyModules.Tests` has the other folders. Both projects compile the test harness in `tests/DependencyModules.Specs/Infrastructure`. Each project reads the snapshots in its own `Snapshots` folder.
 
 To run all tests with code coverage, use the coverage script. The script writes the report to `artifacts/coverage`. If you give a percentage, the script fails when the line coverage is less than that value.
 

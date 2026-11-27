@@ -2,9 +2,8 @@ using System.Collections.Generic;
 using System.Linq;
 using DependencyModules.Tests.Infrastructure;
 using Microsoft.CodeAnalysis;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// DM0016 and DM0019 for a module that lives in a referenced assembly.
@@ -16,7 +15,7 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// its DM0019 example — <c>using MyApp.Library;</c> above <c>[assembly: LibraryModule]</c> — and it
 /// did not fire, because both codes were built only from the modules declared in this compilation.
 /// </summary>
-public class ReferencedAssemblyModuleAttributeTests
+public partial class ReferencedAssemblyModuleAttributeTests
 {
     private const string LibrarySource = """
         using DependencyModules.Runtime.Attributes;
@@ -36,7 +35,7 @@ public class ReferencedAssemblyModuleAttributeTests
     /// The documented DM0019 example, verbatim in shape: the attribute compiles, and it sits in a
     /// file the generated ApplicationModule was not built from, so nothing reads it.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AnAssemblyAttributeOutsideTheEntryPointFile_ReportsDM0019()
     {
         var result = Run(
@@ -47,27 +46,27 @@ public class ReferencedAssemblyModuleAttributeTests
             """
         );
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0019");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0019");
 
-        Assert.Contains("LibraryModule", diagnostic.GetMessage());
-        Assert.Contains("Program.cs", diagnostic.GetMessage());
+        Verify(diagnostic.GetMessage().Contains("LibraryModule"));
+        Verify(diagnostic.GetMessage().Contains("Program.cs"));
     }
 
     /// <summary>
     /// A qualified name needs no import, so only DM0019 can apply.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AQualifiedAssemblyAttributeOutsideTheEntryPointFile_ReportsDM0019()
     {
         var result = Run(bootstrap: "[assembly: ThePackage.Composition.LibraryModule]");
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0019");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0019");
 
-        Assert.Contains("LibraryModule", diagnostic.GetMessage());
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0016");
+        Verify(diagnostic.GetMessage().Contains("LibraryModule"));
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0016"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AnAssemblyAttributeInTheEntryPointFile_IsSilent()
     {
         var result = Run(
@@ -79,8 +78,8 @@ public class ReferencedAssemblyModuleAttributeTests
             """
         );
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0019");
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0016");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0019"));
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0016"));
     }
 
     /// <summary>
@@ -88,33 +87,33 @@ public class ReferencedAssemblyModuleAttributeTests
     /// names a type the developer never wrote in a namespace it does not mention. DM0016 is what
     /// turns that into the one-line fix.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AnAssemblyAttributeWithoutItsNamespaceImported_ReportsDM0016()
     {
         var result = Run(bootstrap: "[assembly: LibraryModule]");
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0016");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0016");
 
-        Assert.Contains("LibraryModule", diagnostic.GetMessage());
-        Assert.Contains("ThePackage.Composition", diagnostic.GetMessage());
+        Verify(diagnostic.GetMessage().Contains("LibraryModule"));
+        Verify(diagnostic.GetMessage().Contains("ThePackage.Composition"));
     }
 
     /// <summary>
     /// It does not compile yet, so which file it belongs in is a later question — the same order
     /// the in-compilation path already reports in.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AnAssemblyAttributeWithoutItsNamespaceImported_DoesNotAlsoReportDM0019()
     {
         var result = Run(bootstrap: "[assembly: LibraryModule]");
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0019");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0019"));
     }
 
     /// <summary>
     /// A global using satisfies the import wherever it is written, exactly as for a local module.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AGlobalUsingSatisfiesTheImport()
     {
         var result = Run(
@@ -125,8 +124,8 @@ public class ReferencedAssemblyModuleAttributeTests
             }
         );
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0016");
-        Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0019");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0016"));
+        Single(result.GeneratorDiagnostics, d => d.Id == "DM0019");
     }
 
     /// <summary>
@@ -134,7 +133,7 @@ public class ReferencedAssemblyModuleAttributeTests
     /// is nothing to be outside of. Unchanged by any of this, and worth pinning: a test project is
     /// the same shape, and that is where these attributes are supposed to live in their own file.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AClassLibrary_IsSilent()
     {
         var library = GeneratorTestHarness.CompileLibrary(
@@ -155,21 +154,21 @@ public class ReferencedAssemblyModuleAttributeTests
             additionalReferences: [library.Reference]
         );
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0019");
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0016");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0019"));
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0016"));
     }
 
     /// <summary>
     /// An attribute naming no module anywhere is somebody else's attribute. Staying quiet for it is
     /// what keeps this from reporting on every unrelated assembly-level attribute in the project.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AnAttributeThatNamesNoModule_IsSilent()
     {
         var result = Run(bootstrap: "[assembly: System.CLSCompliant(true)]");
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0016");
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0019");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0016"));
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0019"));
     }
 
     private static GeneratorResult Run(

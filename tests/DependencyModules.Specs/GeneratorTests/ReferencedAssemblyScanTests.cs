@@ -1,8 +1,7 @@
 using DependencyModules.Tests.Infrastructure;
 using Microsoft.CodeAnalysis;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// Scanning a referenced assembly with <c>InAssemblyOf&lt;T&gt;</c>.
@@ -12,7 +11,7 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// syntax tree for any of its types. That is the whole point: this path reads symbols out of
 /// metadata, where the in-compilation path reads declarations.
 /// </remarks>
-public class ReferencedAssemblyScanTests
+public partial class ReferencedAssemblyScanTests
 {
     private const string LibrarySource = """
         namespace ThePackage;
@@ -70,7 +69,7 @@ public class ReferencedAssemblyScanTests
     /// The capability: an open generic matched against a package's types, each registered against
     /// the closed construction it actually implements.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void RegistersTypesFromAReferencedAssembly()
     {
         var (result, assembly) = Run(
@@ -98,15 +97,15 @@ public class ReferencedAssemblyScanTests
             .OrderBy(name => name)
             .ToArray();
 
-        Assert.Equal(new[] { "CreateOrderHandler", "RenameOrderHandler" }, registered);
-        Assert.NotNull(handlerType);
+        Verify(registered.SequenceEqual(["CreateOrderHandler", "RenameOrderHandler"]));
+        Verify(handlerType is not null);
     }
 
     /// <summary>
     /// An internal type is not visible across the boundary, and an unconstructable one is refused
     /// the same way it would be in the compilation being built.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void SkipsWhatItCannotSeeOrConstruct()
     {
         var (result, assembly) = Run(
@@ -127,17 +126,17 @@ public class ReferencedAssemblyScanTests
             .Select(d => d.ImplementationType!.Name)
             .ToArray();
 
-        Assert.DoesNotContain("HiddenHandler", registered);
-        Assert.DoesNotContain("UnconstructableHandler", registered);
+        Verify(!registered.Contains("HiddenHandler"));
+        Verify(!registered.Contains("UnconstructableHandler"));
 
         // Refused rather than dropped in silence.
-        Assert.Contains(result.GeneratorDiagnostics, d => d.Id == "DM0006");
+        Verify(result.GeneratorDiagnostics.Any(d => d.Id == "DM0006"));
     }
 
     /// <summary>
     /// A registered service from the package resolves.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void TheRegistrationsResolve()
     {
         var (_, assembly) = Run(
@@ -159,14 +158,14 @@ public class ReferencedAssemblyScanTests
 
         var provider = assembly.BuildProvider();
 
-        Assert.NotNull(provider.GetService(descriptor.ServiceType));
+        Verify(provider.GetService(descriptor.ServiceType) is not null);
     }
 
     /// <summary>
     /// One source or the other. A convention naming an assembly must not pick up local types, and
     /// one that names none must not reach into the package.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AConventionSeesOneSourceOnly()
     {
         var (_, assembly) = Run(
@@ -189,13 +188,13 @@ public class ReferencedAssemblyScanTests
             .Select(d => d.ImplementationType!.Name)
             .ToArray();
 
-        Assert.DoesNotContain("LocalHandler", registered);
+        Verify(!registered.Contains("LocalHandler"));
     }
 
     /// <summary>
     /// Absent the call, a convention scans the compilation being built — unchanged behaviour.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void WithoutTheCallOnlyLocalTypesMatch()
     {
         var (_, assembly) = Run(
@@ -216,14 +215,14 @@ public class ReferencedAssemblyScanTests
             .Select(d => d.ImplementationType!.Name)
             .ToArray();
 
-        Assert.Equal(new[] { "LocalHandler" }, registered);
+        Verify(registered.SequenceEqual(["LocalHandler"]));
     }
 
     /// <summary>
     /// A match from a referenced assembly has no class to squiggle, so its diagnostics report at
     /// the convention that asked for it rather than nowhere.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void DiagnosticsForMetadataMatchesReportAtTheConvention()
     {
         var (result, _) = Run(
@@ -242,22 +241,19 @@ public class ReferencedAssemblyScanTests
 
         var exposures = result.GeneratorDiagnostics.Where(d => d.Id == "DM0010").ToArray();
 
-        Assert.NotEmpty(exposures);
+        Verify(exposures.Length != 0);
 
-        Assert.All(
-            exposures,
-            diagnostic =>
-            {
-                Assert.NotEqual(Location.None, diagnostic.Location);
-                Assert.Contains("Test.cs", diagnostic.Location.GetLineSpan().Path);
-            }
-        );
+        foreach (var diagnostic in exposures)
+        {
+            Verify(!diagnostic.Location.Equals(Location.None));
+            Verify(diagnostic.Location.GetLineSpan().Path.Contains("Test.cs"));
+        }
     }
 
     /// <summary>
     /// Filters apply to metadata types the same way they apply to local ones.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void FiltersApplyToMetadataTypes()
     {
         var (_, assembly) = Run(
@@ -279,6 +275,6 @@ public class ReferencedAssemblyScanTests
             .Select(d => d.ImplementationType!.Name)
             .ToArray();
 
-        Assert.Equal(new[] { "CreateOrderHandler" }, registered);
+        Verify(registered.SequenceEqual(["CreateOrderHandler"]));
     }
 }

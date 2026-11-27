@@ -1,16 +1,15 @@
 using DependencyModules.Tests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// A service attribute registers the declaration it is written on. A nested class or a factory
 /// method inside a service class has its own registration and does not add one for the class.
 /// </summary>
-public class NestedServiceAttributeTests
+public partial class NestedServiceAttributeTests
 {
-    [Fact]
+    [VerifyTest]
     public void ANestedServiceClass_DoesNotRegisterItsContainingClassAgain()
     {
         var assembly = GeneratedAssembly.Create(
@@ -37,18 +36,20 @@ public class NestedServiceAttributeTests
 
         var cache = assembly.Descriptor("ICache");
 
-        Assert.Equal(ServiceLifetime.Singleton, cache.Lifetime);
-        Assert.Equal(ServiceLifetime.Transient, assembly.Descriptor("IEntry").Lifetime);
+        Verify(cache.Lifetime == ServiceLifetime.Singleton);
+        Verify(assembly.Descriptor("IEntry").Lifetime == ServiceLifetime.Transient);
 
         var provider = assembly.BuildProvider();
 
-        Assert.Same(
-            provider.GetRequiredService(assembly.Type("ICache")),
-            provider.GetRequiredService(assembly.Type("ICache"))
+        Verify(
+            ReferenceEquals(
+                provider.GetRequiredService(assembly.Type("ICache")),
+                provider.GetRequiredService(assembly.Type("ICache"))
+            )
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void AFactoryMethodInAServiceClass_DoesNotRegisterItsContainingClassAgain()
     {
         var assembly = GeneratedAssembly.Create(
@@ -75,7 +76,7 @@ public class NestedServiceAttributeTests
             """
         );
 
-        Assert.Equal(ServiceLifetime.Singleton, assembly.Descriptor("IStore").Lifetime);
-        Assert.Equal(ServiceLifetime.Scoped, assembly.Descriptor("IClock").Lifetime);
+        Verify(assembly.Descriptor("IStore").Lifetime == ServiceLifetime.Singleton);
+        Verify(assembly.Descriptor("IClock").Lifetime == ServiceLifetime.Scoped);
     }
 }

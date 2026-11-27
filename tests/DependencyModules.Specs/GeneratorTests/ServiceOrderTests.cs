@@ -1,9 +1,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using DependencyModules.Tests.Infrastructure;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// <c>Order</c> on a service attribute, deciding where an implementation lands in
@@ -18,20 +17,20 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// The default is 0 for everything, and the sort is stable within an order, so a project that names
 /// no orders sees exactly what it saw before.
 /// </summary>
-public class ServiceOrderTests
+public partial class ServiceOrderTests
 {
-    [Fact]
+    [VerifyTest]
     public void WithNoOrderNamed_TheExistingOrderIsKept()
     {
-        Assert.Equal(["Alpha", "Beta", "Gamma"], Resolve("", "", ""));
+        Verify(Resolve("", "", "").SequenceEqual(["Alpha", "Beta", "Gamma"]));
     }
 
-    [Fact]
+    [VerifyTest]
     public void OrderDecidesTheSequence()
     {
-        Assert.Equal(
-            ["Gamma", "Beta", "Alpha"],
+        Verify(
             Resolve(", Order = 30", ", Order = 20", ", Order = 10")
+                .SequenceEqual(["Gamma", "Beta", "Alpha"])
         );
     }
 
@@ -39,22 +38,22 @@ public class ServiceOrderTests
     /// Negative orders sort ahead of the unordered majority, which is what "run this one first"
     /// looks like when the rest of the project has never named an order.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ANegativeOrder_SortsAhead()
     {
-        Assert.Equal(["Gamma", "Alpha", "Beta"], Resolve("", "", ", Order = -1"));
+        Verify(Resolve("", "", ", Order = -1").SequenceEqual(["Gamma", "Alpha", "Beta"]));
     }
 
     /// <summary>
     /// Within one order the previous rule still decides, so naming an order for some services does
     /// not scramble the rest.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void WithinOneOrder_TheSortIsStable()
     {
-        Assert.Equal(
-            ["Alpha", "Beta", "Gamma"],
+        Verify(
             Resolve(", Order = 5", ", Order = 5", ", Order = 5")
+                .SequenceEqual(["Alpha", "Beta", "Gamma"])
         );
     }
 
@@ -62,14 +61,14 @@ public class ServiceOrderTests
     /// The container returns the last registration for a single resolve, so ordering decides this
     /// too — worth pinning, because it is the half a reader does not think about.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void TheLastInOrder_IsWhatASingleResolveReturns()
     {
         var generated = Build(", Order = 30", ", Order = 20", ", Order = 10");
 
         var resolved = generated.BuildProvider().GetService(generated.Type("IStep"))!;
 
-        Assert.Equal("Alpha", resolved.GetType().Name);
+        Verify(resolved.GetType().Name == "Alpha");
     }
 
     private static string[] Resolve(string alpha, string beta, string gamma)

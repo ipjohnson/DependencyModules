@@ -3,9 +3,8 @@ using DependencyModules.Runtime;
 using DependencyModules.Runtime.Interfaces;
 using DependencyModules.Tests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// Shapes a container has to survive, outside the decorator surface.
@@ -14,7 +13,7 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// Each of these is something a real application does and something the generator could plausibly
 /// lose quietly — a registration that never happens reads exactly like one that was never asked for.
 /// </remarks>
-public class RobustnessTests
+public partial class RobustnessTests
 {
     private static string Call(object target, string method) =>
         (string)target.GetType().GetMethod(method)!.Invoke(target, null)!;
@@ -25,7 +24,7 @@ public class RobustnessTests
     /// twice is normal rather than a mistake. Registering twice gives two instances behind one
     /// singleton, which is the kind of thing found much later.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void Module_AddedTwice_RegistersItsServicesOnce()
     {
         var assembly = GeneratedAssembly.Create(
@@ -50,16 +49,16 @@ public class RobustnessTests
         var services = new ServiceCollection();
         services.AddModules(module, module);
 
-        Assert.Single(
+        Single(
             services.BuildServiceProvider().GetServices(assembly.Type("IGreeter")).Cast<object>()
         );
     }
 
     /// <summary>Two environment conditions on one service combine with and.</summary>
-    [Theory]
-    [InlineData("Development", true, 1)]
-    [InlineData("Development", false, 0)]
-    [InlineData("Production", true, 0)]
+    [VerifyTest]
+    [Row("Development", true, 1)]
+    [Row("Development", false, 0)]
+    [Row("Production", true, 0)]
     public void Service_WithTwoConditions_RegistersOnlyWhenBothHold(
         string environment,
         bool flag,
@@ -90,14 +89,14 @@ public class RobustnessTests
             )
         );
 
-        Assert.Equal(
-            expected,
+        Verify(
             assembly.BuildProvider().GetServices(assembly.Type("IGreeter")).Cast<object>().Count()
+                == expected
         );
     }
 
     /// <summary>An explicit service attribute wins over a convention that also matches.</summary>
-    [Fact]
+    [VerifyTest]
     public void Convention_DoesNotAlsoRegisterAnAttributedType()
     {
         var assembly = GeneratedAssembly.Create(
@@ -121,13 +120,11 @@ public class RobustnessTests
             """
         );
 
-        Assert.Single(
-            assembly.BuildProvider().GetServices(assembly.Type("IGreeter")).Cast<object>()
-        );
+        Single(assembly.BuildProvider().GetServices(assembly.Type("IGreeter")).Cast<object>());
     }
 
     /// <summary>A keyed and an unkeyed registration of one service coexist.</summary>
-    [Fact]
+    [VerifyTest]
     public void Service_KeyedAndUnkeyed_AreBothResolvable()
     {
         var assembly = GeneratedAssembly.Create(
@@ -152,12 +149,12 @@ public class RobustnessTests
         var provider = assembly.BuildProvider();
         var greeter = assembly.Type("IGreeter");
 
-        Assert.Equal("plain", Call(provider.GetRequiredService(greeter), "Greet"));
-        Assert.Equal("LOUD", Call(provider.GetRequiredKeyedService(greeter, "loud"), "Greet"));
+        Verify(Call(provider.GetRequiredService(greeter), "Greet") == "plain");
+        Verify(Call(provider.GetRequiredKeyedService(greeter, "loud"), "Greet") == "LOUD");
     }
 
     /// <summary>A cross-wired generic service shares one instance across its interfaces.</summary>
-    [Fact]
+    [VerifyTest]
     public void CrossWire_SharesOneInstanceAcrossServiceTypes()
     {
         var assembly = GeneratedAssembly.Create(
@@ -183,14 +180,14 @@ public class RobustnessTests
 
         var provider = assembly.BuildProvider();
 
-        Assert.Equal(
-            Call(provider.GetRequiredService(assembly.Type("IReader")), "Read"),
+        Verify(
             Call(provider.GetRequiredService(assembly.Type("IWriter")), "Write")
+                == Call(provider.GetRequiredService(assembly.Type("IReader")), "Read")
         );
     }
 
     /// <summary>A convention excluding a namespace does not register from it.</summary>
-    [Fact]
+    [VerifyTest]
     public void Convention_NotInNamespaces_ExcludesThatNamespace()
     {
         var assembly = GeneratedAssembly.Create(
@@ -228,11 +225,11 @@ public class RobustnessTests
             .Select(g => Call(g, "Greet"))
             .ToArray();
 
-        Assert.Equal(["kept"], all);
+        Verify(all.SequenceEqual(["kept"]));
     }
 
     /// <summary>An interceptor sees an async method through to its result.</summary>
-    [Fact]
+    [VerifyTest]
     public async Task Interceptor_OverAnAsyncMethod()
     {
         var assembly = GeneratedAssembly.Create(
@@ -272,12 +269,14 @@ public class RobustnessTests
 
         var task = (Task<string>)fetcher.GetType().GetMethod("FetchAsync")!.Invoke(fetcher, null)!;
 
-        Assert.Equal("fetched", await task);
-        Assert.Equal(1, (int)assembly.Type("Log").GetField("Calls")!.GetValue(null)!);
+        var fetched = await task;
+
+        Verify(fetched == "fetched");
+        Verify((int)assembly.Type("Log").GetField("Calls")!.GetValue(null)! == 1);
     }
 
     /// <summary>A service depending on a collection of a service gets every registration.</summary>
-    [Fact]
+    [VerifyTest]
     public void Service_DependingOnAnEnumerableOfAService_GetsAllOfThem()
     {
         var assembly = GeneratedAssembly.Create(
@@ -306,9 +305,9 @@ public class RobustnessTests
             """
         );
 
-        Assert.Equal(
-            "first,second",
+        Verify(
             Call(assembly.BuildProvider().GetRequiredService(assembly.Type("Engine")), "Describe")
+                == "first,second"
         );
     }
 
@@ -318,7 +317,7 @@ public class RobustnessTests
     // ------------------------------------------------------------------------------------------
 
     /// <summary>An explicitly named service type is the one registered.</summary>
-    [Fact]
+    [VerifyTest]
     public void Service_WithAnExplicitServiceType_RegistersThatOne()
     {
         var assembly = GeneratedAssembly.Create(
@@ -343,8 +342,8 @@ public class RobustnessTests
 
         var provider = assembly.BuildProvider();
 
-        Assert.Equal("write", Call(provider.GetRequiredService(assembly.Type("IWriter")), "Write"));
-        Assert.Null(provider.GetService(assembly.Type("IReader")));
+        Verify(Call(provider.GetRequiredService(assembly.Type("IWriter")), "Write") == "write");
+        Verify(provider.GetService(assembly.Type("IReader")) is null);
     }
 
     /// <summary>
@@ -355,7 +354,7 @@ public class RobustnessTests
     /// <c>class Store : IAudited</c> where <c>IAudited : IReader</c>. Whether the base interface is
     /// also a service is a policy question; what must not happen is the declared one going missing.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void Service_ImplementingADerivedInterface_RegistersTheDeclaredOne()
     {
         var assembly = GeneratedAssembly.Create(
@@ -375,14 +374,14 @@ public class RobustnessTests
             """
         );
 
-        Assert.Equal(
-            "read",
+        Verify(
             Call(assembly.BuildProvider().GetRequiredService(assembly.Type("IAudited")), "Read")
+                == "read"
         );
     }
 
     /// <summary>A generic implementation registers as the open generic it closes nothing of.</summary>
-    [Fact]
+    [VerifyTest]
     public void Service_GenericImplementation_RegistersAsAnOpenGeneric()
     {
         var assembly = GeneratedAssembly.Create(
@@ -403,7 +402,7 @@ public class RobustnessTests
 
         var closed = assembly.Type("IRepo`1").MakeGenericType(typeof(string));
 
-        Assert.Equal("repo", Call(assembly.BuildProvider().GetRequiredService(closed), "Name"));
+        Verify(Call(assembly.BuildProvider().GetRequiredService(closed), "Name") == "repo");
     }
 
     /// <summary>An abstract class is reported rather than registered.</summary>
@@ -411,7 +410,7 @@ public class RobustnessTests
     /// Emitting the registration produces code that throws when the provider is built, a long way
     /// from the declaration responsible.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void Service_ThatIsAbstract_IsReported()
     {
         var result = GeneratorTestHarness.Run(
@@ -430,12 +429,12 @@ public class RobustnessTests
             """
         );
 
-        Assert.Empty(result.Errors);
-        Assert.Contains(result.GeneratorDiagnostics, d => d.Id == "DM0002");
+        Verify(!result.Errors.Any());
+        Verify(result.GeneratorDiagnostics.Any(d => d.Id == "DM0002"));
     }
 
     /// <summary>A record registers like any other class.</summary>
-    [Fact]
+    [VerifyTest]
     public void Service_DeclaredAsARecord()
     {
         var assembly = GeneratedAssembly.Create(
@@ -454,14 +453,14 @@ public class RobustnessTests
             """
         );
 
-        Assert.Equal(
-            "hello",
+        Verify(
             Call(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet")
+                == "hello"
         );
     }
 
     /// <summary>A service nested inside another type registers under its nested name.</summary>
-    [Fact]
+    [VerifyTest]
     public void Service_NestedInsideAnotherType()
     {
         var assembly = GeneratedAssembly.Create(
@@ -482,14 +481,14 @@ public class RobustnessTests
             """
         );
 
-        Assert.Equal(
-            "hello",
+        Verify(
             Call(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet")
+                == "hello"
         );
     }
 
     /// <summary>Replace leaves one registration standing, not two.</summary>
-    [Fact]
+    [VerifyTest]
     public void Service_RegisteredWithReplace_LeavesOne()
     {
         var assembly = GeneratedAssembly.Create(
@@ -518,11 +517,11 @@ public class RobustnessTests
             .Select(g => Call(g, "Greet"))
             .ToArray();
 
-        Assert.Equal(["second"], all);
+        Verify(all.SequenceEqual(["second"]));
     }
 
     /// <summary>A service whose only constructor is private is reported rather than registered.</summary>
-    [Fact]
+    [VerifyTest]
     public void Service_WithNoAccessibleConstructor_IsReported()
     {
         var result = GeneratorTestHarness.Run(
@@ -548,7 +547,7 @@ public class RobustnessTests
             """
         );
 
-        Assert.Contains(result.GeneratorDiagnostics, d => d.Id == "DM0006");
+        Verify(result.GeneratorDiagnostics.Any(d => d.Id == "DM0006"));
     }
 
     // ------------------------------------------------------------------------------------------
@@ -590,11 +589,11 @@ public class RobustnessTests
         );
 
     /// <summary>A void method is forwarded.</summary>
-    [Fact]
+    [VerifyTest]
     public void Interceptor_OverAVoidMethod()
     {
-        Assert.Empty(
-            RunIntercepted(
+        Verify(
+            !RunIntercepted(
                 """
                 public interface IWorker { void Work(); }
 
@@ -602,16 +601,17 @@ public class RobustnessTests
                 [Intercept(typeof(CountingInterceptor))]
                 public class Worker : IWorker { public void Work() { } }
                 """
-            ).Errors
+            )
+                .Errors.Any()
         );
     }
 
     /// <summary>A property is forwarded.</summary>
-    [Fact]
+    [VerifyTest]
     public void Interceptor_OverAProperty()
     {
-        Assert.Empty(
-            RunIntercepted(
+        Verify(
+            !RunIntercepted(
                 """
                 public interface IWorker { string Name { get; set; } }
 
@@ -619,16 +619,17 @@ public class RobustnessTests
                 [Intercept(typeof(CountingInterceptor))]
                 public class Worker : IWorker { public string Name { get; set; } = ""; }
                 """
-            ).Errors
+            )
+                .Errors.Any()
         );
     }
 
     /// <summary>An indexer is forwarded.</summary>
-    [Fact]
+    [VerifyTest]
     public void Interceptor_OverAnIndexer()
     {
-        Assert.Empty(
-            RunIntercepted(
+        Verify(
+            !RunIntercepted(
                 """
                 public interface IWorker { string this[int index] { get; set; } }
 
@@ -638,16 +639,17 @@ public class RobustnessTests
                     public string this[int index] { get => ""; set { } }
                 }
                 """
-            ).Errors
+            )
+                .Errors.Any()
         );
     }
 
     /// <summary>An event is forwarded.</summary>
-    [Fact]
+    [VerifyTest]
     public void Interceptor_OverAnEvent()
     {
-        Assert.Empty(
-            RunIntercepted(
+        Verify(
+            !RunIntercepted(
                 """
                 public interface IWorker { event EventHandler? Done; }
 
@@ -655,16 +657,17 @@ public class RobustnessTests
                 [Intercept(typeof(CountingInterceptor))]
                 public class Worker : IWorker { public event EventHandler? Done; }
                 """
-            ).Errors
+            )
+                .Errors.Any()
         );
     }
 
     /// <summary>A generic method is forwarded with its type parameters.</summary>
-    [Fact]
+    [VerifyTest]
     public void Interceptor_OverAGenericMethod()
     {
-        Assert.Empty(
-            RunIntercepted(
+        Verify(
+            !RunIntercepted(
                 """
                 public interface IWorker { T Echo<T>(T value); }
 
@@ -672,16 +675,17 @@ public class RobustnessTests
                 [Intercept(typeof(CountingInterceptor))]
                 public class Worker : IWorker { public T Echo<T>(T value) => value; }
                 """
-            ).Errors
+            )
+                .Errors.Any()
         );
     }
 
     /// <summary>Default values and params survive forwarding.</summary>
-    [Fact]
+    [VerifyTest]
     public void Interceptor_OverDefaultAndParamsArguments()
     {
-        Assert.Empty(
-            RunIntercepted(
+        Verify(
+            !RunIntercepted(
                 """
                 public interface IWorker { string Join(string separator = ",", params string[] parts); }
 
@@ -692,16 +696,17 @@ public class RobustnessTests
                         string.Join(separator, parts);
                 }
                 """
-            ).Errors
+            )
+                .Errors.Any()
         );
     }
 
     /// <summary>Members inherited from a base interface are forwarded too.</summary>
-    [Fact]
+    [VerifyTest]
     public void Interceptor_OverAnInheritedInterfaceMember()
     {
-        Assert.Empty(
-            RunIntercepted(
+        Verify(
+            !RunIntercepted(
                 """
                 public interface IBase { string Read(); }
                 public interface IWorker : IBase { string Write(); }
@@ -713,16 +718,17 @@ public class RobustnessTests
                     public string Write() => "write";
                 }
                 """
-            ).Errors
+            )
+                .Errors.Any()
         );
     }
 
     /// <summary>An IAsyncEnumerable member is forwarded.</summary>
-    [Fact]
+    [VerifyTest]
     public void Interceptor_OverAnAsyncEnumerable()
     {
-        Assert.Empty(
-            RunIntercepted(
+        Verify(
+            !RunIntercepted(
                 """
                 public interface IWorker { IAsyncEnumerable<string> StreamAsync(); }
 
@@ -735,7 +741,8 @@ public class RobustnessTests
                     }
                 }
                 """
-            ).Errors
+            )
+                .Errors.Any()
         );
     }
 
@@ -747,7 +754,7 @@ public class RobustnessTests
     /// round-trip through a reified invocation. Either outcome is acceptable here; a CS error inside
     /// the generated wrapper is not.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void Interceptor_OverRefAndOutParameters_IsForwardedOrRefused()
     {
         var result = RunIntercepted(
@@ -762,7 +769,7 @@ public class RobustnessTests
             """
         );
 
-        Assert.Empty(result.Errors);
+        Verify(!result.Errors.Any());
     }
 
     // ------------------------------------------------------------------------------------------
@@ -832,7 +839,7 @@ public class RobustnessTests
     /// once and passes its own copies on, the write lands nowhere and the implementation sees the
     /// original — with nothing to show for it.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void Interceptor_CanReplaceAnArgument()
     {
         var assembly = Build(
@@ -853,18 +860,18 @@ public class RobustnessTests
             """
         );
 
-        Assert.Equal(
-            "hello replaced",
+        Verify(
             Invoke(
                 assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")),
                 "Greet",
                 "original"
             )
+                is "hello replaced"
         );
     }
 
     /// <summary>Arguments carry the names they were declared with.</summary>
-    [Fact]
+    [VerifyTest]
     public void Interceptor_SeesArgumentNamesAndCount()
     {
         var assembly = Build(
@@ -894,14 +901,16 @@ public class RobustnessTests
             2
         );
 
-        Assert.Equal(
-            ["name=ian", "times=2"],
-            (List<string>)assembly.Type("Log").GetField("Lines")!.GetValue(null)!
+        Verify(
+            ((List<string>)assembly.Type("Log").GetField("Lines")!.GetValue(null)!).SequenceEqual([
+                "name=ian",
+                "times=2",
+            ])
         );
     }
 
     /// <summary>An interceptor that never proceeds returns its own result.</summary>
-    [Fact]
+    [VerifyTest]
     public void Interceptor_CanShortCircuitWithoutProceeding()
     {
         var assembly = Build(
@@ -922,16 +931,16 @@ public class RobustnessTests
             """
         );
 
-        Assert.Equal(
-            "cached",
+        Verify(
             Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet")
+                is "cached"
         );
 
-        Assert.Equal(0, (int)assembly.Type("Log").GetField("Calls")!.GetValue(null)!);
+        Verify((int)assembly.Type("Log").GetField("Calls")!.GetValue(null)! == 0);
     }
 
     /// <summary>Proceeding twice runs the implementation twice — the retry shape.</summary>
-    [Fact]
+    [VerifyTest]
     public void Interceptor_CanProceedMoreThanOnce()
     {
         var assembly = Build(
@@ -954,16 +963,16 @@ public class RobustnessTests
             """
         );
 
-        Assert.Equal(
-            "call2",
+        Verify(
             Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet")
+                is "call2"
         );
 
-        Assert.Equal(2, (int)assembly.Type("Log").GetField("Calls")!.GetValue(null)!);
+        Verify((int)assembly.Type("Log").GetField("Calls")!.GetValue(null)! == 2);
     }
 
     /// <summary>An interceptor observes an exception the implementation throws.</summary>
-    [Fact]
+    [VerifyTest]
     public void Interceptor_SeesAnExceptionFromTheImplementation()
     {
         var assembly = Build(
@@ -989,19 +998,20 @@ public class RobustnessTests
             """
         );
 
-        Assert.Equal(
-            "recovered",
+        Verify(
             Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet")
+                is "recovered"
         );
 
-        Assert.Equal(
-            ["boom"],
-            (List<string>)assembly.Type("Log").GetField("Lines")!.GetValue(null)!
+        Verify(
+            ((List<string>)assembly.Type("Log").GetField("Lines")!.GetValue(null)!).SequenceEqual([
+                "boom",
+            ])
         );
     }
 
     /// <summary>Two interceptors nest in declaration order, outermost first.</summary>
-    [Fact]
+    [VerifyTest]
     public void Interceptors_NestInDeclarationOrder()
     {
         var assembly = Build(
@@ -1035,14 +1045,17 @@ public class RobustnessTests
 
         Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet");
 
-        Assert.Equal(
-            ["outer", "inner", "impl"],
-            (List<string>)assembly.Type("Log").GetField("Lines")!.GetValue(null)!
+        Verify(
+            ((List<string>)assembly.Type("Log").GetField("Lines")!.GetValue(null)!).SequenceEqual([
+                "outer",
+                "inner",
+                "impl",
+            ])
         );
     }
 
     /// <summary>An async interceptor can rewrite an argument and replace the result.</summary>
-    [Fact]
+    [VerifyTest]
     public async Task AsyncInterceptor_CanReplaceArgumentsAndResult()
     {
         var assembly = Build(
@@ -1074,11 +1087,13 @@ public class RobustnessTests
         var fetcher = assembly.BuildProvider().GetRequiredService(assembly.Type("IFetcher"));
         var task = (Task<string>)Invoke(fetcher, "FetchAsync", "original");
 
-        Assert.Equal("fetched:replaced:seen", await task);
+        var fetched = await task;
+
+        Verify(fetched == "fetched:replaced:seen");
     }
 
     /// <summary>An async interceptor can short-circuit without awaiting the implementation.</summary>
-    [Fact]
+    [VerifyTest]
     public async Task AsyncInterceptor_CanShortCircuit()
     {
         var assembly = Build(
@@ -1106,12 +1121,14 @@ public class RobustnessTests
 
         var fetcher = assembly.BuildProvider().GetRequiredService(assembly.Type("IFetcher"));
 
-        Assert.Equal("cached", await (Task<string>)Invoke(fetcher, "FetchAsync"));
-        Assert.Equal(0, (int)assembly.Type("Log").GetField("Calls")!.GetValue(null)!);
+        var fetched = await (Task<string>)Invoke(fetcher, "FetchAsync");
+
+        Verify(fetched == "cached");
+        Verify((int)assembly.Type("Log").GetField("Calls")!.GetValue(null)! == 0);
     }
 
     /// <summary>A stream interceptor can replace the items the implementation yields.</summary>
-    [Fact]
+    [VerifyTest]
     public async Task StreamInterceptor_CanReplaceTheYieldedItems()
     {
         var assembly = Build(
@@ -1153,8 +1170,12 @@ public class RobustnessTests
             seen.Add(item);
         }
 
-        Assert.Equal(["replaced:one", "replaced:two"], seen);
-        Assert.Equal(seen, (List<string>)assembly.Type("Log").GetField("Lines")!.GetValue(null)!);
+        Verify(seen.SequenceEqual(["replaced:one", "replaced:two"]));
+        Verify(
+            ((List<string>)assembly.Type("Log").GetField("Lines")!.GetValue(null)!).SequenceEqual(
+                seen
+            )
+        );
     }
 
     /// <summary>A value-type argument round-trips through replacement.</summary>
@@ -1162,7 +1183,7 @@ public class RobustnessTests
     /// Arguments are reified as <c>object</c>, so a value type is boxed on the way in and has to be
     /// unboxed back to the parameter's type on the way out.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void Interceptor_CanReplaceAValueTypeArgument()
     {
         var assembly = Build(
@@ -1183,9 +1204,9 @@ public class RobustnessTests
             """
         );
 
-        Assert.Equal(
-            41,
+        Verify(
             Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("ICounter")), "Add", 4)
+                is 41
         );
     }
 
@@ -1199,7 +1220,7 @@ public class RobustnessTests
         System.Activator.CreateInstance(assembly.Type(moduleName))!;
 
     /// <summary>Two modules compose, and each contributes its own registrations.</summary>
-    [Fact]
+    [VerifyTest]
     public void Modules_ComposedTogether_BothContribute()
     {
         var assembly = GeneratedAssembly.Create(
@@ -1235,8 +1256,8 @@ public class RobustnessTests
 
         var provider = services.BuildServiceProvider();
 
-        Assert.Equal("read", Call(provider.GetRequiredService(assembly.Type("IReader")), "Read"));
-        Assert.Equal("write", Call(provider.GetRequiredService(assembly.Type("IWriter")), "Write"));
+        Verify(Call(provider.GetRequiredService(assembly.Type("IReader")), "Read") == "read");
+        Verify(Call(provider.GetRequiredService(assembly.Type("IWriter")), "Write") == "write");
     }
 
     /// <summary>Composition order does not decide what is available.</summary>
@@ -1244,9 +1265,9 @@ public class RobustnessTests
     /// A service in one module depending on one from another has to resolve whichever order the
     /// modules were added, because registration is a phase and resolution happens after all of it.
     /// </remarks>
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
+    [VerifyTest]
+    [Row(true)]
+    [Row(false)]
     public void Modules_CrossModuleDependency_ResolvesInEitherOrder(bool readFirst)
     {
         var assembly = GeneratedAssembly.Create(
@@ -1280,12 +1301,11 @@ public class RobustnessTests
         var services = new ServiceCollection();
         services.AddModules(readFirst ? new[] { read, use } : new[] { use, read });
 
-        Assert.Equal(
-            "using:read",
+        Verify(
             Call(
                 services.BuildServiceProvider().GetRequiredService(assembly.Type("Consumer")),
                 "Describe"
-            )
+            ) == "using:read"
         );
     }
 
@@ -1294,7 +1314,7 @@ public class RobustnessTests
     /// Composing two modules that each depend on a third is how module graphs work, so the third
     /// arriving twice is normal. Registering twice gives two instances behind one singleton.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void Module_ArrivingTwiceAsSeparateInstances_RegistersOnce()
     {
         var assembly = GeneratedAssembly.Create(
@@ -1320,13 +1340,13 @@ public class RobustnessTests
             (IDependencyModule)Instance(assembly, "TestModule")
         );
 
-        Assert.Single(
+        Single(
             services.BuildServiceProvider().GetServices(assembly.Type("IGreeter")).Cast<object>()
         );
     }
 
     /// <summary>A realm-only module contributes nothing to a composition it is not part of.</summary>
-    [Fact]
+    [VerifyTest]
     public void Module_RealmOnly_DoesNotLeakIntoAnotherComposition()
     {
         var assembly = GeneratedAssembly.Create(
@@ -1352,8 +1372,12 @@ public class RobustnessTests
         var services = new ServiceCollection();
         services.AddModules((IDependencyModule)Instance(assembly, "PlainModule"));
 
-        Assert.Empty(
-            services.BuildServiceProvider().GetServices(assembly.Type("IGreeter")).Cast<object>()
+        Verify(
+            !services
+                .BuildServiceProvider()
+                .GetServices(assembly.Type("IGreeter"))
+                .Cast<object>()
+                .Any()
         );
     }
 
@@ -1363,7 +1387,7 @@ public class RobustnessTests
     /// contribute decoration to an application's services. Now that the calls are closed rather than
     /// open, that phase ordering still has to hold.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void Module_DecoratesAServiceAnotherModuleRegistered()
     {
         var assembly = GeneratedAssembly.Create(
@@ -1398,12 +1422,11 @@ public class RobustnessTests
             (IDependencyModule)Instance(assembly, "DecoratorModule")
         );
 
-        Assert.Equal(
-            "HELLO",
+        Verify(
             Call(
                 services.BuildServiceProvider().GetRequiredService(assembly.Type("IGreeter")),
                 "Greet"
-            )
+            ) == "HELLO"
         );
     }
 
@@ -1436,96 +1459,92 @@ public class RobustnessTests
         assembly.BuildProvider().GetServices(assembly.Type("IGreeter")).Cast<object>().Count();
 
     /// <summary>IfNotEnvironment registers everywhere except the names it lists.</summary>
-    [Theory]
-    [InlineData("Production", 0)]
-    [InlineData("Development", 1)]
+    [VerifyTest]
+    [Row("Production", 0)]
+    [Row("Development", 1)]
     public void Condition_IfNotEnvironment(string environment, int expected)
     {
-        Assert.Equal(
-            expected,
-            Count(
-                WithEnvironment(
-                    """
-                    [SingletonService]
-                    [IfNotEnvironment("Production")]
-                    public class Greeter : IGreeter { public string Greet() => "hello"; }
-                    """,
-                    new ModuleEnvironment(environment)
-                )
+        var count = Count(
+            WithEnvironment(
+                """
+                [SingletonService]
+                [IfNotEnvironment("Production")]
+                public class Greeter : IGreeter { public string Greet() => "hello"; }
+                """,
+                new ModuleEnvironment(environment)
             )
         );
+
+        Verify(count == expected);
     }
 
     /// <summary>One condition listing several names matches any of them.</summary>
-    [Theory]
-    [InlineData("Development", 1)]
-    [InlineData("Staging", 1)]
-    [InlineData("Production", 0)]
+    [VerifyTest]
+    [Row("Development", 1)]
+    [Row("Staging", 1)]
+    [Row("Production", 0)]
     public void Condition_IfEnvironment_WithSeveralNames(string environment, int expected)
     {
-        Assert.Equal(
-            expected,
-            Count(
-                WithEnvironment(
-                    """
-                    [SingletonService]
-                    [IfEnvironment("Development", "Staging")]
-                    public class Greeter : IGreeter { public string Greet() => "hello"; }
-                    """,
-                    new ModuleEnvironment(environment)
-                )
+        var count = Count(
+            WithEnvironment(
+                """
+                [SingletonService]
+                [IfEnvironment("Development", "Staging")]
+                public class Greeter : IGreeter { public string Greet() => "hello"; }
+                """,
+                new ModuleEnvironment(environment)
             )
         );
+
+        Verify(count == expected);
     }
 
     /// <summary>A value condition with no expected value tests only that the key is present.</summary>
-    [Theory]
-    [InlineData(true, 1)]
-    [InlineData(false, 0)]
+    [VerifyTest]
+    [Row(true, 1)]
+    [Row(false, 0)]
     public void Condition_IfEnvironmentValue_KeyPresence(bool present, int expected)
     {
-        Assert.Equal(
-            expected,
-            Count(
-                WithEnvironment(
-                    """
-                    [SingletonService]
-                    [IfEnvironmentValue("feature")]
-                    public class Greeter : IGreeter { public string Greet() => "hello"; }
-                    """,
-                    new ModuleEnvironment(
-                        "Development",
-                        present
-                            ? new Dictionary<string, string?> { ["feature"] = "anything" }
-                            : new Dictionary<string, string?>()
-                    )
+        var count = Count(
+            WithEnvironment(
+                """
+                [SingletonService]
+                [IfEnvironmentValue("feature")]
+                public class Greeter : IGreeter { public string Greet() => "hello"; }
+                """,
+                new ModuleEnvironment(
+                    "Development",
+                    present
+                        ? new Dictionary<string, string?> { ["feature"] = "anything" }
+                        : new Dictionary<string, string?>()
                 )
             )
         );
+
+        Verify(count == expected);
     }
 
     /// <summary>IfNotEnvironmentValue is the negation.</summary>
-    [Theory]
-    [InlineData("on", 0)]
-    [InlineData("off", 1)]
+    [VerifyTest]
+    [Row("on", 0)]
+    [Row("off", 1)]
     public void Condition_IfNotEnvironmentValue(string value, int expected)
     {
-        Assert.Equal(
-            expected,
-            Count(
-                WithEnvironment(
-                    """
-                    [SingletonService]
-                    [IfNotEnvironmentValue("feature", "on")]
-                    public class Greeter : IGreeter { public string Greet() => "hello"; }
-                    """,
-                    new ModuleEnvironment(
-                        "Development",
-                        new Dictionary<string, string?> { ["feature"] = value }
-                    )
+        var count = Count(
+            WithEnvironment(
+                """
+                [SingletonService]
+                [IfNotEnvironmentValue("feature", "on")]
+                public class Greeter : IGreeter { public string Greet() => "hello"; }
+                """,
+                new ModuleEnvironment(
+                    "Development",
+                    new Dictionary<string, string?> { ["feature"] = value }
                 )
             )
         );
+
+        Verify(count == expected);
     }
 
     /// <summary>A condition on the convention and one on the class combine with and.</summary>
@@ -1533,10 +1552,10 @@ public class RobustnessTests
     /// Letting either side win would mean one declaration silently discarding a condition written in
     /// the other, which is the kind of thing nobody finds until production.
     /// </remarks>
-    [Theory]
-    [InlineData("Development", "on", 1)]
-    [InlineData("Development", "off", 0)]
-    [InlineData("Production", "on", 0)]
+    [VerifyTest]
+    [Row("Development", "on", 1)]
+    [Row("Development", "off", 0)]
+    [Row("Production", "on", 0)]
     public void Condition_OnConventionAndOnClass_BothMustHold(
         string environment,
         string flag,
@@ -1568,7 +1587,7 @@ public class RobustnessTests
             )
         );
 
-        Assert.Equal(expected, Count(assembly));
+        Verify(Count(assembly) == expected);
     }
 
     private static string[] Names(GeneratedAssembly assembly) =>
@@ -1604,31 +1623,33 @@ public class RobustnessTests
         );
 
     /// <summary>A name glob selects by the type's own name.</summary>
-    [Fact]
+    [VerifyTest]
     public void Convention_WithName_SelectsByGlob()
     {
-        Assert.Equal(["evening", "morning"], Names(WithConvention(""".WithName("*Greeter")""")));
+        Verify(
+            Names(WithConvention(""".WithName("*Greeter")""")).SequenceEqual(["evening", "morning"])
+        );
     }
 
     /// <summary>An excluding glob removes what it matches.</summary>
-    [Fact]
+    [VerifyTest]
     public void Convention_WithoutName_ExcludesByGlob()
     {
-        Assert.Equal(
-            ["evening", "salutation"],
+        Verify(
             Names(WithConvention(""".WithoutName("Morning*")"""))
+                .SequenceEqual(["evening", "salutation"])
         );
     }
 
     /// <summary>A single-character wildcard matches exactly one character.</summary>
-    [Fact]
+    [VerifyTest]
     public void Convention_WithName_SingleCharacterWildcard()
     {
-        Assert.Equal(["salutation"], Names(WithConvention(""".WithName("Salutatio?")""")));
+        Verify(Names(WithConvention(""".WithName("Salutatio?")""")).SequenceEqual(["salutation"]));
     }
 
     /// <summary>An attribute filter selects only what carries it.</summary>
-    [Fact]
+    [VerifyTest]
     public void Convention_WithAttribute_SelectsOnlyMarkedTypes()
     {
         var assembly = GeneratedAssembly.Create(
@@ -1658,11 +1679,11 @@ public class RobustnessTests
             """
         );
 
-        Assert.Equal(["marked"], Names(assembly));
+        Verify(Names(assembly).SequenceEqual(["marked"]));
     }
 
     /// <summary>An exact-namespace filter does not match a nested namespace.</summary>
-    [Fact]
+    [VerifyTest]
     public void Convention_InExactNamespaces_DoesNotMatchNested()
     {
         var assembly = GeneratedAssembly.Create(
@@ -1693,6 +1714,6 @@ public class RobustnessTests
             """
         );
 
-        Assert.Equal(["here"], Names(assembly));
+        Verify(Names(assembly).SequenceEqual(["here"]));
     }
 }

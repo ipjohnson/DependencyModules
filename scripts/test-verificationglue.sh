@@ -34,6 +34,13 @@ PROJECTS=(
 
 if [ -n "${COVERAGE_DIR}" ]; then
     (cd "${REPO_ROOT}" && dotnet tool restore >/dev/null)
+
+    # A CI build sets ContinuousIntegrationBuild, which writes /_/... source paths into the PDBs.
+    # coverlet.console cannot map them back to the checkout: it does not read the
+    # CoverletSourceRootsMapping file that coverlet.collector's build targets write. It then finds
+    # no local source for any module, skips them all, and reports 0%. Keep real source paths in
+    # the coverage build.
+    PROPERTIES+=("-p:DeterministicSourcePaths=false")
 fi
 
 for project in "${PROJECTS[@]}"; do
