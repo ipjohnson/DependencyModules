@@ -16,7 +16,8 @@ namespace DependencyModules.Testing.Attributes;
 /// Creating the double is delegated to whichever mocking package is in scope, which must implement
 /// <see cref="IMockSupportAttribute"/>: <c>[NSubstituteSupport]</c>, <c>[MoqSupport]</c> or
 /// <c>[FakeItEasySupport]</c>. Without one this throws rather than silently handing back a real
-/// service.
+/// service. Under VerificationGlue the parameter is a VerificationGlue mock, the same as one marked
+/// with <c>VerificationGlue.Mocks.MockAttribute</c>, and no mock-support attribute is needed.
 ///
 /// A library that separates the double from the object it produces may let the parameter name either.
 /// With Moq, <c>[Mock] IFoo</c> gives the object and <c>Mock&lt;IFoo&gt;</c> gives the mock — and on a

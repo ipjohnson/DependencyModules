@@ -566,8 +566,11 @@ second report would be a duplicate.
 - **DM0016 and DM0019** read assembly-level module attributes. In a VG project, DM0016 is right
   unchanged. DM0019 reports only when an `ApplicationModule` was generated, and DM generates one
   only from a file named `Program.cs` (`BaseSourceGenerator.CreateSourceValueProvider`,
-  `ApproveFilter`). MTP writes the entry point of a VG project. I did not check that file's name.
-  If it were `Program.cs`, `[assembly: SutModule]` in any other file would report DM0019 wrongly.
+  `ApproveFilter`). MTP writes the entry point of a VG project. Microsoft.Testing.Platform.MSBuild
+  2.5.3 and 3.0.0-preview name it `MicrosoftTestingPlatformEntryPoint.cs`
+  (`_TestingPlatformEntryPointSourceName`), which does not end in `Program.cs`. So DM0019 is right
+  unchanged too. Had it been `Program.cs`, `[assembly: SutModule]` in any other file would have
+  reported DM0019 wrongly.
 - DM's `MockAttribute` remarks say that it throws without a mock-support attribute. The remarks get
   a sentence saying that under VerificationGlue it is a VerificationGlue mock.
 

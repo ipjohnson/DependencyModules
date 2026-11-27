@@ -1485,6 +1485,14 @@ namespace DependencyModules.SourceGenerator.Impl
             public static CSharpAuthor.ITypeDefinition AsyncEnumerable(CSharpAuthor.ITypeDefinition item) { }
             public static CSharpAuthor.ITypeDefinition ValueTask(CSharpAuthor.ITypeDefinition result) { }
         }
+        public static class VerificationGlue
+        {
+            public static class Mocks
+            {
+                public const string Namespace = "VerificationGlue.Mocks";
+                public static readonly CSharpAuthor.ITypeDefinition MockAttribute;
+            }
+        }
     }
     public class ModuleAttributeWriter : DependencyModules.SourceGenerator.Impl.Utilities.BaseAttributeWriter<DependencyModules.SourceGenerator.Impl.Models.ModuleEntryPointModel>
     {
