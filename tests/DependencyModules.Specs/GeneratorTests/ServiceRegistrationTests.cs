@@ -1,16 +1,15 @@
 using DependencyModules.Tests.Infrastructure;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// Behavioural coverage of the registration code the generator emits for each service attribute.
 /// These assert on the shape of the output rather than an exact snapshot, so they stay readable
 /// when unrelated parts of the generated file change.
 /// </summary>
-public class ServiceRegistrationTests
+public partial class ServiceRegistrationTests
 {
-    [Fact]
+    [VerifyTest]
     public void SingletonService_EmitsAddSingleton()
     {
         var result = GeneratorTestHarness.Run(
@@ -18,10 +17,10 @@ public class ServiceRegistrationTests
         );
 
         result.AssertNoErrors();
-        Assert.Contains("AddSingleton", result.SourceContaining("Dependencies"));
+        Verify(result.SourceContaining("Dependencies").Contains("AddSingleton"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void ScopedService_EmitsAddScoped()
     {
         var result = GeneratorTestHarness.Run(
@@ -29,10 +28,10 @@ public class ServiceRegistrationTests
         );
 
         result.AssertNoErrors();
-        Assert.Contains("AddScoped", result.SourceContaining("Dependencies"));
+        Verify(result.SourceContaining("Dependencies").Contains("AddScoped"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void TransientService_EmitsAddTransient()
     {
         var result = GeneratorTestHarness.Run(
@@ -40,10 +39,10 @@ public class ServiceRegistrationTests
         );
 
         result.AssertNoErrors();
-        Assert.Contains("AddTransient", result.SourceContaining("Dependencies"));
+        Verify(result.SourceContaining("Dependencies").Contains("AddTransient"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void Service_RegistersImplementedInterfaceAsServiceType()
     {
         var result = GeneratorTestHarness.Run(
@@ -53,11 +52,11 @@ public class ServiceRegistrationTests
         result.AssertNoErrors();
         var generated = result.SourceContaining("Dependencies");
 
-        Assert.Contains("global::TestNamespace.IThing", generated);
-        Assert.Contains("global::TestNamespace.Thing", generated);
+        Verify(generated.Contains("global::TestNamespace.IThing"));
+        Verify(generated.Contains("global::TestNamespace.Thing"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void KeyedService_EmitsKeyedRegistration()
     {
         var result = GeneratorTestHarness.Run(
@@ -67,11 +66,11 @@ public class ServiceRegistrationTests
         result.AssertNoErrors();
         var generated = result.SourceContaining("Dependencies");
 
-        Assert.Contains("AddKeyedSingleton", generated);
-        Assert.Contains("\"the-key\"", generated);
+        Verify(generated.Contains("AddKeyedSingleton"));
+        Verify(generated.Contains("\"the-key\""));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AsProperty_RegistersTheRequestedServiceType()
     {
         var result = GeneratorTestHarness.Run(
@@ -86,13 +85,13 @@ public class ServiceRegistrationTests
         result.AssertNoErrors();
         var generated = result.SourceContaining("Dependencies");
 
-        Assert.Contains("global::TestNamespace.IOther", generated);
+        Verify(generated.Contains("global::TestNamespace.IOther"));
     }
 
-    [Theory]
-    [InlineData("RegistrationType.Try", "TryAddSingleton")]
-    [InlineData("RegistrationType.TryEnumerable", "TryAddEnumerable")]
-    [InlineData("RegistrationType.Replace", "Replace")]
+    [VerifyTest]
+    [Row("RegistrationType.Try", "TryAddSingleton")]
+    [Row("RegistrationType.TryEnumerable", "TryAddEnumerable")]
+    [Row("RegistrationType.Replace", "Replace")]
     public void UsingProperty_ChangesTheRegistrationMethod(
         string registrationType,
         string expectedCall
@@ -103,10 +102,10 @@ public class ServiceRegistrationTests
         );
 
         result.AssertNoErrors();
-        Assert.Contains(expectedCall, result.SourceContaining("Dependencies"));
+        Verify(result.SourceContaining("Dependencies").Contains(expectedCall));
     }
 
-    [Fact]
+    [VerifyTest]
     public void CrossWireService_RegistersImplementationAndInterface()
     {
         var result = GeneratorTestHarness.Run(
@@ -116,8 +115,8 @@ public class ServiceRegistrationTests
         result.AssertNoErrors();
         var generated = result.SourceContaining("Dependencies");
 
-        Assert.Contains("global::TestNamespace.Thing", generated);
-        Assert.Contains("global::TestNamespace.IThing", generated);
+        Verify(generated.Contains("global::TestNamespace.Thing"));
+        Verify(generated.Contains("global::TestNamespace.IThing"));
     }
 
     /// <summary>
@@ -128,9 +127,9 @@ public class ServiceRegistrationTests
     /// attributes by their written name, so it produces no registrations from one. That is a
     /// separate limitation and not asserted here.
     /// </remarks>
-    [Theory]
-    [InlineData("[SingletonService]")]
-    [InlineData("[SingletonServiceAttribute]")]
+    [VerifyTest]
+    [Row("[SingletonService]")]
+    [Row("[SingletonServiceAttribute]")]
     public void ServiceAttribute_IsMatchedHoweverItIsWritten(string attribute)
     {
         var generated = GeneratedAssembly.Create(
@@ -149,13 +148,13 @@ public class ServiceRegistrationTests
             """
         );
 
-        Assert.NotNull(generated.ResolveRequired("IThing"));
+        Verify(generated.ResolveRequired("IThing") is not null);
     }
 
     /// <summary>
     /// And an attribute that merely shares a name is not one of ours.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void SameNamedAttributeFromAnotherNamespace_IsIgnored()
     {
         var generated = GeneratedAssembly.Create(
@@ -178,10 +177,10 @@ public class ServiceRegistrationTests
             """
         );
 
-        Assert.Empty(generated.Descriptors("IThing"));
+        Verify(generated.Descriptors("IThing").Count == 0);
     }
 
-    [Fact]
+    [VerifyTest]
     public void OpenGenericService_RegistersOpenGenericTypes()
     {
         var result = GeneratorTestHarness.Run(
@@ -203,11 +202,11 @@ public class ServiceRegistrationTests
         result.AssertNoErrors();
         var generated = result.SourceContaining("Dependencies");
 
-        Assert.Contains("IGeneric<>", generated);
-        Assert.Contains("GenericThing<>", generated);
+        Verify(generated.Contains("IGeneric<>"));
+        Verify(generated.Contains("GenericThing<>"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void StaticFactoryMethod_IsRegisteredAsAFactory()
     {
         var result = GeneratorTestHarness.Run(
@@ -231,15 +230,15 @@ public class ServiceRegistrationTests
         result.AssertNoErrors();
         var generated = result.SourceContaining("Dependencies");
 
-        Assert.Contains("Create", generated);
-        Assert.Contains("AddSingleton", generated);
+        Verify(generated.Contains("Create"));
+        Verify(generated.Contains("AddSingleton"));
     }
 
     /// <summary>
     /// A factory method registers its declared return type. The interfaces of that type are not
     /// inferred.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void FactoryMethod_RegistersItsDeclaredReturnType()
     {
         var generated = GeneratedAssembly.Create(
@@ -262,11 +261,11 @@ public class ServiceRegistrationTests
             """
         );
 
-        Assert.Single(generated.Descriptors("Thing"));
-        Assert.Empty(generated.Descriptors("IThing"));
+        Single(generated.Descriptors("Thing"));
+        Verify(generated.Descriptors("IThing").Count == 0);
     }
 
-    [Fact]
+    [VerifyTest]
     public void ModuleWithNoServices_DoesNotEmitADependenciesFile()
     {
         var result = GeneratorTestHarness.Run(
@@ -281,10 +280,10 @@ public class ServiceRegistrationTests
         );
 
         result.AssertNoErrors();
-        Assert.DoesNotContain(result.GeneratedSources.Keys, key => key.Contains("Dependencies"));
+        Verify(!result.GeneratedSources.Keys.Any(key => key.Contains("Dependencies")));
     }
 
-    [Fact]
+    [VerifyTest]
     public void RecordModule_IsSupported()
     {
         var result = GeneratorTestHarness.Run(
@@ -304,14 +303,14 @@ public class ServiceRegistrationTests
         );
 
         result.AssertNoErrors();
-        Assert.Contains("AddSingleton", result.SourceContaining("Dependencies"));
+        Verify(result.SourceContaining("Dependencies").Contains("AddSingleton"));
     }
 
     /// <summary>
     /// The first interface in the declaration used to win outright, so a class that cleaned up after
     /// itself registered as IDisposable and was unreachable through the interface it existed for.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void CapabilityInterface_DoesNotWinOverTheServiceInterface()
     {
         var result = GeneratorTestHarness.Run(
@@ -328,11 +327,11 @@ public class ServiceRegistrationTests
         result.AssertNoErrors();
         var generated = result.SourceContaining("Dependencies");
 
-        Assert.Contains("global::TestNamespace.IThing", generated);
-        Assert.DoesNotContain("System.IDisposable", generated);
+        Verify(generated.Contains("global::TestNamespace.IThing"));
+        Verify(!generated.Contains("System.IDisposable"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void CapabilityInterfaceAlone_RegistersAsSelf()
     {
         var result = GeneratorTestHarness.Run(
@@ -349,11 +348,11 @@ public class ServiceRegistrationTests
         result.AssertNoErrors();
         var generated = result.SourceContaining("Dependencies");
 
-        Assert.Contains("global::TestNamespace.Thing", generated);
-        Assert.DoesNotContain("System.IDisposable", generated);
+        Verify(generated.Contains("global::TestNamespace.Thing"));
+        Verify(!generated.Contains("System.IDisposable"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void CapabilityInterfaceThroughABaseClass_RegistersAsSelf()
     {
         var result = GeneratorTestHarness.Run(
@@ -372,8 +371,8 @@ public class ServiceRegistrationTests
         result.AssertNoErrors();
         var generated = result.SourceContaining("Dependencies");
 
-        Assert.Contains("global::TestNamespace.Thing", generated);
-        Assert.DoesNotContain("System.IDisposable", generated);
+        Verify(generated.Contains("global::TestNamespace.Thing"));
+        Verify(!generated.Contains("System.IDisposable"));
     }
 
     /// <summary>
@@ -381,7 +380,7 @@ public class ServiceRegistrationTests
     /// genuine service roles, so this must not become a namespace rule. IJsonTypeInfoResolver and
     /// IHttpClientFactory are the same shape.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void FrameworkRoleInterface_IsStillTheServiceType()
     {
         var result = GeneratorTestHarness.Run(
@@ -399,10 +398,10 @@ public class ServiceRegistrationTests
         result.AssertNoErrors();
         var generated = result.SourceContaining("Dependencies");
 
-        Assert.Contains("IEqualityComparer", generated);
+        Verify(generated.Contains("IEqualityComparer"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void CapabilityInterface_IsHonouredWhenNamedExplicitly()
     {
         var result = GeneratorTestHarness.Run(
@@ -419,7 +418,7 @@ public class ServiceRegistrationTests
         result.AssertNoErrors();
         var generated = result.SourceContaining("Dependencies");
 
-        Assert.Contains("System.IDisposable", generated);
+        Verify(generated.Contains("System.IDisposable"));
     }
 
     private static string Module(string body) =>

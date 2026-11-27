@@ -3,14 +3,13 @@ using DependencyModules.Tests.Infrastructure;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// DM0026 and its code fix. Each fix test applies every offered fix and compares the text.
 /// </summary>
-public class ServiceTypeCodeFixTests
+public partial class ServiceTypeCodeFixTests
 {
     private const string Preamble = """
         using System;
@@ -33,13 +32,13 @@ public class ServiceTypeCodeFixTests
 
         """;
 
-    [Fact]
+    [VerifyTest]
     public void TheRuleIsOffByDefault()
     {
-        Assert.False(DependencyModuleDiagnostics.ServiceTypeNotNamed.IsEnabledByDefault);
+        Verify(!DependencyModuleDiagnostics.ServiceTypeNotNamed.IsEnabledByDefault);
     }
 
-    [Fact]
+    [VerifyTest]
     public async Task NotEnabled_ReportsNothing()
     {
         var solution = CodeFixHarness.CreateSolution(
@@ -47,10 +46,12 @@ public class ServiceTypeCodeFixTests
             severity: null
         );
 
-        Assert.Empty(await CodeFixHarness.DiagnosticsAsync(solution.Projects.Single()));
+        var diagnostics = await CodeFixHarness.DiagnosticsAsync(solution.Projects.Single());
+
+        Verify(diagnostics.Length == 0);
     }
 
-    [Fact]
+    [VerifyTest]
     public async Task EnabledAsError_ReportsAnError()
     {
         var solution = CodeFixHarness.CreateSolution(
@@ -58,107 +59,107 @@ public class ServiceTypeCodeFixTests
             severity: ReportDiagnostic.Error
         );
 
-        var diagnostic = Assert.Single(
-            await CodeFixHarness.DiagnosticsAsync(solution.Projects.Single())
-        );
+        var diagnostic = Single(await CodeFixHarness.DiagnosticsAsync(solution.Projects.Single()));
 
-        Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
-        Assert.Equal(
-            "[SingletonService] on 'Thing' does not name its service type with As = typeof(...). "
-                + "It is registered as 'IThing'.",
+        Verify(diagnostic.Severity == DiagnosticSeverity.Error);
+        Verify(
             diagnostic.GetMessage()
+                == "[SingletonService] on 'Thing' does not name its service type with As = typeof(...). "
+                    + "It is registered as 'IThing'."
         );
     }
 
-    [Theory]
-    [InlineData("[SingletonService(As = typeof(IThing))] public class Thing : IThing;")]
-    [InlineData(
+    [VerifyTest]
+    [Row("[SingletonService(As = typeof(IThing))] public class Thing : IThing;")]
+    [Row(
         "[DependencyModules.Runtime.Attributes.ScopedService(As = typeof(Thing))] public class Thing : IThing;"
     )]
-    [InlineData("[Single(As = typeof(IThing))] public class Thing : IThing;")]
-    [InlineData("[CrossWireService] public class Thing : IFirst, ISecond;")]
-    [InlineData(
+    [Row("[Single(As = typeof(IThing))] public class Thing : IThing;")]
+    [Row("[CrossWireService] public class Thing : IFirst, ISecond;")]
+    [Row(
         "public static class Factories { [TransientService(As = typeof(IThing))] public static Thing Create() => new(); } public class Thing : IThing;"
     )]
     public async Task ANamedTypeOrCrossWire_IsNotReported(string source)
     {
         var document = CodeFixHarness.CreateDocument(Preamble + source);
 
-        Assert.Empty(await CodeFixHarness.DiagnosticsAsync(document.Project));
+        var diagnostics = await CodeFixHarness.DiagnosticsAsync(document.Project);
+
+        Verify(diagnostics.Length == 0);
     }
 
-    [Theory]
+    [VerifyTest]
     // Concrete only.
-    [InlineData(
+    [Row(
         "[SingletonService] public class Thing;",
         "[SingletonService(As = typeof(Thing))] public class Thing;"
     )]
-    [InlineData(
+    [Row(
         "[SingletonService] public record Settings;",
         "[SingletonService(As = typeof(Settings))] public record Settings;"
     )]
     // Multiple interfaces: the first one wins.
-    [InlineData(
+    [Row(
         "[ScopedService] public class Thing : IFirst, ISecond;",
         "[ScopedService(As = typeof(IFirst))] public class Thing : IFirst, ISecond;"
     )]
     // An interface inherited from a base class.
-    [InlineData(
+    [Row(
         "public abstract class ThingBase : IThing; [TransientService] public class Thing : ThingBase;",
         "public abstract class ThingBase : IThing; [TransientService(As = typeof(IThing))] public class Thing : ThingBase;"
     )]
     // A capability interface alone, and beside a role interface.
-    [InlineData(
+    [Row(
         "[SingletonService] public class Thing : IDisposable { public void Dispose() { } }",
         "[SingletonService(As = typeof(Thing))] public class Thing : IDisposable { public void Dispose() { } }"
     )]
-    [InlineData(
+    [Row(
         "[SingletonService] public class Thing : IDisposable, IThing { public void Dispose() { } }",
         "[SingletonService(As = typeof(IThing))] public class Thing : IDisposable, IThing { public void Dispose() { } }"
     )]
     // Open and closed generics.
-    [InlineData(
+    [Row(
         "[SingletonService] public class Repo<T> : IRepo<T>;",
         "[SingletonService(As = typeof(IRepo<>))] public class Repo<T> : IRepo<T>;"
     )]
-    [InlineData(
+    [Row(
         "[SingletonService] public class Box<T>;",
         "[SingletonService(As = typeof(Box<>))] public class Box<T>;"
     )]
-    [InlineData(
+    [Row(
         "[SingletonService] public class IntRepo : IRepo<int>;",
         "[SingletonService(As = typeof(IRepo<int>))] public class IntRepo : IRepo<int>;"
     )]
     // A factory method registers its declared return type.
-    [InlineData(
+    [Row(
         "public class Thing : IThing; public static class Factories { [SingletonService] public static Thing Create() => new(); }",
         "public class Thing : IThing; public static class Factories { [SingletonService(As = typeof(Thing))] public static Thing Create() => new(); }"
     )]
-    [InlineData(
+    [Row(
         "public class Thing : IThing; public static class Factories { [ScopedService] public static IThing Create() => new Thing(); }",
         "public class Thing : IThing; public static class Factories { [ScopedService(As = typeof(IThing))] public static IThing Create() => new Thing(); }"
     )]
     // Aliased and qualified attributes.
-    [InlineData(
+    [Row(
         "[Single] public class Thing : IThing;",
         "[Single(As = typeof(IThing))] public class Thing : IThing;"
     )]
-    [InlineData(
+    [Row(
         "[global::DependencyModules.Runtime.Attributes.SingletonServiceAttribute] public class Thing : IThing;",
         "[global::DependencyModules.Runtime.Attributes.SingletonServiceAttribute(As = typeof(IThing))] public class Thing : IThing;"
     )]
     // A nested class.
-    [InlineData(
+    [Row(
         "public class Outer { [SingletonService] public class Inner : IThing; }",
         "public class Outer { [SingletonService(As = typeof(IThing))] public class Inner : IThing; }"
     )]
     // An As that is not typeof(...) is replaced in place.
-    [InlineData(
+    [Row(
         "[SingletonService(As = null, Order = 1)] public class Thing : IThing;",
         "[SingletonService(As = typeof(IThing), Order = 1)] public class Thing : IThing;"
     )]
     // Each attribute on a class is fixed.
-    [InlineData(
+    [Row(
         "[SingletonService] [ScopedService(Key = \"k\")] public class Thing : IThing;",
         "[SingletonService(As = typeof(IThing))] [ScopedService(Key = \"k\", As = typeof(IThing))] public class Thing : IThing;"
     )]
@@ -168,11 +169,11 @@ public class ServiceTypeCodeFixTests
             CodeFixHarness.CreateDocument(Preamble + before)
         );
 
-        Assert.Equal(Preamble + after, fixedText);
+        Verify(fixedText == Preamble + after);
     }
 
-    [Theory]
-    [InlineData(
+    [VerifyTest]
+    [Row(
         """
             [SingletonService(Key = "k" /* key */, Using = RegistrationType.Try, Realm = typeof(TestModule), Order = 2)] // keep
             public class Thing : IThing;
@@ -182,7 +183,7 @@ public class ServiceTypeCodeFixTests
             public class Thing : IThing;
             """
     )]
-    [InlineData(
+    [Row(
         """
             [SingletonService(
                 Key = "k", // the key
@@ -198,11 +199,11 @@ public class ServiceTypeCodeFixTests
             public class Thing : IThing;
             """
     )]
-    [InlineData(
+    [Row(
         "[SingletonService /* note */] public class Thing : IThing;",
         "[SingletonService(As = typeof(IThing)) /* note */] public class Thing : IThing;"
     )]
-    [InlineData(
+    [Row(
         "[SingletonService()] public class Thing : IThing;",
         "[SingletonService(As = typeof(IThing))] public class Thing : IThing;"
     )]
@@ -212,63 +213,65 @@ public class ServiceTypeCodeFixTests
             CodeFixHarness.CreateDocument(Preamble + before)
         );
 
-        Assert.Equal(Preamble + after, fixedText);
+        Verify(fixedText == Preamble + after);
     }
 
-    [Fact]
+    [VerifyTest]
     public async Task TheFix_IsTitledWithTheType()
     {
         var document = CodeFixHarness.CreateDocument(
             Preamble + "[SingletonService] public class Repo<T> : IRepo<T>;"
         );
-        var diagnostic = Assert.Single(await CodeFixHarness.DiagnosticsAsync(document.Project));
+        var diagnostic = Single(await CodeFixHarness.DiagnosticsAsync(document.Project));
 
-        var action = Assert.Single(await CodeFixHarness.ActionsAsync(document, diagnostic));
+        var action = Single(await CodeFixHarness.ActionsAsync(document, diagnostic));
 
-        Assert.Equal("Make service type explicit: IRepo<>", action.Title);
+        Verify(action.Title == "Make service type explicit: IRepo<>");
     }
 
     /// <summary>
     /// The diagnostic still reports when the type cannot be written as typeof(...) at the
     /// attribute, or cannot be determined at all.
     /// </summary>
-    [Theory]
-    [InlineData(
+    [VerifyTest]
+    [Row(
         "public interface IMap<TKey, TValue>; [SingletonService] public class Map<T> : IMap<T, int>;"
     )]
-    [InlineData("[SingletonService] public class Wrapped<T> : IRepo<List<T>>;")]
-    [InlineData(
+    [Row("[SingletonService] public class Wrapped<T> : IRepo<List<T>>;")]
+    [Row(
         "public static class Factories { [SingletonService] public static Missing Create() => null!; }"
     )]
     public async Task AnUnwritableType_IsReportedWithNoFix(string source)
     {
         var document = CodeFixHarness.CreateDocument(Preamble + source);
-        var diagnostic = Assert.Single(await CodeFixHarness.DiagnosticsAsync(document.Project));
+        var diagnostic = Single(await CodeFixHarness.DiagnosticsAsync(document.Project));
 
-        Assert.Empty(await CodeFixHarness.ActionsAsync(document, diagnostic));
+        var actions = await CodeFixHarness.ActionsAsync(document, diagnostic);
+
+        Verify(actions.Count == 0);
     }
 
-    [Fact]
+    [VerifyTest]
     public async Task AnUndeterminedType_SaysSo()
     {
         var document = CodeFixHarness.CreateDocument(
             Preamble
                 + "public static class Factories { [SingletonService(As = null)] public static Missing Create() => null!; }"
         );
-        var diagnostic = Assert.Single(await CodeFixHarness.DiagnosticsAsync(document.Project));
+        var diagnostic = Single(await CodeFixHarness.DiagnosticsAsync(document.Project));
 
-        Assert.Equal(
-            "[SingletonService] on 'Create' does not name its service type with As = typeof(...). "
-                + "The generator ignores an As that is not typeof(...), so the service type is inferred. "
-                + "The service type cannot be determined.",
+        Verify(
             diagnostic.GetMessage()
+                == "[SingletonService] on 'Create' does not name its service type with As = typeof(...). "
+                    + "The generator ignores an As that is not typeof(...), so the service type is inferred. "
+                    + "The service type cannot be determined."
         );
     }
 
-    [Theory]
-    [InlineData(FixAllScope.Document, 0, 1, 1)]
-    [InlineData(FixAllScope.Project, 0, 0, 1)]
-    [InlineData(FixAllScope.Solution, 0, 0, 0)]
+    [VerifyTest]
+    [Row(FixAllScope.Document, 0, 1, 1)]
+    [Row(FixAllScope.Project, 0, 0, 1)]
+    [Row(FixAllScope.Solution, 0, 0, 0)]
     public async Task FixAll_FixesItsScope(
         FixAllScope scope,
         int leftInFirst,
@@ -306,13 +309,15 @@ public class ServiceTypeCodeFixTests
             }
         }
 
-        Assert.Equal(new[] { leftInFirst, leftInSecond, leftInOtherProject }, left);
+        Verify(left.SequenceEqual([leftInFirst, leftInSecond, leftInOtherProject]));
 
         var firstText = (await fixedSolution.GetDocument(first.Id)!.GetTextAsync()).ToString();
-        Assert.EndsWith(
-            "[SingletonService(As = typeof(IThing))] public class A1 : IThing; "
-                + "[ScopedService(As = typeof(A2))] public class A2;",
-            firstText
+        Verify(
+            firstText.EndsWith(
+                "[SingletonService(As = typeof(IThing))] public class A1 : IThing; "
+                    + "[ScopedService(As = typeof(A2))] public class A2;",
+                StringComparison.Ordinal
+            )
         );
     }
 
@@ -320,7 +325,7 @@ public class ServiceTypeCodeFixTests
     /// Generates the module, applies every fix, generates again, and compares what the container
     /// gets.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public async Task ApplyingEveryFix_LeavesTheRegistrationsUnchanged()
     {
         const string registrations = """
@@ -359,14 +364,16 @@ public class ServiceTypeCodeFixTests
         var before = Preamble + registrations;
         var after = await CodeFixHarness.FixEachAsync(CodeFixHarness.CreateDocument(before));
 
-        Assert.Empty(
-            await CodeFixHarness.DiagnosticsAsync(CodeFixHarness.CreateDocument(after).Project)
+        var diagnostics = await CodeFixHarness.DiagnosticsAsync(
+            CodeFixHarness.CreateDocument(after).Project
         );
-        Assert.Equal(12, after.Split("As = typeof(").Length - 1);
 
-        Assert.Equal(
-            Registrations(GeneratedAssembly.Create(before)),
+        Verify(diagnostics.Length == 0);
+        Verify(after.Split("As = typeof(").Length - 1 == 12);
+
+        Verify(
             Registrations(GeneratedAssembly.Create(after))
+                .SequenceEqual(Registrations(GeneratedAssembly.Create(before)))
         );
     }
 

@@ -3,16 +3,15 @@ using DependencyModules.SourceGenerator.Impl.Utilities;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// ServiceTypeInference called on symbols, the way an analyzer calls it.
 /// </summary>
-public class ServiceTypeInferenceTests
+public partial class ServiceTypeInferenceTests
 {
-    [Fact]
+    [VerifyTest]
     public void FirstRoleInterface_IsTheServiceType()
     {
         var serviceType = Infer(
@@ -25,10 +24,10 @@ public class ServiceTypeInferenceTests
             """
         );
 
-        Assert.Equal("IThing", serviceType.Name);
+        Verify(serviceType.Name == "IThing");
     }
 
-    [Fact]
+    [VerifyTest]
     public void InterfaceOfABaseClass_IsTheServiceType()
     {
         var serviceType = Infer(
@@ -41,10 +40,10 @@ public class ServiceTypeInferenceTests
             """
         );
 
-        Assert.Equal("IThing", serviceType.Name);
+        Verify(serviceType.Name == "IThing");
     }
 
-    [Fact]
+    [VerifyTest]
     public void OpenGenericInterface_HasItsTypeParametersEmptied()
     {
         var serviceType = Infer(
@@ -55,14 +54,14 @@ public class ServiceTypeInferenceTests
             """
         );
 
-        Assert.Equal("IGeneric", serviceType.Name);
-        Assert.All(serviceType.TypeArguments, argument => Assert.Equal("", argument.Name));
+        Verify(serviceType.Name == "IGeneric");
+        Verify(serviceType.TypeArguments.All(argument => argument.Name == ""));
     }
 
     /// <summary>
     /// Only the base list of the declaration that carries the attribute is read.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void InterfaceOnAnotherPartialDeclaration_IsNotSeen()
     {
         var serviceType = Infer(
@@ -75,7 +74,7 @@ public class ServiceTypeInferenceTests
             """
         );
 
-        Assert.Equal("Thing", serviceType.Name);
+        Verify(serviceType.Name == "Thing");
     }
 
     private static ITypeDefinition Infer(string source)
