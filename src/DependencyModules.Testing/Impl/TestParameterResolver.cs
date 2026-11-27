@@ -23,6 +23,10 @@ namespace DependencyModules.Testing.Impl;
 public sealed class TestParameterResolver
 {
     private readonly ITestMethodContext _testMethod;
+
+    // ParameterInfo compares by reference, and two threads that call GetParameters on the same
+    // method for the first time can each get a different array. Both phases use this one array.
+    private readonly ParameterInfo[] _parameters;
     private readonly Dictionary<ParameterInfo, List<ITestParameterValueProvider>> _valueProviders =
         new();
     private readonly Func<ParameterInfo, bool>? _skip;
@@ -35,6 +39,7 @@ public sealed class TestParameterResolver
     public TestParameterResolver(ITestMethodContext testMethod)
     {
         _testMethod = testMethod;
+        _parameters = testMethod.Method.GetParameters();
     }
 
     /// <summary>
@@ -58,7 +63,7 @@ public sealed class TestParameterResolver
     /// <param name="serviceCollection">The collection backing the test's container.</param>
     public void SetupServiceCollection(IServiceCollection serviceCollection)
     {
-        foreach (var parameterInfo in _testMethod.Method.GetParameters())
+        foreach (var parameterInfo in _parameters)
         {
             var providers =
                 _skip != null && _skip(parameterInfo)
@@ -106,7 +111,7 @@ public sealed class TestParameterResolver
     {
         RequireSetup(nameof(ResolveArgumentsAsync));
 
-        var parameterList = _testMethod.Method.GetParameters();
+        var parameterList = _parameters;
         var arguments = new List<object?>(data);
 
         for (var i = data.Length; i < parameterList.Length; i++)

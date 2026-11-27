@@ -27,7 +27,7 @@ mkdir -p "${OUT}" "${RAW}"
 # Every suite contributes: the integration projects exercise a great deal of the generator
 # that the unit tests never reach directly.
 PROJECTS=(
-    "tests/DependencyModules.Tests/DependencyModules.Tests.csproj"
+    "tests/DependencyModules.xUnit.Tests/DependencyModules.xUnit.Tests.csproj"
     "integ-tests/SutProject.Tests/SutProject.Tests.csproj"
     "integ-tests/SutProject.NUnitTests/SutProject.NUnitTests.csproj"
     "integ-tests/web/WebApiApp.Tests/WebApiApp.Tests.csproj"

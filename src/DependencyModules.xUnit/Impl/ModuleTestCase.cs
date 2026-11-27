@@ -1,5 +1,3 @@
-using System.Reflection;
-using DependencyModules.Runtime.Helpers;
 using DependencyModules.Runtime.Interfaces;
 using DependencyModules.Testing.Attributes.Interfaces;
 using DependencyModules.Testing.Impl;
@@ -28,7 +26,7 @@ public partial class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase
     /// One per container this case built: one for a plain test, one per row for a data-driven
     /// one. Runtime state only, never serialized with the case.
     /// </summary>
-    private readonly List<IServiceProvider> _providers = [];
+    private readonly List<ModuleTestContainer> _containers = [];
 
     // Here as well as on ModuleTestAttribute, because an attribute of another library can name
     // ModuleTestDiscoverer, and then this is the first of the package's types that xUnit creates.
@@ -90,9 +88,10 @@ public partial class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase
     /// </summary>
     public override void PreInvoke() { }
 
-    private record StartupValues(IServiceProvider ServiceProvider, TestParameterResolver Resolver);
-
-    private async Task<StartupValues> SetupServiceCollection()
+    /// <summary>
+    /// Builds one container for this case. A data-driven test builds one for every row.
+    /// </summary>
+    private async Task<ModuleTestContainer> BuildContainerAsync()
     {
         var serviceCollection = new ServiceCollection();
 
@@ -100,72 +99,22 @@ public partial class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase
 
         var context = new XunitTestMethodContext(TestMethod, knownAttributes);
 
-        // One resolver per container. A data-driven test builds both again for every row.
-        var resolver = new TestParameterResolver(context);
-
         SetupTestCaseInfo(serviceCollection, knownAttributes);
 
-        // Before the modules, so anything driving the application can take one through ordinary
-        // constructor injection. It answers nothing until the container below exists to take pinned
-        // instances from, which is why it is handed its composition rather than given it here.
-        var containerSource = new TestContainerSource();
-
-        serviceCollection.AddSingleton<ITestContainerSource>(containerSource);
-
-        SeedEnvironment(serviceCollection, knownAttributes);
-
-        SetupModules(serviceCollection, knownAttributes);
-
-        SetupServiceSetupAttributes(context, serviceCollection, knownAttributes);
-
-        // Last, so a [Mock] on a parameter beats a [TestExport] naming the same service. A
-        // parameter attribute is the narrowest thing a test can say and the only one that names a
-        // single argument, so it decides for that argument - the class or assembly sets the default
-        // and this is the one test opting out of it. A [Mock] stands aside where the mock library
-        // registers the type itself, which is what keeps [Mock] IFoo and Mock<IFoo> one pair.
-        resolver.SetupServiceCollection(serviceCollection);
-
-        var provider = BuildServiceProvider(context, serviceCollection, knownAttributes);
+        var container = await ModuleTestComposition.BuildAsync(
+            services: serviceCollection,
+            modules: CollectModules(knownAttributes),
+            testMethod: context,
+            overrides: [],
+            currentTest: null,
+            parent: null
+        );
 
         // Kept here rather than handed to DisposalTracker, which xUnit empties at the end of the
         // run; see the remarks on the class.
-        _providers.Add(provider);
+        _containers.Add(container);
 
-        await StartAsync(context, knownAttributes, provider);
-
-        // Named throughout, for the reason the base constructor above gives: three of these are
-        // delegates of shapes that would happily bind to one another.
-        containerSource.Initialize(
-            services: serviceCollection,
-            pinned: provider,
-            pinnedServices: SharedRegistrations.Collect(TestMethod.Method, knownAttributes),
-            namedServices: SharedRegistrations.CollectNamed(TestMethod.Method, knownAttributes),
-            build: services => BuildServiceProvider(context, services, knownAttributes),
-            start: built => StartAsync(context, knownAttributes, built),
-            track: _providers.Add
-        );
-
-        return new StartupValues(provider, resolver);
-    }
-
-    /// <summary>
-    /// Runs the test's startup attributes against one container.
-    /// </summary>
-    /// <remarks>
-    /// Every container, not only the first. A framework whose startup installs middleware or a filter
-    /// provider would otherwise answer through a chain that was never assembled, which is a container
-    /// that looks composed and is not.
-    /// </remarks>
-    private static async ValueTask StartAsync(
-        ITestMethodContext context,
-        Attribute[] knownAttributes,
-        IServiceProvider provider
-    )
-    {
-        foreach (var startupAttribute in knownAttributes.OfType<ITestStartupAttribute>())
-        {
-            await startupAttribute.StartupAsync(context, provider);
-        }
+        return container;
     }
 
     private void SetupTestCaseInfo(ServiceCollection serviceCollection, Attribute[] knownAttributes)
@@ -180,139 +129,45 @@ public partial class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase
         ));
     }
 
-    /// <remarks>
-    /// Last rather than first: <paramref name="knownAttributes"/> is widest scope first — assembly,
-    /// then declaring type, then the method — so the last one is the narrowest, and a builder on the
-    /// method beats one on the class beats one on the assembly. Taking the first would have let an
-    /// assembly-level builder silently win over the method that asked for a different container,
-    /// which is the reverse of how every other attribute here resolves.
-    /// </remarks>
-    private IServiceProvider BuildServiceProvider(
-        ITestMethodContext context,
-        IServiceCollection serviceCollection,
-        Attribute[] knownAttributes
-    )
-    {
-        var serviceProviderBuilderAttribute = knownAttributes
-            .OfType<IServiceProviderBuilderAttribute>()
-            .LastOrDefault();
-
-        if (serviceProviderBuilderAttribute != null)
-        {
-            return serviceProviderBuilderAttribute.BuildServiceProvider(context, serviceCollection);
-        }
-
-        return serviceCollection.BuildServiceProvider();
-    }
-
-    /// <remarks>
-    /// The whole pass runs <em>before</em> the parameter value providers, so a <c>[Mock]</c> on a
-    /// parameter overrides a <c>[TestExport]</c> naming the same service. These attributes apply to
-    /// a method, a class or an assembly; a parameter attribute names one argument, and that is the
-    /// narrowest thing a test can say, so it is the one that decides.
-    ///
-    /// Mock support goes first within the pass, everything else keeping its declared order behind it.
-    /// A mock is the stand-in a test falls back to, so naming a real implementation has to beat it —
-    /// and has to beat it whether <c>[MoqSupport]</c> sits on the assembly, the class or the method,
-    /// which relying on attribute order alone would not guarantee. A <c>Mock&lt;T&gt;</c> parameter
-    /// goes through this pass rather than the parameter one, so it does <em>not</em> override a
-    /// <c>[TestExport]</c>: asking for the mock object is not the same as declaring the service
-    /// mocked, which is what <c>[Mock]</c> is for.
-    /// </remarks>
-    private void SetupServiceSetupAttributes(
-        ITestMethodContext context,
-        IServiceCollection serviceCollection,
-        Attribute[] knownAttributes
-    )
-    {
-        var setupAttributes = knownAttributes
-            .OfType<ITestServiceSetupAttribute>()
-            .OrderBy(attribute => attribute is IMockSupportAttribute ? 0 : 1);
-
-        foreach (var setupAttribute in setupAttributes)
-        {
-            setupAttribute.SetupServiceCollection(context, serviceCollection);
-        }
-    }
-
     /// <summary>
-    /// Registers the environment the test's attributes declare, ahead of the modules.
+    /// The modules in declaration order: those of <c>[ModuleTest]</c> first, then the module
+    /// attributes, widest scope first. <see cref="ModuleTestComposition.BuildAsync"/> reverses them.
     /// </summary>
-    /// <remarks>
-    /// Before <see cref="SetupModules"/>, because module registrations are conditioned as they are
-    /// applied: <c>LoadModules</c> answers <c>[IfEnvironment]</c> from the
-    /// <see cref="IModuleEnvironment"/> already in the collection, or a process default when there
-    /// is none. The service-setup pass runs after the modules by design - a test registration
-    /// beats an application one - so an environment registered there arrived after every condition
-    /// had been decided against the default. Widest scope first, so the narrowest attribute that
-    /// answers decides, matching how every other attribute here resolves.
-    /// </remarks>
-    private void SeedEnvironment(IServiceCollection serviceCollection, Attribute[] knownAttributes)
-    {
-        IModuleEnvironment? environment = null;
-
-        foreach (var provider in knownAttributes.OfType<IModuleEnvironmentProvider>())
-        {
-            environment = provider.ProvideEnvironment(TestMethod.Method) ?? environment;
-        }
-
-        if (environment != null)
-        {
-            serviceCollection.Add(new ServiceDescriptor(typeof(IModuleEnvironment), environment));
-        }
-    }
-
-    private void SetupModules(
-        ServiceCollection serviceCollection,
-        IEnumerable<Attribute> knownAttributes
-    )
+    private IReadOnlyList<IDependencyModule> CollectModules(Attribute[] knownAttributes)
     {
         var modules = new List<IDependencyModule>();
-
-        foreach (var loadModuleAttribute in knownAttributes.OfType<IDependencyModuleProvider>())
-        {
-            var moduleTypes = loadModuleAttribute.GetModule();
-
-            modules.Add(moduleTypes);
-        }
 
         // The interface rather than ModuleTestAttribute, so this reads the same for any integration.
         var testAttribute = TestMethod.Method.GetTestAttribute<IModuleTestAttribute>();
 
         if (testAttribute != null)
         {
-            var count = 0;
             foreach (var moduleType in testAttribute.ModuleTypes)
             {
                 if (Activator.CreateInstance(moduleType, []) is IDependencyModule moduleInstance)
                 {
-                    modules.Insert(count++, moduleInstance);
+                    modules.Add(moduleInstance);
                 }
             }
         }
 
-        modules.Reverse();
+        foreach (var loadModuleAttribute in knownAttributes.OfType<IDependencyModuleProvider>())
+        {
+            modules.Add(loadModuleAttribute.GetModule());
+        }
 
-        DependencyRegistry<object>.LoadModules(serviceCollection, modules.ToArray());
+        return modules;
     }
 
-    private async ValueTask DisposeProviders()
+    private async ValueTask DisposeContainers()
     {
-        var providers = _providers.ToArray();
+        var containers = _containers.ToArray();
 
-        _providers.Clear();
+        _containers.Clear();
 
-        foreach (var provider in providers)
+        foreach (var container in containers)
         {
-            switch (provider)
-            {
-                case IAsyncDisposable asyncDisposable:
-                    await asyncDisposable.DisposeAsync();
-                    break;
-                case IDisposable disposable:
-                    disposable.Dispose();
-                    break;
-            }
+            await container.DisposeAsync();
         }
     }
 
@@ -383,7 +238,7 @@ public partial class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase
             {
                 var data = theoryDataRow.GetData();
 
-                var startupValues = await SetupServiceCollection();
+                var container = await BuildContainerAsync();
 
                 unitTests.Add(
                     CreateTest(
@@ -403,7 +258,7 @@ public partial class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase
                             .GetTraits(TestMethod, theoryDataRow)
                             .ToReadOnlyTraits(),
                         timeout: theoryDataRow.Timeout ?? Timeout,
-                        testMethodArguments: await ResolveArguments(data, startupValues),
+                        testMethodArguments: await ResolveArguments(data, container),
                         row: theoryDataRow,
                         dataAttribute: dataAttribute
                     )
@@ -472,7 +327,7 @@ public partial class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase
 
     private async Task<IReadOnlyCollection<IXunitTest>> UnitTestWithNoDataAttributes()
     {
-        var startupValues = await SetupServiceCollection();
+        var container = await BuildContainerAsync();
 
         return
         [
@@ -485,7 +340,7 @@ public partial class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase
                 testIndex: 0,
                 traits: Traits.ToReadOnlyTraits(),
                 timeout: Timeout,
-                testMethodArguments: await ResolveArguments([], startupValues),
+                testMethodArguments: await ResolveArguments([], container),
                 row: null,
                 dataAttribute: null
             ),
@@ -498,16 +353,12 @@ public partial class ModuleTestCase : XunitTestCase, ISelfExecutingXunitTestCase
     /// </remarks>
     private static async Task<object?[]> ResolveArguments(
         object?[] data,
-        StartupValues startupValues
+        ModuleTestContainer container
     )
     {
-        var arguments = await startupValues.Resolver.ResolveArgumentsAsync(
-            startupValues.ServiceProvider,
-            data
-        );
+        var arguments = await container.ResolveArgumentsAsync(data);
 
-        startupValues.ServiceProvider.GetRequiredService<TestCaseInfo>().TestMethodArguments =
-            arguments;
+        container.Services.GetRequiredService<TestCaseInfo>().TestMethodArguments = arguments;
 
         return arguments;
     }

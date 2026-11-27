@@ -28,7 +28,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebApiApp.Tests", "integ-te
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{F4DC9AA2-7F61-4DEE-A7D1-2BCDBEEFD1C5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DependencyModules.Tests", "tests\DependencyModules.Tests\DependencyModules.Tests.csproj", "{1AFFBCCF-FD6E-4232-9DC7-40FE2784ECD1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DependencyModules.xUnit.Tests", "tests\DependencyModules.xUnit.Tests\DependencyModules.xUnit.Tests.csproj", "{1AFFBCCF-FD6E-4232-9DC7-40FE2784ECD1}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "benchmarks", "benchmarks", "{2E4BAA8C-195F-490B-B9F9-57194B08CD12}"
 EndProject

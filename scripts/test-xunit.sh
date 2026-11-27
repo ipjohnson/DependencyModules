@@ -18,7 +18,7 @@ if [ -n "${2:-}" ]; then PROPERTIES+=("-p:XunitV3Version=$2"); fi
 if [ -n "${3:-}" ]; then PROPERTIES+=("-p:XunitRunnerVersion=$3"); fi
 
 PROJECTS=(
-    "tests/DependencyModules.Tests/DependencyModules.Tests.csproj"
+    "tests/DependencyModules.xUnit.Tests/DependencyModules.xUnit.Tests.csproj"
     "integ-tests/SutProject.Tests/SutProject.Tests.csproj"
     "integ-tests/web/WebApiApp.Tests/WebApiApp.Tests.csproj"
 )

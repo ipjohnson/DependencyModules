@@ -3,8 +3,8 @@ using System.Diagnostics.CodeAnalysis;
 namespace DependencyModules.Tests.Infrastructure;
 
 /// <summary>
-/// The harness checks. They throw a plain exception, which fails the test on any runner, because
-/// the harness is compiled into an xUnit project and a VerificationGlue.Tests project.
+/// The harness checks. They throw a plain exception, which fails the test on any runner, so the
+/// harness does not depend on a test framework.
 /// </summary>
 public static class Require
 {

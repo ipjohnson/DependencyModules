@@ -24,7 +24,27 @@ dotnet build DependencyModules.sln --configuration Release
 
 The `restore` step needs the `test-tools` feed in `NuGet.config`, which has the Microsoft.Testing.Platform 3 preview that VerificationGlue.Tests uses. No shipping package references VerificationGlue.
 
-The unit tests are in two projects while they move to VerificationGlue.Tests. `tests/DependencyModules.Specs` has the `RuntimeTests` and `ApiTests` folders and a part of the `GeneratorTests` folder. `tests/DependencyModules.Tests` has the other folders and the remaining `GeneratorTests` files. Both projects compile the test harness in `tests/DependencyModules.Specs/Infrastructure`. Each project reads the snapshots in its own `Snapshots` folder.
+### The test suites
+
+| Project | Runner | Target frameworks | What it tests |
+| --- | --- | --- | --- |
+| `tests/DependencyModules.Specs` | VerificationGlue.Tests | `net10.0` | The runtime, the source generator, the code fixes, the public API, and DependencyModules.Testing |
+| `tests/DependencyModules.xUnit.Tests` | xUnit | `net8.0`, `net10.0` | DependencyModules.xUnit, DependencyModules.xUnit4, and DependencyModules.NUnit |
+| `integ-tests/SutProject.Tests` | xUnit | `net8.0`, `net10.0` | The generated code of a real project, through DependencyModules.xUnit |
+| `integ-tests/web/WebApiApp.Tests` | xUnit | `net8.0`, `net10.0` | The generated code of an ASP.NET Core application, through DependencyModules.xUnit |
+| `integ-tests/SutProject.NUnitTests` | NUnit | `net8.0`, `net10.0` | The generated code of a real project, through DependencyModules.NUnit |
+
+Put a new unit test in `tests/DependencyModules.Specs`. Its tests use `[VerifyTest]` and `Verify(...)`. When a check fails, the message shows the expression and the value of each part of it. The project has the test harness in `Infrastructure` and the snapshots in `Snapshots`.
+
+Put a test in `tests/DependencyModules.xUnit.Tests` only when it tests the xUnit or NUnit integration. These tests use `[ModuleTest]` from DependencyModules.xUnit, or they call the `xunit.v3` extensibility types directly. Thus they must run on xUnit, and they run on each `xunit.v3` major. The project also targets `net8.0`, because the integration packages have a `net8.0` build.
+
+To run `tests/DependencyModules.Specs`, use `./scripts/test-verificationglue.sh`. To run one of the other projects with `xunit.v3` version 3, use `dotnet test`:
+
+```shell
+dotnet test tests/DependencyModules.xUnit.Tests --configuration Release
+```
+
+`./scripts/coverage.sh` runs all five projects. `./scripts/test-xunit.sh 4` runs the xUnit projects and `tests/DependencyModules.Specs` with `xunit.v3` version 4.
 
 To run all tests with code coverage, use the coverage script. The script writes the report to `artifacts/coverage`. If you give a percentage, the script fails when the line coverage is less than that value.
 

@@ -8,10 +8,8 @@ namespace DependencyModules.Tests.Infrastructure;
 /// unintended changes to generated output show up as a reviewable diff.
 ///
 /// To accept new output, re-run the tests with UPDATE_SNAPSHOTS=1:
-///     UPDATE_SNAPSHOTS=1 dotnet test tests/DependencyModules.Tests
 ///     UPDATE_SNAPSHOTS=1 scripts/test-verificationglue.sh
-/// and review the resulting changes under the Snapshots folder of each project. Each project
-/// reads the snapshots of its own folder.
+/// and review the resulting changes under tests/DependencyModules.Specs/Snapshots.
 ///
 /// Snapshots are read from the build output, where they are copied by the project file.
 /// [CallerFilePath] is deliberately not used to locate them: deterministic builds
