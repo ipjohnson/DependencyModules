@@ -195,7 +195,7 @@ public partial class MockTestExportDiagnosticTests
     /// VerificationGlue's <c>[Mock]</c> wins over <c>[TestExport]</c> as DependencyModules' does, so
     /// the two spellings get the same report at the same place.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void VerificationGlueMock_GetsTheSameReportAsDependencyModulesMock()
     {
         const string body = """
@@ -203,32 +203,27 @@ public partial class MockTestExportDiagnosticTests
             public void Conflicting([Mock] IThing thing) { }
             """;
 
-        var dependencyModules = Assert.Single(
-            Run(body).GeneratorDiagnostics,
-            d => d.Id == "DM0021"
-        );
+        var dependencyModules = Single(Run(body).GeneratorDiagnostics, d => d.Id == "DM0021");
         var verificationGlueResult = RunVerificationGlue(body);
-        var verificationGlue = Assert.Single(
+        var verificationGlue = Single(
             verificationGlueResult.GeneratorDiagnostics,
             d => d.Id == "DM0021"
         );
 
-        Assert.Empty(verificationGlueResult.Errors);
-        Assert.Equal(dependencyModules.GetMessage(), verificationGlue.GetMessage());
-        Assert.Equal(dependencyModules.Severity, verificationGlue.Severity);
-        Assert.Equal(
-            "Test.cs",
-            System.IO.Path.GetFileName(verificationGlue.Location.GetLineSpan().Path)
+        Verify(!verificationGlueResult.Errors.Any());
+        var reportedText = verificationGlue
+            .Location.SourceTree!.GetText()
+            .ToString(verificationGlue.Location.SourceSpan);
+
+        Verify(dependencyModules.GetMessage() == verificationGlue.GetMessage());
+        Verify(dependencyModules.Severity == verificationGlue.Severity);
+        Verify(
+            System.IO.Path.GetFileName(verificationGlue.Location.GetLineSpan().Path) == "Test.cs"
         );
-        Assert.Equal(
-            "[Mock] IThing thing",
-            verificationGlue
-                .Location.SourceTree!.GetText(TestContext.Current.CancellationToken)
-                .ToString(verificationGlue.Location.SourceSpan)
-        );
+        Verify(reportedText == "[Mock] IThing thing");
     }
 
-    [Fact]
+    [VerifyTest]
     public void VerificationGlueMock_QualifiedSpelling_IsReported()
     {
         var result = RunVerificationGlue(
@@ -238,11 +233,11 @@ public partial class MockTestExportDiagnosticTests
             """
         );
 
-        Assert.Empty(result.Errors);
-        Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0021");
+        Verify(!result.Errors.Any());
+        Single(result.GeneratorDiagnostics, d => d.Id == "DM0021");
     }
 
-    [Fact]
+    [VerifyTest]
     public void VerificationGlueMock_Keyed_IsNotReported()
     {
         var result = RunVerificationGlue(
@@ -252,11 +247,11 @@ public partial class MockTestExportDiagnosticTests
             """
         );
 
-        Assert.Empty(result.Errors);
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0021");
+        Verify(!result.Errors.Any());
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0021"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void VerificationGlueMock_NamingAnotherService_IsNotReported()
     {
         var result = RunVerificationGlue(
@@ -266,11 +261,11 @@ public partial class MockTestExportDiagnosticTests
             """
         );
 
-        Assert.Empty(result.Errors);
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0021");
+        Verify(!result.Errors.Any());
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0021"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void VerificationGlueMock_WithTestExportOnTheClass_IsNotReported()
     {
         var result = GeneratorTestHarness.Run(
@@ -287,14 +282,14 @@ public partial class MockTestExportDiagnosticTests
             """
         );
 
-        Assert.Empty(result.Errors);
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0021");
+        Verify(!result.Errors.Any());
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0021"));
     }
 
     /// <summary>
     /// Matched by namespace and name, so a <c>MockAttribute</c> of another library is not read.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AMockAttributeInAnotherNamespace_IsNotReported()
     {
         var result = GeneratorTestHarness.Run(
@@ -321,8 +316,8 @@ public partial class MockTestExportDiagnosticTests
             """
         );
 
-        Assert.Empty(result.Errors);
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0021");
+        Verify(!result.Errors.Any());
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0021"));
     }
 
     /// <summary>
