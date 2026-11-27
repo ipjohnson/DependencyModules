@@ -65,7 +65,7 @@
         on. It targets net10.0 only. No shipping package references it.
     -->
     <PropertyGroup>
-        <VerificationGlueVersion>0.3.0-preview.1</VerificationGlueVersion>
+        <VerificationGlueVersion>0.5.0-preview.1</VerificationGlueVersion>
     </PropertyGroup>
 
     <PropertyGroup>
