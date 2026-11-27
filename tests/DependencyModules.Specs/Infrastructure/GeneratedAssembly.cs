@@ -4,7 +4,6 @@ using DependencyModules.Runtime.Interfaces;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Emit;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
 namespace DependencyModules.Tests.Infrastructure;
 
@@ -98,7 +97,7 @@ public class GeneratedAssembly
 
         EmitResult emitResult = result.Compilation.Emit(stream);
 
-        Assert.True(
+        Require.That(
             emitResult.Success,
             $"The generated code did not emit. Errors:{Environment.NewLine}"
                 + string.Join(
@@ -139,7 +138,7 @@ public class GeneratedAssembly
         var provider = BuildProvider();
         var service = provider.GetService(Type(typeName));
 
-        Assert.True(
+        Require.That(
             service != null,
             $"'{typeName}' did not resolve. Registered service types: "
                 + string.Join(", ", Services.Select(descriptor => descriptor.ServiceType.Name))
@@ -156,7 +155,7 @@ public class GeneratedAssembly
         var serviceType = Type(serviceTypeName);
         var matches = Services.Where(descriptor => descriptor.ServiceType == serviceType).ToArray();
 
-        Assert.True(
+        Require.That(
             matches.Length == 1,
             $"Expected exactly one registration for '{serviceTypeName}', found {matches.Length}."
         );

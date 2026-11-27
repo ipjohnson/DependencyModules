@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 #
-# Runs every test project with coverage collection and merges the results into one report.
+# Runs every test project with coverage collection and merges the results into one report. The
+# VSTest projects use coverlet.collector, and the VerificationGlue.Tests projects use
+# coverlet.console through scripts/test-verificationglue.sh.
 #
 # Outputs (under artifacts/coverage):
 #   Summary.txt / SummaryGithub.md  human-readable summaries
@@ -46,6 +48,11 @@ for project in "${PROJECTS[@]}"; do
     status="${PIPESTATUS[0]}"
     [ "${status}" -eq 0 ] || exit "${status}"
 done
+
+# The VerificationGlue.Tests projects are Microsoft.Testing.Platform applications, which
+# coverlet.collector cannot see. The script runs them under coverlet.console and writes their
+# reports under RAW, where the merge below finds them.
+"${REPO_ROOT}/scripts/test-verificationglue.sh" "${RAW}/verificationglue"
 
 # xUnit drops a test case whose unique ID collides with one already discovered, and it does so
 # without failing the run: the suite stays green while tests quietly stop executing. Promote that

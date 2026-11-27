@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
-# Runs the xUnit test projects against one xunit.v3 major. The default build and the coverage
-# script use major 3. CI runs this for 4.
+# Runs the xUnit test projects against one xunit.v3 major, and tests/DependencyModules.Specs with
+# the DependencyModules.xUnit project of that major. The default build and the coverage script
+# use major 3. CI runs this for 4.
 #
 # Usage:
 #   scripts/test-xunit.sh 4                        the versions Directory.Build.props sets for 4
@@ -45,3 +46,7 @@ if grep -q "duplicate ID" "${TEST_LOG}"; then
     grep "duplicate ID" "${TEST_LOG}" >&2
     exit 1
 fi
+
+# tests/DependencyModules.Specs snapshots the public API of the xUnit package, which differs
+# between the majors.
+"${REPO_ROOT}/scripts/test-verificationglue.sh" "${PROPERTIES[@]}"

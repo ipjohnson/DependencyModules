@@ -1,50 +1,49 @@
 using DependencyModules.Runtime;
 using DependencyModules.Runtime.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
-namespace DependencyModules.Tests.RuntimeTests;
+namespace DependencyModules.Specs.RuntimeTests;
 
 /// <summary>
 /// The AddModule/AddModules overloads are the library's entry point, so each one is covered here.
 /// </summary>
-public class ServiceCollectionExtensionsTests
+public partial class ServiceCollectionExtensionsTests
 {
     private interface IThing;
 
     private class Thing : IThing;
 
-    [Fact]
+    [VerifyTest]
     public void AddModule_Generic_PopulatesTheCollection()
     {
         var collection = new ServiceCollection();
 
         collection.AddModule<RegisteringModule>();
 
-        Assert.Contains(collection, descriptor => descriptor.ServiceType == typeof(IThing));
+        Verify(collection.Any(descriptor => descriptor.ServiceType == typeof(IThing)));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AddModule_Generic_ReturnsTheSameCollectionForChaining()
     {
         var collection = new ServiceCollection();
 
         var returned = collection.AddModule<RegisteringModule>();
 
-        Assert.Same(collection, returned);
+        Verify(ReferenceEquals(returned, collection));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AddModule_Instance_PopulatesTheCollection()
     {
         var collection = new ServiceCollection();
 
         collection.AddModule(new RegisteringModule());
 
-        Assert.Contains(collection, descriptor => descriptor.ServiceType == typeof(IThing));
+        Verify(collection.Any(descriptor => descriptor.ServiceType == typeof(IThing)));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AddModule_Instance_ReturnsTheSameCollectionForChaining()
     {
         var collection = new ServiceCollection();
@@ -52,10 +51,10 @@ public class ServiceCollectionExtensionsTests
 
         var returned = collection.AddModule(module);
 
-        Assert.Same(collection, returned);
+        Verify(ReferenceEquals(returned, collection));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AddModules_AppliesEveryModule()
     {
         var first = new RegisteringModule();
@@ -64,41 +63,41 @@ public class ServiceCollectionExtensionsTests
         var collection = new ServiceCollection();
         collection.AddModules(first, second);
 
-        Assert.Contains(collection, descriptor => descriptor.ServiceType == typeof(IThing));
-        Assert.Contains(collection, descriptor => descriptor.ServiceType == typeof(IOther));
+        Verify(collection.Any(descriptor => descriptor.ServiceType == typeof(IThing)));
+        Verify(collection.Any(descriptor => descriptor.ServiceType == typeof(IOther)));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AddModules_ReturnsTheSameCollectionForChaining()
     {
         var collection = new ServiceCollection();
 
         var returned = collection.AddModules(new RegisteringModule());
 
-        Assert.Same(collection, returned);
+        Verify(ReferenceEquals(returned, collection));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AddModules_WithNoModules_LeavesTheCollectionEmpty()
     {
         var collection = new ServiceCollection();
 
         collection.AddModules();
 
-        Assert.Empty(collection);
+        Verify(collection.Count == 0);
     }
 
-    [Fact]
+    [VerifyTest]
     public void AddModules_WithEnvironment_ReturnsTheSameCollectionForChaining()
     {
         var collection = new ServiceCollection();
 
         var returned = collection.AddModules(new StubEnvironment(), new RegisteringModule());
 
-        Assert.Same(collection, returned);
+        Verify(ReferenceEquals(returned, collection));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AddedServices_ResolveFromTheBuiltProvider()
     {
         var collection = new ServiceCollection();
@@ -106,7 +105,7 @@ public class ServiceCollectionExtensionsTests
 
         var provider = collection.BuildServiceProvider();
 
-        Assert.IsType<Thing>(provider.GetService<IThing>());
+        Verify(provider.GetService<IThing>()?.GetType() == typeof(Thing));
     }
 
     private interface IOther;

@@ -2,15 +2,14 @@ using System.Collections.Concurrent;
 using DependencyModules.Runtime.Helpers;
 using DependencyModules.Runtime.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
-namespace DependencyModules.Tests.RuntimeTests;
+namespace DependencyModules.Specs.RuntimeTests;
 
 /// <summary>
 /// DependencyRegistry keeps its state in static fields on a generic type, so every test here uses
 /// its own marker type to stay isolated from the others.
 /// </summary>
-public class DependencyRegistryTests
+public partial class DependencyRegistryTests
 {
     private interface IThing;
 
@@ -18,7 +17,7 @@ public class DependencyRegistryTests
 
     private class OtherThing : IThing;
 
-    [Fact]
+    [VerifyTest]
     public void ApplyServices_RunsRegisteredFunctionsInOrder()
     {
         DependencyRegistry<OrderMarker>.Add(services => services.AddSingleton<IThing, Thing>());
@@ -29,14 +28,14 @@ public class DependencyRegistryTests
         var collection = new ServiceCollection();
         DependencyRegistry<OrderMarker>.ApplyServices(collection);
 
-        Assert.Equal(2, collection.Count);
-        Assert.Equal(typeof(Thing), collection[0].ImplementationType);
-        Assert.Equal(typeof(OtherThing), collection[1].ImplementationType);
+        Verify(collection.Count == 2);
+        Verify(collection[0].ImplementationType == typeof(Thing));
+        Verify(collection[1].ImplementationType == typeof(OtherThing));
     }
 
     private class OrderMarker;
 
-    [Fact]
+    [VerifyTest]
     public void Registry_IsIsolatedPerTypeArgument()
     {
         DependencyRegistry<IsolationMarkerA>.Add(services =>
@@ -46,14 +45,14 @@ public class DependencyRegistryTests
         var collection = new ServiceCollection();
         DependencyRegistry<IsolationMarkerB>.ApplyServices(collection);
 
-        Assert.Empty(collection);
+        Verify(collection.Count == 0);
     }
 
     private class IsolationMarkerA;
 
     private class IsolationMarkerB;
 
-    [Fact]
+    [VerifyTest]
     public void Add_WithFactory_RegistersWithRequestedLifetime()
     {
         DependencyRegistry<FactoryMarker>.Add<Thing>(_ => new Thing(), ServiceLifetime.Scoped);
@@ -61,15 +60,15 @@ public class DependencyRegistryTests
         var collection = new ServiceCollection();
         DependencyRegistry<FactoryMarker>.ApplyServices(collection);
 
-        var descriptor = Assert.Single(collection);
-        Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
-        Assert.Equal(typeof(Thing), descriptor.ServiceType);
-        Assert.NotNull(descriptor.ImplementationFactory);
+        var descriptor = Single(collection);
+        Verify(descriptor.Lifetime == ServiceLifetime.Scoped);
+        Verify(descriptor.ServiceType == typeof(Thing));
+        Verify(descriptor.ImplementationFactory is not null);
     }
 
     private class FactoryMarker;
 
-    [Fact]
+    [VerifyTest]
     public void Add_WithImplementationTypeAndKey_RegistersKeyedService()
     {
         DependencyRegistry<KeyedMarker>.Add<IThing>(
@@ -81,11 +80,11 @@ public class DependencyRegistryTests
         var collection = new ServiceCollection();
         DependencyRegistry<KeyedMarker>.ApplyServices(collection);
 
-        var descriptor = Assert.Single(collection);
-        Assert.True(descriptor.IsKeyedService);
-        Assert.Equal("the-key", descriptor.ServiceKey);
-        Assert.Equal(ServiceLifetime.Singleton, descriptor.Lifetime);
-        Assert.Equal(typeof(Thing), descriptor.KeyedImplementationType);
+        var descriptor = Single(collection);
+        Verify(descriptor.IsKeyedService);
+        Verify(Equals(descriptor.ServiceKey, "the-key"));
+        Verify(descriptor.Lifetime == ServiceLifetime.Singleton);
+        Verify(descriptor.KeyedImplementationType == typeof(Thing));
     }
 
     private class KeyedMarker;
@@ -95,7 +94,7 @@ public class DependencyRegistryTests
     /// implementation. Pipeline behaviours contributed by different packages rely on this, so the
     /// ordering has to hold across every decorator in the registry, not just within one group.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ApplyDecorators_AppliesInAscendingOrder()
     {
         var applied = new List<string>();
@@ -106,12 +105,12 @@ public class DependencyRegistryTests
 
         DependencyRegistry<OrderedDecoratorMarker>.ApplyDecorators(new ServiceCollection());
 
-        Assert.Equal(["first", "second", "third"], applied);
+        Verify(applied.SequenceEqual(["first", "second", "third"]));
     }
 
     private class OrderedDecoratorMarker;
 
-    [Fact]
+    [VerifyTest]
     public void ApplyDecorators_WithoutAnOrder_AppliesInRegistrationOrder()
     {
         var applied = new List<string>();
@@ -121,7 +120,7 @@ public class DependencyRegistryTests
 
         DependencyRegistry<UnorderedDecoratorMarker>.ApplyDecorators(new ServiceCollection());
 
-        Assert.Equal(["first", "second"], applied);
+        Verify(applied.SequenceEqual(["first", "second"]));
     }
 
     private class UnorderedDecoratorMarker;
@@ -130,7 +129,7 @@ public class DependencyRegistryTests
     /// Equal orders must not nest arbitrarily; the sort has to be stable so the result is
     /// reproducible between runs.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ApplyDecorators_WithEqualOrders_KeepsRegistrationOrder()
     {
         var applied = new List<string>();
@@ -141,12 +140,12 @@ public class DependencyRegistryTests
 
         DependencyRegistry<StableDecoratorMarker>.ApplyDecorators(new ServiceCollection());
 
-        Assert.Equal(["first", "second", "third"], applied);
+        Verify(applied.SequenceEqual(["first", "second", "third"]));
     }
 
     private class StableDecoratorMarker;
 
-    [Fact]
+    [VerifyTest]
     public void ApplyDecorators_MixesOrderedAndUnorderedRegistrations()
     {
         var applied = new List<string>();
@@ -161,12 +160,12 @@ public class DependencyRegistryTests
 
         DependencyRegistry<MixedDecoratorMarker>.ApplyDecorators(new ServiceCollection());
 
-        Assert.Equal(["innermost", "default", "application"], applied);
+        Verify(applied.SequenceEqual(["innermost", "default", "application"]));
     }
 
     private class MixedDecoratorMarker;
 
-    [Fact]
+    [VerifyTest]
     public void ApplyDecorators_RunsSeparatelyFromServices()
     {
         DependencyRegistry<DecoratorMarker>.Add(services => services.AddSingleton<IThing, Thing>());
@@ -176,27 +175,28 @@ public class DependencyRegistryTests
 
         var servicesOnly = new ServiceCollection();
         DependencyRegistry<DecoratorMarker>.ApplyServices(servicesOnly);
-        Assert.Single(servicesOnly);
+        Verify(servicesOnly.Count == 1);
 
         var decoratorsOnly = new ServiceCollection();
         DependencyRegistry<DecoratorMarker>.ApplyDecorators(decoratorsOnly);
-        var descriptor = Assert.Single(decoratorsOnly);
-        Assert.Equal(typeof(OtherThing), descriptor.ImplementationType);
+        var descriptor = Single(decoratorsOnly);
+        Verify(descriptor.ImplementationType == typeof(OtherThing));
     }
 
     private class DecoratorMarker;
 
-    [Fact]
+    [VerifyTest]
     public void GetModules_WithNoRegisteredModules_ReturnsSuppliedModules()
     {
         var module = new StubModule();
 
         var result = DependencyRegistry<GetModulesMarker>.GetModules(module);
 
-        Assert.Same(module, Assert.Single(result));
+        var only = Single(result);
+        Verify(ReferenceEquals(only, module));
     }
 
-    [Fact]
+    [VerifyTest]
     public void GetModules_ConcatenatesRegisteredAndSuppliedModules()
     {
         var registered = new StubModule();
@@ -205,9 +205,9 @@ public class DependencyRegistryTests
 
         var result = DependencyRegistry<GetModulesConcatMarker>.GetModules(supplied).ToArray();
 
-        Assert.Equal(2, result.Length);
-        Assert.Same(registered, result[0]);
-        Assert.Same(supplied, result[1]);
+        Verify(result.Length == 2);
+        Verify(ReferenceEquals(result[0], registered));
+        Verify(ReferenceEquals(result[1], supplied));
     }
 
     private class GetModulesMarker;
@@ -219,8 +219,8 @@ public class DependencyRegistryTests
     /// initializers, which the runtime may execute on several threads at once, while another
     /// thread can be enumerating the same list in ApplyServices.
     /// </summary>
-    [Fact]
-    public void Add_IsSafeUnderConcurrentWritersAndReaders()
+    [VerifyTest]
+    public void Add_IsSafeUnderConcurrentWritersAndReaders(CancellationToken cancellationToken)
     {
         const int writerCount = 8;
         const int perWriter = 250;
@@ -234,7 +234,7 @@ public class DependencyRegistryTests
             {
                 try
                 {
-                    start.Wait(TestContext.Current.CancellationToken);
+                    start.Wait(cancellationToken);
                     for (var i = 0; i < perWriter; i++)
                     {
                         DependencyRegistry<ConcurrencyMarker>.Add(services =>
@@ -255,7 +255,7 @@ public class DependencyRegistryTests
             {
                 try
                 {
-                    start.Wait(TestContext.Current.CancellationToken);
+                    start.Wait(cancellationToken);
                     for (var i = 0; i < perWriter; i++)
                     {
                         DependencyRegistry<ConcurrencyMarker>.ApplyServices(
@@ -279,23 +279,21 @@ public class DependencyRegistryTests
 
         foreach (var thread in writers.Concat(readers))
         {
-            Assert.True(
-                thread.Join(TimeSpan.FromSeconds(30)),
-                "A registry thread did not finish in time."
-            );
+            var finished = thread.Join(TimeSpan.FromSeconds(30));
+            Verify(finished, "A registry thread did not finish in time.");
         }
 
-        Assert.Empty(failures);
+        Verify(failures.IsEmpty);
 
         var collection = new ServiceCollection();
         DependencyRegistry<ConcurrencyMarker>.ApplyServices(collection);
-        Assert.Equal(writerCount * perWriter, collection.Count);
+        Verify(collection.Count == writerCount * perWriter);
     }
 
     private class ConcurrencyMarker;
 
-    [Fact]
-    public void AddModule_IsSafeUnderConcurrentWriters()
+    [VerifyTest]
+    public void AddModule_IsSafeUnderConcurrentWriters(CancellationToken cancellationToken)
     {
         const int writerCount = 8;
         const int perWriter = 100;
@@ -309,7 +307,7 @@ public class DependencyRegistryTests
             {
                 try
                 {
-                    start.Wait(TestContext.Current.CancellationToken);
+                    start.Wait(cancellationToken);
                     for (var i = 0; i < perWriter; i++)
                     {
                         DependencyRegistry<ModuleConcurrencyMarker>.AddModule(new StubModule());
@@ -331,16 +329,14 @@ public class DependencyRegistryTests
 
         foreach (var thread in threads)
         {
-            Assert.True(
-                thread.Join(TimeSpan.FromSeconds(30)),
-                "A registry thread did not finish in time."
-            );
+            var finished = thread.Join(TimeSpan.FromSeconds(30));
+            Verify(finished, "A registry thread did not finish in time.");
         }
 
-        Assert.Empty(failures);
-        Assert.Equal(
-            writerCount * perWriter,
+        Verify(failures.IsEmpty);
+        Verify(
             DependencyRegistry<ModuleConcurrencyMarker>.GetModules().Count()
+                == writerCount * perWriter
         );
     }
 
@@ -357,7 +353,7 @@ public class DependencyRegistryTests
     /// lookup. Every test above passes a collection with no environment at all, which is why it went
     /// unnoticed.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ApplyServices_UsesAnEnvironmentAlreadyInTheCollection()
     {
         DependencyRegistry<SuppliedEnvironmentMarker>.Add(
@@ -375,15 +371,12 @@ public class DependencyRegistryTests
 
         DependencyRegistry<SuppliedEnvironmentMarker>.ApplyServices(collection);
 
-        Assert.Contains(
-            collection,
-            descriptor => descriptor.ImplementationType == typeof(OtherThing)
-        );
+        Verify(collection.Any(descriptor => descriptor.ImplementationType == typeof(OtherThing)));
     }
 
     private class SuppliedEnvironmentMarker;
 
-    [Fact]
+    [VerifyTest]
     public void ApplyDecorators_UsesAnEnvironmentAlreadyInTheCollection()
     {
         var seen = "";
@@ -397,7 +390,7 @@ public class DependencyRegistryTests
 
         DependencyRegistry<SuppliedDecoratorEnvironmentMarker>.ApplyDecorators(collection);
 
-        Assert.Equal("Staging", seen);
+        Verify(seen == "Staging");
     }
 
     private class SuppliedDecoratorEnvironmentMarker;
@@ -406,9 +399,9 @@ public class DependencyRegistryTests
     /// The guard still has to fire. An environment the container would build rather than hand back
     /// cannot decide registrations, because there is no provider yet to build it with.
     /// </summary>
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
+    [VerifyTest]
+    [Row(true)]
+    [Row(false)]
     public void ApplyServices_RefusesAnEnvironmentItCannotUse(bool registeredByType)
     {
         var collection = new ServiceCollection();
@@ -422,7 +415,7 @@ public class DependencyRegistryTests
             collection.AddSingleton<IModuleEnvironment>(_ => new StubEnvironment("Development"));
         }
 
-        Assert.Throws<InvalidOperationException>(() =>
+        ThrowsExactly<InvalidOperationException>(() =>
             DependencyRegistry<RefusedEnvironmentMarker>.ApplyServices(collection)
         );
     }

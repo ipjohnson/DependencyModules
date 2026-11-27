@@ -7,7 +7,6 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
 namespace DependencyModules.Tests.Infrastructure;
 
@@ -277,7 +276,7 @@ public static class GeneratorTestHarness
 
         var result = compilation.Emit(stream);
 
-        Xunit.Assert.True(
+        Require.That(
             result.Success,
             "The test library did not compile: "
                 + string.Join(
@@ -298,7 +297,7 @@ public static class GeneratorTestHarness
             // what every earlier reference binds to at run time - and the tests that break are
             // whichever ones happened to run second, which is a failure that appears and disappears
             // with the filter you ran.
-            Xunit.Assert.True(
+            Require.That(
                 !LibrarySources.TryGetValue(assemblyName, out var previousSource)
                     || previousSource == source,
                 $"'{assemblyName}' was compiled more than once from different source. The runtime "
@@ -433,11 +432,11 @@ public class GeneratorResult(
             .Where(pair => pair.Key.Contains(fragment, StringComparison.OrdinalIgnoreCase))
             .ToArray();
 
-        Assert.True(
+        Require.That(
             matches.Length > 0,
             $"No generated file matched '{fragment}'. Generated: {string.Join(", ", GeneratedSources.Keys)}"
         );
-        Assert.True(
+        Require.That(
             matches.Length == 1,
             $"'{fragment}' matched more than one generated file: {string.Join(", ", matches.Select(m => m.Key))}"
         );
@@ -450,7 +449,7 @@ public class GeneratorResult(
     /// </summary>
     public GeneratorResult AssertNoErrors()
     {
-        Assert.True(
+        Require.That(
             GeneratorExceptions.Count == 0,
             "The generator threw:"
                 + Environment.NewLine
@@ -459,7 +458,7 @@ public class GeneratorResult(
 
         var errors = Errors.ToArray();
 
-        Assert.True(
+        Require.That(
             errors.Length == 0,
             "Expected no errors, got:"
                 + Environment.NewLine

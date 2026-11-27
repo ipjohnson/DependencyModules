@@ -1,7 +1,6 @@
 using DependencyModules.Runtime.Interception;
-using Xunit;
 
-namespace DependencyModules.Tests.RuntimeTests;
+namespace DependencyModules.Specs.RuntimeTests;
 
 /// <summary>
 /// The runtime interception types exercised through a wrapper written by hand in exactly the shape
@@ -17,7 +16,7 @@ namespace DependencyModules.Tests.RuntimeTests;
 /// named after their member, because overloads would collide; argument fields are <c>_arg0</c>
 /// onwards, because a parameter named <c>Self</c> or a keyword would collide too.
 /// </remarks>
-public class InvocationPipelineTests
+public partial class InvocationPipelineTests
 {
     public interface IWork
     {
@@ -30,54 +29,56 @@ public class InvocationPipelineTests
         IAsyncEnumerable<int> Stream(int count);
     }
 
-    [Fact]
+    [VerifyTest]
     public void SyncMember_ReturnsTheInnerResultThroughBothInterceptors()
     {
         var fixture = new Fixture();
 
         var result = fixture.Service.Double(21, "label");
 
-        Assert.Equal(42, result);
-        Assert.Equal(["Double(21, label)"], fixture.Implementation.Calls);
+        Verify(result == 42);
+        Verify(fixture.Implementation.Calls.SequenceEqual(new[] { "Double(21, label)" }));
     }
 
     /// <summary>
     /// Interceptors nest: the first declared wraps the second, so it enters first and exits last.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void SeveralInterceptors_NestInDeclarationOrder()
     {
         var fixture = new Fixture();
 
         fixture.Service.Double(1, "label");
 
-        Assert.Equal(
-            [
-                "first enter IWork.Double",
-                "second enter IWork.Double",
-                "second exit IWork.Double",
-                "first exit IWork.Double",
-            ],
-            fixture.Log
+        Verify(
+            fixture.Log.SequenceEqual(
+                new[]
+                {
+                    "first enter IWork.Double",
+                    "second enter IWork.Double",
+                    "second exit IWork.Double",
+                    "first exit IWork.Double",
+                }
+            )
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void VoidMember_RoundTripsThroughNoResult()
     {
         var fixture = new Fixture();
 
         fixture.Service.Record("entry");
 
-        Assert.Equal(["Record(entry)"], fixture.Implementation.Calls);
-        Assert.Equal("void", default(NoResult).ToString());
+        Verify(fixture.Implementation.Calls.SequenceEqual(new[] { "Record(entry)" }));
+        Verify(default(NoResult).ToString() == "void");
     }
 
     /// <summary>
     /// Writing an argument replaces the value the implementation receives, because the fields written
     /// through the indexer are the fields the last stage passes on.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void WritingAnArgument_ReplacesWhatTheImplementationReceives()
     {
         var fixture = new Fixture();
@@ -85,11 +86,11 @@ public class InvocationPipelineTests
 
         var result = fixture.Service.Double(21, "label");
 
-        Assert.Equal(10, result);
-        Assert.Equal(["Double(5, label)"], fixture.Implementation.Calls);
+        Verify(result == 10);
+        Verify(fixture.Implementation.Calls.SequenceEqual(new[] { "Double(5, label)" }));
     }
 
-    [Fact]
+    [VerifyTest]
     public void Arguments_ReadByPositionAndName()
     {
         var fixture = new Fixture();
@@ -105,10 +106,10 @@ public class InvocationPipelineTests
 
         fixture.Service.Double(21, "label");
 
-        Assert.Equal(["value=21", "label=label"], seen);
+        Verify(seen.SequenceEqual(new[] { "value=21", "label=label" }));
     }
 
-    [Fact]
+    [VerifyTest]
     public void Caller_CarriesTheInterfaceAndTheMember()
     {
         var fixture = new Fixture();
@@ -118,15 +119,15 @@ public class InvocationPipelineTests
 
         fixture.Service.Double(1, "label");
 
-        Assert.Equal(typeof(IWork), caller.ServiceType);
-        Assert.Equal("Double", caller.MemberName);
+        Verify(caller.ServiceType == typeof(IWork));
+        Verify(caller.MemberName == "Double");
     }
 
     /// <summary>
     /// The stage index lives on the context rather than the state, so proceeding twice re-enters the
     /// same next stage. A mutable index would walk past it and call the implementation once.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ProceedingTwice_ReEntersTheSameStage()
     {
         var fixture = new Fixture();
@@ -134,12 +135,16 @@ public class InvocationPipelineTests
 
         var result = fixture.Service.Double(21, "label");
 
-        Assert.Equal(42, result);
-        Assert.Equal(["Double(21, label)", "Double(21, label)"], fixture.Implementation.Calls);
-        Assert.Equal(2, fixture.Log.Count(entry => entry == "second enter IWork.Double"));
+        Verify(result == 42);
+        Verify(
+            fixture.Implementation.Calls.SequenceEqual(
+                new[] { "Double(21, label)", "Double(21, label)" }
+            )
+        );
+        Verify(fixture.Log.Count(entry => entry == "second enter IWork.Double") == 2);
     }
 
-    [Fact]
+    [VerifyTest]
     public void NotProceeding_SkipsTheImplementationAndEverythingBelow()
     {
         var fixture = new Fixture();
@@ -147,22 +152,23 @@ public class InvocationPipelineTests
 
         var result = fixture.Service.Double(21, "label");
 
-        Assert.Equal(7, result);
-        Assert.Empty(fixture.Implementation.Calls);
-        Assert.DoesNotContain("second enter IWork.Double", fixture.Log);
+        Verify(result == 7);
+        Verify(fixture.Implementation.Calls.Count == 0);
+        Verify(!fixture.Log.Contains("second enter IWork.Double"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AnException_PropagatesThroughThePipeline()
     {
         var fixture = new Fixture();
         fixture.Implementation.Throw = true;
 
-        Assert.Throws<InvalidOperationException>(() => fixture.Service.Double(1, "label"));
+        ThrowsExactly<InvalidOperationException>(() => fixture.Service.Double(1, "label"));
 
-        Assert.Equal(
-            ["second exit IWork.Double", "first exit IWork.Double"],
-            fixture.Log.Where(entry => entry.Contains("exit")).ToArray()
+        Verify(
+            fixture
+                .Log.Where(entry => entry.Contains("exit"))
+                .SequenceEqual(new[] { "second exit IWork.Double", "first exit IWork.Double" })
         );
     }
 
@@ -171,7 +177,7 @@ public class InvocationPipelineTests
     /// interceptor awaits inside its own method body, so what follows the await runs when the call
     /// has finished.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public async Task AsyncMember_ExitsWhenTheWorkFinishesRatherThanWhenTheTaskIsHandedBack()
     {
         var fixture = new Fixture();
@@ -181,21 +187,23 @@ public class InvocationPipelineTests
         var task = fixture.Service.ComputeAsync(21);
 
         // The work is suspended at a gate nothing has released, so this cannot have happened yet.
-        Assert.DoesNotContain(fixture.Log, entry => entry.Contains("exit"));
+        Verify(!fixture.Log.Any(entry => entry.Contains("exit")));
 
         gate.SetResult();
 
         var result = await task;
 
-        Assert.Equal(42, result);
-        Assert.Equal(
-            [
-                "first enter IWork.ComputeAsync",
-                "second enter IWork.ComputeAsync",
-                "second exit IWork.ComputeAsync",
-                "first exit IWork.ComputeAsync",
-            ],
-            fixture.Log
+        Verify(result == 42);
+        Verify(
+            fixture.Log.SequenceEqual(
+                new[]
+                {
+                    "first enter IWork.ComputeAsync",
+                    "second enter IWork.ComputeAsync",
+                    "second exit IWork.ComputeAsync",
+                    "first exit IWork.ComputeAsync",
+                }
+            )
         );
     }
 
@@ -203,7 +211,7 @@ public class InvocationPipelineTests
     /// A stream hands its enumerable back immediately, so an interceptor that treated it as an
     /// ordinary value would observe the construction of the iterator and nothing else.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public async Task StreamMember_ObservesEachItemAsItIsProduced()
     {
         var fixture = new Fixture();
@@ -215,21 +223,23 @@ public class InvocationPipelineTests
             items.Add(item);
         }
 
-        Assert.Equal([0, 1, 2], items);
-        Assert.Equal(
-            [
-                "first enter IWork.Stream",
-                "second enter IWork.Stream",
-                "second item 0",
-                "first item 0",
-                "second item 1",
-                "first item 1",
-                "second item 2",
-                "first item 2",
-                "second exit IWork.Stream",
-                "first exit IWork.Stream",
-            ],
-            fixture.Log
+        Verify(items.SequenceEqual(new[] { 0, 1, 2 }));
+        Verify(
+            fixture.Log.SequenceEqual(
+                new[]
+                {
+                    "first enter IWork.Stream",
+                    "second enter IWork.Stream",
+                    "second item 0",
+                    "first item 0",
+                    "second item 1",
+                    "first item 1",
+                    "second item 2",
+                    "first item 2",
+                    "second exit IWork.Stream",
+                    "first exit IWork.Stream",
+                }
+            )
         );
     }
 

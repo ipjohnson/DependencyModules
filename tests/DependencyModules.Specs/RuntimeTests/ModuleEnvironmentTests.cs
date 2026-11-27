@@ -2,13 +2,12 @@ using DependencyModules.Runtime;
 using DependencyModules.Runtime.Helpers;
 using DependencyModules.Runtime.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
-namespace DependencyModules.Tests.RuntimeTests;
+namespace DependencyModules.Specs.RuntimeTests;
 
-public class ModuleEnvironmentTests
+public partial class ModuleEnvironmentTests
 {
-    [Fact]
+    [VerifyTest]
     public void ValuesComeBackByName()
     {
         var environment = new ModuleEnvironment(
@@ -16,34 +15,34 @@ public class ModuleEnvironmentTests
             new Dictionary<string, string?> { ["A"] = "1", ["Empty"] = "" }
         );
 
-        Assert.Equal("Development", environment.EnvironmentName);
-        Assert.Equal("1", environment.Value("A"));
-        Assert.Equal("", environment.Value("Empty"));
-        Assert.Null(environment.Value("Missing"));
+        Verify(environment.EnvironmentName == "Development");
+        Verify(environment.Value("A") == "1");
+        Verify(environment.Value("Empty") == "");
+        Verify(environment.Value("Missing") is null);
     }
 
-    [Fact]
+    [VerifyTest]
     public void ValuesAreOptional()
     {
         var environment = new ModuleEnvironment("Production");
 
-        Assert.Null(environment.Value("Anything"));
+        Verify(environment.Value("Anything") is null);
     }
 
-    [Fact]
+    [VerifyTest]
     public void ValuesCanBeWrittenInAnInitializer()
     {
         var environment = new ModuleEnvironment("Development") { { "A", "1" }, { "Null", null } };
 
-        Assert.Equal("1", environment.Value("A"));
-        Assert.Null(environment.Value("Null"));
-        Assert.Null(environment.Value("Missing"));
+        Verify(environment.Value("A") == "1");
+        Verify(environment.Value("Null") is null);
+        Verify(environment.Value("Missing") is null);
     }
 
     /// <summary>
     /// So a fixed set can be seeded and then adjusted, rather than the two forms being exclusive.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AnInitializerOverridesAValueFromTheConstructor()
     {
         var environment = new ModuleEnvironment(
@@ -54,28 +53,28 @@ public class ModuleEnvironmentTests
             { "Seed", "replaced" },
         };
 
-        Assert.Equal("replaced", environment.Value("Seed"));
-        Assert.Equal("kept", environment.Value("Kept"));
+        Verify(environment.Value("Seed") == "replaced");
+        Verify(environment.Value("Kept") == "kept");
     }
 
     /// <summary>
     /// The values are copied, so the dictionary the caller still holds is not written to.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AddDoesNotWriteToTheCallersDictionary()
     {
         var values = new Dictionary<string, string?> { ["A"] = "1" };
         var environment = new ModuleEnvironment("Development", values) { { "B", "2" } };
 
-        Assert.Equal("2", environment.Value("B"));
-        Assert.DoesNotContain("B", values.Keys);
+        Verify(environment.Value("B") == "2");
+        Verify(!values.Keys.Contains("B"));
     }
 
     /// <summary>
     /// A comparer is a deliberate choice — most often to match how Windows treats variable names —
     /// so copying the values must not quietly reset it to ordinal.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ACallersComparerSurvivesTheCopy()
     {
         var values = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
@@ -85,27 +84,28 @@ public class ModuleEnvironmentTests
 
         var environment = new ModuleEnvironment("Development", values);
 
-        Assert.Equal("value", environment.Value("KEY"));
+        Verify(environment.Value("KEY") == "value");
     }
 
-    [Fact]
+    [VerifyTest]
     public void ValuesEnumerate()
     {
         var environment = new ModuleEnvironment("Development") { { "A", "1" }, { "B", "2" } };
 
-        Assert.Equal(
-            new Dictionary<string, string?> { ["A"] = "1", ["B"] = "2" },
-            environment.ToDictionary(pair => pair.Key, pair => pair.Value)
-        );
+        var actual = environment.ToDictionary(pair => pair.Key, pair => pair.Value);
+
+        Verify(actual.Count == 2);
+        Verify(actual["A"] == "1");
+        Verify(actual["B"] == "2");
     }
 
     /// <summary>
     /// Shared by every application in the process, so it cannot be one of the mutable ones.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void NoneCannotBeGivenValues()
     {
-        Assert.IsNotType<ModuleEnvironment>(ModuleEnvironment.None);
+        Verify(ModuleEnvironment.None.GetType() != typeof(ModuleEnvironment));
     }
 
     /// <summary>
@@ -113,7 +113,7 @@ public class ModuleEnvironmentTests
     /// </summary>
     private static string UniqueKey() => "DM_TEST_" + Guid.NewGuid().ToString("N");
 
-    [Fact]
+    [VerifyTest]
     public void AKeyNotSuppliedFallsBackToAnEnvironmentVariable()
     {
         var key = UniqueKey();
@@ -127,9 +127,9 @@ public class ModuleEnvironmentTests
 
             var environment = new ModuleEnvironment("Development") { { "Supplied", "value" } };
 
-            Assert.Equal("from-process", environment.Value(key));
-            Assert.Equal("value", environment.Value("Supplied"));
-            Assert.Null(environment.Value(UniqueKey()));
+            Verify(environment.Value(key) == "from-process");
+            Verify(environment.Value("Supplied") == "value");
+            Verify(environment.Value(UniqueKey()) is null);
         }
         finally
         {
@@ -137,7 +137,7 @@ public class ModuleEnvironmentTests
         }
     }
 
-    [Fact]
+    [VerifyTest]
     public void ASuppliedValueWinsOverAnEnvironmentVariable()
     {
         var key = UniqueKey();
@@ -148,7 +148,7 @@ public class ModuleEnvironmentTests
 
             var environment = new ModuleEnvironment("Development") { { key, "supplied" } };
 
-            Assert.Equal("supplied", environment.Value(key));
+            Verify(environment.Value(key) == "supplied");
         }
         finally
         {
@@ -159,7 +159,7 @@ public class ModuleEnvironmentTests
     /// <summary>
     /// Saying a key has no value is how an environment variable of the same name is hidden.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ASuppliedNullHidesAnEnvironmentVariable()
     {
         var key = UniqueKey();
@@ -170,8 +170,8 @@ public class ModuleEnvironmentTests
 
             var environment = new ModuleEnvironment("Development") { { key, null } };
 
-            Assert.Null(environment.Value(key));
-            Assert.False(EnvironmentConditions.HasValue(environment, key));
+            Verify(environment.Value(key) is null);
+            Verify(!EnvironmentConditions.HasValue(environment, key));
         }
         finally
         {
@@ -179,7 +179,7 @@ public class ModuleEnvironmentTests
         }
     }
 
-    [Fact]
+    [VerifyTest]
     public void FallBackCanBeTurnedOff()
     {
         var key = UniqueKey();
@@ -193,8 +193,8 @@ public class ModuleEnvironmentTests
                 { "Supplied", "value" },
             };
 
-            Assert.Null(environment.Value(key));
-            Assert.Equal("value", environment.Value("Supplied"));
+            Verify(environment.Value(key) is null);
+            Verify(environment.Value("Supplied") == "value");
         }
         finally
         {
@@ -206,7 +206,7 @@ public class ModuleEnvironmentTests
     /// The values still travel with it, so turning fall back off does not mean giving up the
     /// constructor that takes a dictionary.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void FallBackCanBeTurnedOffWithValuesSuppliedUpFront()
     {
         var environment = new ModuleEnvironment(
@@ -215,14 +215,14 @@ public class ModuleEnvironmentTests
             new Dictionary<string, string?> { ["A"] = "1" }
         );
 
-        Assert.Equal("Development", environment.EnvironmentName);
-        Assert.Equal("1", environment.Value("A"));
+        Verify(environment.EnvironmentName == "Development");
+        Verify(environment.Value("A") == "1");
     }
 
     /// <summary>
     /// An empty name and no values, whatever the machine running this has set.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void NoneDoesNotFallBack()
     {
         var key = UniqueKey();
@@ -231,7 +231,7 @@ public class ModuleEnvironmentTests
         {
             Environment.SetEnvironmentVariable(key, "from-process");
 
-            Assert.Null(ModuleEnvironment.None.Value(key));
+            Verify(ModuleEnvironment.None.Value(key) is null);
         }
         finally
         {
@@ -239,29 +239,29 @@ public class ModuleEnvironmentTests
         }
     }
 
-    [Fact]
+    [VerifyTest]
     public void NoneHasNoNameAndNoValues()
     {
-        Assert.Equal("", ModuleEnvironment.None.EnvironmentName);
-        Assert.Null(ModuleEnvironment.None.Value("Anything"));
+        Verify(ModuleEnvironment.None.EnvironmentName == "");
+        Verify(ModuleEnvironment.None.Value("Anything") is null);
     }
 
     /// <summary>
     /// A fresh default reads the process as it is now, which is what asking again is for.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void DefaultReadsValuesFromTheProcess()
     {
         // Uniquely named so nothing else in the suite can be looking at it.
         var key = "DM_TEST_" + Guid.NewGuid().ToString("N");
 
-        Assert.Null(ModuleEnvironment.CreateDefault().Value(key));
+        Verify(ModuleEnvironment.CreateDefault().Value(key) is null);
 
         try
         {
             Environment.SetEnvironmentVariable(key, "set-after-startup");
 
-            Assert.Equal("set-after-startup", ModuleEnvironment.CreateDefault().Value(key));
+            Verify(ModuleEnvironment.CreateDefault().Value(key) == "set-after-startup");
         }
         finally
         {
@@ -278,24 +278,24 @@ public class ModuleEnvironmentTests
     /// miss is the case worth caching: an optional variable that is not set is exactly what a
     /// default exists for, and re-reading it each call would leave the common path uncached.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void AHeldDefaultCachesWhatItRead()
     {
         var key = "DM_TEST_" + Guid.NewGuid().ToString("N");
 
         var held = ModuleEnvironment.CreateDefault();
 
-        Assert.Null(held.Value(key));
+        Verify(held.Value(key) is null);
 
         try
         {
             Environment.SetEnvironmentVariable(key, "set-after-the-read");
 
             // The miss was cached, so this instance keeps answering with what it saw.
-            Assert.Null(held.Value(key));
+            Verify(held.Value(key) is null);
 
             // Asking for a new one is how a current view is obtained.
-            Assert.Equal("set-after-the-read", ModuleEnvironment.CreateDefault().Value(key));
+            Verify(ModuleEnvironment.CreateDefault().Value(key) == "set-after-the-read");
         }
         finally
         {
@@ -306,7 +306,7 @@ public class ModuleEnvironmentTests
     /// <summary>
     /// The fallback on a named environment caches the same way.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void FallBackToTheProcessIsCachedPerInstance()
     {
         var key = "DM_TEST_" + Guid.NewGuid().ToString("N");
@@ -317,12 +317,12 @@ public class ModuleEnvironmentTests
 
             var environment = new ModuleEnvironment("Development");
 
-            Assert.Equal("first", environment.Value(key));
+            Verify(environment.Value(key) == "first");
 
             Environment.SetEnvironmentVariable(key, "second");
 
-            Assert.Equal("first", environment.Value(key));
-            Assert.Equal("second", new ModuleEnvironment("Development").Value(key));
+            Verify(environment.Value(key) == "first");
+            Verify(new ModuleEnvironment("Development").Value(key) == "second");
         }
         finally
         {
@@ -333,7 +333,7 @@ public class ModuleEnvironmentTests
     /// <summary>
     /// Caching the process must not make the environment report values nobody supplied.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void CachedProcessValuesDoNotAppearInEnumeration()
     {
         var key = "DM_TEST_" + Guid.NewGuid().ToString("N");
@@ -344,12 +344,12 @@ public class ModuleEnvironmentTests
 
             var environment = new ModuleEnvironment("Development") { { "Supplied", "yes" } };
 
-            Assert.Equal("from-process", environment.Value(key));
+            Verify(environment.Value(key) == "from-process");
 
-            Assert.Equal(
-                new Dictionary<string, string?> { ["Supplied"] = "yes" },
-                environment.ToDictionary(pair => pair.Key, pair => pair.Value)
-            );
+            var actual = environment.ToDictionary(pair => pair.Key, pair => pair.Value);
+
+            Verify(actual.Count == 1);
+            Verify(actual["Supplied"] == "yes");
         }
         finally
         {
@@ -362,22 +362,23 @@ public class ModuleEnvironmentTests
 /// The name fallback, which can only be exercised by moving process-wide variables.
 /// </summary>
 /// <remarks>
-/// In its own collection so these do not run alongside each other. Nothing else in the suite reads
-/// these two variables — the generator tests that involve a default environment compare against
-/// <see cref="ModuleEnvironment.Default"/> rather than against a literal name, for this reason.
+/// Holds the ProcessEnvironment resource so these do not run alongside each other. Nothing else in
+/// the suite reads these two variables — the generator tests that involve a default environment
+/// compare against <see cref="ModuleEnvironment.Default"/> rather than against a literal name, for
+/// this reason.
 /// </remarks>
-[Collection("ProcessEnvironment")]
-public class ModuleEnvironmentDefaultNameTests
+[Resource("ProcessEnvironment")]
+public partial class ModuleEnvironmentDefaultNameTests
 {
     private const string AspNetCore = "ASPNETCORE_ENVIRONMENT";
     private const string DotNet = "DOTNET_ENVIRONMENT";
 
-    [Theory]
-    [InlineData(null, null, "Production")]
-    [InlineData("Development", null, "Development")]
-    [InlineData(null, "Staging", "Staging")]
+    [VerifyTest]
+    [Row(null, null, "Production")]
+    [Row("Development", null, "Development")]
+    [Row(null, "Staging", "Staging")]
     // ASPNETCORE_ENVIRONMENT wins, matching how a web host resolves it.
-    [InlineData("Development", "Staging", "Development")]
+    [Row("Development", "Staging", "Development")]
     public void DefaultResolvesTheEnvironmentName(
         string? aspNetCore,
         string? dotNet,
@@ -392,7 +393,7 @@ public class ModuleEnvironmentDefaultNameTests
             Environment.SetEnvironmentVariable(AspNetCore, aspNetCore);
             Environment.SetEnvironmentVariable(DotNet, dotNet);
 
-            Assert.Equal(expected, ModuleEnvironment.CreateDefault().EnvironmentName);
+            Verify(ModuleEnvironment.CreateDefault().EnvironmentName == expected);
         }
         finally
         {
@@ -410,7 +411,7 @@ public class ModuleEnvironmentDefaultNameTests
 /// single answer; several would need a rule for which one the conditions read, and that rule would
 /// fall out of module ordering rather than out of anything the developer wrote.
 /// </remarks>
-public class EnvironmentDiscoveryTests
+public partial class EnvironmentDiscoveryTests
 {
     private class StubEnvironment(string name) : IModuleEnvironment
     {
@@ -431,7 +432,7 @@ public class EnvironmentDiscoveryTests
         ) => Seen = environment;
     }
 
-    [Fact]
+    [VerifyTest]
     public void AnInstanceRegisteredBeforeAddModulesIsUsed()
     {
         var environment = new StubEnvironment("Staging");
@@ -441,11 +442,11 @@ public class EnvironmentDiscoveryTests
         collection.AddSingleton<IModuleEnvironment>(environment);
         collection.AddModules(module);
 
-        Assert.Same(environment, module.Seen);
-        Assert.Single(collection, d => d.ServiceType == typeof(IModuleEnvironment));
+        Verify(ReferenceEquals(module.Seen, environment));
+        Single(collection, d => d.ServiceType == typeof(IModuleEnvironment));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AnEnvironmentPassedToAddModulesReplacesOneAlreadyRegistered()
     {
         var registered = new StubEnvironment("Staging");
@@ -456,40 +457,37 @@ public class EnvironmentDiscoveryTests
         collection.AddSingleton<IModuleEnvironment>(registered);
         collection.AddModules(passed, module);
 
-        Assert.Same(passed, module.Seen);
+        Verify(ReferenceEquals(module.Seen, passed));
 
         // Replaced rather than joined, so what resolves is what decided the registrations.
-        var descriptor = Assert.Single(
-            collection,
-            d => d.ServiceType == typeof(IModuleEnvironment)
-        );
-        Assert.Same(passed, descriptor.ImplementationInstance);
+        var descriptor = Single(collection, d => d.ServiceType == typeof(IModuleEnvironment));
+        Verify(ReferenceEquals(descriptor.ImplementationInstance, passed));
     }
 
     /// <summary>
     /// Registered by type it cannot be constructed — there is no provider yet — so it is refused
     /// rather than ignored in favour of the process default.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AnEnvironmentRegisteredByTypeIsRefused()
     {
         var collection = new ServiceCollection();
         collection.AddSingleton<IModuleEnvironment, StubByType>();
 
-        var exception = Assert.Throws<InvalidOperationException>(() =>
+        var exception = ThrowsExactly<InvalidOperationException>(() =>
             collection.AddModules(new ProbeModule())
         );
 
-        Assert.Contains("singleton instance", exception.Message);
+        Verify(exception.Message.Contains("singleton instance"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AnEnvironmentRegisteredByFactoryIsRefused()
     {
         var collection = new ServiceCollection();
         collection.AddSingleton<IModuleEnvironment>(_ => new StubEnvironment("Development"));
 
-        Assert.Throws<InvalidOperationException>(() => collection.AddModules(new ProbeModule()));
+        ThrowsExactly<InvalidOperationException>(() => collection.AddModules(new ProbeModule()));
     }
 
     private class StubByType : IModuleEnvironment
@@ -500,10 +498,10 @@ public class EnvironmentDiscoveryTests
     }
 }
 
-public class EnvironmentConditionsTests
+public partial class EnvironmentConditionsTests
 {
     /// <summary>
-    /// Pinned to the values written here. These assert what a condition does with a given set of
+    /// Pinned to the values written here. These check what a condition does with a given set of
     /// values, so a variable set on the machine running them must not reach a key they never name.
     /// </summary>
     private static IModuleEnvironment Env(
@@ -511,50 +509,50 @@ public class EnvironmentConditionsTests
         params (string Key, string? Value)[] values
     ) => new ModuleEnvironment(false, name, values.ToDictionary(v => v.Key, v => v.Value));
 
-    [Theory]
-    [InlineData("Development", true)]
-    [InlineData("development", true)]
-    [InlineData("DEVELOPMENT", true)]
-    [InlineData("Production", false)]
+    [VerifyTest]
+    [Row("Development", true)]
+    [Row("development", true)]
+    [Row("DEVELOPMENT", true)]
+    [Row("Production", false)]
     public void NameIsIgnoresCase(string environmentName, bool expected) =>
-        Assert.Equal(expected, EnvironmentConditions.NameIs(Env(environmentName), "Development"));
+        Verify(EnvironmentConditions.NameIs(Env(environmentName), "Development") == expected);
 
-    [Fact]
+    [VerifyTest]
     public void NameIsAcceptsAnyOfSeveral()
     {
-        Assert.True(EnvironmentConditions.NameIs(Env("Staging"), "Development", "Staging"));
-        Assert.False(EnvironmentConditions.NameIs(Env("Production"), "Development", "Staging"));
+        Verify(EnvironmentConditions.NameIs(Env("Staging"), "Development", "Staging"));
+        Verify(!EnvironmentConditions.NameIs(Env("Production"), "Development", "Staging"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void NameIsWithNoNamesMatchesNothing() =>
-        Assert.False(EnvironmentConditions.NameIs(Env("Development")));
+        Verify(!EnvironmentConditions.NameIs(Env("Development")));
 
-    [Fact]
+    [VerifyTest]
     public void HasValueIsPresenceNotTruthiness()
     {
-        Assert.True(EnvironmentConditions.HasValue(Env("Any", ("K", "v")), "K"));
-        Assert.True(EnvironmentConditions.HasValue(Env("Any", ("K", "")), "K"));
-        Assert.False(EnvironmentConditions.HasValue(Env("Any"), "K"));
+        Verify(EnvironmentConditions.HasValue(Env("Any", ("K", "v")), "K"));
+        Verify(EnvironmentConditions.HasValue(Env("Any", ("K", "")), "K"));
+        Verify(!EnvironmentConditions.HasValue(Env("Any"), "K"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void ValueIsComparesOrdinally()
     {
-        Assert.True(EnvironmentConditions.ValueIs(Env("Any", ("K", "on")), "K", "on"));
-        Assert.False(EnvironmentConditions.ValueIs(Env("Any", ("K", "On")), "K", "on"));
-        Assert.False(EnvironmentConditions.ValueIs(Env("Any"), "K", "on"));
+        Verify(EnvironmentConditions.ValueIs(Env("Any", ("K", "on")), "K", "on"));
+        Verify(!EnvironmentConditions.ValueIs(Env("Any", ("K", "On")), "K", "on"));
+        Verify(!EnvironmentConditions.ValueIs(Env("Any"), "K", "on"));
     }
 
     /// <summary>
     /// Generated code is handed a non-null environment, but these are public and a hand-written
     /// module can reach them. Refusing to match beats throwing out of a registration.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ANullEnvironmentMatchesNothing()
     {
-        Assert.False(EnvironmentConditions.NameIs(null!, "Development"));
-        Assert.False(EnvironmentConditions.HasValue(null!, "K"));
-        Assert.False(EnvironmentConditions.ValueIs(null!, "K", "v"));
+        Verify(!EnvironmentConditions.NameIs(null!, "Development"));
+        Verify(!EnvironmentConditions.HasValue(null!, "K"));
+        Verify(!EnvironmentConditions.ValueIs(null!, "K", "v"));
     }
 }
