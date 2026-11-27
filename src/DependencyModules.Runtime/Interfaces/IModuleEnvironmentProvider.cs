@@ -17,10 +17,9 @@ namespace DependencyModules.Runtime.Interfaces;
 ///     integrations consult this before loading any module, which is the whole difference.
 ///     </para>
 ///     <para>
-///     Beside <see cref="IDependencyModuleProvider" /> rather than in the Testing package, for the
-///     same reason the module loading it feeds lives in each integration: it returns a Runtime
-///     type, and Testing deliberately does not reference Runtime. The parameter is a
-///     <see cref="MethodInfo" /> rather than a test-method context for the same reason.
+///     The parameter is a <see cref="MethodInfo" /> rather than a test-method context, because
+///     this interface is in Runtime and the test-method context is in the Testing package, which
+///     references Runtime.
 ///     </para>
 ///     <para>
 ///     Attributes are consulted widest scope first - assembly, then class, then method - and the

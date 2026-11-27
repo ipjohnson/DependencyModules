@@ -125,7 +125,9 @@ public class TestExportAttribute : Attribute, ITestServiceSetupAttribute, IShare
     public void SetupServiceCollection(
         ITestMethodContext testMethod,
         IServiceCollection serviceCollection
-    )
+    ) => Register(serviceCollection);
+
+    internal void Register(IServiceCollection serviceCollection)
     {
         var implementation = Implementation ?? Service;
 
