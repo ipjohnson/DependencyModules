@@ -109,6 +109,20 @@ namespace DependencyModules.Testing.Impl
         public static DependencyModules.Testing.Attributes.Interfaces.ICurrentTestProvider? Provider { get; set; }
         public static bool TryWriteLine(string message) { }
     }
+    public static class ModuleTestComposition
+    {
+        public static System.Threading.Tasks.ValueTask<DependencyModules.Testing.Impl.ModuleTestContainer> BuildAsync(Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Collections.Generic.IReadOnlyList<DependencyModules.Runtime.Interfaces.IDependencyModule> modules, DependencyModules.Testing.Attributes.Interfaces.ITestMethodContext testMethod, System.Collections.Generic.IReadOnlyList<DependencyModules.Testing.Impl.TestServiceOverride> overrides, DependencyModules.Testing.Attributes.Interfaces.ICurrentTestProvider? currentTest, DependencyModules.Testing.Impl.ModuleTestContainer? parent) { }
+        public static System.Threading.Tasks.ValueTask<DependencyModules.Testing.Impl.ModuleTestContainer> BuildScopeAsync(Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Collections.Generic.IReadOnlyList<DependencyModules.Runtime.Interfaces.IDependencyModule> modules, System.Collections.Generic.IReadOnlyList<System.Attribute> scopeAttributes) { }
+    }
+    public sealed class ModuleTestContainer : System.IAsyncDisposable
+    {
+        public System.IServiceProvider Services { get; }
+        public System.Threading.Tasks.ValueTask DisposeAsync() { }
+        public System.Threading.Tasks.Task<object?> GetParameterValueAsync(System.Reflection.ParameterInfo parameter) { }
+        public object? Resolve(System.Reflection.ParameterInfo parameter) { }
+        public object? Resolve(System.Type serviceType, object? serviceKey) { }
+        public System.Threading.Tasks.Task<object?[]> ResolveArgumentsAsync(object?[] data) { }
+    }
     public static class SharedRegistrations
     {
         public static System.Collections.Generic.IReadOnlyCollection<System.Type> Collect(System.Reflection.MethodInfo method, System.Collections.Generic.IEnumerable<System.Attribute> knownAttributes) { }
@@ -120,6 +134,12 @@ namespace DependencyModules.Testing.Impl
         public System.Threading.Tasks.ValueTask<System.IServiceProvider> CreateAsync() { }
         public void Initialize(Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.IServiceProvider pinned, System.Collections.Generic.IReadOnlyCollection<System.Type> pinnedServices, System.Func<Microsoft.Extensions.DependencyInjection.IServiceCollection, System.IServiceProvider> build, System.Func<System.IServiceProvider, System.Threading.Tasks.ValueTask> start, System.Action<System.IServiceProvider> track) { }
         public void Initialize(Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.IServiceProvider pinned, System.Collections.Generic.IReadOnlyCollection<System.Type> pinnedServices, System.Collections.Generic.IReadOnlyCollection<System.Type> namedServices, System.Func<Microsoft.Extensions.DependencyInjection.IServiceCollection, System.IServiceProvider> build, System.Func<System.IServiceProvider, System.Threading.Tasks.ValueTask> start, System.Action<System.IServiceProvider> track) { }
+    }
+    public sealed class TestMethodContext : DependencyModules.Testing.Attributes.Interfaces.ITestMethodContext
+    {
+        public TestMethodContext(System.Reflection.MethodInfo method, System.Collections.Generic.IReadOnlyList<System.Attribute> attributes) { }
+        public System.Collections.Generic.IReadOnlyList<System.Attribute> Attributes { get; }
+        public System.Reflection.MethodInfo Method { get; }
     }
     public sealed class TestOutputLoggerProvider : Microsoft.Extensions.Logging.ILoggerProvider, System.IDisposable
     {
@@ -133,5 +153,12 @@ namespace DependencyModules.Testing.Impl
         public TestParameterResolver(DependencyModules.Testing.Attributes.Interfaces.ITestMethodContext testMethod) { }
         public System.Threading.Tasks.Task<object?[]> ResolveArgumentsAsync(System.IServiceProvider serviceProvider, object?[] data) { }
         public void SetupServiceCollection(Microsoft.Extensions.DependencyInjection.IServiceCollection serviceCollection) { }
+    }
+    public sealed class TestServiceOverride : System.IEquatable<DependencyModules.Testing.Impl.TestServiceOverride>
+    {
+        public TestServiceOverride(System.Type ServiceType, object Instance, object? ServiceKey) { }
+        public object Instance { get; init; }
+        public object? ServiceKey { get; init; }
+        public System.Type ServiceType { get; init; }
     }
 }

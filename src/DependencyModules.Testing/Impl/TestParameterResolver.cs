@@ -25,6 +25,7 @@ public sealed class TestParameterResolver
     private readonly ITestMethodContext _testMethod;
     private readonly Dictionary<ParameterInfo, List<ITestParameterValueProvider>> _valueProviders =
         new();
+    private readonly Func<ParameterInfo, bool>? _skip;
     private bool _setupRan;
 
     /// <summary>
@@ -34,6 +35,16 @@ public sealed class TestParameterResolver
     public TestParameterResolver(ITestMethodContext testMethod)
     {
         _testMethod = testMethod;
+    }
+
+    /// <summary>
+    /// Creates a resolver whose <paramref name="skip"/> parameters run no value provider in either
+    /// phase. <see cref="ModuleTestComposition"/> skips the parameters that an override supplies.
+    /// </summary>
+    internal TestParameterResolver(ITestMethodContext testMethod, Func<ParameterInfo, bool> skip)
+        : this(testMethod)
+    {
+        _skip = skip;
     }
 
     /// <summary>
@@ -49,10 +60,13 @@ public sealed class TestParameterResolver
     {
         foreach (var parameterInfo in _testMethod.Method.GetParameters())
         {
-            var providers = parameterInfo
-                .GetCustomAttributes()
-                .OfType<ITestParameterValueProvider>()
-                .ToList();
+            var providers =
+                _skip != null && _skip(parameterInfo)
+                    ? []
+                    : parameterInfo
+                        .GetCustomAttributes()
+                        .OfType<ITestParameterValueProvider>()
+                        .ToList();
 
             _valueProviders.Add(parameterInfo, providers);
 
@@ -90,13 +104,7 @@ public sealed class TestParameterResolver
         object?[] data
     )
     {
-        if (!_setupRan)
-        {
-            throw new InvalidOperationException(
-                $"{nameof(SetupServiceCollection)} must be called before {nameof(ResolveArgumentsAsync)}, "
-                    + "while the service collection can still be added to."
-            );
-        }
+        RequireSetup(nameof(ResolveArgumentsAsync));
 
         var parameterList = _testMethod.Method.GetParameters();
         var arguments = new List<object?>(data);
@@ -107,10 +115,23 @@ public sealed class TestParameterResolver
 
             var value = await ResolveFromParameterProviders(parameterInfo, serviceProvider);
 
-            arguments.Add(value ?? ResolveFromContainer(parameterInfo, serviceProvider));
+            arguments.Add(
+                value ?? ResolveFromContainer(parameterInfo, serviceProvider, constructAny: true)
+            );
         }
 
         return arguments.ToArray();
+    }
+
+    private void RequireSetup(string caller)
+    {
+        if (!_setupRan)
+        {
+            throw new InvalidOperationException(
+                $"{nameof(SetupServiceCollection)} must be called before {caller}, "
+                    + "while the service collection can still be added to."
+            );
+        }
     }
 
     /// <remarks>
@@ -128,7 +149,58 @@ public sealed class TestParameterResolver
             return serviceProvider;
         }
 
-        foreach (var valueProvider in _valueProviders[parameterInfo])
+        return await ResolveFromValueProvidersAsync(
+            _valueProviders[parameterInfo],
+            parameterInfo,
+            serviceProvider
+        );
+    }
+
+    /// <summary>
+    /// The value of the <see cref="ITestParameterValueProvider"/> attributes on one parameter, or
+    /// null when none answers.
+    /// </summary>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="parameterInfo"/> is not a parameter of the test method.
+    /// </exception>
+    internal Task<object?> GetParameterValueAsync(
+        ParameterInfo parameterInfo,
+        IServiceProvider serviceProvider
+    )
+    {
+        RequireSetup(nameof(GetParameterValueAsync));
+
+        if (!_valueProviders.TryGetValue(parameterInfo, out var providers))
+        {
+            // A MethodInfo from another lookup can hand out other ParameterInfo objects for the
+            // same parameters.
+            providers = _valueProviders
+                .Where(entry =>
+                    entry.Key.Position == parameterInfo.Position
+                    && entry.Key.Member.Equals(parameterInfo.Member)
+                )
+                .Select(entry => entry.Value)
+                .FirstOrDefault();
+        }
+
+        if (providers == null)
+        {
+            throw new ArgumentException(
+                $"'{parameterInfo.Name}' is not a parameter of {_testMethod.Method.Name}.",
+                nameof(parameterInfo)
+            );
+        }
+
+        return ResolveFromValueProvidersAsync(providers, parameterInfo, serviceProvider);
+    }
+
+    private async Task<object?> ResolveFromValueProvidersAsync(
+        List<ITestParameterValueProvider> providers,
+        ParameterInfo parameterInfo,
+        IServiceProvider serviceProvider
+    )
+    {
+        foreach (var valueProvider in providers)
         {
             var value = await valueProvider.GetParameterValueAsync(
                 _testMethod,
@@ -145,9 +217,16 @@ public sealed class TestParameterResolver
         return null;
     }
 
-    private object? ResolveFromContainer(
+    /// <param name="parameterInfo">The parameter to resolve.</param>
+    /// <param name="serviceProvider">The test's container.</param>
+    /// <param name="constructAny">
+    /// False to construct only a non-abstract class, and to return null for any other type that the
+    /// container does not register.
+    /// </param>
+    internal static object? ResolveFromContainer(
         ParameterInfo parameterInfo,
-        IServiceProvider serviceProvider
+        IServiceProvider serviceProvider,
+        bool constructAny
     )
     {
         var keyedServicesAttribute = parameterInfo.GetCustomAttribute<FromKeyedServicesAttribute>();
@@ -163,8 +242,14 @@ public sealed class TestParameterResolver
             );
         }
 
-        return serviceProvider.GetService(parameterInfo.ParameterType)
-            ?? ConstructValueFromType(parameterInfo, serviceProvider);
+        var type = parameterInfo.ParameterType;
+
+        return serviceProvider.GetService(type)
+            ?? (
+                constructAny || (type.IsClass && !type.IsAbstract)
+                    ? ConstructValueFromType(parameterInfo, serviceProvider)
+                    : null
+            );
     }
 
     /// <summary>

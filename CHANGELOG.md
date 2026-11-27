@@ -29,6 +29,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (#132)
 - `GlueSourceGenerator` in the `DependencyModules.SourceGenerator.Impl` package, for the source
   generator of a framework. (#132)
+- `ModuleTestComposition` in DependencyModules.Testing. `BuildAsync` builds the service provider
+  of a test from modules, test attributes, and `TestServiceOverride` instances, in the same steps
+  as DependencyModules.xUnit and DependencyModules.NUnit. An override replaces a `[TestExport]` for
+  the same service. `BuildScopeAsync` builds a shared parent for a class or an assembly.
+  `ModuleTestContainer` holds the result and disposes each service provider that it built.
+  `TestMethodContext` is a plain `ITestMethodContext`.
 
 ### Changed
 
@@ -41,6 +47,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (#132)
 - DM0021 also reads `[Mock]` from `VerificationGlue.Mocks`. A VerificationGlue test with that
   `[Mock]` and a `[TestExport]` for the same service on one method now gets DM0021.
+- `DependencyModules.Testing` depends on `DependencyModules.Runtime` and on
+  `Microsoft.Extensions.DependencyInjection`: version 8.0.1 for `net8.0` and version 10.0.0 for
+  `net10.0`. Before, it depended on `Microsoft.Extensions.DependencyInjection.Abstractions` only.
 
 ## [1.7.0] - 2026-09-25
 
