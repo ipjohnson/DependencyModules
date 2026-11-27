@@ -1,16 +1,15 @@
 using DependencyModules.Tests.Infrastructure;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// The generator has to turn arbitrary declared types back into valid C#. These cover the type
 /// shapes most likely to be written wrong: nullables, arrays, nested generics, and nested classes.
 /// Each case asserts the output still compiles, which is what a mis-rendered type breaks.
 /// </summary>
-public class TypeShapeTests
+public partial class TypeShapeTests
 {
-    [Fact]
+    [VerifyTest]
     public void NullableConstructorParameter_Compiles()
     {
         Generate(
@@ -25,7 +24,7 @@ public class TypeShapeTests
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void NullableValueTypeParameter_Compiles()
     {
         Generate(
@@ -40,7 +39,7 @@ public class TypeShapeTests
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void ArrayParameter_Compiles()
     {
         Generate(
@@ -59,7 +58,7 @@ public class TypeShapeTests
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void NestedGenericParameter_Compiles()
     {
         Generate(
@@ -80,7 +79,7 @@ public class TypeShapeTests
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void DeeplyNestedGenericParameter_Compiles()
     {
         Generate(
@@ -97,7 +96,7 @@ public class TypeShapeTests
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void GenericServiceWithConstraints_Compiles()
     {
         var generated = Generate(
@@ -109,10 +108,10 @@ public class TypeShapeTests
             """
         );
 
-        Assert.Contains("IGeneric<>", generated);
+        Verify(generated.Contains("IGeneric<>"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void GenericServiceWithSeveralParameters_Compiles()
     {
         var generated = Generate(
@@ -124,10 +123,10 @@ public class TypeShapeTests
             """
         );
 
-        Assert.Contains("IPair<,>", generated);
+        Verify(generated.Contains("IPair<,>"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void ClosedGenericService_RegistersTheClosedType()
     {
         var generated = Generate(
@@ -139,14 +138,14 @@ public class TypeShapeTests
             """
         );
 
-        Assert.Contains("string", generated);
+        Verify(generated.Contains("string"));
     }
 
     /// <summary>
     /// Regression test: a nested service used to be emitted as TestNamespace.Inner, dropping its
     /// containing type, so the generated registration failed to compile with CS0234.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void NestedClassService_IsQualifiedByItsContainingType()
     {
         var generated = Generate(
@@ -160,10 +159,10 @@ public class TypeShapeTests
             """
         );
 
-        Assert.Contains("global::TestNamespace.Outer.Inner", generated);
+        Verify(generated.Contains("global::TestNamespace.Outer.Inner"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void DeeplyNestedClassService_IsQualifiedByEveryContainingType()
     {
         var generated = Generate(
@@ -179,10 +178,10 @@ public class TypeShapeTests
             """
         );
 
-        Assert.Contains("global::TestNamespace.Outer.Middle.Inner", generated);
+        Verify(generated.Contains("global::TestNamespace.Outer.Middle.Inner"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void NestedGenericService_IsQualifiedByItsContainingType()
     {
         var generated = Generate(
@@ -196,10 +195,10 @@ public class TypeShapeTests
             """
         );
 
-        Assert.Contains("global::TestNamespace.Outer.Inner<>", generated);
+        Verify(generated.Contains("global::TestNamespace.Outer.Inner<>"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void ServiceWithAnEnumKey_Compiles()
     {
         var generated = Generate(
@@ -213,10 +212,10 @@ public class TypeShapeTests
             """
         );
 
-        Assert.Contains("AddKeyedSingleton", generated);
+        Verify(generated.Contains("AddKeyedSingleton"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void ServiceWithAnIntegerKey_Compiles()
     {
         var generated = Generate(
@@ -228,10 +227,10 @@ public class TypeShapeTests
             """
         );
 
-        Assert.Contains("42", generated);
+        Verify(generated.Contains("42"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void ServiceKeyedByAConstant_Compiles()
     {
         var generated = Generate(
@@ -247,10 +246,10 @@ public class TypeShapeTests
             """
         );
 
-        Assert.Contains("AddKeyedSingleton", generated);
+        Verify(generated.Contains("AddKeyedSingleton"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void RecordService_Compiles()
     {
         var generated = Generate(
@@ -262,10 +261,10 @@ public class TypeShapeTests
             """
         );
 
-        Assert.Contains("ThingRecord", generated);
+        Verify(generated.Contains("ThingRecord"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void ServiceWithSeveralConstructors_Compiles()
     {
         Generate(
@@ -285,7 +284,7 @@ public class TypeShapeTests
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void AbstractBaseAndConcreteService_Compiles()
     {
         var generated = Generate(
@@ -299,10 +298,10 @@ public class TypeShapeTests
             """
         );
 
-        Assert.Contains("Thing", generated);
+        Verify(generated.Contains("Thing"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void ModuleWithNullableProperty_Compiles()
     {
         var result = GeneratorTestHarness.Run(
@@ -319,10 +318,10 @@ public class TypeShapeTests
         );
 
         result.AssertNoErrors();
-        Assert.Contains("Optional", result.SourceContaining(".Module.g.cs"));
+        Verify(result.SourceContaining(".Module.g.cs").Contains("Optional"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void ModuleWithStaticProperty_LeavesItOffTheAttribute()
     {
         var result = GeneratorTestHarness.Run(
@@ -342,8 +341,8 @@ public class TypeShapeTests
         result.AssertNoErrors();
         var generated = result.SourceContaining(".Module.g.cs");
 
-        Assert.Contains("Instance", generated);
-        Assert.DoesNotContain("Shared", generated);
+        Verify(generated.Contains("Instance"));
+        Verify(!generated.Contains("Shared"));
     }
 
     /// <summary>
@@ -354,7 +353,7 @@ public class TypeShapeTests
     /// service containing a nested class with a parameterised constructor was registered against
     /// that constructor's parameters. It now reads the type's own members.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void ANestedTypesConstructorIsNotTheOuterTypes()
     {
         // With factory generation on, the constructor reaches the emitted code as a literal
@@ -385,7 +384,7 @@ public class TypeShapeTests
             }
         );
 
-        Assert.IsType(assembly.Type("Outer"), assembly.ResolveRequired("IOuter"));
+        Verify(assembly.ResolveRequired("IOuter").GetType() == assembly.Type("Outer"));
     }
 
     /// <summary>
