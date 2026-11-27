@@ -2,16 +2,15 @@ using CSharpAuthor;
 using DependencyModules.SourceGenerator.Impl;
 using DependencyModules.Tests.Infrastructure;
 using Microsoft.CodeAnalysis;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// The seam a framework builds on: its own module attribute through <c>ModuleAttributeTypes()</c>,
 /// its own attribute generators through <c>AttributeSourceGenerators()</c>. Both of these pin
 /// behaviour a framework only finds out about in a consuming application, which is too late.
 /// </summary>
-public class ExtensionSeamTests
+public partial class ExtensionSeamTests
 {
     private const string FrameworkAttribute = """
         namespace Test.Framework;
@@ -52,7 +51,7 @@ public class ExtensionSeamTests
     /// no module emitted this compilation fails, exactly as the consuming application did while
     /// <c>SetupRootGenerator</c> was empty by default and easy to miss.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void FrameworkGenerator_EmitsTheModule_WithoutOverridingSetupRootGenerator()
     {
         var result = GeneratorTestHarness.Run(
@@ -68,13 +67,13 @@ public class ExtensionSeamTests
         );
 
         result.AssertNoErrors();
-        Assert.Contains("IDependencyModule", result.SourceContaining("AppModule.Module"));
+        Verify(result.SourceContaining("AppModule.Module").Contains("IDependencyModule"));
     }
 
     /// <summary>
     /// A generator that only contributes providers opts out, and then nothing declares the module.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void FrameworkGenerator_OptingOut_EmitsNoModule()
     {
         var result = GeneratorTestHarness.Run(
@@ -86,10 +85,7 @@ public class ExtensionSeamTests
             generators: new ISourceGenerator[] { new ProvidersOnlyGenerator().AsSourceGenerator() }
         );
 
-        Assert.DoesNotContain(
-            result.GeneratedSources.Keys,
-            key => key.Contains("AppModule.Module")
-        );
+        Verify(!result.GeneratedSources.Keys.Any(key => key.Contains("AppModule.Module")));
     }
 
     /// <summary>
@@ -102,7 +98,7 @@ public class ExtensionSeamTests
     /// extension seam, and a console application is the ordinary shape of a consumer, so the two
     /// have to work together.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void StackedGenerators_OverAConsoleApplication_EmitOneApplicationModule()
     {
         var result = GeneratorTestHarness.Run(
@@ -124,11 +120,8 @@ public class ExtensionSeamTests
 
         result.AssertNoErrors();
 
-        Assert.Empty(result.DuplicateHintNames);
-        Assert.Single(
-            result.GeneratedSources.Keys,
-            key => key.Contains("ApplicationModule.Module")
-        );
+        Verify(result.DuplicateHintNames.Count == 0);
+        Single(result.GeneratedSources.Keys, key => key.Contains("ApplicationModule.Module"));
     }
 
     /// <summary>
@@ -136,7 +129,7 @@ public class ExtensionSeamTests
     /// modules rather than declaring modules of its own. Those partials belong to the generator
     /// this package ships, and writing them from both declares every module twice.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ThirdPartyGenerator_OnTheDefaultModuleAttribute_WritesNoModuleOfItsOwn()
     {
         var source = """
@@ -171,8 +164,8 @@ public class ExtensionSeamTests
 
         result.AssertNoErrors();
 
-        Assert.Empty(result.DuplicateHintNames);
-        Assert.Single(result.GeneratedSources.Keys, key => key.Contains("AppModule.Module"));
+        Verify(result.DuplicateHintNames.Count == 0);
+        Single(result.GeneratedSources.Keys, key => key.Contains("AppModule.Module"));
     }
 
     /// <summary>

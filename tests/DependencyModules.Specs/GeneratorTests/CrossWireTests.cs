@@ -1,15 +1,14 @@
 using DependencyModules.Tests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// A cross-wired class is registered once, and each interface it declares resolves that one
 /// registration. These tests build the generated code and resolve from it, because the defects
 /// were in code that did not compile or that threw when the module was applied.
 /// </summary>
-public class CrossWireTests
+public partial class CrossWireTests
 {
     private const string Preamble = """
         using System;
@@ -30,7 +29,7 @@ public class CrossWireTests
     private static GeneratorResult Run(string source) =>
         GeneratorTestHarness.Run(Preamble + source);
 
-    [Fact]
+    [VerifyTest]
     public void AKeyedClass_SharesOneInstanceUnderItsKey()
     {
         var assembly = Compile(
@@ -46,11 +45,21 @@ public class CrossWireTests
         var provider = assembly.BuildProvider();
         var store = provider.GetRequiredKeyedService(assembly.Type("Store"), "store");
 
-        Assert.Same(store, provider.GetRequiredKeyedService(assembly.Type("IReader"), "store"));
-        Assert.Same(store, provider.GetRequiredKeyedService(assembly.Type("IWriter"), "store"));
+        Verify(
+            ReferenceEquals(
+                store,
+                provider.GetRequiredKeyedService(assembly.Type("IReader"), "store")
+            )
+        );
+        Verify(
+            ReferenceEquals(
+                store,
+                provider.GetRequiredKeyedService(assembly.Type("IWriter"), "store")
+            )
+        );
     }
 
-    [Fact]
+    [VerifyTest]
     public void AKeyedConventionWithAlsoAsSelf_SharesOneInstanceUnderItsKey()
     {
         var assembly = Compile(
@@ -70,19 +79,21 @@ public class CrossWireTests
 
         var provider = assembly.BuildProvider();
 
-        Assert.Same(
-            provider.GetRequiredKeyedService(assembly.Type("Store"), "rules"),
-            provider.GetRequiredKeyedService(assembly.Type("IReader"), "rules")
+        Verify(
+            ReferenceEquals(
+                provider.GetRequiredKeyedService(assembly.Type("Store"), "rules"),
+                provider.GetRequiredKeyedService(assembly.Type("IReader"), "rules")
+            )
         );
     }
 
-    [Theory]
-    [InlineData("[CrossWireService(Using = RegistrationType.Try)]", "[DependencyModule]")]
-    [InlineData("[CrossWireService(Using = RegistrationType.TryEnumerable)]", "[DependencyModule]")]
-    [InlineData("[CrossWireService(Using = RegistrationType.Replace)]", "[DependencyModule]")]
-    [InlineData("[CrossWireService]", "[DependencyModule(Using = RegistrationType.Try)]")]
-    [InlineData("[CrossWireService]", "[DependencyModule(Using = RegistrationType.TryEnumerable)]")]
-    [InlineData(
+    [VerifyTest]
+    [Row("[CrossWireService(Using = RegistrationType.Try)]", "[DependencyModule]")]
+    [Row("[CrossWireService(Using = RegistrationType.TryEnumerable)]", "[DependencyModule]")]
+    [Row("[CrossWireService(Using = RegistrationType.Replace)]", "[DependencyModule]")]
+    [Row("[CrossWireService]", "[DependencyModule(Using = RegistrationType.Try)]")]
+    [Row("[CrossWireService]", "[DependencyModule(Using = RegistrationType.TryEnumerable)]")]
+    [Row(
         "[CrossWireService]",
         "[DependencyModule(Using = RegistrationType.TryEnumerable, GenerateFactories = true)]"
     )]
@@ -101,12 +112,12 @@ public class CrossWireTests
         var provider = assembly.BuildProvider();
         var store = provider.GetRequiredService(assembly.Type("Store"));
 
-        Assert.Same(store, provider.GetRequiredService(assembly.Type("IReader")));
-        Assert.Same(store, provider.GetRequiredService(assembly.Type("IWriter")));
-        Assert.Single(assembly.Descriptors("Store"));
+        Verify(ReferenceEquals(store, provider.GetRequiredService(assembly.Type("IReader"))));
+        Verify(ReferenceEquals(store, provider.GetRequiredService(assembly.Type("IWriter"))));
+        Single(assembly.Descriptors("Store"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void TheClassRegistration_UsesTheRegistrationTypeOfTheModule()
     {
         var result = Run(
@@ -123,15 +134,15 @@ public class CrossWireTests
 
         var registrations = result.SourceContaining("Dependencies");
 
-        Assert.Contains("services.TryAddSingleton(", registrations);
-        Assert.Contains("services.TryAdd(new", registrations);
-        Assert.DoesNotContain("services.Add(new", registrations);
+        Verify(registrations.Contains("services.TryAddSingleton("));
+        Verify(registrations.Contains("services.TryAdd(new"));
+        Verify(!registrations.Contains("services.Add(new"));
     }
 
     /// <summary>
     /// TryAddEnumerable identifies a factory registration by the return type of its delegate.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void TryEnumerable_KeepsOneRegistrationOfEachInterface()
     {
         var assembly = Compile(
@@ -149,11 +160,11 @@ public class CrossWireTests
 
         module.InternalApplyServices(assembly.Services);
 
-        Assert.Single(assembly.Descriptors("IReader"));
-        Assert.Single(assembly.Descriptors("Store"));
+        Single(assembly.Descriptors("IReader"));
+        Single(assembly.Descriptors("Store"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AGeneratedFactoryWithTryEnumerable_CanBeApplied()
     {
         var assembly = Compile(
@@ -166,12 +177,12 @@ public class CrossWireTests
             """
         );
 
-        Assert.Equal("Reader", assembly.ResolveRequired("IReader").GetType().Name);
+        Verify(assembly.ResolveRequired("IReader").GetType().Name == "Reader");
     }
 
-    [Theory]
-    [InlineData("AlsoAsSelf()")]
-    [InlineData("AsSelfWithInterfaces()")]
+    [VerifyTest]
+    [Row("AlsoAsSelf()")]
+    [Row("AsSelfWithInterfaces()")]
     public void AConventionThatCrossWiresAGenericClass_IsReported(string shape)
     {
         var result = Run(
@@ -197,14 +208,14 @@ public class CrossWireTests
 
         result.AssertNoErrors();
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0014");
-        Assert.Contains("'Repository'", diagnostic.GetMessage());
-        Assert.Contains("the convention registering", diagnostic.GetMessage());
-        Assert.DoesNotContain("Repository<>", result.SourceContaining("ConventionDependencies"));
-        Assert.Contains("Plain", result.SourceContaining("ConventionDependencies"));
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0014");
+        Verify(diagnostic.GetMessage().Contains("'Repository'"));
+        Verify(diagnostic.GetMessage().Contains("the convention registering"));
+        Verify(!result.SourceContaining("ConventionDependencies").Contains("Repository<>"));
+        Verify(result.SourceContaining("ConventionDependencies").Contains("Plain"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AClassThatInheritsItsInterfaces_IsRegistered_AndReported()
     {
         var result = Run(
@@ -221,16 +232,16 @@ public class CrossWireTests
 
         result.AssertNoErrors();
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0024");
-        Assert.Contains("'Store'", diagnostic.GetMessage());
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0024");
+        Verify(diagnostic.GetMessage().Contains("'Store'"));
 
         var registrations = result.SourceContaining("Dependencies");
 
-        Assert.Contains("typeof(global::TestNamespace.Store)", registrations);
-        Assert.DoesNotContain("IReader", registrations);
+        Verify(registrations.Contains("typeof(global::TestNamespace.Store)"));
+        Verify(!registrations.Contains("IReader"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AClassWithNoInterface_IsRegistered_WithoutAWarning()
     {
         var assembly = Compile(
@@ -243,22 +254,22 @@ public class CrossWireTests
             """
         );
 
-        Assert.Equal("Store", assembly.ResolveRequired("Store").GetType().Name);
-        Assert.DoesNotContain(
-            Run(
-                """
-                [CrossWireService]
-                public class Store { }
+        Verify(assembly.ResolveRequired("Store").GetType().Name == "Store");
 
-                [DependencyModule]
-                public partial class TestModule;
-                """
-            ).GeneratorDiagnostics,
-            d => d.Id == "DM0024"
-        );
+        var diagnostics = Run(
+            """
+            [CrossWireService]
+            public class Store { }
+
+            [DependencyModule]
+            public partial class TestModule;
+            """
+        ).GeneratorDiagnostics;
+
+        Verify(!diagnostics.Any(d => d.Id == "DM0024"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AnInterfaceOnAnotherPartialDeclaration_IsCrossWired()
     {
         var assembly = Compile(
@@ -275,13 +286,15 @@ public class CrossWireTests
 
         var provider = assembly.BuildProvider();
 
-        Assert.Same(
-            provider.GetRequiredService(assembly.Type("Store")),
-            provider.GetRequiredService(assembly.Type("IReader"))
+        Verify(
+            ReferenceEquals(
+                provider.GetRequiredService(assembly.Type("Store")),
+                provider.GetRequiredService(assembly.Type("IReader"))
+            )
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void AFactoryMethod_RegistersItsReturnTypeAndTheInterfacesItDeclares()
     {
         var assembly = Compile(
@@ -307,12 +320,12 @@ public class CrossWireTests
         var provider = assembly.BuildProvider();
         var store = provider.GetRequiredService(assembly.Type("Store"));
 
-        Assert.Same(store, provider.GetRequiredService(assembly.Type("IReader")));
-        Assert.Same(store, provider.GetRequiredService(assembly.Type("IWriter")));
-        Assert.Equal(1, assembly.Type("Store").GetField("Created")!.GetValue(null));
+        Verify(ReferenceEquals(store, provider.GetRequiredService(assembly.Type("IReader"))));
+        Verify(ReferenceEquals(store, provider.GetRequiredService(assembly.Type("IWriter"))));
+        Verify(Equals(assembly.Type("Store").GetField("Created")!.GetValue(null), 1));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AFactoryMethodThatReturnsAnInterface_RegistersIt()
     {
         var assembly = Compile(
@@ -330,6 +343,6 @@ public class CrossWireTests
             """
         );
 
-        Assert.Equal("Reader", assembly.ResolveRequired("IReader").GetType().Name);
+        Verify(assembly.ResolveRequired("IReader").GetType().Name == "Reader");
     }
 }

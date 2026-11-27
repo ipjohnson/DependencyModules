@@ -1,7 +1,6 @@
 using DependencyModules.Tests.Infrastructure;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// Every legal way of writing <c>[Intercept]</c> has to mean <c>[Intercept]</c>.
@@ -17,41 +16,37 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// Interceptors are audit, authorisation, retry and metrics, which is the worst set of things to
 /// silently not run.
 /// </summary>
-public class InterceptAttributeSpellingTests
+public partial class InterceptAttributeSpellingTests
 {
-    [Theory]
-    [InlineData("[Intercept(typeof(LoggingInterceptor))]")]
-    [InlineData("[InterceptAttribute(typeof(LoggingInterceptor))]")]
-    [InlineData("[DependencyModules.Runtime.Attributes.Intercept(typeof(LoggingInterceptor))]")]
-    [InlineData(
-        "[DependencyModules.Runtime.Attributes.InterceptAttribute(typeof(LoggingInterceptor))]"
-    )]
-    [InlineData(
-        "[global::DependencyModules.Runtime.Attributes.Intercept(typeof(LoggingInterceptor))]"
-    )]
-    [InlineData(
+    [VerifyTest]
+    [Row("[Intercept(typeof(LoggingInterceptor))]")]
+    [Row("[InterceptAttribute(typeof(LoggingInterceptor))]")]
+    [Row("[DependencyModules.Runtime.Attributes.Intercept(typeof(LoggingInterceptor))]")]
+    [Row("[DependencyModules.Runtime.Attributes.InterceptAttribute(typeof(LoggingInterceptor))]")]
+    [Row("[global::DependencyModules.Runtime.Attributes.Intercept(typeof(LoggingInterceptor))]")]
+    [Row(
         "[global::DependencyModules.Runtime.Attributes.InterceptAttribute(typeof(LoggingInterceptor))]"
     )]
-    [InlineData("[Wrap(typeof(LoggingInterceptor))]")]
+    [Row("[Wrap(typeof(LoggingInterceptor))]")]
     public void EverySpelling_GeneratesTheWrapper(string attribute)
     {
         var result = Run(attribute).AssertNoErrors();
 
-        Assert.Contains("Thing_Intercepted", string.Join(", ", result.GeneratedSources.Keys));
+        Verify(string.Join(", ", result.GeneratedSources.Keys).Contains("Thing_Intercepted"));
     }
 
-    [Theory]
-    [InlineData("[Intercept(typeof(LoggingInterceptor))]")]
-    [InlineData("[DependencyModules.Runtime.Attributes.Intercept(typeof(LoggingInterceptor))]")]
-    [InlineData(
+    [VerifyTest]
+    [Row("[Intercept(typeof(LoggingInterceptor))]")]
+    [Row("[DependencyModules.Runtime.Attributes.Intercept(typeof(LoggingInterceptor))]")]
+    [Row(
         "[global::DependencyModules.Runtime.Attributes.InterceptAttribute(typeof(LoggingInterceptor))]"
     )]
-    [InlineData("[Wrap(typeof(LoggingInterceptor))]")]
+    [Row("[Wrap(typeof(LoggingInterceptor))]")]
     public void EverySpelling_AppliesTheInterception(string attribute)
     {
         var interceptors = Run(attribute).SourceContaining("Interceptors");
 
-        Assert.Contains("Thing_Intercepted", interceptors);
+        Verify(interceptors.Contains("Thing_Intercepted"));
     }
 
     private static GeneratorResult Run(string attribute) =>

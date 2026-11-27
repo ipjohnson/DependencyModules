@@ -1,153 +1,150 @@
 using CSharpAuthor;
 using DependencyModules.SourceGenerator.Impl.Models;
 using DependencyModules.Tests.Infrastructure;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// These comparers are what Roslyn consults to decide whether a pipeline step's output changed.
 /// Every field that affects generated code must make two models compare unequal, or an edit to
 /// that field will serve stale output.
 /// </summary>
-public class ModelComparerTests
+public partial class ModelComparerTests
 {
     private readonly ModuleEntryPointModelComparer _entryPointComparer = new();
     private readonly DependencyModuleConfigurationModelComparer _configurationComparer = new();
 
-    [Fact]
+    [VerifyTest]
     public void EntryPoints_BuiltFromTheSameValues_AreEqual()
     {
-        Assert.True(
-            _entryPointComparer.Equals(ModelFactory.EntryPoint(), ModelFactory.EntryPoint())
-        );
+        Verify(_entryPointComparer.Equals(ModelFactory.EntryPoint(), ModelFactory.EntryPoint()));
     }
 
-    [Fact]
+    [VerifyTest]
     public void EqualEntryPoints_ShareAHashCode()
     {
-        Assert.Equal(
-            _entryPointComparer.GetHashCode(ModelFactory.EntryPoint()),
+        Verify(
             _entryPointComparer.GetHashCode(ModelFactory.EntryPoint())
+                == _entryPointComparer.GetHashCode(ModelFactory.EntryPoint())
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void EntryPoints_BothNull_AreEqual()
     {
-        Assert.True(_entryPointComparer.Equals(null, null));
+        Verify(_entryPointComparer.Equals(null, null));
     }
 
-    [Fact]
+    [VerifyTest]
     public void EntryPoints_OneNull_AreNotEqual()
     {
-        Assert.False(_entryPointComparer.Equals(ModelFactory.EntryPoint(), null));
-        Assert.False(_entryPointComparer.Equals(null, ModelFactory.EntryPoint()));
+        Verify(!_entryPointComparer.Equals(ModelFactory.EntryPoint(), null));
+        Verify(!_entryPointComparer.Equals(null, ModelFactory.EntryPoint()));
     }
 
-    [Fact]
+    [VerifyTest]
     public void EntryPoints_DifferingByFileLocation_AreNotEqual()
     {
-        Assert.False(
-            _entryPointComparer.Equals(
+        Verify(
+            !_entryPointComparer.Equals(
                 ModelFactory.EntryPoint(fileLocation: "/project/A.cs"),
                 ModelFactory.EntryPoint(fileLocation: "/project/B.cs")
             )
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void EntryPoints_DifferingByType_AreNotEqual()
     {
-        Assert.False(
-            _entryPointComparer.Equals(
+        Verify(
+            !_entryPointComparer.Equals(
                 ModelFactory.EntryPoint(entryPointType: TypeDefinition.Get("Ns", "One")),
                 ModelFactory.EntryPoint(entryPointType: TypeDefinition.Get("Ns", "Two"))
             )
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void EntryPoints_DifferingByFeatures_AreNotEqual()
     {
-        Assert.False(
-            _entryPointComparer.Equals(
+        Verify(
+            !_entryPointComparer.Equals(
                 ModelFactory.EntryPoint(features: ModuleEntryPointFeatures.None),
                 ModelFactory.EntryPoint(features: ModuleEntryPointFeatures.OnlyRealm)
             )
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void EntryPoints_DifferingByUseMethod_AreNotEqual()
     {
-        Assert.False(
-            _entryPointComparer.Equals(
+        Verify(
+            !_entryPointComparer.Equals(
                 ModelFactory.EntryPoint(useMethod: "UseOne"),
                 ModelFactory.EntryPoint(useMethod: "UseTwo")
             )
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void EntryPoints_DifferingByRegistrationType_AreNotEqual()
     {
-        Assert.False(
-            _entryPointComparer.Equals(
+        Verify(
+            !_entryPointComparer.Equals(
                 ModelFactory.EntryPoint(registrationType: RegistrationType.Add),
                 ModelFactory.EntryPoint(registrationType: RegistrationType.Try)
             )
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void EntryPoints_DifferingByGenerateAttribute_AreNotEqual()
     {
-        Assert.False(
-            _entryPointComparer.Equals(
+        Verify(
+            !_entryPointComparer.Equals(
                 ModelFactory.EntryPoint(generateAttribute: true),
                 ModelFactory.EntryPoint(generateAttribute: false)
             )
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void EntryPoints_DifferingByJsonSerializerRegistration_AreNotEqual()
     {
-        Assert.False(
-            _entryPointComparer.Equals(
+        Verify(
+            !_entryPointComparer.Equals(
                 ModelFactory.EntryPoint(registerJsonSerializers: true),
                 ModelFactory.EntryPoint(registerJsonSerializers: false)
             )
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void EntryPoints_DifferingByFactoryGeneration_AreNotEqual()
     {
-        Assert.False(
-            _entryPointComparer.Equals(
+        Verify(
+            !_entryPointComparer.Equals(
                 ModelFactory.EntryPoint(generateFactories: true),
                 ModelFactory.EntryPoint(generateFactories: false)
             )
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void EntryPoints_DifferingByParameters_AreNotEqual()
     {
-        Assert.False(
-            _entryPointComparer.Equals(
+        Verify(
+            !_entryPointComparer.Equals(
                 ModelFactory.EntryPoint(parameters: [Parameter("one")]),
                 ModelFactory.EntryPoint(parameters: [Parameter("two")])
             )
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void EntryPoints_WithSeparateButEqualParameters_AreEqual()
     {
-        Assert.True(
+        Verify(
             _entryPointComparer.Equals(
                 ModelFactory.EntryPoint(parameters: [Parameter("same")]),
                 ModelFactory.EntryPoint(parameters: [Parameter("same")])
@@ -155,32 +152,32 @@ public class ModelComparerTests
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void EntryPoints_DifferingByProperties_AreNotEqual()
     {
-        Assert.False(
-            _entryPointComparer.Equals(
+        Verify(
+            !_entryPointComparer.Equals(
                 ModelFactory.EntryPoint(properties: [Property("One")]),
                 ModelFactory.EntryPoint(properties: [Property("Two")])
             )
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void EntryPoints_DifferingByAttributes_AreNotEqual()
     {
-        Assert.False(
-            _entryPointComparer.Equals(
+        Verify(
+            !_entryPointComparer.Equals(
                 ModelFactory.EntryPoint(attributes: [Attribute("One")]),
                 ModelFactory.EntryPoint(attributes: [Attribute("Two")])
             )
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void EntryPoints_WithSeparateButEqualAttributes_AreEqual()
     {
-        Assert.True(
+        Verify(
             _entryPointComparer.Equals(
                 ModelFactory.EntryPoint(attributes: [Attribute("Same")]),
                 ModelFactory.EntryPoint(attributes: [Attribute("Same")])
@@ -188,32 +185,32 @@ public class ModelComparerTests
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void EntryPoints_DifferingByFeatureTypes_AreNotEqual()
     {
-        Assert.False(
-            _entryPointComparer.Equals(
+        Verify(
+            !_entryPointComparer.Equals(
                 ModelFactory.EntryPoint(featureTypes: [TypeDefinition.Get("Ns", "IOne")]),
                 ModelFactory.EntryPoint(featureTypes: [TypeDefinition.Get("Ns", "ITwo")])
             )
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void EntryPoints_DifferingByAdditionalModules_AreNotEqual()
     {
-        Assert.False(
-            _entryPointComparer.Equals(
+        Verify(
+            !_entryPointComparer.Equals(
                 ModelFactory.EntryPoint(additionalModules: [TypeDefinition.Get("Ns", "One")]),
                 ModelFactory.EntryPoint(additionalModules: [TypeDefinition.Get("Ns", "Two")])
             )
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void Configurations_BuiltFromTheSameValues_AreEqual()
     {
-        Assert.True(
+        Verify(
             _configurationComparer.Equals(
                 ModelFactory.Configuration(),
                 ModelFactory.Configuration()
@@ -221,90 +218,89 @@ public class ModelComparerTests
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void SameConfigurationInstance_IsEqualToItself()
     {
         var configuration = ModelFactory.Configuration();
 
-        Assert.True(_configurationComparer.Equals(configuration, configuration));
+        Verify(_configurationComparer.Equals(configuration, configuration));
     }
 
-    [Fact]
+    [VerifyTest]
     public void Configurations_OneNull_AreNotEqual()
     {
-        Assert.False(_configurationComparer.Equals(ModelFactory.Configuration(), null));
-        Assert.False(_configurationComparer.Equals(null, ModelFactory.Configuration()));
+        Verify(!_configurationComparer.Equals(ModelFactory.Configuration(), null));
+        Verify(!_configurationComparer.Equals(null, ModelFactory.Configuration()));
     }
 
-    [Fact]
+    [VerifyTest]
     public void EqualConfigurations_ShareAHashCode()
     {
-        Assert.Equal(
-            _configurationComparer.GetHashCode(ModelFactory.Configuration()),
+        Verify(
             _configurationComparer.GetHashCode(ModelFactory.Configuration())
+                == _configurationComparer.GetHashCode(ModelFactory.Configuration())
         );
     }
 
-    [Theory]
-    [MemberData(nameof(DifferingConfigurations))]
+    [VerifyTest]
+    [RowSource(nameof(DifferingConfigurations), DeterministicReplay = true)]
     public void Configurations_DifferingByAnyField_AreNotEqual(
         string field,
         DependencyModuleConfigurationModel other
     )
     {
-        Assert.False(
-            _configurationComparer.Equals(ModelFactory.Configuration(), other),
+        Verify(
+            !_configurationComparer.Equals(ModelFactory.Configuration(), other),
             $"Configurations differing by {field} compared equal, so a change to it would serve stale output."
         );
     }
 
-    public static TheoryData<
-        string,
-        DependencyModuleConfigurationModel
-    > DifferingConfigurations() =>
-        new()
-        {
-            {
+    public static IEnumerable<(
+        string Field,
+        DependencyModuleConfigurationModel Other
+    )> DifferingConfigurations() =>
+        [
+            (
                 nameof(DependencyModuleConfigurationModel.RegistrationType),
                 ModelFactory.Configuration(registrationType: RegistrationType.Try)
-            },
-            {
+            ),
+            (
                 nameof(DependencyModuleConfigurationModel.RegisterSourceGenerator),
                 ModelFactory.Configuration(registerSourceGenerator: true)
-            },
-            {
+            ),
+            (
                 nameof(DependencyModuleConfigurationModel.RootNamespace),
                 ModelFactory.Configuration(rootNamespace: "Other")
-            },
-            {
+            ),
+            (
                 nameof(DependencyModuleConfigurationModel.ProjectDir),
                 ModelFactory.Configuration(projectDir: "/other/")
-            },
-            {
+            ),
+            (
                 nameof(DependencyModuleConfigurationModel.AutoGenerateEntry),
                 ModelFactory.Configuration(autoGenerateEntry: false)
-            },
-            {
+            ),
+            (
                 nameof(DependencyModuleConfigurationModel.LogOutputFolder),
                 ModelFactory.Configuration(logOutputFolder: "/logs")
-            },
-            {
+            ),
+            (
                 nameof(DependencyModuleConfigurationModel.LogOutputLevel),
                 ModelFactory.Configuration(logOutputLevel: LogOutputLevel.Error)
-            },
-            {
+            ),
+            (
                 nameof(DependencyModuleConfigurationModel.GenerateFactories),
                 ModelFactory.Configuration(generateFactories: true)
-            },
-            {
+            ),
+            (
                 nameof(DependencyModuleConfigurationModel.ExcludeGeneratedCodeFromCoverage),
                 ModelFactory.Configuration(excludeGeneratedCodeFromCoverage: false)
-            },
-            {
+            ),
+            (
                 nameof(DependencyModuleConfigurationModel.GeneratedCodeStyle),
                 ModelFactory.Configuration(generatedCodeStyle: BraceStyle.KAndR)
-            },
-        };
+            ),
+        ];
 
     private readonly InterceptorModelComparer _interceptorComparer = new();
 
@@ -314,58 +310,58 @@ public class ModelComparerTests
     /// the interception stayed on whichever module had it before. Both sibling comparers already
     /// compared theirs.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void Interceptors_DifferingByRealm_AreNotEqual()
     {
-        Assert.False(
-            _interceptorComparer.Equals(
+        Verify(
+            !_interceptorComparer.Equals(
                 Interceptor(realm: TypeDefinition.Get("Ns", "OneRealm")),
                 Interceptor(realm: TypeDefinition.Get("Ns", "OtherRealm"))
             )
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void Interceptors_GainingARealm_AreNotEqual()
     {
-        Assert.False(
-            _interceptorComparer.Equals(
+        Verify(
+            !_interceptorComparer.Equals(
                 Interceptor(),
                 Interceptor(realm: TypeDefinition.Get("Ns", "OneRealm"))
             )
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void Interceptors_BuiltFromTheSameValues_AreEqual()
     {
-        Assert.True(_interceptorComparer.Equals(Interceptor(), Interceptor()));
+        Verify(_interceptorComparer.Equals(Interceptor(), Interceptor()));
     }
 
-    [Fact]
+    [VerifyTest]
     public void EqualInterceptors_ShareAHashCode()
     {
-        Assert.Equal(
-            _interceptorComparer.GetHashCode(Interceptor()),
+        Verify(
             _interceptorComparer.GetHashCode(Interceptor())
+                == _interceptorComparer.GetHashCode(Interceptor())
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void Interceptors_DifferingByRealm_DoNotShareAHashCode()
     {
-        Assert.NotEqual(
-            _interceptorComparer.GetHashCode(Interceptor()),
-            _interceptorComparer.GetHashCode(
-                Interceptor(realm: TypeDefinition.Get("Ns", "OneRealm"))
-            )
+        Verify(
+            _interceptorComparer.GetHashCode(Interceptor())
+                != _interceptorComparer.GetHashCode(
+                    Interceptor(realm: TypeDefinition.Get("Ns", "OneRealm"))
+                )
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void Interceptors_DifferingByOrder_AreNotEqual()
     {
-        Assert.False(_interceptorComparer.Equals(Interceptor(order: 1), Interceptor(order: 2)));
+        Verify(!_interceptorComparer.Equals(Interceptor(order: 1), Interceptor(order: 2)));
     }
 
     private static InterceptorModel Interceptor(ITypeDefinition? realm = null, int order = 0) =>

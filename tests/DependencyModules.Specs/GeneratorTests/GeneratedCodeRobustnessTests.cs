@@ -1,15 +1,14 @@
 using DependencyModules.Tests.Infrastructure;
 using Microsoft.CodeAnalysis;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// Generated code lands in someone else's project, so it must not depend on how that project is
 /// configured. The harness compiles without implicit usings and without any project-level using
 /// directives, which is the strictest environment a consumer can present.
 /// </summary>
-public class GeneratedCodeRobustnessTests
+public partial class GeneratedCodeRobustnessTests
 {
     /// <summary>
     /// Regression test: the generated module attribute used to be emitted as a bare
@@ -17,7 +16,7 @@ public class GeneratedCodeRobustnessTests
     /// project happened to have ImplicitUsings enabled. Projects with ImplicitUsings disabled
     /// failed with CS0246/CS0103 on every generated module.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void GeneratedCode_CompilesWithoutImplicitUsings()
     {
         var result = GeneratorTestHarness.Run(
@@ -37,7 +36,7 @@ public class GeneratedCodeRobustnessTests
         result.AssertNoErrors();
     }
 
-    [Fact]
+    [VerifyTest]
     public void GeneratedModuleAttribute_UsesFullyQualifiedAttributeUsage()
     {
         var result = GeneratorTestHarness.Run(
@@ -54,14 +53,14 @@ public class GeneratedCodeRobustnessTests
         result.AssertNoErrors();
         var generated = result.SourceContaining(".Module.g.cs");
 
-        Assert.Contains("global::System.AttributeUsage", generated);
-        Assert.DoesNotContain("[AttributeUsage(", generated);
+        Verify(generated.Contains("global::System.AttributeUsage"));
+        Verify(!generated.Contains("[AttributeUsage("));
     }
 
     /// <summary>
     /// A consumer that treats warnings as errors should not be broken by generated code.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void GeneratedCode_ProducesNoWarnings()
     {
         var result = GeneratorTestHarness.Run(
@@ -98,7 +97,7 @@ public class GeneratedCodeRobustnessTests
             )
             .ToArray();
 
-        Assert.True(
+        Verify(
             warnings.Length == 0,
             "Generated code produced warnings:"
                 + Environment.NewLine
@@ -120,9 +119,9 @@ public class GeneratedCodeRobustnessTests
     /// GeneratedCode_ProducesNoWarnings above covers the same ground but registers a service whose
     /// type arguments carry no annotation, which is why it stayed green throughout.
     /// </summary>
-    [Theory]
-    [InlineData("attribute", "[SingletonService]")]
-    [InlineData("convention", "")]
+    [VerifyTest]
+    [Row("attribute", "[SingletonService]")]
+    [Row("convention", "")]
     public void GeneratedCode_ProducesNoWarnings_ForANullableTypeArgument(
         string _,
         string attribute
@@ -180,7 +179,7 @@ public class GeneratedCodeRobustnessTests
             )
             .ToArray();
 
-        Assert.True(
+        Verify(
             warnings.Length == 0,
             "Generated code produced warnings:"
                 + Environment.NewLine
@@ -191,7 +190,7 @@ public class GeneratedCodeRobustnessTests
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void GeneratedCode_QualifiesReferencesToTheRuntime()
     {
         var result = GeneratorTestHarness.Run(
@@ -212,13 +211,14 @@ public class GeneratedCodeRobustnessTests
 
         result.AssertNoErrors();
 
-        Assert.Contains(
-            "global::DependencyModules.Runtime.Helpers.DependencyRegistry",
-            result.SourceContaining(".Module.g.cs")
+        Verify(
+            result
+                .SourceContaining(".Module.g.cs")
+                .Contains("global::DependencyModules.Runtime.Helpers.DependencyRegistry")
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void GeneratorRun_ReportsNoDiagnosticsForValidInput()
     {
         var result = GeneratorTestHarness.Run(
@@ -237,6 +237,6 @@ public class GeneratedCodeRobustnessTests
             """
         );
 
-        Assert.Empty(result.GeneratorDiagnostics);
+        Verify(result.GeneratorDiagnostics.Length == 0);
     }
 }

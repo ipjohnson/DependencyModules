@@ -2,9 +2,8 @@ using System.Collections.Generic;
 using System.Linq;
 using DependencyModules.Tests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// Interception under <c>DependencyModules_GenerateFactories</c>.
@@ -24,7 +23,7 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// property's whole contract — it is meant to change how a service is constructed, not what is
 /// registered or what wraps it.
 /// </summary>
-public class GenerateFactoriesInterceptionTests
+public partial class GenerateFactoriesInterceptionTests
 {
     private const string Interceptor = """
         public sealed class CountingInterceptor : IInterceptor {
@@ -35,9 +34,9 @@ public class GenerateFactoriesInterceptionTests
     /// <summary>
     /// The 1.1.0 fix itself: a sibling implementation carrying no [Intercept] is not wrapped.
     /// </summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
+    [VerifyTest]
+    [Row(false)]
+    [Row(true)]
     public void AnUnmarkedSibling_IsNotWrapped(bool generateFactories)
     {
         var resolved = Resolve(
@@ -51,16 +50,16 @@ public class GenerateFactoriesInterceptionTests
             generateFactories
         );
 
-        Assert.Equal(["Loud_Intercepted", "Quiet"], resolved);
+        Verify(resolved.SequenceEqual(new[] { "Loud_Intercepted", "Quiet" }));
     }
 
     /// <summary>
     /// And the same registration is not wrapped twice. Two marked implementations each get their
     /// own wrapper rather than both getting both.
     /// </summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
+    [VerifyTest]
+    [Row(false)]
+    [Row(true)]
     public void TwoMarkedImplementations_EachGetTheirOwnWrapper(bool generateFactories)
     {
         var resolved = Resolve(
@@ -74,16 +73,16 @@ public class GenerateFactoriesInterceptionTests
             generateFactories
         );
 
-        Assert.Equal(["Loud_Intercepted", "Quiet_Intercepted"], resolved);
+        Verify(resolved.SequenceEqual(new[] { "Loud_Intercepted", "Quiet_Intercepted" }));
     }
 
     /// <summary>
     /// A keyed registration is still one registration. Agent 08 measured a keyed service coming back
     /// as another implementation's wrapper.
     /// </summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
+    [VerifyTest]
+    [Row(false)]
+    [Row(true)]
     public void AKeyedSibling_IsNotWrapped(bool generateFactories)
     {
         var generated = Build(
@@ -103,17 +102,17 @@ public class GenerateFactoriesInterceptionTests
         var loud = ((IKeyedServiceProvider)provider).GetRequiredKeyedService(serviceType, "loud");
         var quiet = ((IKeyedServiceProvider)provider).GetRequiredKeyedService(serviceType, "quiet");
 
-        Assert.Equal("Loud_Intercepted", loud.GetType().Name);
-        Assert.Equal("Quiet", quiet.GetType().Name);
+        Verify(loud.GetType().Name == "Loud_Intercepted");
+        Verify(quiet.GetType().Name == "Quiet");
     }
 
     /// <summary>
     /// The convention route to the same registrations. Convention-produced models are built by a
     /// different path from attribute-produced ones, so the exemption has to reach both.
     /// </summary>
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
+    [VerifyTest]
+    [Row(false)]
+    [Row(true)]
     public void AConventionRegisteredSibling_IsNotWrapped(bool generateFactories)
     {
         var generated = GeneratedAssembly.Create(
@@ -159,7 +158,7 @@ public class GenerateFactoriesInterceptionTests
             .OrderBy(name => name, System.StringComparer.Ordinal)
             .ToArray();
 
-        Assert.Equal(["Loud_Intercepted", "Quiet"], resolved);
+        Verify(resolved.SequenceEqual(new[] { "Loud_Intercepted", "Quiet" }));
     }
 
     private static string[] Resolve(string body, bool generateFactories)

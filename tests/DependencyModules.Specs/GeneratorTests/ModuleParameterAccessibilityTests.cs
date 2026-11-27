@@ -1,8 +1,7 @@
 using System.Linq;
 using DependencyModules.Tests.Infrastructure;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// Which of a module's properties become parameters on its generated attribute.
@@ -17,60 +16,60 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// Accessibility is judged from where the generated attribute sits: same assembly, different type.
 /// So internal reaches it and private does not, and an unmodified property is private by default.
 /// </summary>
-public class ModuleParameterAccessibilityTests
+public partial class ModuleParameterAccessibilityTests
 {
-    [Theory]
-    [InlineData("private int SizeLimit { get; set; }")]
-    [InlineData("protected int SizeLimit { get; set; }")]
-    [InlineData("private protected int SizeLimit { get; set; }")]
-    [InlineData("int SizeLimit { get; set; }")]
+    [VerifyTest]
+    [Row("private int SizeLimit { get; set; }")]
+    [Row("protected int SizeLimit { get; set; }")]
+    [Row("private protected int SizeLimit { get; set; }")]
+    [Row("int SizeLimit { get; set; }")]
     public void APropertyTheAttributeCannotReach_CompilesCleanly(string property)
     {
         Run(property).AssertNoErrors();
     }
 
-    [Theory]
-    [InlineData("private int SizeLimit { get; set; }")]
-    [InlineData("protected int SizeLimit { get; set; }")]
-    [InlineData("private protected int SizeLimit { get; set; }")]
-    [InlineData("int SizeLimit { get; set; }")]
+    [VerifyTest]
+    [Row("private int SizeLimit { get; set; }")]
+    [Row("protected int SizeLimit { get; set; }")]
+    [Row("private protected int SizeLimit { get; set; }")]
+    [Row("int SizeLimit { get; set; }")]
     public void APropertyTheAttributeCannotReach_IsNotCopiedOntoIt(string property)
     {
         var attribute = Run(property).SourceContaining("TestModule.Module");
 
-        Assert.DoesNotContain("SizeLimit", attribute);
+        Verify(!attribute.Contains("SizeLimit"));
     }
 
     /// <summary>
     /// It is not a parameter, so there is no identity question and DM0018 has nothing to report.
     /// Reporting it would have sent the reader to a page describing a property they cannot set.
     /// </summary>
-    [Theory]
-    [InlineData("private int SizeLimit { get; set; }")]
-    [InlineData("protected int SizeLimit { get; set; }")]
-    [InlineData("private protected int SizeLimit { get; set; }")]
-    [InlineData("int SizeLimit { get; set; }")]
+    [VerifyTest]
+    [Row("private int SizeLimit { get; set; }")]
+    [Row("protected int SizeLimit { get; set; }")]
+    [Row("private protected int SizeLimit { get; set; }")]
+    [Row("int SizeLimit { get; set; }")]
     public void APropertyTheAttributeCannotReach_IsNotReportedAsDM0018(string property)
     {
         var result = Run(property);
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0018");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0018"));
     }
 
     /// <summary>
     /// The controls. internal and protected internal are both reachable from a type in the same
     /// assembly, which is what the generated attribute is, so they stay parameters.
     /// </summary>
-    [Theory]
-    [InlineData("public int SizeLimit { get; set; }")]
-    [InlineData("internal int SizeLimit { get; set; }")]
-    [InlineData("protected internal int SizeLimit { get; set; }")]
+    [VerifyTest]
+    [Row("public int SizeLimit { get; set; }")]
+    [Row("internal int SizeLimit { get; set; }")]
+    [Row("protected internal int SizeLimit { get; set; }")]
     public void AReachableProperty_IsStillAParameter(string property)
     {
         var result = Run(property).AssertNoErrors();
 
-        Assert.Contains("SizeLimit", result.SourceContaining("TestModule.Module"));
-        Assert.Contains(result.GeneratorDiagnostics, d => d.Id == "DM0018");
+        Verify(result.SourceContaining("TestModule.Module").Contains("SizeLimit"));
+        Verify(result.GeneratorDiagnostics.Any(d => d.Id == "DM0018"));
     }
 
     private static GeneratorResult Run(string body) =>

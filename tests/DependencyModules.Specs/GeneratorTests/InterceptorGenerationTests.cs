@@ -1,16 +1,15 @@
 using DependencyModules.Tests.Infrastructure;
 using Microsoft.CodeAnalysis;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// Interception verified by compiling, loading and calling the generated wrapper, since the point is
 /// what an interceptor observes and can change rather than what the emitted text looks like.
 /// </summary>
-public class InterceptorGenerationTests
+public partial class InterceptorGenerationTests
 {
-    [Fact]
+    [VerifyTest]
     public void InterceptedService_ResolvesAsTheGeneratedWrapper()
     {
         var generated = GeneratedAssembly.Create(
@@ -19,10 +18,10 @@ public class InterceptorGenerationTests
 
         var resolved = generated.ResolveRequired("IWork");
 
-        Assert.EndsWith("_Intercepted", resolved.GetType().Name);
+        Verify(resolved.GetType().Name.EndsWith("_Intercepted"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void SyncMethod_ReturnsTheInnerValueThroughThePipeline()
     {
         var generated = GeneratedAssembly.Create(
@@ -31,18 +30,18 @@ public class InterceptorGenerationTests
 
         var work = generated.ResolveRequired("IWork");
 
-        Assert.Equal(10, Invoke(work, "Sync", 5));
-        Assert.Equal(["enter Sync", "exit Sync"], Log(generated));
+        Verify(Equals(Invoke(work, "Sync", 5), 10));
+        Verify(Log(generated).SequenceEqual(["enter Sync", "exit Sync"]));
     }
 
-    [Fact]
+    [VerifyTest]
     public void VoidMethod_RunsThroughThePipeline()
     {
         var generated = GeneratedAssembly.Create(Source("void Run();", "public void Run() { }"));
 
         Invoke(generated.ResolveRequired("IWork"), "Run");
 
-        Assert.Equal(["enter Run", "exit Run"], Log(generated));
+        Verify(Log(generated).SequenceEqual(["enter Run", "exit Run"]));
     }
 
     /// <summary>
@@ -51,7 +50,7 @@ public class InterceptorGenerationTests
     /// An interceptor awaits inside its own method body, so what follows the await runs when the
     /// call has actually finished.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public async Task AsyncMethod_ExitsAfterTheWorkCompletes()
     {
         var generated = GeneratedAssembly.Create(
@@ -64,17 +63,17 @@ public class InterceptorGenerationTests
         var task = (Task<int>)Invoke(generated.ResolveRequired("IWork"), "Compute", 21)!;
 
         // The work is suspended at a gate nothing has released, so this cannot have happened yet.
-        Assert.DoesNotContain("exit Compute", Log(generated));
+        Verify(!Log(generated).Contains("exit Compute"));
 
         Gate(generated).SetResult();
 
         var result = await task;
 
-        Assert.Equal(42, result);
-        Assert.Equal(["enter Compute", "exit Compute"], Log(generated));
+        Verify(result == 42);
+        Verify(Log(generated).SequenceEqual(["enter Compute", "exit Compute"]));
     }
 
-    [Fact]
+    [VerifyTest]
     public async Task AsyncVoidMethod_RunsThroughThePipeline()
     {
         var generated = GeneratedAssembly.Create(
@@ -86,10 +85,10 @@ public class InterceptorGenerationTests
 
         await (Task)Invoke(generated.ResolveRequired("IWork"), "Run")!;
 
-        Assert.Equal(["enter Run", "exit Run"], Log(generated));
+        Verify(Log(generated).SequenceEqual(["enter Run", "exit Run"]));
     }
 
-    [Fact]
+    [VerifyTest]
     public async Task ValueTaskMethod_ReturnsTheInnerValue()
     {
         var generated = GeneratedAssembly.Create(
@@ -101,11 +100,11 @@ public class InterceptorGenerationTests
 
         var result = await (ValueTask<string>)Invoke(generated.ResolveRequired("IWork"), "Fetch")!;
 
-        Assert.Equal("done", result);
-        Assert.Equal(["enter Fetch", "exit Fetch"], Log(generated));
+        Verify(result == "done");
+        Verify(Log(generated).SequenceEqual(["enter Fetch", "exit Fetch"]));
     }
 
-    [Fact]
+    [VerifyTest]
     public async Task ValueTaskWithNoResult_RunsThroughThePipeline()
     {
         var generated = GeneratedAssembly.Create(
@@ -117,7 +116,7 @@ public class InterceptorGenerationTests
 
         await (ValueTask)Invoke(generated.ResolveRequired("IWork"), "Save")!;
 
-        Assert.Equal(["enter Save", "exit Save"], Log(generated));
+        Verify(Log(generated).SequenceEqual(["enter Save", "exit Save"]));
     }
 
     /// <summary>
@@ -125,7 +124,7 @@ public class InterceptorGenerationTests
     /// time the construction of the iterator. The interceptor enumerates it instead, and sees each
     /// item as it is produced.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public async Task AsyncEnumerableMethod_ObservesEachItem()
     {
         var generated = GeneratedAssembly.Create(
@@ -149,11 +148,14 @@ public class InterceptorGenerationTests
             items.Add(item);
         }
 
-        Assert.Equal([0, 1, 2], items);
-        Assert.Equal(["enter Stream", "item 0", "item 1", "item 2", "exit Stream"], Log(generated));
+        Verify(items.SequenceEqual([0, 1, 2]));
+        Verify(
+            Log(generated)
+                .SequenceEqual(["enter Stream", "item 0", "item 1", "item 2", "exit Stream"])
+        );
     }
 
-    [Fact]
+    [VerifyTest]
     public void GenericMethod_ForwardsWithItsConstraints()
     {
         var generated = GeneratedAssembly.Create(
@@ -166,15 +168,15 @@ public class InterceptorGenerationTests
         var work = generated.ResolveRequired("IWork");
         var method = work.GetType().GetMethod("Pick")!.MakeGenericMethod(typeof(string));
 
-        Assert.Equal("value", method.Invoke(work, ["value"]));
-        Assert.Equal(["enter Pick", "exit Pick"], Log(generated));
+        Verify(Equals(method.Invoke(work, ["value"]), "value"));
+        Verify(Log(generated).SequenceEqual(["enter Pick", "exit Pick"]));
     }
 
     /// <summary>
     /// Accessors are reported the way the CLR names them, so a getter and a setter are told apart
     /// and the name matches what appears in a stack trace.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void Property_RoutesBothAccessorsAndReportsThemByTheirClrNames()
     {
         var generated = GeneratedAssembly.Create(
@@ -186,14 +188,19 @@ public class InterceptorGenerationTests
 
         property.SetValue(work, "assigned");
 
-        Assert.Equal("assigned", property.GetValue(work));
-        Assert.Equal(
-            ["enter set_Name", "exit set_Name", "enter get_Name", "exit get_Name"],
+        Verify(Equals(property.GetValue(work), "assigned"));
+        Verify(
             Log(generated)
+                .SequenceEqual([
+                    "enter set_Name",
+                    "exit set_Name",
+                    "enter get_Name",
+                    "exit get_Name",
+                ])
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void ReadOnlyProperty_DeclaresNoSetter()
     {
         var generated = GeneratedAssembly.Create(
@@ -203,16 +210,16 @@ public class InterceptorGenerationTests
         var work = generated.ResolveRequired("IWork");
         var property = work.GetType().GetProperty("Count")!;
 
-        Assert.Equal(7, property.GetValue(work));
-        Assert.Null(property.SetMethod);
-        Assert.Equal(["enter get_Count", "exit get_Count"], Log(generated));
+        Verify(Equals(property.GetValue(work), 7));
+        Verify(property.SetMethod is null);
+        Verify(Log(generated).SequenceEqual(["enter get_Count", "exit get_Count"]));
     }
 
     /// <summary>
     /// An accessor cannot be async whatever its type, so a property of task type takes the sync path
     /// and hands the task itself to the interceptor.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public async Task PropertyReturningATask_TakesTheSyncPath()
     {
         var generated = GeneratedAssembly.Create(
@@ -225,11 +232,11 @@ public class InterceptorGenerationTests
         var work = generated.ResolveRequired("IWork");
         var pending = (Task<int>)work.GetType().GetProperty("Pending")!.GetValue(work)!;
 
-        Assert.Equal(3, await pending);
-        Assert.Equal(["enter get_Pending", "exit get_Pending"], Log(generated));
+        Verify(await pending == 3);
+        Verify(Log(generated).SequenceEqual(["enter get_Pending", "exit get_Pending"]));
     }
 
-    [Fact]
+    [VerifyTest]
     public void Indexer_ForwardsItsIndicesAndAssignedValue()
     {
         var generated = GeneratedAssembly.Create(
@@ -250,22 +257,22 @@ public class InterceptorGenerationTests
 
         indexer.SetValue(work, 42, [2, 3]);
 
-        Assert.Equal(42, indexer.GetValue(work, [2, 3]));
-        Assert.Equal(-1, indexer.GetValue(work, [9, 9]));
-        Assert.Equal(
-            [
-                "enter set_Item",
-                "exit set_Item",
-                "enter get_Item",
-                "exit get_Item",
-                "enter get_Item",
-                "exit get_Item",
-            ],
+        Verify(Equals(indexer.GetValue(work, [2, 3]), 42));
+        Verify(Equals(indexer.GetValue(work, [9, 9]), -1));
+        Verify(
             Log(generated)
+                .SequenceEqual([
+                    "enter set_Item",
+                    "exit set_Item",
+                    "enter get_Item",
+                    "exit get_Item",
+                    "enter get_Item",
+                    "exit get_Item",
+                ])
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void IndexerSetter_ExposesItsIndicesAndValueAsArguments()
     {
         var generated = GeneratedAssembly.Create(
@@ -292,10 +299,10 @@ public class InterceptorGenerationTests
 
         work.GetType().GetProperty("Item")!.SetValue(work, 8, [1]);
 
-        Assert.Equal(["row=1", "value=8"], Log(generated));
+        Verify(Log(generated).SequenceEqual(["row=1", "value=8"]));
     }
 
-    [Fact]
+    [VerifyTest]
     public void Event_RoutesAddAndRemove()
     {
         var generated = GeneratedAssembly.Create(
@@ -312,18 +319,18 @@ public class InterceptorGenerationTests
         changed.AddEventHandler(work, handler);
         changed.RemoveEventHandler(work, handler);
 
-        Assert.Equal(
-            [
-                "enter add_Changed",
-                "exit add_Changed",
-                "enter remove_Changed",
-                "exit remove_Changed",
-            ],
+        Verify(
             Log(generated)
+                .SequenceEqual([
+                    "enter add_Changed",
+                    "exit add_Changed",
+                    "enter remove_Changed",
+                    "exit remove_Changed",
+                ])
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void ThrowingMethod_PropagatesThroughThePipeline()
     {
         var generated = GeneratedAssembly.Create(
@@ -333,15 +340,15 @@ public class InterceptorGenerationTests
             )
         );
 
-        var exception = Assert.Throws<System.Reflection.TargetInvocationException>(() =>
+        var exception = ThrowsExactly<System.Reflection.TargetInvocationException>(() =>
             Invoke(generated.ResolveRequired("IWork"), "Run")
         );
 
-        Assert.IsType<InvalidOperationException>(exception.InnerException);
-        Assert.Equal(["enter Run", "exit Run"], Log(generated));
+        Verify(exception.InnerException?.GetType() == typeof(InvalidOperationException));
+        Verify(Log(generated).SequenceEqual(["enter Run", "exit Run"]));
     }
 
-    [Fact]
+    [VerifyTest]
     public void SeveralInterceptors_NestInDeclarationOrder()
     {
         var generated = GeneratedAssembly.Create(
@@ -365,13 +372,18 @@ public class InterceptorGenerationTests
 
         Invoke(generated.ResolveRequired("IWork"), "Run");
 
-        Assert.Equal(
-            ["enter first Run", "enter second Run", "exit second Run", "exit first Run"],
+        Verify(
             Log(generated)
+                .SequenceEqual([
+                    "enter first Run",
+                    "enter second Run",
+                    "exit second Run",
+                    "exit first Run",
+                ])
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void Caller_CarriesTheServiceTypeAndMember()
     {
         var generated = GeneratedAssembly.Create(
@@ -392,14 +404,14 @@ public class InterceptorGenerationTests
 
         Invoke(generated.ResolveRequired("IWork"), "Run");
 
-        Assert.Equal(["IWork.Run", "IWork"], Log(generated));
+        Verify(Log(generated).SequenceEqual(["IWork.Run", "IWork"]));
     }
 
     /// <summary>
     /// Arguments live as typed fields on the state, which is where the inner call reads them from,
     /// so writing one replaces the value the implementation receives.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void Arguments_AreReadableByNameAndReplaceable()
     {
         var generated = GeneratedAssembly.Create(
@@ -425,15 +437,15 @@ public class InterceptorGenerationTests
 
         var result = Invoke(generated.ResolveRequired("IWork"), "Sync", 5, "text");
 
-        Assert.Equal(99, result);
-        Assert.Equal(["a=5", "b=text", "inner 99 text"], Log(generated));
+        Verify(Equals(result, 99));
+        Verify(Log(generated).SequenceEqual(["a=5", "b=text", "inner 99 text"]));
     }
 
     /// <summary>
     /// The stage index is carried on the context rather than mutated on the state, so proceeding a
     /// second time re-enters the same next stage rather than walking past it.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ProceedingTwice_CallsTheImplementationTwice()
     {
         var generated = GeneratedAssembly.Create(
@@ -453,11 +465,11 @@ public class InterceptorGenerationTests
 
         var result = Invoke(generated.ResolveRequired("IWork"), "Sync", 5);
 
-        Assert.Equal(5, result);
-        Assert.Equal(["inner", "inner"], Log(generated));
+        Verify(Equals(result, 5));
+        Verify(Log(generated).SequenceEqual(["inner", "inner"]));
     }
 
-    [Fact]
+    [VerifyTest]
     public void NotProceeding_SkipsTheImplementation()
     {
         var generated = GeneratedAssembly.Create(
@@ -472,8 +484,8 @@ public class InterceptorGenerationTests
             )
         );
 
-        Assert.Equal(0, Invoke(generated.ResolveRequired("IWork"), "Sync", 5));
-        Assert.Empty(Log(generated));
+        Verify(Equals(Invoke(generated.ResolveRequired("IWork"), "Sync", 5), 0));
+        Verify(Log(generated).Count == 0);
     }
 
     /// <summary>
@@ -481,7 +493,7 @@ public class InterceptorGenerationTests
     /// visible to every wrapper: two services with different interceptors each ran both. The
     /// wrapper holds its interceptors as typed fields now, so a wrapper can only reach its own.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void TwoServices_DoNotCrossApplyEachOthersInterceptors()
     {
         var generated = GeneratedAssembly.Create(
@@ -512,7 +524,7 @@ public class InterceptorGenerationTests
 
         Invoke(provider.GetService(generated.Type("IAlpha"))!, "Run");
 
-        Assert.Equal(["enter alpha Run", "exit alpha Run"], Log(generated));
+        Verify(Log(generated).SequenceEqual(["enter alpha Run", "exit alpha Run"]));
     }
 
     /// <summary>
@@ -520,7 +532,7 @@ public class InterceptorGenerationTests
     /// is ordinary. A sync-only interceptor serves the sync members and has nothing to say about the
     /// rest, which are forwarded untouched rather than costing the sync members their interception.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public async Task SyncOnlyInterceptor_ServesSyncMembersAndPassesAsyncOnesThrough()
     {
         var generated = GeneratedAssembly.Create(
@@ -558,17 +570,17 @@ public class InterceptorGenerationTests
 
         var work = generated.ResolveRequired("IWork");
 
-        Assert.Equal(10, Invoke(work, "Sync", 5));
-        Assert.Equal(["enter Sync", "exit Sync"], Log(generated));
+        Verify(Equals(Invoke(work, "Sync", 5), 10));
+        Verify(Log(generated).SequenceEqual(["enter Sync", "exit Sync"]));
 
-        Assert.Equal(15, await (Task<int>)Invoke(work, "Async", 5)!);
-        Assert.Equal(["enter Sync", "exit Sync"], Log(generated));
+        Verify(await (Task<int>)Invoke(work, "Async", 5)! == 15);
+        Verify(Log(generated).SequenceEqual(["enter Sync", "exit Sync"]));
     }
 
     /// <summary>
     /// The mirror of the above, so neither direction is the special case.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public async Task AsyncOnlyInterceptor_ServesAsyncMembersAndPassesSyncOnesThrough()
     {
         var generated = GeneratedAssembly.Create(
@@ -606,18 +618,18 @@ public class InterceptorGenerationTests
 
         var work = generated.ResolveRequired("IWork");
 
-        Assert.Equal(10, Invoke(work, "Sync", 5));
-        Assert.Empty(Log(generated));
+        Verify(Equals(Invoke(work, "Sync", 5), 10));
+        Verify(Log(generated).Count == 0);
 
-        Assert.Equal(15, await (Task<int>)Invoke(work, "Async", 5)!);
-        Assert.Equal(["enter Async", "exit Async"], Log(generated));
+        Verify(await (Task<int>)Invoke(work, "Async", 5)! == 15);
+        Verify(Log(generated).SequenceEqual(["enter Async", "exit Async"]));
     }
 
     /// <summary>
     /// Each member's pipeline is only the interceptors that can serve it, so the stage a proceed
     /// walks to is its position in that pipeline rather than in the attribute.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void MixedInterceptors_NestOnlyThoseThatServeTheMember()
     {
         var generated = GeneratedAssembly.Create(
@@ -651,9 +663,14 @@ public class InterceptorGenerationTests
 
         Invoke(generated.ResolveRequired("IWork"), "Sync", 1);
 
-        Assert.Equal(
-            ["enter sync-only", "enter both Sync", "exit both Sync", "exit sync-only"],
+        Verify(
             Log(generated)
+                .SequenceEqual([
+                    "enter sync-only",
+                    "enter both Sync",
+                    "exit both Sync",
+                    "exit sync-only",
+                ])
         );
     }
 
@@ -661,7 +678,7 @@ public class InterceptorGenerationTests
     /// An interceptor that can serve nothing on the service produces no wrapper at all, so the
     /// service resolves as the implementation registered it.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void InterceptorThatServesNothing_GeneratesNoWrapper()
     {
         var generated = GeneratedAssembly.Create(
@@ -685,7 +702,7 @@ public class InterceptorGenerationTests
 
         var resolved = generated.ResolveRequired("IWork");
 
-        Assert.Equal("Work", resolved.GetType().Name);
+        Verify(resolved.GetType().Name == "Work");
     }
 
     /// <summary>
@@ -694,37 +711,38 @@ public class InterceptorGenerationTests
     /// generic service type — but interception does not need one: the wrapper is a generated type,
     /// and an open generic implementation type is what the container does accept.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void GenericImplementation_IsIntercepted()
     {
         var result = GeneratorTestHarness.Run(
             GenericRepo("public class Repo<T> : IRepo<T> { public void Run() { } }")
         );
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0008");
-        Assert.Contains(result.GeneratedSources.Keys, key => key.Contains("Repo_Intercepted"));
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0008"));
+        Verify(result.GeneratedSources.Keys.Any(key => key.Contains("Repo_Intercepted")));
     }
 
     /// <summary>
     /// The wrapper is generic over the same parameters, so the container can register it as an open
     /// generic implementation type and close it per construction.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void GenericImplementation_EmitsAGenericWrapper()
     {
         var result = GeneratorTestHarness.Run(
             GenericRepo("public class Repo<T> : IRepo<T> { public void Run() { } }")
         );
 
-        var wrapper = Assert
-            .Single(result.GeneratedSources, pair => pair.Key.Contains("Repo_Intercepted"))
-            .Value;
+        var wrapper = Single(
+            result.GeneratedSources,
+            pair => pair.Key.Contains("Repo_Intercepted")
+        ).Value;
 
-        Assert.Contains("class Repo_Intercepted<T>", wrapper);
+        Verify(wrapper.Contains("class Repo_Intercepted<T>"));
 
         // It takes the implementation by its own type. Asking for the service would resolve the
         // wrapper itself, which is registered as that service, and recurse.
-        Assert.Contains("Repo<T> inner", wrapper);
+        Verify(wrapper.Contains("Repo<T> inner"));
     }
 
     /// <summary>
@@ -732,27 +750,28 @@ public class InterceptorGenerationTests
     /// factory, which an open generic service type cannot carry. Every type is written unbound: no
     /// `T` is in scope at the registration.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void GenericImplementation_RegistersAsAnOpenGenericImplementation()
     {
         var result = GeneratorTestHarness.Run(
             GenericRepo("public class Repo<T> : IRepo<T> { public void Run() { } }")
         );
 
-        var registration = Assert
-            .Single(result.GeneratedSources, pair => pair.Key.Contains("Interceptors"))
-            .Value;
+        var registration = Single(
+            result.GeneratedSources,
+            pair => pair.Key.Contains("Interceptors")
+        ).Value;
 
-        Assert.Contains("InterceptOpenGeneric", registration);
-        Assert.Contains("typeof(global::TestNamespace.IRepo<>)", registration);
-        Assert.Contains("typeof(global::TestNamespace.Repo_Intercepted<>)", registration);
+        Verify(registration.Contains("InterceptOpenGeneric"));
+        Verify(registration.Contains("typeof(global::TestNamespace.IRepo<>)"));
+        Verify(registration.Contains("typeof(global::TestNamespace.Repo_Intercepted<>)"));
     }
 
     /// <summary>
     /// The wrapper repeats the implementation's constraints, without which it could not reference
     /// what it wraps.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ConstrainedGenericImplementation_RepeatsTheConstraints()
     {
         var result = GeneratorTestHarness.Run(
@@ -762,13 +781,14 @@ public class InterceptorGenerationTests
             )
         );
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0008");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0008"));
 
-        var wrapper = Assert
-            .Single(result.GeneratedSources, pair => pair.Key.Contains("Repo_Intercepted"))
-            .Value;
+        var wrapper = Single(
+            result.GeneratedSources,
+            pair => pair.Key.Contains("Repo_Intercepted")
+        ).Value;
 
-        Assert.Contains("where T : class, global::TestNamespace.IMarker, new()", wrapper);
+        Verify(wrapper.Contains("where T : class, global::TestNamespace.IMarker, new()"));
     }
 
     /// <summary>
@@ -776,7 +796,7 @@ public class InterceptorGenerationTests
     /// Roslyn reports the constructor constraint for a struct-constrained parameter anyway, so the
     /// reader has to drop it rather than pass it through.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void StructConstrainedGeneric_DoesNotRepeatTheDefaultConstructor()
     {
         var result = GeneratorTestHarness.Run(
@@ -785,18 +805,19 @@ public class InterceptorGenerationTests
             )
         );
 
-        var wrapper = Assert
-            .Single(result.GeneratedSources, pair => pair.Key.Contains("Repo_Intercepted"))
-            .Value;
+        var wrapper = Single(
+            result.GeneratedSources,
+            pair => pair.Key.Contains("Repo_Intercepted")
+        ).Value;
 
-        Assert.Contains("where T : struct", wrapper);
-        Assert.DoesNotContain("new()", wrapper);
+        Verify(wrapper.Contains("where T : struct"));
+        Verify(!wrapper.Contains("new()"));
     }
 
     /// <summary>
     /// And the constrained wrapper is not merely well-formed text: it compiles, loads and runs.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ConstrainedGenericImplementation_ResolvesAndIntercepts()
     {
         var generated = GeneratedAssembly.Create(
@@ -813,8 +834,8 @@ public class InterceptorGenerationTests
         var closed = generated.Type("IRepo`1").MakeGenericType(generated.Type("Marked"));
         var resolved = generated.BuildProvider().GetService(closed);
 
-        Assert.NotNull(resolved);
-        Assert.StartsWith("Repo_Intercepted", resolved!.GetType().Name);
+        Verify(resolved is not null);
+        Verify(resolved!.GetType().Name.StartsWith("Repo_Intercepted"));
     }
 
     /// <summary>
@@ -844,7 +865,7 @@ public class InterceptorGenerationTests
     /// interface is reached through the base rather than declared, and a service registration finds
     /// it that way too — interception used to disagree and report that the class implemented none.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ClosedConstructionOfAGenericService_IsIntercepted()
     {
         var generated = GeneratedAssembly.Create(
@@ -871,12 +892,12 @@ public class InterceptorGenerationTests
             generated.Type("IRepo`1").MakeGenericType(typeof(string))
         )!;
 
-        Assert.EndsWith("_Intercepted", resolved.GetType().Name);
-        Assert.Equal("repo", resolved.GetType().GetMethod("Name")!.Invoke(resolved, null));
-        Assert.Equal(["enter tracing Name", "exit tracing Name"], Log(generated));
+        Verify(resolved.GetType().Name.EndsWith("_Intercepted"));
+        Verify(Equals(resolved.GetType().GetMethod("Name")!.Invoke(resolved, null), "repo"));
+        Verify(Log(generated).SequenceEqual(["enter tracing Name", "exit tracing Name"]));
     }
 
-    [Fact]
+    [VerifyTest]
     public void RefParameter_ReportsDM0008()
     {
         var result = GeneratorTestHarness.Run(
@@ -896,27 +917,27 @@ public class InterceptorGenerationTests
             """
         );
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0008");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0008");
 
-        Assert.Contains("by ref", diagnostic.GetMessage());
+        Verify(diagnostic.GetMessage().Contains("by ref"));
     }
 
     /// <summary>
     /// The invocation state keeps the arguments and the result in fields, and a class cannot hold a
     /// ref struct in a field.
     /// </summary>
-    [Theory]
-    [InlineData(
+    [VerifyTest]
+    [Row(
         "System.ReadOnlySpan<char> Name();",
         "public System.ReadOnlySpan<char> Name() => System.MemoryExtensions.AsSpan(\"name\");",
         "returns a ref struct"
     )]
-    [InlineData(
+    [Row(
         "int Count(System.ReadOnlySpan<char> text);",
         "public int Count(System.ReadOnlySpan<char> text) => text.Length;",
         "which is a ref struct"
     )]
-    [InlineData(
+    [Row(
         "System.ReadOnlySpan<char> Name { get; }",
         "public System.ReadOnlySpan<char> Name => default;",
         "is a ref struct"
@@ -929,14 +950,14 @@ public class InterceptorGenerationTests
     {
         var result = GeneratorTestHarness.Run(Source(interfaceMember, implementation));
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0008");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0008");
 
-        Assert.Contains(reason, diagnostic.GetMessage());
-        Assert.DoesNotContain(result.GeneratedSources.Keys, name => name.Contains("_Intercepted"));
+        Verify(diagnostic.GetMessage().Contains(reason));
+        Verify(!result.GeneratedSources.Keys.Any(name => name.Contains("_Intercepted")));
         result.AssertNoErrors();
     }
 
-    [Fact]
+    [VerifyTest]
     public void ServiceWithNoInterface_ReportsDM0008()
     {
         var result = GeneratorTestHarness.Run(
@@ -954,13 +975,13 @@ public class InterceptorGenerationTests
             """
         );
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0008");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0008");
 
-        Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
-        Assert.Contains("interface", diagnostic.GetMessage());
+        Verify(diagnostic.Severity == DiagnosticSeverity.Warning);
+        Verify(diagnostic.GetMessage().Contains("interface"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void ServiceWithSeveralInterfaces_ReportsDM0008()
     {
         var result = GeneratorTestHarness.Run(
@@ -981,9 +1002,9 @@ public class InterceptorGenerationTests
             """
         );
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0008");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0008");
 
-        Assert.Contains("Service", diagnostic.GetMessage());
+        Verify(diagnostic.GetMessage().Contains("Service"));
     }
 
     private static IReadOnlyList<string> Log(GeneratedAssembly generated) =>

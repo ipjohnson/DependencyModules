@@ -1,8 +1,7 @@
 using System.Linq;
 using DependencyModules.Tests.Infrastructure;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// <c>[Intercept].Members</c> — which kinds of member the interceptors are placed around.
@@ -17,37 +16,37 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// just does not run through the chain, which is the same path a member no interceptor can serve
 /// already took.
 /// </summary>
-public class InterceptedMembersTests
+public partial class InterceptedMembersTests
 {
-    [Fact]
+    [VerifyTest]
     public void WithNoKindsNamed_EveryMemberIsIntercepted()
     {
         var calls = Run("[Intercept(typeof(CountingInterceptor))]");
 
-        Assert.Equal(["Handle", "get_Name"], calls);
+        Verify(calls.SequenceEqual(["Handle", "get_Name"]));
     }
 
-    [Fact]
+    [VerifyTest]
     public void NamingMethods_LeavesPropertiesAlone()
     {
         var calls = Run(
             "[Intercept(typeof(CountingInterceptor), Members = InterceptedMembers.Methods)]"
         );
 
-        Assert.Equal(["Handle"], calls);
+        Verify(calls.SequenceEqual(["Handle"]));
     }
 
-    [Fact]
+    [VerifyTest]
     public void NamingProperties_LeavesMethodsAlone()
     {
         var calls = Run(
             "[Intercept(typeof(CountingInterceptor), Members = InterceptedMembers.Properties)]"
         );
 
-        Assert.Equal(["get_Name"], calls);
+        Verify(calls.SequenceEqual(["get_Name"]));
     }
 
-    [Fact]
+    [VerifyTest]
     public void KindsCombine()
     {
         var calls = Run(
@@ -55,14 +54,14 @@ public class InterceptedMembersTests
                 + "Members = InterceptedMembers.Methods | InterceptedMembers.Properties)]"
         );
 
-        Assert.Equal(["Handle", "get_Name"], calls);
+        Verify(calls.SequenceEqual(["Handle", "get_Name"]));
     }
 
     /// <summary>
     /// The excluded member still works — it is forwarded rather than dropped, and the wrapper still
     /// implements the interface.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AnExcludedMember_IsStillForwarded()
     {
         var generated = Build(
@@ -71,15 +70,15 @@ public class InterceptedMembersTests
 
         var service = generated.BuildProvider().GetService(generated.Type("IHandler"))!;
 
-        Assert.Equal("Handler_Intercepted", service.GetType().Name);
-        Assert.Equal("named", service.GetType().GetProperty("Name")!.GetValue(service));
+        Verify(service.GetType().Name == "Handler_Intercepted");
+        Verify(Equals(service.GetType().GetProperty("Name")!.GetValue(service), "named"));
     }
 
     /// <summary>
     /// An interceptor that cannot serve a member's shape is DM0015. An interceptor that was never
     /// asked to cover it is not — reporting that would report the feature.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AnExcludedMember_IsNotReportedAsUnserved()
     {
         var result = GeneratorTestHarness.Run(
@@ -89,7 +88,7 @@ public class InterceptedMembersTests
             )
         );
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0015");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0015"));
     }
 
     private static string[] Run(string attribute)

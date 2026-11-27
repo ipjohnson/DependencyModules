@@ -1,7 +1,6 @@
 using DependencyModules.Tests.Infrastructure;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// Where an interception's applicator is emitted, when realms are in play.
@@ -18,7 +17,7 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// with a realm-scoped service; agent 08 reached it by accident through a convention, because
 /// convention registrations are always stamped with their declaring module's realm.
 /// </summary>
-public class InterceptionRealmTests
+public partial class InterceptionRealmTests
 {
     private const string Preamble = """
         using DependencyModules.Runtime.Attributes;
@@ -39,7 +38,7 @@ public class InterceptionRealmTests
     /// The service names a realm; the interception does not. The applicator has to follow the
     /// registration, because a per-implementation interception is about that one registration.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ARealmScopedService_WithAnUnrealmedInterception_IsInterceptedInThatRealm()
     {
         var result = Run(
@@ -57,14 +56,14 @@ public class InterceptionRealmTests
             )
             .AssertNoErrors();
 
-        Assert.Contains("Greeter_Intercepted", result.SourceContaining("RealmModule.Interceptors"));
+        Verify(result.SourceContaining("RealmModule.Interceptors").Contains("Greeter_Intercepted"));
     }
 
     /// <summary>
     /// And nowhere else. A module that does not register the implementation has nothing to apply the
     /// wrapper to, so an applicator there is dead weight at best.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ARealmScopedService_IsNotInterceptedOutsideItsRealm()
     {
         var result = Run(
@@ -82,17 +81,14 @@ public class InterceptionRealmTests
             )
             .AssertNoErrors();
 
-        Assert.DoesNotContain(
-            "Greeter_Intercepted",
-            result.SourceContaining("TestModule.Interceptors")
-        );
+        Verify(!result.SourceContaining("TestModule.Interceptors").Contains("Greeter_Intercepted"));
     }
 
     /// <summary>
     /// An explicit <c>[Intercept(Realm = ...)]</c> still wins outright. It is the escape hatch the
     /// changelog documents, and following the registration must not take it away.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AnExplicitInterceptRealm_StillDecides()
     {
         var result = Run(
@@ -110,18 +106,15 @@ public class InterceptionRealmTests
             )
             .AssertNoErrors();
 
-        Assert.Contains("Greeter_Intercepted", result.SourceContaining("RealmModule.Interceptors"));
-        Assert.DoesNotContain(
-            "Greeter_Intercepted",
-            result.SourceContaining("TestModule.Interceptors")
-        );
+        Verify(result.SourceContaining("RealmModule.Interceptors").Contains("Greeter_Intercepted"));
+        Verify(!result.SourceContaining("TestModule.Interceptors").Contains("Greeter_Intercepted"));
     }
 
     /// <summary>
     /// The ordinary case, unchanged: nothing names a realm, so the interception belongs to every
     /// module that is not realm-only.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AnUnrealmedService_WithAnUnrealmedInterception_IsInterceptedNormally()
     {
         var result = Run(
@@ -136,7 +129,7 @@ public class InterceptionRealmTests
             )
             .AssertNoErrors();
 
-        Assert.Contains("Greeter_Intercepted", result.SourceContaining("TestModule.Interceptors"));
+        Verify(result.SourceContaining("TestModule.Interceptors").Contains("Greeter_Intercepted"));
     }
 
     /// <summary>
@@ -155,7 +148,7 @@ public class InterceptionRealmTests
     /// interceptor needing a dependency the isolated container lacks threw while building the
     /// provider.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AConventionRegisteredClass_InAnOnlyRealmModule_ReportsDM0020()
     {
         var result = Run(
@@ -172,17 +165,17 @@ public class InterceptionRealmTests
             """
         );
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0020");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0020");
 
-        Assert.Contains("Greeter", diagnostic.GetMessage());
-        Assert.Contains("Realm", diagnostic.GetMessage());
+        Verify(diagnostic.GetMessage().Contains("Greeter"));
+        Verify(diagnostic.GetMessage().Contains("Realm"));
     }
 
     /// <summary>
     /// An interception a module does apply is not reported. The diagnostic is about a wrapper that
     /// can never run, not about every realm arrangement that looks unusual.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AnInterceptionSomeModuleApplies_IsNotReported()
     {
         var result = Run(
@@ -196,14 +189,14 @@ public class InterceptionRealmTests
             """
         );
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0020");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0020"));
     }
 
     /// <summary>
     /// Nor is the realm-scoped case that now works: the interception follows the registration, so a
     /// module applies it and there is nothing to report.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ARealmScopedServiceFollowingItsRegistration_IsNotReported()
     {
         var result = Run(
@@ -220,14 +213,14 @@ public class InterceptionRealmTests
             """
         );
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0020");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0020"));
     }
 
     /// <summary>
     /// The shape that happened to work, kept as a control: one convention module, not realm-only,
     /// so the unrealmed interception landed on it by luck rather than by rule.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AConventionRegisteredClass_InAPlainModule_IsStillIntercepted()
     {
         var result = Run(
@@ -245,9 +238,8 @@ public class InterceptionRealmTests
             )
             .AssertNoErrors();
 
-        Assert.Contains(
-            "Greeter_Intercepted",
-            result.SourceContaining("ConventionModule.Interceptors")
+        Verify(
+            result.SourceContaining("ConventionModule.Interceptors").Contains("Greeter_Intercepted")
         );
     }
 
@@ -257,7 +249,7 @@ public class InterceptionRealmTests
     /// telling the two apart matters: this one is about which service type was registered, not
     /// about which module the applicator landed on.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AConventionRegisteringAsSelf_StillInterceptsTheInterface()
     {
         var result = Run(
@@ -275,9 +267,8 @@ public class InterceptionRealmTests
             )
             .AssertNoErrors();
 
-        Assert.Contains(
-            "Greeter_Intercepted",
-            result.SourceContaining("ConventionModule.Interceptors")
+        Verify(
+            result.SourceContaining("ConventionModule.Interceptors").Contains("Greeter_Intercepted")
         );
     }
 

@@ -2,9 +2,8 @@ using System.Collections.Generic;
 using System.Linq;
 using DependencyModules.Tests.Infrastructure;
 using Microsoft.CodeAnalysis;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// Declaring <c>[DependencyModule] partial class ApplicationModule</c> in a project that already
@@ -26,14 +25,14 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// The variants below are kept as a set on purpose: every one of them was reported as the trigger
 /// at some point, and only the last is.
 /// </summary>
-public class ApplicationModuleCollisionTests
+public partial class ApplicationModuleCollisionTests
 {
-    [Fact]
+    [VerifyTest]
     public void DeclaringApplicationModuleInTheRootNamespace_DoesNotCollide()
     {
         var result = Run(DeclaredModule("ConfiguredRoot"));
 
-        Assert.Empty(result.DuplicateHintNames);
+        Verify(result.DuplicateHintNames.Count == 0);
         result.AssertNoErrors();
     }
 
@@ -41,14 +40,15 @@ public class ApplicationModuleCollisionTests
     /// CS8785 is how a duplicate hint name reaches the build, and it is only a warning — which is
     /// the reason this shipped. Asserted separately from AssertNoErrors for that reason.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void DeclaringApplicationModuleInTheRootNamespace_DoesNotWarn()
     {
         var result = Run(DeclaredModule("ConfiguredRoot"));
 
-        Assert.DoesNotContain(
-            result.CompilationDiagnostics.Concat(result.GeneratorDiagnostics),
-            diagnostic => diagnostic.Id == "CS8785"
+        Verify(
+            !result
+                .CompilationDiagnostics.Concat(result.GeneratorDiagnostics)
+                .Any(diagnostic => diagnostic.Id == "CS8785")
         );
     }
 
@@ -57,35 +57,35 @@ public class ApplicationModuleCollisionTests
     /// add to. Consolidation already preferred a declared module over a generated one wherever it
     /// recognised the two as the same — this only ever failed to recognise them.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void TheDeclaredModuleIsTheOneGenerated()
     {
         var result = Run(DeclaredModule("ConfiguredRoot"));
 
         var module = result.SourceContaining("ApplicationModule.Module");
 
-        Assert.Contains("namespace ConfiguredRoot", module);
+        Verify(module.Contains("namespace ConfiguredRoot"));
     }
 
     /// <summary>
     /// The registrations still have to arrive. Merging the two models is only correct if the
     /// surviving one carries what the project asked for.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void TheSurvivingModuleStillRegistersTheProjectsServices()
     {
         var result = Run(DeclaredModule("ConfiguredRoot"));
 
-        Assert.Contains("Thing", result.SourceContaining("ApplicationModule.Dependencies"));
+        Verify(result.SourceContaining("ApplicationModule.Dependencies").Contains("Thing"));
     }
 
     /// <summary>
     /// The four shapes that always built cleanly, kept so that a fix cannot quietly change them.
     /// Each differs from the failing case in exactly one way.
     /// </summary>
-    [Theory]
+    [VerifyTest]
     // A different name never collides with the generated ApplicationModule.
-    [InlineData(
+    [Row(
         "different name",
         """
             namespace ConfiguredRoot;
@@ -94,7 +94,7 @@ public class ApplicationModuleCollisionTests
             """
     )]
     // A namespace other than RootNamespace produces a different hint name.
-    [InlineData(
+    [Row(
         "different namespace",
         """
             namespace SomewhereElse;
@@ -103,7 +103,7 @@ public class ApplicationModuleCollisionTests
             """
     )]
     // The global namespace, likewise.
-    [InlineData(
+    [Row(
         "global namespace",
         """
             [DependencyModules.Runtime.Attributes.DependencyModule]
@@ -114,9 +114,9 @@ public class ApplicationModuleCollisionTests
     {
         var result = Run(declaration);
 
-        Assert.Empty(result.DuplicateHintNames);
+        Verify(result.DuplicateHintNames.Count == 0);
         result.AssertNoErrors();
-        Assert.NotEmpty(variant);
+        Verify(variant.Length != 0);
     }
 
     /// <summary>
@@ -129,7 +129,7 @@ public class ApplicationModuleCollisionTests
     /// left as it is rather than narrowed: a project relying on the generated module today would
     /// lose it, and this fix makes the shape work either way.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AnExplicitMainWithADeclaredApplicationModule_BuildsCleanly()
     {
         var result = GeneratorTestHarness.Run(
@@ -149,7 +149,7 @@ public class ApplicationModuleCollisionTests
             OutputKind.ConsoleApplication
         );
 
-        Assert.Empty(result.DuplicateHintNames);
+        Verify(result.DuplicateHintNames.Count == 0);
         result.AssertNoErrors();
     }
 

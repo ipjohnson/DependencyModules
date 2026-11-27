@@ -2,15 +2,14 @@ using DependencyModules.Runtime;
 using DependencyModules.Runtime.Interfaces;
 using DependencyModules.Tests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// What the generator reads from a module declaration: its parameters, its equality members,
 /// and whether it can complete the module at all.
 /// </summary>
-public class ModuleDeclarationTests
+public partial class ModuleDeclarationTests
 {
     private const string Preamble = """
         using DependencyModules.Runtime.Attributes;
@@ -24,7 +23,7 @@ public class ModuleDeclarationTests
     private static GeneratorResult Run(string source) =>
         GeneratorTestHarness.Run(Preamble + source);
 
-    [Fact]
+    [VerifyTest]
     public void APropertyWithAPrivateSetter_IsNotAModuleParameter()
     {
         var result = Run(
@@ -43,11 +42,11 @@ public class ModuleDeclarationTests
 
         var module = result.SourceContaining("Module.g.cs");
 
-        Assert.DoesNotContain("newModule.Label", module);
-        Assert.Contains("newModule.Host", module);
+        Verify(!module.Contains("newModule.Label"));
+        Verify(module.Contains("newModule.Host"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void APropertyOfANestedClass_IsNotAModuleParameter()
     {
         var result = Run(
@@ -65,11 +64,11 @@ public class ModuleDeclarationTests
 
         result.AssertNoErrors();
 
-        Assert.DoesNotContain("newModule.Size", result.SourceContaining("Module.g.cs"));
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0018");
+        Verify(!result.SourceContaining("Module.g.cs").Contains("newModule.Size"));
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0018"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void EqualsInAnotherPartialDeclaration_IsNotGeneratedAgain()
     {
         var result = GeneratorTestHarness.Run(
@@ -100,10 +99,10 @@ public class ModuleDeclarationTests
 
         result.AssertNoErrors();
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0018");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0018"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AGetHashCodeOfItsOwn_IsNotGeneratedAgain()
     {
         var result = Run(
@@ -120,15 +119,15 @@ public class ModuleDeclarationTests
 
         var module = result.SourceContaining("Module.g.cs");
 
-        Assert.Contains("override bool Equals", module);
-        Assert.DoesNotContain("override int GetHashCode", module);
+        Verify(module.Contains("override bool Equals"));
+        Verify(!module.Contains("override int GetHashCode"));
     }
 
-    [Theory]
-    [InlineData("other is not null", "a", "a", 1)]
-    [InlineData("other is not null", "a", "b", 1)]
-    [InlineData("other is not null && other.Host == Host", "a", "a", 1)]
-    [InlineData("other is not null && other.Host == Host", "a", "b", 2)]
+    [VerifyTest]
+    [Row("other is not null", "a", "a", 1)]
+    [Row("other is not null", "a", "b", 1)]
+    [Row("other is not null && other.Host == Host", "a", "a", 1)]
+    [Row("other is not null && other.Host == Host", "a", "b", 2)]
     public void AModuleWithOnlyTypedEquals_IsLoadedByThatEquals(
         string equality,
         string firstHost,
@@ -153,10 +152,7 @@ public class ModuleDeclarationTests
                 }
                 """;
 
-        Assert.DoesNotContain(
-            GeneratorTestHarness.Run(source).GeneratorDiagnostics,
-            d => d.Id == "DM0018"
-        );
+        Verify(!GeneratorTestHarness.Run(source).GeneratorDiagnostics.Any(d => d.Id == "DM0018"));
 
         var assembly = GeneratedAssembly.Create(source);
 
@@ -171,13 +167,10 @@ public class ModuleDeclarationTests
 
         var services = new ServiceCollection().AddModules(Module(firstHost), Module(secondHost));
 
-        Assert.Equal(
-            expectedLoads,
-            services.Count(d => d.ServiceType == assembly.Type("AuditMarker"))
-        );
+        Verify(services.Count(d => d.ServiceType == assembly.Type("AuditMarker")) == expectedLoads);
     }
 
-    [Fact]
+    [VerifyTest]
     public void AModuleThatIsNotPartial_GetsOnlyDM0003()
     {
         var result = Run(
@@ -192,11 +185,11 @@ public class ModuleDeclarationTests
             """
         );
 
-        Assert.Equal("DM0003", Assert.Single(result.Errors).Id);
-        Assert.DoesNotContain(result.GeneratedSources.Keys, key => key.Contains("ShopModule"));
+        Verify(Single(result.Errors).Id == "DM0003");
+        Verify(!result.GeneratedSources.Keys.Any(key => key.Contains("ShopModule")));
     }
 
-    [Fact]
+    [VerifyTest]
     public void ANestedModule_GetsOnlyDM0017()
     {
         var result = Run(
@@ -235,7 +228,7 @@ public class ModuleDeclarationTests
             """
         );
 
-        Assert.Equal("DM0017", Assert.Single(result.Errors).Id);
-        Assert.DoesNotContain(result.GeneratedSources.Keys, key => key.Contains("ShopModule"));
+        Verify(Single(result.Errors).Id == "DM0017");
+        Verify(!result.GeneratedSources.Keys.Any(key => key.Contains("ShopModule")));
     }
 }

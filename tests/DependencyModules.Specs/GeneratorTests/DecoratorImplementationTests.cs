@@ -1,9 +1,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using DependencyModules.Tests.Infrastructure;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// <c>[Decorator(Implementation = typeof(X))]</c> — decorating one implementation rather than every
@@ -19,50 +18,50 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// implementation type and skips descriptors built from anything else, which is the overload
 /// interception uses. Only the attribute could not say so.
 /// </summary>
-public class DecoratorImplementationTests
+public partial class DecoratorImplementationTests
 {
     /// <summary>
     /// The default, unchanged: no Implementation named, so every registration of the service is
     /// wrapped.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void WithNoImplementationNamed_EveryRegistrationIsWrapped()
     {
         var resolved = Resolve("[Decorator]");
 
-        Assert.Equal(["Logged", "Logged"], resolved.Select(Outer));
+        Verify(resolved.Select(Outer).SequenceEqual(["Logged", "Logged"]));
     }
 
-    [Fact]
+    [VerifyTest]
     public void NamingAnImplementation_WrapsOnlyThatOne()
     {
         var resolved = Resolve("[Decorator(Implementation = typeof(Loud))]");
 
-        Assert.Equal(["Logged", "Quiet"], resolved.Select(Outer));
+        Verify(resolved.Select(Outer).SequenceEqual(["Logged", "Quiet"]));
     }
 
     /// <summary>
     /// And the one it wrapped is still the one it wrapped — the decorator holds the named
     /// implementation, not whichever registration happened to be first.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void TheWrappedInstance_IsTheNamedImplementation()
     {
         var resolved = Resolve("[Decorator(Implementation = typeof(Loud))]");
 
-        var logged = Assert.Single(resolved, greeter => Outer(greeter) == "Logged");
+        var logged = Single(resolved, greeter => Outer(greeter) == "Logged");
 
-        Assert.Equal("loud", Greet(logged));
+        Verify(Greet(logged) == "loud");
     }
 
-    [Fact]
+    [VerifyTest]
     public void TheUnnamedImplementation_IsUntouched()
     {
         var resolved = Resolve("[Decorator(Implementation = typeof(Loud))]");
 
-        var quiet = Assert.Single(resolved, greeter => Outer(greeter) == "Quiet");
+        var quiet = Single(resolved, greeter => Outer(greeter) == "Quiet");
 
-        Assert.Equal("quiet", Greet(quiet));
+        Verify(Greet(quiet) == "quiet");
     }
 
     /// <summary>
@@ -70,19 +69,19 @@ public class DecoratorImplementationTests
     /// wrapping everything — the failure mode that would make a typo silently behave like the
     /// default.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void NamingAnImplementationThatIsNotRegistered_WrapsNothing()
     {
         var resolved = Resolve("[Decorator(Implementation = typeof(Unregistered))]");
 
-        Assert.Equal(["Loud", "Quiet"], resolved.Select(Outer));
+        Verify(resolved.Select(Outer).SequenceEqual(["Loud", "Quiet"]));
     }
 
     /// <summary>
     /// A factory from <c>DependencyModules_GenerateFactories</c> is typed to return its class, so
     /// the decorator tells the registrations apart as it does without the property.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void NamingAnImplementationUnderGenerateFactories_WrapsOnlyThatOne()
     {
         var resolved = Resolve(
@@ -90,15 +89,15 @@ public class DecoratorImplementationTests
             generateFactories: true
         );
 
-        Assert.Equal(["Logged", "Quiet"], resolved.Select(Outer));
+        Verify(resolved.Select(Outer).SequenceEqual(["Logged", "Quiet"]));
     }
 
-    [Fact]
+    [VerifyTest]
     public void NamingNoImplementationUnderGenerateFactories_WrapsEveryRegistration()
     {
         var resolved = Resolve("[Decorator]", generateFactories: true);
 
-        Assert.Equal(["Logged", "Logged"], resolved.Select(Outer));
+        Verify(resolved.Select(Outer).SequenceEqual(["Logged", "Logged"]));
     }
 
     private static string Outer(object greeter) => greeter.GetType().Name;

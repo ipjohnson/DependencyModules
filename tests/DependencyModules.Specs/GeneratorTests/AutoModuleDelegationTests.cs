@@ -4,9 +4,8 @@ using DependencyModules.Runtime.Interfaces;
 using DependencyModules.Tests.Infrastructure;
 using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// A project with a <c>Program.cs</c> gets an <c>ApplicationModule</c> whether or not it declares a
@@ -19,9 +18,9 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// and the runtime loads it. These tests pin both halves - that the duplicate is gone, and that
 /// <c>AddModule&lt;ApplicationModule&gt;()</c> still registers exactly what it did before.
 /// </summary>
-public class AutoModuleDelegationTests
+public partial class AutoModuleDelegationTests
 {
-    [Fact]
+    [VerifyTest]
     public void ApplicationModule_DoesNotRepeatTheRegistrationsOfADeclaredModule()
     {
         var result = Run(
@@ -40,20 +39,16 @@ public class AutoModuleDelegationTests
 
         result.AssertNoErrors();
 
-        Assert.Contains(
-            result.GeneratedSources.Keys,
-            key => key.Contains("TestModule.Dependencies")
-        );
-        Assert.DoesNotContain(
-            result.GeneratedSources.Keys,
-            key => key.Contains("ApplicationModule.Dependencies")
+        Verify(result.GeneratedSources.Keys.Any(key => key.Contains("TestModule.Dependencies")));
+        Verify(
+            !result.GeneratedSources.Keys.Any(key => key.Contains("ApplicationModule.Dependencies"))
         );
     }
 
     /// <summary>
     /// The class is still generated, and still reachable - only its registrations moved.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ApplicationModule_NamesTheModuleItDefersTo()
     {
         var result = Run(
@@ -71,9 +66,10 @@ public class AutoModuleDelegationTests
         );
 
         result.AssertNoErrors();
-        Assert.Contains(
-            "new global::TestNamespace.TestModule()",
-            result.SourceContaining("ApplicationModule.Module")
+        Verify(
+            result
+                .SourceContaining("ApplicationModule.Module")
+                .Contains("new global::TestNamespace.TestModule()")
         );
     }
 
@@ -81,7 +77,7 @@ public class AutoModuleDelegationTests
     /// Decorations and interceptions travelled with the registrations, so they were duplicated the
     /// same way and have to stop being duplicated the same way.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ApplicationModule_DoesNotRepeatDecorationsEither()
     {
         var result = Run(
@@ -103,17 +99,16 @@ public class AutoModuleDelegationTests
 
         result.AssertNoErrors();
 
-        Assert.Contains(result.GeneratedSources.Keys, key => key.Contains("TestModule.Decorators"));
-        Assert.DoesNotContain(
-            result.GeneratedSources.Keys,
-            key => key.Contains("ApplicationModule.Decorators")
+        Verify(result.GeneratedSources.Keys.Any(key => key.Contains("TestModule.Decorators")));
+        Verify(
+            !result.GeneratedSources.Keys.Any(key => key.Contains("ApplicationModule.Decorators"))
         );
     }
 
     /// <summary>
     /// With nothing to defer to, the auto module carries its own registrations exactly as before.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ApplicationModule_KeepsItsRegistrationsWhenNoModuleIsDeclared()
     {
         var result = Run(
@@ -128,9 +123,8 @@ public class AutoModuleDelegationTests
         );
 
         result.AssertNoErrors();
-        Assert.Contains(
-            result.GeneratedSources.Keys,
-            key => key.Contains("ApplicationModule.Dependencies")
+        Verify(
+            result.GeneratedSources.Keys.Any(key => key.Contains("ApplicationModule.Dependencies"))
         );
     }
 
@@ -138,7 +132,7 @@ public class AutoModuleDelegationTests
     /// A realm-restricted module takes only the registrations aimed at it, so deferring to one would
     /// drop everything else. The auto module keeps its own registrations in that case.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ApplicationModule_KeepsItsRegistrationsWhenTheOnlyModuleIsRealmRestricted()
     {
         var result = Run(
@@ -156,16 +150,15 @@ public class AutoModuleDelegationTests
         );
 
         result.AssertNoErrors();
-        Assert.Contains(
-            result.GeneratedSources.Keys,
-            key => key.Contains("ApplicationModule.Dependencies")
+        Verify(
+            result.GeneratedSources.Keys.Any(key => key.Contains("ApplicationModule.Dependencies"))
         );
     }
 
     /// <summary>
     /// The point of the whole exercise: what reaches the service collection is unchanged.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ApplicationModule_RegistersTheSameServicesAsTheModuleItDefersTo()
     {
         var assembly = Compile(
@@ -187,9 +180,9 @@ public class AutoModuleDelegationTests
 
         var thing = assembly.GetType("TestNamespace.IThing")!;
 
-        Assert.Equal(Describe(viaDeclaredModule, thing), Describe(viaApplicationModule, thing));
+        Verify(Describe(viaApplicationModule, thing) == Describe(viaDeclaredModule, thing));
 
-        Assert.NotNull(viaApplicationModule.BuildServiceProvider().GetService(thing));
+        Verify(viaApplicationModule.BuildServiceProvider().GetService(thing) is not null);
     }
 
     /// <summary>
@@ -197,7 +190,7 @@ public class AutoModuleDelegationTests
     /// independent copies of it. The auto module now names the declared one, so the runtime's
     /// deduplication sees them as one.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void LoadingBothModules_RegistersEachServiceOnce()
     {
         var assembly = Compile(
@@ -222,7 +215,7 @@ public class AutoModuleDelegationTests
 
         var thing = assembly.GetType("TestNamespace.IThing")!;
 
-        Assert.Single(both, descriptor => descriptor.ServiceType == thing);
+        Single(both, descriptor => descriptor.ServiceType == thing);
     }
 
     private static string Describe(IServiceCollection services, Type serviceType) =>
@@ -270,7 +263,7 @@ public class AutoModuleDelegationTests
         using var stream = new MemoryStream();
         var emitted = result.Compilation.Emit(stream);
 
-        Assert.True(
+        Verify(
             emitted.Success,
             string.Join(
                 Environment.NewLine,

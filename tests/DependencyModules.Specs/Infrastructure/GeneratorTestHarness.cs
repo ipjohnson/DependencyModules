@@ -251,6 +251,17 @@ public static class GeneratorTestHarness
         bool runGenerator = false
     )
     {
+        // The rows of one test run at the same time and compile the same library. A second copy
+        // would replace the first in the resolver, and a row that holds the first copy's types
+        // would then not find the services that the generated code registers against the second.
+        lock (LoadedLibraries)
+        {
+            if (TryGetLoadedLibrary(source, assemblyName, out var cached))
+            {
+                return cached;
+            }
+        }
+
         Compilation compilation = CSharpCompilation.Create(
             assemblyName,
             new[]
@@ -286,26 +297,32 @@ public static class GeneratorTestHarness
         );
 
         var bytes = stream.ToArray();
-        var assembly = System.Reflection.Assembly.Load(bytes);
 
         // Assembly.Load(byte[]) puts it in the default context but does not make it discoverable by
         // name, so generated code referencing it fails to bind at run time. The resolver closes that.
         lock (LoadedLibraries)
         {
+            if (TryGetLoadedLibrary(source, assemblyName, out var loaded))
+            {
+                return loaded;
+            }
+
             // Two test classes compiling different libraries under one name is a trap worth being
             // loud about. The resolver below is keyed by name, so the second registration decides
             // what every earlier reference binds to at run time - and the tests that break are
             // whichever ones happened to run second, which is a failure that appears and disappears
             // with the filter you ran.
             Require.That(
-                !LibrarySources.TryGetValue(assemblyName, out var previousSource)
-                    || previousSource == source,
+                !LibrarySources.ContainsKey(assemblyName),
                 $"'{assemblyName}' was compiled more than once from different source. The runtime "
                     + "resolver is keyed by assembly name, so one of them would silently stand in for the "
                     + "other. Give each test class its own assembly name."
             );
 
+            var assembly = System.Reflection.Assembly.Load(bytes);
+
             LibrarySources[assemblyName] = source;
+            LibraryImages[assemblyName] = bytes;
             LoadedLibraries[assemblyName] = assembly;
 
             if (!_resolverHooked)
@@ -324,12 +341,37 @@ public static class GeneratorTestHarness
 
                 _resolverHooked = true;
             }
+
+            return (MetadataReference.CreateFromImage(bytes), assembly);
+        }
+    }
+
+    /// <summary>Call with the lock on <see cref="LoadedLibraries"/> held.</summary>
+    private static bool TryGetLoadedLibrary(
+        string source,
+        string assemblyName,
+        out (MetadataReference Reference, System.Reflection.Assembly Assembly) loaded
+    )
+    {
+        if (
+            LibrarySources.TryGetValue(assemblyName, out var loadedSource)
+            && loadedSource == source
+        )
+        {
+            loaded = (
+                MetadataReference.CreateFromImage(LibraryImages[assemblyName]),
+                LoadedLibraries[assemblyName]
+            );
+            return true;
         }
 
-        return (MetadataReference.CreateFromImage(bytes), assembly);
+        loaded = default;
+        return false;
     }
 
     private static readonly Dictionary<string, System.Reflection.Assembly> LoadedLibraries = new();
+
+    private static readonly Dictionary<string, byte[]> LibraryImages = new();
 
     /// <summary>What each library name was compiled from, so a reused name is caught.</summary>
     private static readonly Dictionary<string, string> LibrarySources = new();

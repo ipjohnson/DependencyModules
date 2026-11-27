@@ -3,16 +3,15 @@ using DependencyModules.Runtime.Interfaces;
 using DependencyModules.Tests.Infrastructure;
 using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// The <c>Into*</c> attributes. These tests build the generated code and read the collections
 /// from a service provider, because the order, the keys and the time an item is built are all
 /// decided when the modules load or later.
 /// </summary>
-public class GlueCollectionTests
+public partial class GlueCollectionTests
 {
     private const string Preamble = """
         using System;
@@ -94,7 +93,7 @@ public class GlueCollectionTests
         string name
     ) => ActivatorUtilities.CreateInstance(provider, assembly.Type(name));
 
-    [Fact]
+    [VerifyTest]
     public void AMap_GivesTheItemOfAKey_AndBuildsOnlyThatItem()
     {
         var assembly = Compile(
@@ -116,22 +115,27 @@ public class GlueCollectionTests
         using var provider = assembly.BuildProvider();
         var probe = Probe(assembly, provider, "MapProbe");
 
-        Assert.Equal(0, Built(assembly));
-        Assert.Equal("tools/call,tools/list", (string)probe.Keys);
-        Assert.Equal(2, (int)probe.Count);
-        Assert.Equal(0, Built(assembly));
+        Verify(Built(assembly) == 0);
+        Verify((string)probe.Keys == "tools/call,tools/list");
+        Verify((int)probe.Count == 2);
+        Verify(Built(assembly) == 0);
 
         dynamic handler = probe.Get("tools/call");
-        Assert.Equal("CallHandler", (string)handler.Name);
-        Assert.Equal(1, Built(assembly));
+        Verify((string)handler.Name == "CallHandler");
+        Verify(Built(assembly) == 1);
 
         // The item is kept, and its constructor parameter came from the service provider.
-        Assert.Same((object)handler, (object)probe.Get("tools/call"));
-        Assert.Equal(1, Built(assembly));
-        Assert.Same(provider.GetRequiredService(assembly.Type("IClock")), (object)handler.Clock);
+        Verify(ReferenceEquals((object)handler, (object)probe.Get("tools/call")));
+        Verify(Built(assembly) == 1);
+        Verify(
+            ReferenceEquals(
+                provider.GetRequiredService(assembly.Type("IClock")),
+                (object)handler.Clock
+            )
+        );
     }
 
-    [Fact]
+    [VerifyTest]
     public void TheItemsOfACollection_AreNotServices()
     {
         var assembly = Compile(
@@ -148,14 +152,14 @@ public class GlueCollectionTests
 
         using var provider = assembly.BuildProvider();
 
-        Assert.Empty(provider.GetServices(assembly.Type("Handler")));
-        Assert.Null(provider.GetService(assembly.Type("OnlyHandler")));
-        Assert.Equal("OnlyHandler", (string)Probe(assembly, provider, "ListProbe").Names);
-        Assert.Equal("OnlyHandler", (string)Probe(assembly, provider, "SetProbe").Names);
-        Assert.Equal("a", (string)Probe(assembly, provider, "MapProbe").Keys);
+        Verify(!provider.GetServices(assembly.Type("Handler")).Any());
+        Verify(provider.GetService(assembly.Type("OnlyHandler")) is null);
+        Verify((string)Probe(assembly, provider, "ListProbe").Names == "OnlyHandler");
+        Verify((string)Probe(assembly, provider, "SetProbe").Names == "OnlyHandler");
+        Verify((string)Probe(assembly, provider, "MapProbe").Keys == "a");
     }
 
-    [Fact]
+    [VerifyTest]
     public void AMap_HasEnumAndNumberKeys()
     {
         var assembly = Compile(
@@ -189,13 +193,13 @@ public class GlueCollectionTests
         using var provider = assembly.BuildProvider();
         var probe = Probe(assembly, provider, "StageProbe");
 
-        Assert.Equal("Auth,Routing", (string)probe.Stages);
-        Assert.Equal("RoutingHandler", (string)probe.Routing);
-        Assert.Equal("RoutingHandler", (string)probe.Seven);
-        Assert.False((bool)probe.HasEight);
+        Verify((string)probe.Stages == "Auth,Routing");
+        Verify((string)probe.Routing == "RoutingHandler");
+        Verify((string)probe.Seven == "RoutingHandler");
+        Verify(!(bool)probe.HasEight);
     }
 
-    [Fact]
+    [VerifyTest]
     public void ASet_HasOneInstanceOfEachItem()
     {
         var assembly = Compile(
@@ -214,13 +218,13 @@ public class GlueCollectionTests
         using var provider = assembly.BuildProvider();
         var probe = Probe(assembly, provider, "SetProbe");
 
-        Assert.Equal(0, Built(assembly));
-        Assert.Equal("FirstHandler,SecondHandler", (string)probe.Names);
-        Assert.Equal(2, (int)probe.Count);
-        Assert.Equal(2, Built(assembly));
+        Verify(Built(assembly) == 0);
+        Verify((string)probe.Names == "FirstHandler,SecondHandler");
+        Verify((int)probe.Count == 2);
+        Verify(Built(assembly) == 2);
     }
 
-    [Fact]
+    [VerifyTest]
     public void AListWithTypeOrder_PutsAnItemAfterTheTypesItDependsOn()
     {
         var assembly = Compile(
@@ -245,16 +249,16 @@ public class GlueCollectionTests
         using var provider = assembly.BuildProvider();
         var probe = Probe(assembly, provider, "ListProbe");
 
-        Assert.Equal(0, Built(assembly));
-        Assert.Equal(4, (int)probe.Count);
-        Assert.Equal(0, Built(assembly));
+        Verify(Built(assembly) == 0);
+        Verify((int)probe.Count == 4);
+        Verify(Built(assembly) == 0);
 
         // AuthHandler and ZHandler have no order between them, so their names give it. AHandler
         // is last because it is after RoutingHandler.
-        Assert.Equal("AuthHandler,RoutingHandler,AHandler,ZHandler", (string)probe.Names);
+        Verify((string)probe.Names == "AuthHandler,RoutingHandler,AHandler,ZHandler");
     }
 
-    [Fact]
+    [VerifyTest]
     public void AListWithTypeOrder_PutsAnItemAfterEachItemOfABaseType()
     {
         var assembly = Compile(
@@ -277,13 +281,13 @@ public class GlueCollectionTests
 
         using var provider = assembly.BuildProvider();
 
-        Assert.Equal(
-            "CorsHandler,TokenHandler,AHandler",
+        Verify(
             (string)Probe(assembly, provider, "ListProbe").Names
+                == "CorsHandler,TokenHandler,AHandler"
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void AListWithOrderValues_SortsByValue_AndEqualValuesAreOneLevel()
     {
         var assembly = Compile(
@@ -307,13 +311,13 @@ public class GlueCollectionTests
 
         using var provider = assembly.BuildProvider();
 
-        Assert.Equal(
-            "MHandler,BHandler,ZHandler,AHandler",
+        Verify(
             (string)Probe(assembly, provider, "ListProbe").Names
+                == "MHandler,BHandler,ZHandler,AHandler"
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void AListWithOrderValues_PutsAnItemAfterTheValuesItDependsOn()
     {
         var assembly = Compile(
@@ -339,13 +343,13 @@ public class GlueCollectionTests
 
         // "auth" sorts first by value, but it is after the two "routing" items. A value with no
         // item has no effect.
-        Assert.Equal(
-            "CorsHandler,OtherRoutingHandler,RoutingHandler,AuthHandler",
+        Verify(
             (string)Probe(assembly, provider, "ListProbe").Names
+                == "CorsHandler,OtherRoutingHandler,RoutingHandler,AuthHandler"
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void AListWithEnumOrderValues_SortsByTheEnumValue()
     {
         var assembly = Compile(
@@ -366,16 +370,15 @@ public class GlueCollectionTests
 
         using var provider = assembly.BuildProvider();
 
-        Assert.Equal(
-            "CHandler,BHandler,AHandler",
-            (string)Probe(assembly, provider, "ListProbe").Names
+        Verify(
+            (string)Probe(assembly, provider, "ListProbe").Names == "CHandler,BHandler,AHandler"
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void AListWithAnOrderCycle_FailsTheLoad_AndNamesTheItems()
     {
-        var exception = Assert.Throws<InvalidOperationException>(() =>
+        var exception = ThrowsExactly<InvalidOperationException>(() =>
             Compile(
                 """
                 [IntoList<Handler>(typeof(SecondHandler))]
@@ -393,15 +396,14 @@ public class GlueCollectionTests
             )
         );
 
-        Assert.Contains("order cycle", exception.Message);
-        Assert.Contains(
-            "TestNamespace.FirstHandler, TestNamespace.SecondHandler",
-            exception.Message
+        Verify(exception.Message.Contains("order cycle"));
+        Verify(
+            exception.Message.Contains("TestNamespace.FirstHandler, TestNamespace.SecondHandler")
         );
-        Assert.DoesNotContain("ThirdHandler", exception.Message);
+        Verify(!exception.Message.Contains("ThirdHandler"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AnItem_IsBuiltOneTimeForEachCollectionInstance_AndDisposedWithItsScope()
     {
         var assembly = Compile(
@@ -441,13 +443,13 @@ public class GlueCollectionTests
         {
             var list = Probe(assembly, scope.ServiceProvider, "ListProbe");
 
-            Assert.Same((object)list.Get(0), (object)list.Get(0));
-            Assert.Equal("DisposableHandler", (string)list.Get(1).Name);
-            Assert.Equal(2, Built(assembly));
-            Assert.Empty(disposed);
+            Verify(ReferenceEquals((object)list.Get(0), (object)list.Get(0)));
+            Verify((string)list.Get(1).Name == "DisposableHandler");
+            Verify(Built(assembly) == 2);
+            Verify(disposed.Count == 0);
         }
 
-        Assert.Equal(new[] { "DisposableHandler", "AsyncHandler" }, disposed);
+        Verify(disposed.SequenceEqual(new[] { "DisposableHandler", "AsyncHandler" }));
 
         // A second scope gets a new collection with new items.
         using (var scope = provider.CreateScope())
@@ -455,10 +457,10 @@ public class GlueCollectionTests
             _ = Probe(assembly, scope.ServiceProvider, "ListProbe").Get(0);
         }
 
-        Assert.Equal(3, Built(assembly));
+        Verify(Built(assembly) == 3);
     }
 
-    [Fact]
+    [VerifyTest]
     public void AnItemWithARealm_IsOnlyInTheCollectionOfThatModule()
     {
         var assembly = Compile(
@@ -479,7 +481,7 @@ public class GlueCollectionTests
 
         using (var provider = assembly.BuildProvider())
         {
-            Assert.Equal("SharedHandler", (string)Probe(assembly, provider, "ListProbe").Names);
+            Verify((string)Probe(assembly, provider, "ListProbe").Names == "SharedHandler");
         }
 
         // A second load on the same service collection adds to the same list.
@@ -489,14 +491,13 @@ public class GlueCollectionTests
 
         using (var provider = assembly.BuildProvider())
         {
-            Assert.Equal(
-                "OtherHandler,SharedHandler",
-                (string)Probe(assembly, provider, "ListProbe").Names
+            Verify(
+                (string)Probe(assembly, provider, "ListProbe").Names == "OtherHandler,SharedHandler"
             );
         }
     }
 
-    [Fact]
+    [VerifyTest]
     public void TwoModulesOfOneProject_AddAnItemOneTime()
     {
         var assembly = Compile(
@@ -517,12 +518,12 @@ public class GlueCollectionTests
 
         using var provider = assembly.BuildProvider();
 
-        Assert.Equal("OnlyHandler", (string)Probe(assembly, provider, "ListProbe").Names);
-        Assert.Equal("OnlyHandler", (string)Probe(assembly, provider, "SetProbe").Names);
-        Assert.Equal("only", (string)Probe(assembly, provider, "MapProbe").Keys);
+        Verify((string)Probe(assembly, provider, "ListProbe").Names == "OnlyHandler");
+        Verify((string)Probe(assembly, provider, "SetProbe").Names == "OnlyHandler");
+        Verify((string)Probe(assembly, provider, "MapProbe").Keys == "only");
     }
 
-    [Fact]
+    [VerifyTest]
     public void AnItemWithAnEnvironmentCondition_IsInTheCollectionOnlyInThatEnvironment()
     {
         const string source = """
@@ -543,17 +544,14 @@ public class GlueCollectionTests
         using var productionProvider = production.BuildProvider();
         using var developmentProvider = development.BuildProvider();
 
-        Assert.Equal(
-            "AlwaysHandler",
-            (string)Probe(production, productionProvider, "ListProbe").Names
-        );
-        Assert.Equal(
-            "AlwaysHandler,DevelopmentHandler",
+        Verify((string)Probe(production, productionProvider, "ListProbe").Names == "AlwaysHandler");
+        Verify(
             (string)Probe(development, developmentProvider, "ListProbe").Names
+                == "AlwaysHandler,DevelopmentHandler"
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void ACollectionThatAModuleRegisters_IsKept()
     {
         var assembly = Compile(
@@ -576,8 +574,8 @@ public class GlueCollectionTests
 
         using var provider = assembly.BuildProvider();
 
-        Assert.Equal("ManualHandler", (string)Probe(assembly, provider, "ListProbe").Names);
-        Assert.Single(
+        Verify((string)Probe(assembly, provider, "ListProbe").Names == "ManualHandler");
+        Single(
             assembly.Services,
             descriptor =>
                 descriptor.ServiceType
@@ -585,7 +583,7 @@ public class GlueCollectionTests
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void TwoModulesWithOneKey_FailTheLoad_AndNameTheClasses()
     {
         var assembly = Compile(
@@ -604,18 +602,18 @@ public class GlueCollectionTests
             """
         );
 
-        var exception = Assert.Throws<InvalidOperationException>(() =>
+        var exception = ThrowsExactly<InvalidOperationException>(() =>
             assembly.Services.AddModule(
                 (IDependencyModule)Activator.CreateInstance(assembly.Type("OtherModule"))!
             )
         );
 
-        Assert.Contains("'same'", exception.Message);
-        Assert.Contains("TestNamespace.FirstHandler", exception.Message);
-        Assert.Contains("TestNamespace.SecondHandler", exception.Message);
+        Verify(exception.Message.Contains("'same'"));
+        Verify(exception.Message.Contains("TestNamespace.FirstHandler"));
+        Verify(exception.Message.Contains("TestNamespace.SecondHandler"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void TwoClassesOfOneModuleWithOneKey_AreDM0028()
     {
         var result = Run(
@@ -634,14 +632,14 @@ public class GlueCollectionTests
             """
         );
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0028");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0028");
 
-        Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
-        Assert.Contains("'FirstHandler' and 'SecondHandler'", diagnostic.GetMessage());
-        Assert.Contains("\"same\"", diagnostic.GetMessage());
+        Verify(diagnostic.Severity == DiagnosticSeverity.Error);
+        Verify(diagnostic.GetMessage().Contains("'FirstHandler' and 'SecondHandler'"));
+        Verify(diagnostic.GetMessage().Contains("\"same\""));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AListWithTwoOrderSchemes_IsDM0029()
     {
         var result = Run(
@@ -657,25 +655,25 @@ public class GlueCollectionTests
             """
         );
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0029");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0029");
 
-        Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
-        Assert.Contains("IntoList<T, int>", diagnostic.GetMessage());
-        Assert.Contains("IntoList<T>", diagnostic.GetMessage());
+        Verify(diagnostic.Severity == DiagnosticSeverity.Error);
+        Verify(diagnostic.GetMessage().Contains("IntoList<T, int>"));
+        Verify(diagnostic.GetMessage().Contains("IntoList<T>"));
     }
 
-    [Theory]
-    [InlineData("public abstract class BadHandler : Handler { }", "it is abstract")]
-    [InlineData("public class BadHandler { }", "it is not assignable to 'TestNamespace.Handler'")]
-    [InlineData(
+    [VerifyTest]
+    [Row("public abstract class BadHandler : Handler { }", "it is abstract")]
+    [Row("public class BadHandler { }", "it is not assignable to 'TestNamespace.Handler'")]
+    [Row(
         "public class BadHandler : Handler { private BadHandler() { } }",
         "it has no constructor that the generated module can call"
     )]
-    [InlineData(
+    [Row(
         "public class BadHandler(int retries) : Handler { }",
         "its constructor parameter 'retries' has the type 'int'"
     )]
-    [InlineData("public class BadHandler<T> : Handler { }", "it is an open generic class")]
+    [Row("public class BadHandler<T> : Handler { }", "it is an open generic class")]
     public void AClassThatCannotBeAnItem_IsDM0027_AndTheOtherItemsStay(
         string declaration,
         string reason
@@ -697,19 +695,19 @@ public class GlueCollectionTests
 
         result.AssertNoErrors();
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0027");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0027");
 
-        Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
-        Assert.Contains("the list of TestNamespace.Handler", diagnostic.GetMessage());
-        Assert.Contains(reason, diagnostic.GetMessage());
+        Verify(diagnostic.Severity == DiagnosticSeverity.Warning);
+        Verify(diagnostic.GetMessage().Contains("the list of TestNamespace.Handler"));
+        Verify(diagnostic.GetMessage().Contains(reason));
 
         var assembly = Compile(source);
         using var provider = assembly.BuildProvider();
 
-        Assert.Equal("GoodHandler", (string)Probe(assembly, provider, "ListProbe").Names);
+        Verify((string)Probe(assembly, provider, "ListProbe").Names == "GoodHandler");
     }
 
-    [Fact]
+    [VerifyTest]
     public void AMap_GivesItsValuesAndPairs_AndHasNoItemForAMissingKey()
     {
         var assembly = Compile(
@@ -740,17 +738,20 @@ public class GlueCollectionTests
         using var provider = assembly.BuildProvider();
         var probe = Probe(assembly, provider, "FullMapProbe");
 
-        Assert.Equal("AHandler,BHandler", (string)probe.Values);
-        Assert.Equal("a=AHandler,b=BHandler", (string)probe.Pairs);
-        Assert.False((bool)probe.HasMissing);
-        Assert.Equal(2, Built(assembly));
+        Verify((string)probe.Values == "AHandler,BHandler");
+        Verify((string)probe.Pairs == "a=AHandler,b=BHandler");
+        Verify(!(bool)probe.HasMissing);
+        Verify(Built(assembly) == 2);
 
-        var exception = Assert.Throws<KeyNotFoundException>(() => (object)probe.Missing);
+        var exception = ThrowsExactly<KeyNotFoundException>(() =>
+        {
+            _ = (object)probe.Missing;
+        });
 
-        Assert.Contains("'missing'", exception.Message);
+        Verify(exception.Message.Contains("'missing'"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void ASet_AnswersTheSetQuestions()
     {
         var assembly = Compile(
@@ -788,10 +789,10 @@ public class GlueCollectionTests
 
         using var provider = assembly.BuildProvider();
 
-        Assert.True((bool)Probe(assembly, provider, "FullSetProbe").Answers());
+        Verify((bool)Probe(assembly, provider, "FullSetProbe").Answers());
     }
 
-    [Fact]
+    [VerifyTest]
     public async Task AnAsyncScope_DisposesTheItemsOfItsCollections()
     {
         var assembly = Compile(
@@ -832,14 +833,16 @@ public class GlueCollectionTests
 
         await using (var scope = provider.CreateAsyncScope())
         {
-            Assert.Equal(2, (int)Probe(assembly, scope.ServiceProvider, "BothProbe").Read());
-            Assert.Empty(disposed);
+            Verify((int)Probe(assembly, scope.ServiceProvider, "BothProbe").Read() == 2);
+            Verify(disposed.Count == 0);
         }
 
-        Assert.Equal(new[] { "AsyncHandler", "SyncHandler" }, disposed.OrderBy(name => name));
+        Verify(
+            disposed.OrderBy(name => name).SequenceEqual(new[] { "AsyncHandler", "SyncHandler" })
+        );
     }
 
-    [Fact]
+    [VerifyTest]
     public void TwoModulesWithTwoOrderSchemes_FailTheLoad_AndNameTheClass()
     {
         var assembly = Compile(
@@ -858,24 +861,25 @@ public class GlueCollectionTests
             """
         );
 
-        var exception = Assert.Throws<InvalidOperationException>(() =>
+        var exception = ThrowsExactly<InvalidOperationException>(() =>
             assembly.Services.AddModule(
                 (IDependencyModule)Activator.CreateInstance(assembly.Type("OtherModule"))!
             )
         );
 
-        Assert.Contains(
-            "System.Collections.Generic.IReadOnlyList<TestNamespace.Handler>",
-            exception.Message
+        Verify(
+            exception.Message.Contains(
+                "System.Collections.Generic.IReadOnlyList<TestNamespace.Handler>"
+            )
         );
-        Assert.Contains("TestNamespace.SecondHandler uses IntoList<T, Stage>", exception.Message);
-        Assert.Contains("IntoList<T>", exception.Message);
+        Verify(exception.Message.Contains("TestNamespace.SecondHandler uses IntoList<T, Stage>"));
+        Verify(exception.Message.Contains("IntoList<T>"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AListWithOrderValuesAndACycle_FailsTheLoad()
     {
-        var exception = Assert.Throws<InvalidOperationException>(() =>
+        var exception = ThrowsExactly<InvalidOperationException>(() =>
             Compile(
                 """
                 [IntoList<Handler, string>("a", "b")]
@@ -890,10 +894,10 @@ public class GlueCollectionTests
             )
         );
 
-        Assert.Contains("order cycle", exception.Message);
+        Verify(exception.Message.Contains("order cycle"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AModuleWithNoItems_GetsNoGlueFile()
     {
         var result = Run(
@@ -903,10 +907,10 @@ public class GlueCollectionTests
             """
         );
 
-        Assert.DoesNotContain(result.GeneratedSources.Keys, name => name.Contains("Glue"));
+        Verify(!result.GeneratedSources.Keys.Any(name => name.Contains("Glue")));
     }
 
-    [Fact]
+    [VerifyTest]
     public void ARecordModule_CompilesWithItems()
     {
         var assembly = Compile(
@@ -921,6 +925,6 @@ public class GlueCollectionTests
 
         using var provider = assembly.BuildProvider();
 
-        Assert.Equal("OnlyHandler", (string)Probe(assembly, provider, "SetProbe").Names);
+        Verify((string)Probe(assembly, provider, "SetProbe").Names == "OnlyHandler");
     }
 }

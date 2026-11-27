@@ -1,7 +1,6 @@
 using DependencyModules.Tests.Infrastructure;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// DM0021: a <c>[Mock]</c> parameter and a <c>[TestExport]</c> on the same method, both naming one
@@ -16,9 +15,9 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// everything under it, and one test overriding it for one argument is exactly what having both
 /// scopes is for. Reporting that would be reporting the feature.
 /// </summary>
-public class MockTestExportDiagnosticTests
+public partial class MockTestExportDiagnosticTests
 {
-    [Fact]
+    [VerifyTest]
     public void BothOnOneMethod_ReportsDM0021()
     {
         var result = Run(
@@ -28,17 +27,17 @@ public class MockTestExportDiagnosticTests
             """
         );
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0021");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0021");
 
-        Assert.Contains("Conflicting", diagnostic.GetMessage());
-        Assert.Contains("IThing", diagnostic.GetMessage());
+        Verify(diagnostic.GetMessage().Contains("Conflicting"));
+        Verify(diagnostic.GetMessage().Contains("IThing"));
     }
 
     /// <summary>
     /// Reported at the parameter, which is the half that wins and the half a reader has to look at
     /// to see what actually happens.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ItIsReportedAtTheParameter()
     {
         var result = Run(
@@ -48,16 +47,16 @@ public class MockTestExportDiagnosticTests
             """
         );
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0021");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0021");
 
-        Assert.NotNull(diagnostic.Location.SourceTree);
-        Assert.Equal("Test.cs", System.IO.Path.GetFileName(diagnostic.Location.GetLineSpan().Path));
+        Verify(diagnostic.Location.SourceTree is not null);
+        Verify(System.IO.Path.GetFileName(diagnostic.Location.GetLineSpan().Path) == "Test.cs");
     }
 
     /// <summary>
     /// The class-level default a test opts out of. This is the shape the override exists for.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void TestExportOnTheClass_IsNotReported()
     {
         var result = GeneratorTestHarness.Run(
@@ -71,10 +70,10 @@ public class MockTestExportDiagnosticTests
             """
         );
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0021");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0021"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void TestExportOnTheAssembly_IsNotReported()
     {
         var result = GeneratorTestHarness.Run(
@@ -89,13 +88,13 @@ public class MockTestExportDiagnosticTests
             """
         );
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0021");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0021"));
     }
 
     /// <summary>
     /// Naming different services is two unrelated declarations, not a disagreement.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void BothOnOneMethodNamingDifferentServices_IsNotReported()
     {
         var result = Run(
@@ -105,18 +104,18 @@ public class MockTestExportDiagnosticTests
             """
         );
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0021");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0021"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AMockWithNoTestExport_IsNotReported()
     {
         var result = Run("public void JustAMock([Mock] IThing thing) { }");
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0021");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0021"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void ATestExportWithNoMock_IsNotReported()
     {
         var result = Run(
@@ -126,13 +125,13 @@ public class MockTestExportDiagnosticTests
             """
         );
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0021");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0021"));
     }
 
     /// <summary>
     /// A keyed <c>[Mock]</c> is registered under its key. The unkeyed export stays in use.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AKeyedMock_IsNotReported()
     {
         var result = Run(
@@ -142,7 +141,7 @@ public class MockTestExportDiagnosticTests
             """
         );
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0021");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0021"));
     }
 
     /// <summary>
@@ -150,7 +149,7 @@ public class MockTestExportDiagnosticTests
     /// <c>[Mock] T</c> then registers nothing. The export replaces <c>mock.Object</c>, so the
     /// parameter gets the export.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AMockPairedWithAMoqMock_IsNotReported()
     {
         var result = Run(
@@ -160,10 +159,10 @@ public class MockTestExportDiagnosticTests
             """
         );
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0021");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0021"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AMoqMockOfAnotherService_IsStillReported()
     {
         var result = Run(
@@ -173,13 +172,13 @@ public class MockTestExportDiagnosticTests
             """
         );
 
-        Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0021");
+        Single(result.GeneratorDiagnostics, d => d.Id == "DM0021");
     }
 
     /// <summary>
     /// Resolved rather than string-matched, the way every other attribute this generator reads is.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void QualifiedSpellings_AreStillReported()
     {
         var result = Run(
@@ -189,7 +188,7 @@ public class MockTestExportDiagnosticTests
             """
         );
 
-        Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0021");
+        Single(result.GeneratorDiagnostics, d => d.Id == "DM0021");
     }
 
     private const string Preamble = """

@@ -1,74 +1,75 @@
 using CSharpAuthor;
 using DependencyModules.SourceGenerator.Impl;
 using DependencyModules.SourceGenerator.Impl.Models;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// AttributeModel turns the values captured from a source attribute back into C# for the generated
 /// module attribute. Each supported value shape has to round-trip into code that compiles.
 /// </summary>
-public class AttributeModelOutputTests
+public partial class AttributeModelOutputTests
 {
     private static readonly ITypeDefinition SomeType = TypeDefinition.Get("Ns", "SomeType");
 
-    [Fact]
+    [VerifyTest]
     public void GetArguments_WithNoArguments_ReturnsNothing()
     {
-        Assert.Empty(Attribute().GetArguments());
+        Verify(!Attribute().GetArguments().Any());
     }
 
-    [Fact]
+    [VerifyTest]
     public void GetArguments_QuotesStringValues()
     {
         var rendered = Render(
             Attribute(arguments: [new AttributeArgumentValue("name", "hello")]).GetArguments()
         );
 
-        Assert.Contains("\"hello\"", rendered);
+        Verify(rendered.Contains("\"hello\""));
     }
 
-    [Fact]
+    [VerifyTest]
     public void GetArguments_WritesTypeValuesAsTypeof()
     {
         var rendered = Render(
             Attribute(arguments: [new AttributeArgumentValue("type", SomeType)]).GetArguments()
         );
 
-        Assert.Contains("typeof(", rendered);
-        Assert.Contains("SomeType", rendered);
+        Verify(rendered.Contains("typeof("));
+        Verify(rendered.Contains("SomeType"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void GetArguments_WritesPrimitiveValuesVerbatim()
     {
         var rendered = Render(
             Attribute(arguments: [new AttributeArgumentValue("count", 42)]).GetArguments()
         );
 
-        Assert.Contains("42", rendered);
+        Verify(rendered.Contains("42"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void GetArguments_WritesBooleanValues()
     {
         var rendered = Render(
             Attribute(arguments: [new AttributeArgumentValue("flag", true)]).GetArguments()
         );
 
-        Assert.Contains("True", rendered, StringComparison.OrdinalIgnoreCase);
+        Verify(rendered.Contains("True", StringComparison.OrdinalIgnoreCase));
     }
 
-    [Fact]
+    [VerifyTest]
     public void GetArguments_SkipsNullValues()
     {
-        Assert.Empty(
-            Attribute(arguments: [new AttributeArgumentValue("nothing", null)]).GetArguments()
+        Verify(
+            !Attribute(arguments: [new AttributeArgumentValue("nothing", null)])
+                .GetArguments()
+                .Any()
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void GetArguments_WritesStringArraysAsACollection()
     {
         var rendered = Render(
@@ -76,14 +77,14 @@ public class AttributeModelOutputTests
                 .GetArguments()
         );
 
-        Assert.StartsWith("[", rendered);
-        Assert.EndsWith("]", rendered);
-        Assert.Contains("\"a\"", rendered);
-        Assert.Contains("\"b\"", rendered);
-        Assert.Contains(",", rendered);
+        Verify(rendered.StartsWith("["));
+        Verify(rendered.EndsWith("]"));
+        Verify(rendered.Contains("\"a\""));
+        Verify(rendered.Contains("\"b\""));
+        Verify(rendered.Contains(","));
     }
 
-    [Fact]
+    [VerifyTest]
     public void GetArguments_PassesThroughOutputComponents()
     {
         var component = CodeOutputComponent.Get("SomeExpression");
@@ -92,10 +93,10 @@ public class AttributeModelOutputTests
             Attribute(arguments: [new AttributeArgumentValue("value", component)]).GetArguments()
         );
 
-        Assert.Contains("SomeExpression", rendered);
+        Verify(rendered.Contains("SomeExpression"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void GetArguments_PreservesArgumentOrder()
     {
         var rendered = Render(
@@ -109,36 +110,36 @@ public class AttributeModelOutputTests
                 .GetArguments()
         );
 
-        Assert.True(
+        Verify(
             rendered.IndexOf("one", StringComparison.Ordinal)
                 < rendered.IndexOf("two", StringComparison.Ordinal),
             $"Arguments came out in the wrong order: {rendered}"
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void PropertyValues_WithNoProperties_ReturnsNothing()
     {
-        Assert.Empty(Attribute().PropertyValues());
+        Verify(!Attribute().PropertyValues().Any());
     }
 
-    [Fact]
+    [VerifyTest]
     public void PropertyValues_WritesNamedAssignments()
     {
         var rendered = Render(
             Attribute(properties: [new AttributeArgumentValue("Name", "value")]).PropertyValues()
         );
 
-        Assert.Contains("Name", rendered);
-        Assert.Contains("=", rendered);
-        Assert.Contains("\"value\"", rendered);
+        Verify(rendered.Contains("Name"));
+        Verify(rendered.Contains("="));
+        Verify(rendered.Contains("\"value\""));
     }
 
     /// <summary>
     /// Property values arrive from the syntax tree already quoted; re-quoting would emit
     /// a doubly-quoted literal.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void PropertyValues_DoesNotDoubleQuoteAnAlreadyQuotedString()
     {
         var rendered = Render(
@@ -146,64 +147,66 @@ public class AttributeModelOutputTests
                 .PropertyValues()
         );
 
-        Assert.DoesNotContain("\"\"", rendered);
-        Assert.Contains("\"value\"", rendered);
+        Verify(!rendered.Contains("\"\""));
+        Verify(rendered.Contains("\"value\""));
     }
 
-    [Fact]
+    [VerifyTest]
     public void PropertyValues_WritesTypeValuesAsTypeof()
     {
         var rendered = Render(
             Attribute(properties: [new AttributeArgumentValue("As", SomeType)]).PropertyValues()
         );
 
-        Assert.Contains("typeof(", rendered);
+        Verify(rendered.Contains("typeof("));
     }
 
-    [Fact]
+    [VerifyTest]
     public void PropertyValues_SkipsNullValues()
     {
-        Assert.Empty(
-            Attribute(properties: [new AttributeArgumentValue("Name", null)]).PropertyValues()
+        Verify(
+            !Attribute(properties: [new AttributeArgumentValue("Name", null)])
+                .PropertyValues()
+                .Any()
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void CollectionSyntax_WithNoItems_WritesEmptyBrackets()
     {
-        Assert.Equal("[]", Render(new CollectionSyntaxDeclaration()));
+        Verify(Render(new CollectionSyntaxDeclaration()) == "[]");
     }
 
-    [Fact]
+    [VerifyTest]
     public void CollectionSyntax_QuotesStringItems()
     {
         var collection = new CollectionSyntaxDeclaration();
         collection.Add("value");
 
-        Assert.Equal("[\"value\"]", Render(collection));
+        Verify(Render(collection) == "[\"value\"]");
     }
 
-    [Fact]
+    [VerifyTest]
     public void CollectionSyntax_SeparatesItemsWithCommas()
     {
         var collection = new CollectionSyntaxDeclaration();
         collection.Add("one");
         collection.Add("two");
 
-        Assert.Equal("[\"one\", \"two\"]", Render(collection));
+        Verify(Render(collection) == "[\"one\", \"two\"]");
     }
 
-    [Fact]
+    [VerifyTest]
     public void CollectionSyntax_WritesNonStringItemsVerbatim()
     {
         var collection = new CollectionSyntaxDeclaration();
         collection.Add(1);
         collection.Add(2);
 
-        Assert.Equal("[1, 2]", Render(collection));
+        Verify(Render(collection) == "[1, 2]");
     }
 
-    [Fact]
+    [VerifyTest]
     public void CollectionSyntax_WithTheSameItems_IsEqual()
     {
         var first = new CollectionSyntaxDeclaration();
@@ -212,10 +215,10 @@ public class AttributeModelOutputTests
         var second = new CollectionSyntaxDeclaration();
         second.Add("a");
 
-        Assert.True(first.Equals(second));
+        Verify(first.Equals(second));
     }
 
-    [Fact]
+    [VerifyTest]
     public void CollectionSyntax_WithDifferentItems_IsNotEqual()
     {
         var first = new CollectionSyntaxDeclaration();
@@ -224,22 +227,22 @@ public class AttributeModelOutputTests
         var second = new CollectionSyntaxDeclaration();
         second.Add("b");
 
-        Assert.False(first.Equals(second));
+        Verify(!first.Equals(second));
     }
 
-    [Fact]
+    [VerifyTest]
     public void CollectionSyntax_WithDifferentCounts_IsNotEqual()
     {
         var first = new CollectionSyntaxDeclaration();
         first.Add("a");
 
-        Assert.False(first.Equals(new CollectionSyntaxDeclaration()));
+        Verify(!first.Equals(new CollectionSyntaxDeclaration()));
     }
 
-    [Fact]
+    [VerifyTest]
     public void CollectionSyntax_IsNotEqualToOtherTypes()
     {
-        Assert.False(new CollectionSyntaxDeclaration().Equals("not a collection"));
+        Verify(!new CollectionSyntaxDeclaration().Equals("not a collection"));
     }
 
     private static AttributeModel Attribute(

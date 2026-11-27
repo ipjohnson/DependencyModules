@@ -2,39 +2,37 @@ using CSharpAuthor;
 using DependencyModules.SourceGenerator.Impl.Utilities;
 using DependencyModules.Tests.Infrastructure;
 using Microsoft.CodeAnalysis;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// The hint name of a generated file. Roslyn refuses a second file with the same name, and the run
 /// then gives CS8785 and no generated code at all.
 /// </summary>
-public class FileNameHintTests
+public partial class FileNameHintTests
 {
-    [Theory]
-    [InlineData("App", "FooModule.Module.g.cs")]
-    [InlineData("App.Sub", "Sub.FooModule.Module.g.cs")]
-    [InlineData("App.global", "global.FooModule.Module.g.cs")]
-    [InlineData("Sub", "global-Sub.FooModule.Module.g.cs")]
-    [InlineData("Application", "global-Application.FooModule.Module.g.cs")]
-    [InlineData("", "global-FooModule.Module.g.cs")]
+    [VerifyTest]
+    [Row("App", "FooModule.Module.g.cs")]
+    [Row("App.Sub", "Sub.FooModule.Module.g.cs")]
+    [Row("App.global", "global.FooModule.Module.g.cs")]
+    [Row("Sub", "global-Sub.FooModule.Module.g.cs")]
+    [Row("Application", "global-Application.FooModule.Module.g.cs")]
+    [Row("", "global-FooModule.Module.g.cs")]
     public void WithARootNamespace(string typeNamespace, string expected)
     {
-        Assert.Equal(
-            expected,
+        Verify(
             TypeDefinition.Get(typeNamespace, "FooModule").GetFileNameHint("App", "Module")
+                == expected
         );
     }
 
-    [Theory]
-    [InlineData("Sub", "Sub.FooModule.Module.g.cs")]
-    [InlineData("", "FooModule.Module.g.cs")]
+    [VerifyTest]
+    [Row("Sub", "Sub.FooModule.Module.g.cs")]
+    [Row("", "FooModule.Module.g.cs")]
     public void WithoutARootNamespace_TheFullNameIsUsed(string typeNamespace, string expected)
     {
-        Assert.Equal(
-            expected,
-            TypeDefinition.Get(typeNamespace, "FooModule").GetFileNameHint("", "Module")
+        Verify(
+            TypeDefinition.Get(typeNamespace, "FooModule").GetFileNameHint("", "Module") == expected
         );
     }
 
@@ -42,7 +40,7 @@ public class FileNameHintTests
     /// With the root namespace <c>App</c> removed, <c>App.Sub.FooModule</c> has the name of
     /// <c>Sub.FooModule</c>.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ModulesThatDifferOnlyByTheRootNamespace_BothGetTheirCode()
     {
         var result = GeneratorTestHarness.Run(
@@ -84,7 +82,7 @@ public class FileNameHintTests
         );
 
         result.AssertNoErrors();
-        Assert.Contains("Sub.FooModule.Module.g.cs", result.GeneratedSources.Keys);
-        Assert.Contains("global-Sub.FooModule.Module.g.cs", result.GeneratedSources.Keys);
+        Verify(result.GeneratedSources.ContainsKey("Sub.FooModule.Module.g.cs"));
+        Verify(result.GeneratedSources.ContainsKey("global-Sub.FooModule.Module.g.cs"));
     }
 }

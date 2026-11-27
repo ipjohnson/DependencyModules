@@ -3,15 +3,14 @@ using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using DependencyModules.Runtime.Interfaces;
 using DependencyModules.Tests.Infrastructure;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// The attributes that the generator puts on the code it writes. A module is a partial class, so
 /// an attribute on a generated part of the class applies to the members the developer writes too.
 /// </summary>
-public class GeneratedMemberAttributeTests
+public partial class GeneratedMemberAttributeTests
 {
     private const BindingFlags Declared =
         BindingFlags.DeclaredOnly
@@ -61,16 +60,16 @@ public class GeneratedMemberAttributeTests
     /// Coverage tools skip a whole type that has <c>[ExcludeFromCodeCoverage]</c>, so the attribute
     /// on the module class hid <c>ConfigureServices</c>.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void TheMembersTheDeveloperWrites_AreMeasured()
     {
         var module = GeneratedAssembly.Create(Source).Type("TestModule");
 
-        Assert.False(Excluded(module));
-        Assert.False(Excluded(module.GetMethod("ConfigureServices")!));
+        Verify(!Excluded(module));
+        Verify(!Excluded(module.GetMethod("ConfigureServices")!));
     }
 
-    [Fact]
+    [VerifyTest]
     public void TheGeneratedMembersOfTheModule_AreExcluded()
     {
         var assembly = GeneratedAssembly.Create(Source);
@@ -84,20 +83,21 @@ public class GeneratedMemberAttributeTests
             .Append(assembly.Type("TestModuleAttribute").GetMethod("GetModule")!)
             .ToArray();
 
-        Assert.Contains(generated, member => member.Name.EndsWith("InternalGetModules"));
-        Assert.All(
-            generated,
-            member => Assert.True(Excluded(member), $"{member.Name} is measured")
-        );
+        Verify(generated.Any(member => member.Name.EndsWith("InternalGetModules")));
+
+        foreach (var member in generated)
+        {
+            Verify(Excluded(member), $"{member.Name} is measured");
+        }
     }
 
-    [Fact]
+    [VerifyTest]
     public void TheInterceptorWrapper_IsExcluded()
     {
-        Assert.True(Excluded(GeneratedAssembly.Create(Source).Type("Greeter_Intercepted")));
+        Verify(Excluded(GeneratedAssembly.Create(Source).Type("Greeter_Intercepted")));
     }
 
-    [Fact]
+    [VerifyTest]
     public void WithExcludeGeneratedCodeFromCoverageFalse_NothingIsExcluded()
     {
         var assembly = GeneratedAssembly.Create(
@@ -112,11 +112,12 @@ public class GeneratedMemberAttributeTests
         {
             var type = assembly.Type(name);
 
-            Assert.False(Excluded(type), $"{name} is excluded");
-            Assert.All(
-                type.GetMembers(Declared),
-                member => Assert.False(Excluded(member), $"{name}.{member.Name} is excluded")
-            );
+            Verify(!Excluded(type), $"{name} is excluded");
+
+            foreach (var member in type.GetMembers(Declared))
+            {
+                Verify(!Excluded(member), $"{name}.{member.Name} is excluded");
+            }
         }
     }
 
@@ -125,7 +126,7 @@ public class GeneratedMemberAttributeTests
     /// <c>[EditorBrowsable(EditorBrowsableState.Never)]</c>. <c>[Browsable(false)]</c> is for the
     /// Properties window of a designer.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void TheInternalMembersOfIDependencyModule_AreHiddenFromIntelliSense()
     {
         var members = typeof(IDependencyModule)
@@ -133,11 +134,15 @@ public class GeneratedMemberAttributeTests
             .Where(method => method.Name.StartsWith("Internal"))
             .ToArray();
 
-        Assert.Equal(6, members.Length);
-        Assert.All(members, member => Assert.True(Hidden(member), $"{member.Name} is shown"));
+        Verify(members.Length == 6);
+
+        foreach (var member in members)
+        {
+            Verify(Hidden(member), $"{member.Name} is shown");
+        }
     }
 
-    [Fact]
+    [VerifyTest]
     public void TheGeneratedInternalMembers_AreHiddenFromIntelliSense()
     {
         var members = GeneratedAssembly
@@ -147,8 +152,12 @@ public class GeneratedMemberAttributeTests
             .Where(method => method.Name.Contains(".Internal"))
             .ToArray();
 
-        Assert.NotEmpty(members);
-        Assert.All(members, member => Assert.True(Hidden(member), $"{member.Name} is shown"));
+        Verify(members.Length != 0);
+
+        foreach (var member in members)
+        {
+            Verify(Hidden(member), $"{member.Name} is shown");
+        }
     }
 
     private static bool Excluded(MemberInfo member) =>

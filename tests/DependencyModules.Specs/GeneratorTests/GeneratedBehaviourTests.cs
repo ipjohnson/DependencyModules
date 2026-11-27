@@ -1,8 +1,7 @@
 using DependencyModules.Tests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// Compiles source with the generator, loads the emitted assembly, and asserts on what the
@@ -12,9 +11,9 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// These are the tests that would fail if the generator emitted well-formed code that registered
 /// the wrong thing. Asserting on the shape of generated text cannot catch that.
 /// </summary>
-public class GeneratedBehaviourTests
+public partial class GeneratedBehaviourTests
 {
-    [Fact]
+    [VerifyTest]
     public void SingletonService_ResolvesTheImplementation()
     {
         var generated = GeneratedAssembly.Create(
@@ -23,10 +22,10 @@ public class GeneratedBehaviourTests
 
         var resolved = generated.ResolveRequired("IThing");
 
-        Assert.Equal(generated.Type("Thing"), resolved.GetType());
+        Verify(resolved.GetType() == generated.Type("Thing"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void SingletonService_ReturnsTheSameInstanceEveryTime()
     {
         var generated = GeneratedAssembly.Create(
@@ -35,10 +34,10 @@ public class GeneratedBehaviourTests
         var provider = generated.BuildProvider();
         var serviceType = generated.Type("IThing");
 
-        Assert.Same(provider.GetService(serviceType), provider.GetService(serviceType));
+        Verify(ReferenceEquals(provider.GetService(serviceType), provider.GetService(serviceType)));
     }
 
-    [Fact]
+    [VerifyTest]
     public void TransientService_ReturnsANewInstanceEveryTime()
     {
         var generated = GeneratedAssembly.Create(
@@ -47,10 +46,12 @@ public class GeneratedBehaviourTests
         var provider = generated.BuildProvider();
         var serviceType = generated.Type("IThing");
 
-        Assert.NotSame(provider.GetService(serviceType), provider.GetService(serviceType));
+        Verify(
+            !ReferenceEquals(provider.GetService(serviceType), provider.GetService(serviceType))
+        );
     }
 
-    [Fact]
+    [VerifyTest]
     public void ScopedService_IsSharedWithinAScopeAndDiffersAcrossScopes()
     {
         var generated = GeneratedAssembly.Create(
@@ -66,14 +67,14 @@ public class GeneratedBehaviourTests
         var firstB = first.ServiceProvider.GetService(serviceType);
         var secondA = second.ServiceProvider.GetService(serviceType);
 
-        Assert.Same(firstA, firstB);
-        Assert.NotSame(firstA, secondA);
+        Verify(ReferenceEquals(firstA, firstB));
+        Verify(!ReferenceEquals(firstA, secondA));
     }
 
-    [Theory]
-    [InlineData("SingletonService", ServiceLifetime.Singleton)]
-    [InlineData("ScopedService", ServiceLifetime.Scoped)]
-    [InlineData("TransientService", ServiceLifetime.Transient)]
+    [VerifyTest]
+    [Row("SingletonService", ServiceLifetime.Singleton)]
+    [Row("ScopedService", ServiceLifetime.Scoped)]
+    [Row("TransientService", ServiceLifetime.Transient)]
     public void ServiceAttribute_RegistersTheMatchingLifetime(
         string attribute,
         ServiceLifetime expected
@@ -83,10 +84,10 @@ public class GeneratedBehaviourTests
             Module($"[{attribute}] public class Thing : IThing;")
         );
 
-        Assert.Equal(expected, generated.Descriptor("IThing").Lifetime);
+        Verify(generated.Descriptor("IThing").Lifetime == expected);
     }
 
-    [Fact]
+    [VerifyTest]
     public void AsProperty_ResolvesUnderTheRequestedServiceTypeOnly()
     {
         var generated = GeneratedAssembly.Create(
@@ -100,11 +101,11 @@ public class GeneratedBehaviourTests
 
         var provider = generated.BuildProvider();
 
-        Assert.NotNull(provider.GetService(generated.Type("IOther")));
-        Assert.Null(provider.GetService(generated.Type("IThing")));
+        Verify(provider.GetService(generated.Type("IOther")) is not null);
+        Verify(provider.GetService(generated.Type("IThing")) is null);
     }
 
-    [Fact]
+    [VerifyTest]
     public void KeyedService_ResolvesOnlyThroughItsKey()
     {
         var generated = GeneratedAssembly.Create(
@@ -114,11 +115,11 @@ public class GeneratedBehaviourTests
         var provider = generated.BuildProvider();
         var serviceType = generated.Type("IThing");
 
-        Assert.NotNull(provider.GetKeyedService(serviceType, "the-key"));
-        Assert.Null(provider.GetService(serviceType));
+        Verify(provider.GetKeyedService(serviceType, "the-key") is not null);
+        Verify(provider.GetService(serviceType) is null);
     }
 
-    [Fact]
+    [VerifyTest]
     public void KeyedServices_WithDifferentKeysResolveDifferentImplementations()
     {
         var generated = GeneratedAssembly.Create(
@@ -133,13 +134,13 @@ public class GeneratedBehaviourTests
         var provider = generated.BuildProvider();
         var serviceType = generated.Type("IThing");
 
-        Assert.Equal(
-            generated.Type("FirstThing"),
+        Verify(
             provider.GetKeyedService(serviceType, "first")!.GetType()
+                == generated.Type("FirstThing")
         );
-        Assert.Equal(
-            generated.Type("SecondThing"),
+        Verify(
             provider.GetKeyedService(serviceType, "second")!.GetType()
+                == generated.Type("SecondThing")
         );
     }
 
@@ -147,7 +148,7 @@ public class GeneratedBehaviourTests
     /// The contract of [CrossWireService]: one instance, reachable through the implementation type
     /// and through every interface it implements.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void CrossWireService_SharesOneInstanceAcrossAllItsInterfaces()
     {
         var generated = GeneratedAssembly.Create(
@@ -167,23 +168,23 @@ public class GeneratedBehaviourTests
         var asOther = provider.GetService(generated.Type("IOther"));
         var asImplementation = provider.GetService(generated.Type("Thing"));
 
-        Assert.NotNull(asThing);
-        Assert.Same(asThing, asOther);
-        Assert.Same(asThing, asImplementation);
+        Verify(asThing is not null);
+        Verify(ReferenceEquals(asThing, asOther));
+        Verify(ReferenceEquals(asThing, asImplementation));
     }
 
-    [Fact]
+    [VerifyTest]
     public void TryRegistration_DoesNotReplaceAnExistingRegistration()
     {
         var generated = GeneratedAssembly.Create(
             Module("[SingletonService(Using = RegistrationType.Try)] public class Thing : IThing;")
         );
 
-        Assert.Equal(ServiceLifetime.Singleton, generated.Descriptor("IThing").Lifetime);
-        Assert.Equal(generated.Type("Thing"), generated.ResolveRequired("IThing").GetType());
+        Verify(generated.Descriptor("IThing").Lifetime == ServiceLifetime.Singleton);
+        Verify(generated.ResolveRequired("IThing").GetType() == generated.Type("Thing"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void ReplaceRegistration_LeavesASingleRegistration()
     {
         var generated = GeneratedAssembly.Create(
@@ -192,7 +193,7 @@ public class GeneratedBehaviourTests
             )
         );
 
-        Assert.Single(generated.Descriptors("IThing"));
+        Single(generated.Descriptors("IThing"));
     }
 
     /// <summary>
@@ -202,7 +203,7 @@ public class GeneratedBehaviourTests
     /// nothing and added itself, then the registration it meant to displace was added after it and
     /// won. Renaming the class fixed it, and nothing said so.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ReplaceRegistration_WinsEvenWhenItsTypeNameSortsFirst()
     {
         var generated = GeneratedAssembly.Create(
@@ -214,11 +215,11 @@ public class GeneratedBehaviourTests
             )
         );
 
-        Assert.Single(generated.Descriptors("IThing"));
-        Assert.Equal(generated.Type("AaaThing"), generated.ResolveRequired("IThing").GetType());
+        Single(generated.Descriptors("IThing"));
+        Verify(generated.ResolveRequired("IThing").GetType() == generated.Type("AaaThing"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void TryRegistration_DeclinesEvenWhenItsTypeNameSortsFirst()
     {
         var generated = GeneratedAssembly.Create(
@@ -230,11 +231,11 @@ public class GeneratedBehaviourTests
             )
         );
 
-        Assert.Single(generated.Descriptors("IThing"));
-        Assert.Equal(generated.Type("ZzzThing"), generated.ResolveRequired("IThing").GetType());
+        Single(generated.Descriptors("IThing"));
+        Verify(generated.ResolveRequired("IThing").GetType() == generated.Type("ZzzThing"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void ConstructorDependencies_AreInjectedFromTheContainer()
     {
         var generated = GeneratedAssembly.Create(
@@ -258,11 +259,11 @@ public class GeneratedBehaviourTests
 
         var injected = thing.GetType().GetProperty("Injected")!.GetValue(thing);
 
-        Assert.NotNull(injected);
-        Assert.Same(provider.GetService(generated.Type("IDependency")), injected);
+        Verify(injected is not null);
+        Verify(ReferenceEquals(provider.GetService(generated.Type("IDependency")), injected));
     }
 
-    [Fact]
+    [VerifyTest]
     public void StaticFactory_IsInvokedToCreateTheService()
     {
         var generated = GeneratedAssembly.Create(
@@ -280,10 +281,10 @@ public class GeneratedBehaviourTests
 
         var thing = generated.ResolveRequired("IThing");
 
-        Assert.Equal("factory", thing.GetType().GetProperty("Origin")!.GetValue(thing));
+        Verify(Equals(thing.GetType().GetProperty("Origin")!.GetValue(thing), "factory"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void StaticFactory_ReceivesItsDependenciesFromTheContainer()
     {
         var generated = GeneratedAssembly.Create(
@@ -306,13 +307,15 @@ public class GeneratedBehaviourTests
         var provider = generated.BuildProvider();
         var thing = provider.GetService(generated.Type("IThing"))!;
 
-        Assert.Same(
-            provider.GetService(generated.Type("IDependency")),
-            thing.GetType().GetProperty("Injected")!.GetValue(thing)
+        Verify(
+            ReferenceEquals(
+                provider.GetService(generated.Type("IDependency")),
+                thing.GetType().GetProperty("Injected")!.GetValue(thing)
+            )
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void OpenGenericService_ResolvesForAnyTypeArgument()
     {
         var generated = GeneratedAssembly.Create(
@@ -334,10 +337,10 @@ public class GeneratedBehaviourTests
         var provider = generated.BuildProvider();
         var closed = generated.Type("IGeneric`1").MakeGenericType(typeof(string));
 
-        Assert.NotNull(provider.GetService(closed));
+        Verify(provider.GetService(closed) is not null);
     }
 
-    [Fact]
+    [VerifyTest]
     public void ClosedGenericService_ResolvesForItsOwnArgumentOnly()
     {
         var generated = GeneratedAssembly.Create(
@@ -359,11 +362,11 @@ public class GeneratedBehaviourTests
         var provider = generated.BuildProvider();
         var generic = generated.Type("IGeneric`1");
 
-        Assert.NotNull(provider.GetService(generic.MakeGenericType(typeof(string))));
-        Assert.Null(provider.GetService(generic.MakeGenericType(typeof(int))));
+        Verify(provider.GetService(generic.MakeGenericType(typeof(string))) is not null);
+        Verify(provider.GetService(generic.MakeGenericType(typeof(int))) is null);
     }
 
-    [Fact]
+    [VerifyTest]
     public void NestedService_ResolvesThroughItsContainingType()
     {
         var generated = GeneratedAssembly.Create(
@@ -377,20 +380,20 @@ public class GeneratedBehaviourTests
             )
         );
 
-        Assert.Equal("Inner", generated.ResolveRequired("IThing").GetType().Name);
+        Verify(generated.ResolveRequired("IThing").GetType().Name == "Inner");
     }
 
-    [Fact]
+    [VerifyTest]
     public void RecordService_Resolves()
     {
         var generated = GeneratedAssembly.Create(
             Module("[SingletonService] public record ThingRecord : IThing;")
         );
 
-        Assert.Equal(generated.Type("ThingRecord"), generated.ResolveRequired("IThing").GetType());
+        Verify(generated.ResolveRequired("IThing").GetType() == generated.Type("ThingRecord"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void ModuleConfiguration_RunsAlongsideGeneratedRegistrations()
     {
         var generated = GeneratedAssembly.Create(
@@ -419,11 +422,11 @@ public class GeneratedBehaviourTests
 
         var provider = generated.BuildProvider();
 
-        Assert.NotNull(provider.GetService(generated.Type("IThing")));
-        Assert.NotNull(provider.GetService(generated.Type("IManual")));
+        Verify(provider.GetService(generated.Type("IThing")) is not null);
+        Verify(provider.GetService(generated.Type("IManual")) is not null);
     }
 
-    [Fact]
+    [VerifyTest]
     public void OnlyRealm_RegistersOnlyServicesInThatRealm()
     {
         var generated = GeneratedAssembly.Create(
@@ -449,11 +452,11 @@ public class GeneratedBehaviourTests
 
         var provider = generated.BuildProvider();
 
-        Assert.NotNull(provider.GetService(generated.Type("IInRealm")));
-        Assert.Null(provider.GetService(generated.Type("IOutsideRealm")));
+        Verify(provider.GetService(generated.Type("IInRealm")) is not null);
+        Verify(provider.GetService(generated.Type("IOutsideRealm")) is null);
     }
 
-    [Fact]
+    [VerifyTest]
     public void ComposedModule_AppliesTheModulesItReferences()
     {
         var generated = GeneratedAssembly.Create(
@@ -477,10 +480,10 @@ public class GeneratedBehaviourTests
             "ComposedModule"
         );
 
-        Assert.NotNull(generated.BuildProvider().GetService(generated.Type("IFromBase")));
+        Verify(generated.BuildProvider().GetService(generated.Type("IFromBase")) is not null);
     }
 
-    [Fact]
+    [VerifyTest]
     public void ServiceWithNoInterface_ResolvesAsItself()
     {
         var generated = GeneratedAssembly.Create(
@@ -497,7 +500,7 @@ public class GeneratedBehaviourTests
             """
         );
 
-        Assert.NotNull(generated.BuildProvider().GetService(generated.Type("Standalone")));
+        Verify(generated.BuildProvider().GetService(generated.Type("Standalone")) is not null);
     }
 
     private static string Module(string body, string extraUsings = "") =>

@@ -1,15 +1,14 @@
 using DependencyModules.Runtime;
 using DependencyModules.Tests.Infrastructure;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// The environment attributes of a class that the generator reads as a symbol, not as a
 /// declaration: a decorator that <c>[Decorate]</c> names, and a class that a convention finds in a
 /// referenced assembly with <c>InAssemblyOf&lt;T&gt;()</c>.
 /// </summary>
-public class EnvironmentAttributesFromSymbolsTests
+public partial class EnvironmentAttributesFromSymbolsTests
 {
     private const string PluginLibrary = """
         using DependencyModules.Runtime.Attributes;
@@ -66,9 +65,9 @@ public class EnvironmentAttributesFromSymbolsTests
         return (string)greeter.GetType().GetMethod("Greet")!.Invoke(greeter, null)!;
     }
 
-    [Theory]
-    [InlineData("Production", null, "AlwaysPlugin, NoFeaturePlugin, NotDevelopmentPlugin")]
-    [InlineData("Development", "on", "AlwaysPlugin, DevelopmentPlugin, FeaturePlugin")]
+    [VerifyTest]
+    [Row("Production", null, "AlwaysPlugin, NoFeaturePlugin, NotDevelopmentPlugin")]
+    [Row("Development", "on", "AlwaysPlugin, DevelopmentPlugin, FeaturePlugin")]
     public void AClassFromAReferencedAssembly_KeepsItsEnvironmentAttributes(
         string environment,
         string? featureX,
@@ -91,12 +90,12 @@ public class EnvironmentAttributesFromSymbolsTests
             .Select(d => d.ImplementationType!.Name)
             .OrderBy(name => name, StringComparer.Ordinal);
 
-        Assert.Equal(expected, string.Join(", ", registered));
+        Verify(string.Join(", ", registered) == expected);
     }
 
-    [Theory]
-    [InlineData("Production", "hello")]
-    [InlineData("Development", "HELLO")]
+    [VerifyTest]
+    [Row("Production", "hello")]
+    [Row("Development", "HELLO")]
     public void ADecoratorThatDecorateNames_KeepsItsEnvironmentAttribute(
         string environment,
         string expected
@@ -132,12 +131,12 @@ public class EnvironmentAttributesFromSymbolsTests
             environment: Environment(environment)
         );
 
-        Assert.Equal(expected, Greet(assembly));
+        Verify(Greet(assembly) == expected);
     }
 
-    [Theory]
-    [InlineData("Production", "hello")]
-    [InlineData("Development", "HELLO")]
+    [VerifyTest]
+    [Row("Production", "hello")]
+    [Row("Development", "HELLO")]
     public void ADecoratorFromAReferencedAssembly_KeepsItsEnvironmentAttribute(
         string environment,
         string expected
@@ -192,7 +191,7 @@ public class EnvironmentAttributesFromSymbolsTests
             .BuildProvider()
             .GetService(library.Assembly.GetType("DecoratorPackage.IGreeter")!)!;
 
-        Assert.Equal(expected, greeter.GetType().GetMethod("Greet")!.Invoke(greeter, null));
+        Verify(Equals(greeter.GetType().GetMethod("Greet")!.Invoke(greeter, null), expected));
     }
 
     /// <summary>
@@ -200,7 +199,7 @@ public class EnvironmentAttributesFromSymbolsTests
     /// environment. A class declared in the project gets DM0012 for this, so one read from metadata
     /// gets it too.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AnEmptyConditionOnAClassFromAReferencedAssembly_IsReported()
     {
         var library = GeneratorTestHarness.CompileLibrary(
@@ -227,11 +226,11 @@ public class EnvironmentAttributesFromSymbolsTests
 
         result.AssertNoErrors();
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0012");
-        Assert.Contains("EmptyKeyPlugin", diagnostic.GetMessage());
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0012");
+        Verify(diagnostic.GetMessage().Contains("EmptyKeyPlugin"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AnEmptyConditionOnADecoratorThatDecorateNames_IsReported()
     {
         var result = GeneratorTestHarness.Run(
@@ -265,7 +264,7 @@ public class EnvironmentAttributesFromSymbolsTests
 
         result.AssertNoErrors();
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0012");
-        Assert.Contains("LoudGreeter", diagnostic.GetMessage());
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0012");
+        Verify(diagnostic.GetMessage().Contains("LoudGreeter"));
     }
 }

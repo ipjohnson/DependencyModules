@@ -1,13 +1,12 @@
 using DependencyModules.Tests.Infrastructure;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// A <c>[Decorator]</c> that the generator cannot apply is reported as DM0025, and one that gets its
 /// service type through a base class or a derived interface is applied.
 /// </summary>
-public class IgnoredDecoratorTests
+public partial class IgnoredDecoratorTests
 {
     private const string Preamble = """
         using DependencyModules.Runtime.Attributes;
@@ -40,11 +39,11 @@ public class IgnoredDecoratorTests
         return (string)clock.GetType().GetMethod("Now")!.Invoke(clock, null)!;
     }
 
-    [Theory]
-    [InlineData("protected")]
-    [InlineData("private")]
-    [InlineData("private protected")]
-    [InlineData("")]
+    [VerifyTest]
+    [Row("protected")]
+    [Row("private")]
+    [Row("private protected")]
+    [Row("")]
     public void ADecoratorThatGeneratedCodeCannotConstruct_IsReported(string access)
     {
         var result = Run(
@@ -63,18 +62,19 @@ public class IgnoredDecoratorTests
 
         result.AssertNoErrors();
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0025");
-        Assert.Contains("'LoggingClock'", diagnostic.GetMessage());
-        Assert.Contains("no constructor that generated code can call", diagnostic.GetMessage());
-        Assert.DoesNotContain(
-            result.GeneratedSources.Values,
-            s => s.Contains("new global::TestNamespace.LoggingClock")
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0025");
+        Verify(diagnostic.GetMessage().Contains("'LoggingClock'"));
+        Verify(diagnostic.GetMessage().Contains("no constructor that generated code can call"));
+        Verify(
+            !result.GeneratedSources.Values.Any(s =>
+                s.Contains("new global::TestNamespace.LoggingClock")
+            )
         );
     }
 
-    [Theory]
-    [InlineData("internal")]
-    [InlineData("protected internal")]
+    [VerifyTest]
+    [Row("internal")]
+    [Row("protected internal")]
     public void ADecoratorWithAnInternalConstructor_IsApplied(string access)
     {
         var assembly = GeneratedAssembly.Create(
@@ -92,10 +92,10 @@ public class IgnoredDecoratorTests
                 """
         );
 
-        Assert.Equal("logged(now)", Now(assembly));
+        Verify(Now(assembly) == "logged(now)");
     }
 
-    [Fact]
+    [VerifyTest]
     public void ADecoratorThatGetsItsServiceFromABaseClass_IsApplied()
     {
         var assembly = GeneratedAssembly.Create(
@@ -114,10 +114,10 @@ public class IgnoredDecoratorTests
                 """
         );
 
-        Assert.Equal("NOW", Now(assembly));
+        Verify(Now(assembly) == "NOW");
     }
 
-    [Fact]
+    [VerifyTest]
     public void ADecoratorThatGetsItsServiceFromADerivedInterface_IsApplied()
     {
         var assembly = GeneratedAssembly.Create(
@@ -133,10 +133,10 @@ public class IgnoredDecoratorTests
                 """
         );
 
-        Assert.Equal("logged(now)", Now(assembly));
+        Verify(Now(assembly) == "logged(now)");
     }
 
-    [Fact]
+    [VerifyTest]
     public void ADecoratorWithNoService_IsReported()
     {
         var result = Run(
@@ -151,12 +151,12 @@ public class IgnoredDecoratorTests
 
         result.AssertNoErrors();
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0025");
-        Assert.Contains("'Stopwatch'", diagnostic.GetMessage());
-        Assert.Contains("no service to decorate", diagnostic.GetMessage());
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0025");
+        Verify(diagnostic.GetMessage().Contains("'Stopwatch'"));
+        Verify(diagnostic.GetMessage().Contains("no service to decorate"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void ADecoratorWhoseConstructorDoesNotTakeItsService_IsReported()
     {
         var result = Run(
@@ -176,12 +176,12 @@ public class IgnoredDecoratorTests
 
         result.AssertNoErrors();
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0025");
-        Assert.Contains("'TimerClock'", diagnostic.GetMessage());
-        Assert.Contains("'IClock'", diagnostic.GetMessage());
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0025");
+        Verify(diagnostic.GetMessage().Contains("'TimerClock'"));
+        Verify(diagnostic.GetMessage().Contains("'IClock'"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AGenericDecoratorWithReorderedTypeParameters_IsReported()
     {
         var result = GeneratorTestHarness.Run(
@@ -214,12 +214,12 @@ public class IgnoredDecoratorTests
 
         result.AssertNoErrors();
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0025");
-        Assert.Contains("'Swapped'", diagnostic.GetMessage());
-        Assert.Contains("type parameters", diagnostic.GetMessage());
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0025");
+        Verify(diagnostic.GetMessage().Contains("'Swapped'"));
+        Verify(diagnostic.GetMessage().Contains("type parameters"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void ADecoratorThatCanBeApplied_IsNotReported()
     {
         var result = Run(
@@ -233,6 +233,6 @@ public class IgnoredDecoratorTests
         );
 
         result.AssertNoErrors();
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0025");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0025"));
     }
 }

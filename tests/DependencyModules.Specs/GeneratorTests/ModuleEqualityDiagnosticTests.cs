@@ -1,8 +1,7 @@
 using System.Linq;
 using DependencyModules.Tests.Infrastructure;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// DM0018. Modules de-duplicate by type, which is right for a module with no parameters and wrong
@@ -12,16 +11,16 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// The generator has to pick an identity either way. This reports that it picked, so the choice is
 /// the developer's.
 /// </summary>
-public class ModuleEqualityDiagnosticTests
+public partial class ModuleEqualityDiagnosticTests
 {
-    [Fact]
+    [VerifyTest]
     public void ASettableProperty_IsReported()
     {
         var result = Run("public int SizeLimit { get; set; }");
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0018");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0018");
 
-        Assert.Contains("TestModule", diagnostic.GetMessage());
+        Verify(diagnostic.GetMessage().Contains("TestModule"));
     }
 
     /// <summary>
@@ -29,43 +28,43 @@ public class ModuleEqualityDiagnosticTests
     /// <c>public string Value =&gt; "A";</c> has nothing anyone can configure, and the generated
     /// attribute never assigns it — so there is no identity question to answer and nothing to report.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AnExpressionBodiedProperty_IsNotReported()
     {
         var result = Run("""public string Value => "A";""");
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0018");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0018"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AGetOnlyProperty_IsNotReported()
     {
         var result = Run("public string Value { get; } = \"A\";");
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0018");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0018"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AStaticProperty_IsNotReported()
     {
         var result = Run("public static int Shared { get; set; }");
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0018");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0018"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void NoPropertiesAtAll_IsNotReported()
     {
         var result = Run("");
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0018");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0018"));
     }
 
     /// <summary>
     /// Declaring equality is the whole point of the diagnostic, so having done it must silence it.
     /// The generator already stands aside when a module declares its own <c>Equals</c>.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void DeclaringEquals_SilencesIt()
     {
         var result = Run(
@@ -79,11 +78,11 @@ public class ModuleEqualityDiagnosticTests
             """
         );
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0018");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0018"));
     }
 
     /// <summary>A record gets its equality from the language, so it never faces the question.</summary>
-    [Fact]
+    [VerifyTest]
     public void ARecordModule_IsNotReported()
     {
         var result = GeneratorTestHarness.Run(
@@ -99,7 +98,7 @@ public class ModuleEqualityDiagnosticTests
             """
         );
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0018");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0018"));
     }
 
     private static GeneratorResult Run(string body) =>

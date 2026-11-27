@@ -1,8 +1,7 @@
 using DependencyModules.Tests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// Conventions and decorators together.
@@ -14,7 +13,7 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// because an open generic registration cannot be decorated. The error blamed the open generic
 /// limitation, which is a long way from the cause.
 /// </remarks>
-public class ConventionDecoratorTests
+public partial class ConventionDecoratorTests
 {
     private const string Preamble = """
         using System.Collections.Generic;
@@ -60,7 +59,7 @@ public class ConventionDecoratorTests
     /// One open generic decorator over every handler a convention registered — the ordinary MediatR
     /// shape, and the reason this combination has to work.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void OneDecoratorWrapsEveryConventionRegisteredHandler()
     {
         var assembly = Compile(
@@ -89,7 +88,7 @@ public class ConventionDecoratorTests
             );
 
             // Every handler resolves as the decorator, not as the implementation.
-            Assert.Equal("LoggingHandler`2", service.GetType().Name);
+            Verify(service.GetType().Name == "LoggingHandler`2");
 
             service
                 .GetType()
@@ -97,13 +96,13 @@ public class ConventionDecoratorTests
                 .Invoke(service, new[] { Activator.CreateInstance(requestType) });
         }
 
-        Assert.Equal(["handling CreateOrder", "handling RenameOrder"], lines);
+        Verify(lines.SequenceEqual(["handling CreateOrder", "handling RenameOrder"]));
     }
 
     /// <summary>
     /// The decorator itself is not registered as a service.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ADecoratorIsNotAConventionCandidate()
     {
         var assembly = Compile(
@@ -119,15 +118,15 @@ public class ConventionDecoratorTests
 
         // Two handlers, two registrations. The decorator rewrote them in place rather than adding
         // a third, and never registered itself as an open generic.
-        Assert.Equal(2, assembly.Services.Count(d => d.ServiceType.Name == "IRequestHandler`2"));
+        Verify(assembly.Services.Count(d => d.ServiceType.Name == "IRequestHandler`2") == 2);
 
-        Assert.DoesNotContain(assembly.Services, d => d.ServiceType.IsGenericTypeDefinition);
+        Verify(!assembly.Services.Any(d => d.ServiceType.IsGenericTypeDefinition));
     }
 
     /// <summary>
     /// The exclusion is on the declaration, so it holds however the convention selects.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ADecoratorIsExcludedWhenSelectedByFilterRatherThanInterface()
     {
         var assembly = Compile(
@@ -141,16 +140,10 @@ public class ConventionDecoratorTests
             """
         );
 
-        Assert.Contains(
-            assembly.Services,
-            d => d.ServiceType == assembly.Type("CreateOrderHandler")
-        );
-        Assert.Contains(
-            assembly.Services,
-            d => d.ServiceType == assembly.Type("RenameOrderHandler")
-        );
+        Verify(assembly.Services.Any(d => d.ServiceType == assembly.Type("CreateOrderHandler")));
+        Verify(assembly.Services.Any(d => d.ServiceType == assembly.Type("RenameOrderHandler")));
 
         // LoggingHandler ends in "Handler" and would otherwise match.
-        Assert.DoesNotContain(assembly.Services, d => d.ServiceType.Name == "LoggingHandler`2");
+        Verify(!assembly.Services.Any(d => d.ServiceType.Name == "LoggingHandler`2"));
     }
 }

@@ -2,10 +2,9 @@ using System.Linq;
 using DependencyModules.Runtime.Conventions;
 using DependencyModules.Tests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 using GeneratorNames = DependencyModules.Conventions.ConventionContractSource;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// The generator matches convention declarations by name, and the names live in two places.
@@ -22,26 +21,26 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// registers nothing, which is the failure mode this generator exists to prevent everywhere else.
 /// </para>
 /// </remarks>
-public class ConventionContractTests
+public partial class ConventionContractTests
 {
-    [Fact]
+    [VerifyTest]
     public void TheGeneratorLooksForTheNamespaceTheContractsAreDeclaredIn()
     {
-        Assert.Equal(GeneratorNames.Namespace, typeof(IConventionModule).Namespace);
+        Verify(typeof(IConventionModule).Namespace == GeneratorNames.Namespace);
     }
 
-    [Fact]
+    [VerifyTest]
     public void TheGeneratorLooksForTheInterfaceTheContractsDeclare()
     {
-        Assert.Equal(GeneratorNames.ConventionModule, nameof(IConventionModule));
+        Verify(typeof(IConventionModule).Name == GeneratorNames.ConventionModule);
     }
 
-    [Fact]
+    [VerifyTest]
     public void TheGeneratorLooksForTheMethodTheInterfaceDeclares()
     {
-        var method = Assert.Single(typeof(IConventionModule).GetMethods());
+        var method = Single(typeof(IConventionModule).GetMethods());
 
-        Assert.Equal(GeneratorNames.ConventionMethod, method.Name);
+        Verify(method.Name == GeneratorNames.ConventionMethod);
     }
 
     /// <summary>
@@ -52,7 +51,7 @@ public class ConventionContractTests
     /// chain, which the fluent form exists to avoid. Asserted because it is the kind of thing a
     /// hurried addition gets wrong and nothing else would catch.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void EveryRegistrationVerbContinuesTheChain()
     {
         var breaks = typeof(IConventionRegistration)
@@ -61,13 +60,13 @@ public class ConventionContractTests
             .Select(method => method.Name)
             .ToArray();
 
-        Assert.Empty(breaks);
+        Verify(breaks.Length == 0);
     }
 
     /// <summary>
     /// Every entry point produces a registration to continue from.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void EveryRegisterAllOverloadStartsTheChain()
     {
         var breaks = typeof(IConventionDefinitions)
@@ -76,7 +75,7 @@ public class ConventionContractTests
             .Select(method => method.Name)
             .ToArray();
 
-        Assert.Empty(breaks);
+        Verify(breaks.Length == 0);
     }
 
     private const string Preamble = """
@@ -102,7 +101,7 @@ public class ConventionContractTests
     /// The move to <c>DependencyModules.Runtime</c> is what retires that, and this is the assertion
     /// that it stays retired.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void AnImplicitPublicImplementationDeclaresConventions()
     {
         var assembly = GeneratedAssembly.Create(
@@ -119,16 +118,15 @@ public class ConventionContractTests
 
         var provider = assembly.BuildProvider();
 
-        Assert.Equal(
-            "hello",
-            ((dynamic)provider.GetRequiredService(assembly.Type("IGreeter"))).Greet()
-        );
+        string greeting = ((dynamic)provider.GetRequiredService(assembly.Type("IGreeter"))).Greet();
+
+        Verify(greeting == "hello");
     }
 
     /// <summary>
     /// The explicit form still compiles and still registers, so nobody has to rewrite anything.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void TheExplicitImplementationStillDeclaresConventions()
     {
         var assembly = GeneratedAssembly.Create(
@@ -145,9 +143,8 @@ public class ConventionContractTests
 
         var provider = assembly.BuildProvider();
 
-        Assert.Equal(
-            "hello",
-            ((dynamic)provider.GetRequiredService(assembly.Type("IGreeter"))).Greet()
-        );
+        string greeting = ((dynamic)provider.GetRequiredService(assembly.Type("IGreeter"))).Greet();
+
+        Verify(greeting == "hello");
     }
 }

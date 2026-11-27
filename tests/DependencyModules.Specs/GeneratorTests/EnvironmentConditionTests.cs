@@ -1,9 +1,8 @@
 using DependencyModules.Runtime;
 using DependencyModules.Runtime.Interfaces;
 using DependencyModules.Tests.Infrastructure;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// Behavioural tests for environment-conditional registration.
@@ -13,7 +12,7 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// actually in the collection. A condition emitted into the wrong branch still produces plausible
 /// generated text, so text assertions would pass while the service registered in production.
 /// </remarks>
-public class EnvironmentConditionTests
+public partial class EnvironmentConditionTests
 {
     private const string Preamble = """
         using System;
@@ -52,12 +51,12 @@ public class EnvironmentConditionTests
         public partial class TestModule;
         """;
 
-    [Theory]
-    [InlineData("Development", true)]
-    [InlineData("Staging", true)]
-    [InlineData("development", true)]
-    [InlineData("Production", false)]
-    [InlineData("", false)]
+    [VerifyTest]
+    [Row("Development", true)]
+    [Row("Staging", true)]
+    [Row("development", true)]
+    [Row("Production", false)]
+    [Row("", false)]
     public void IfEnvironmentRegistersOnlyInTheNamedEnvironments(
         string environmentName,
         bool expected
@@ -65,10 +64,10 @@ public class EnvironmentConditionTests
     {
         var assembly = Compile(NameGated + Module, Env(environmentName));
 
-        Assert.Equal(expected, assembly.Descriptors("IEmailSender").Count == 1);
+        Verify((assembly.Descriptors("IEmailSender").Count == 1) == expected);
     }
 
-    [Fact]
+    [VerifyTest]
     public void IfNotEnvironmentRegistersEverywhereElse()
     {
         const string source = """
@@ -79,11 +78,11 @@ public class EnvironmentConditionTests
             public class RequestProfiler : IProfiler { }
             """;
 
-        Assert.Single(Compile(source + Module, Env("Development")).Descriptors("IProfiler"));
-        Assert.Empty(Compile(source + Module, Env("Production")).Descriptors("IProfiler"));
+        Single(Compile(source + Module, Env("Development")).Descriptors("IProfiler"));
+        Verify(Compile(source + Module, Env("Production")).Descriptors("IProfiler").Count == 0);
     }
 
-    [Fact]
+    [VerifyTest]
     public void IfEnvironmentValueTestsPresenceWhenGivenOnlyAKey()
     {
         const string source = """
@@ -94,20 +93,20 @@ public class EnvironmentConditionTests
             public class Billing : IBilling { }
             """;
 
-        Assert.Single(
+        Single(
             Compile(source + Module, Env("Any", ("FEATURE_BILLING", "anything")))
                 .Descriptors("IBilling")
         );
 
         // Set to empty is still set; only absence is absence.
-        Assert.Single(
+        Single(
             Compile(source + Module, Env("Any", ("FEATURE_BILLING", ""))).Descriptors("IBilling")
         );
 
-        Assert.Empty(Compile(source + Module, Env("Any")).Descriptors("IBilling"));
+        Verify(Compile(source + Module, Env("Any")).Descriptors("IBilling").Count == 0);
     }
 
-    [Fact]
+    [VerifyTest]
     public void IfEnvironmentValueComparesTheValueExactly()
     {
         const string source = """
@@ -118,14 +117,18 @@ public class EnvironmentConditionTests
             public class Billing : IBilling { }
             """;
 
-        Assert.Single(Compile(source + Module, Env("Any", ("MODE", "on"))).Descriptors("IBilling"));
+        Single(Compile(source + Module, Env("Any", ("MODE", "on"))).Descriptors("IBilling"));
 
         // Values are data, so unlike environment names they are compared ordinally.
-        Assert.Empty(Compile(source + Module, Env("Any", ("MODE", "On"))).Descriptors("IBilling"));
-        Assert.Empty(Compile(source + Module, Env("Any", ("MODE", "off"))).Descriptors("IBilling"));
+        Verify(
+            Compile(source + Module, Env("Any", ("MODE", "On"))).Descriptors("IBilling").Count == 0
+        );
+        Verify(
+            Compile(source + Module, Env("Any", ("MODE", "off"))).Descriptors("IBilling").Count == 0
+        );
     }
 
-    [Fact]
+    [VerifyTest]
     public void ConditionsOfDifferentKindsCombineWithAnd()
     {
         const string source = """
@@ -137,18 +140,19 @@ public class EnvironmentConditionTests
             public class Thing : IThing { }
             """;
 
-        Assert.Single(
-            Compile(source + Module, Env("Development", ("MODE", "on"))).Descriptors("IThing")
+        Single(Compile(source + Module, Env("Development", ("MODE", "on"))).Descriptors("IThing"));
+        Verify(
+            Compile(source + Module, Env("Development", ("MODE", "off")))
+                .Descriptors("IThing")
+                .Count == 0
         );
-        Assert.Empty(
-            Compile(source + Module, Env("Development", ("MODE", "off"))).Descriptors("IThing")
-        );
-        Assert.Empty(
-            Compile(source + Module, Env("Production", ("MODE", "on"))).Descriptors("IThing")
+        Verify(
+            Compile(source + Module, Env("Production", ("MODE", "on"))).Descriptors("IThing").Count
+                == 0
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void SeveralValueConditionsAllHaveToHold()
     {
         const string source = """
@@ -160,10 +164,8 @@ public class EnvironmentConditionTests
             public class Thing : IThing { }
             """;
 
-        Assert.Single(
-            Compile(source + Module, Env("Any", ("A", "1"), ("B", "2"))).Descriptors("IThing")
-        );
-        Assert.Empty(Compile(source + Module, Env("Any", ("A", "1"))).Descriptors("IThing"));
+        Single(Compile(source + Module, Env("Any", ("A", "1"), ("B", "2"))).Descriptors("IThing"));
+        Verify(Compile(source + Module, Env("Any", ("A", "1"))).Descriptors("IThing").Count == 0);
     }
 
     /// <summary>
@@ -178,7 +180,7 @@ public class EnvironmentConditionTests
     /// The names are deliberate. Service models are emitted in name order, so "Fake" sorts before
     /// "Smtp" and the default would land last and win in every environment.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void AConditionalRegistrationOverridesAnUnconditionalDefault()
     {
         const string source = """
@@ -195,21 +197,21 @@ public class EnvironmentConditionTests
         var development = Compile(source + Module, Env("Development"));
         var production = Compile(source + Module, Env("Production"));
 
-        Assert.Equal(
-            development.Type("FakeEmailSender"),
+        Verify(
             development.BuildProvider().GetService(development.Type("IEmailSender"))!.GetType()
+                == development.Type("FakeEmailSender")
         );
 
-        Assert.Equal(
-            production.Type("SmtpEmailSender"),
+        Verify(
             production.BuildProvider().GetService(production.Type("IEmailSender"))!.GetType()
+                == production.Type("SmtpEmailSender")
         );
     }
 
     /// <summary>
     /// The motivating case: one service type, two implementations, exactly one registered.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void TwoImplementationsOfOneServiceSelectByEnvironment()
     {
         const string source = """
@@ -227,17 +229,17 @@ public class EnvironmentConditionTests
         var development = Compile(source + Module, Env("Development"));
         var production = Compile(source + Module, Env("Production"));
 
-        Assert.Equal(
-            development.Type("FakeEmailSender"),
+        Verify(
             development.Descriptor("IEmailSender").ImplementationType
+                == development.Type("FakeEmailSender")
         );
-        Assert.Equal(
-            production.Type("SmtpEmailSender"),
+        Verify(
             production.Descriptor("IEmailSender").ImplementationType
+                == production.Type("SmtpEmailSender")
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void UnconditionalServicesInTheSameModuleAreUnaffected()
     {
         const string source = """
@@ -254,16 +256,16 @@ public class EnvironmentConditionTests
 
         var production = Compile(source + Module, Env("Production"));
 
-        Assert.Single(production.Descriptors("IAlways"));
-        Assert.Empty(production.Descriptors("ISometimes"));
+        Single(production.Descriptors("IAlways"));
+        Verify(production.Descriptors("ISometimes").Count == 0);
     }
 
-    [Fact]
+    [VerifyTest]
     public void ModuleEnvironmentNoneRegistersNothingConditional()
     {
         var assembly = Compile(NameGated + Module, ModuleEnvironment.None);
 
-        Assert.Empty(assembly.Descriptors("IEmailSender"));
+        Verify(assembly.Descriptors("IEmailSender").Count == 0);
     }
 
     /// <summary>
@@ -274,15 +276,14 @@ public class EnvironmentConditionTests
     /// that this does not depend on what the variables happen to be while the suite runs — which
     /// ModuleEnvironmentDefaultNameTests moves on purpose.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void NoEnvironmentSuppliedUsesTheProcessEnvironment()
     {
         var supplied = Compile(NameGated + Module, ModuleEnvironment.CreateDefault());
         var omitted = Compile(NameGated + Module, environment: null);
 
-        Assert.Equal(
-            supplied.Descriptors("IEmailSender").Count,
-            omitted.Descriptors("IEmailSender").Count
+        Verify(
+            omitted.Descriptors("IEmailSender").Count == supplied.Descriptors("IEmailSender").Count
         );
     }
 
@@ -300,9 +301,9 @@ public class EnvironmentConditionTests
     /// A condition says "instead of my other registration, here". It does not say "instead of
     /// yours".
     /// </remarks>
-    [Theory]
-    [InlineData("Development")]
-    [InlineData("Production")]
+    [VerifyTest]
+    [Row("Development")]
+    [Row("Production")]
     public void AReferencedModuleConditionalDoesNotOverrideTheReferencingModule(
         string environmentName
     )
@@ -327,9 +328,9 @@ public class EnvironmentConditionTests
 
         var assembly = Compile(source, Env(environmentName));
 
-        Assert.Equal(
-            assembly.Type("ApplicationOwn"),
+        Verify(
             assembly.BuildProvider().GetService(assembly.Type("IEmailSender"))!.GetType()
+                == assembly.Type("ApplicationOwn")
         );
     }
 
@@ -337,9 +338,9 @@ public class EnvironmentConditionTests
     /// The direction that has to work: a referenced module registers the default, and the
     /// application conditionally overrides it.
     /// </summary>
-    [Theory]
-    [InlineData("Development", "ApplicationFake")]
-    [InlineData("Production", "LibrarySmtp")]
+    [VerifyTest]
+    [Row("Development", "ApplicationFake")]
+    [Row("Production", "LibrarySmtp")]
     public void AnApplicationConditionalOverridesAReferencedModuleDefault(
         string environmentName,
         string expected
@@ -365,9 +366,9 @@ public class EnvironmentConditionTests
 
         var assembly = Compile(source, Env(environmentName));
 
-        Assert.Equal(
-            assembly.Type(expected),
+        Verify(
             assembly.BuildProvider().GetService(assembly.Type("IEmailSender"))!.GetType()
+                == assembly.Type(expected)
         );
     }
 
@@ -375,7 +376,7 @@ public class EnvironmentConditionTests
     /// A conditional registration is additive: it shadows the default for a single resolve, and
     /// both are still in the enumerable.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AConditionalOverrideLeavesTheDefaultInTheEnumerable()
     {
         const string source = """
@@ -391,14 +392,14 @@ public class EnvironmentConditionTests
 
         var assembly = Compile(source + Module, Env("Development"));
 
-        Assert.Equal(2, assembly.Descriptors("IEmailSender").Count);
+        Verify(assembly.Descriptors("IEmailSender").Count == 2);
     }
 
     /// <summary>
     /// "When" and "how" are separate. A condition says when a registration happens; Using says what
     /// kind of registration it is, and the two compose.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AConditionCombinesWithReplace()
     {
         const string source = """
@@ -415,30 +416,30 @@ public class EnvironmentConditionTests
         var development = Compile(source + Module, Env("Development"));
         var production = Compile(source + Module, Env("Production"));
 
-        Assert.Single(development.Descriptors("IEmailSender"));
-        Assert.Equal(
-            development.Type("FakeEmailSender"),
+        Single(development.Descriptors("IEmailSender"));
+        Verify(
             development.Descriptor("IEmailSender").ImplementationType
+                == development.Type("FakeEmailSender")
         );
 
-        Assert.Single(production.Descriptors("IEmailSender"));
-        Assert.Equal(
-            production.Type("SmtpEmailSender"),
+        Single(production.Descriptors("IEmailSender"));
+        Verify(
             production.Descriptor("IEmailSender").ImplementationType
+                == production.Type("SmtpEmailSender")
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void ConditionsAreReportedAtBuildTime()
     {
         var result = GeneratorTestHarness.Run(Preamble + NameGated + Module);
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0011");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0011");
 
-        Assert.Contains("Development or Staging", diagnostic.GetMessage());
+        Verify(diagnostic.GetMessage().Contains("Development or Staging"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void UnconditionalServicesReportNothing()
     {
         const string source = """
@@ -450,13 +451,13 @@ public class EnvironmentConditionTests
 
         var result = GeneratorTestHarness.Run(Preamble + source + Module);
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id is "DM0011" or "DM0012");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id is "DM0011" or "DM0012"));
     }
 
-    [Theory]
-    [InlineData("[IfEnvironment]", "environment name")]
-    [InlineData("[IfNotEnvironment]", "environment name")]
-    [InlineData("[IfEnvironmentValue(\"\")]", "key")]
+    [VerifyTest]
+    [Row("[IfEnvironment]", "environment name")]
+    [Row("[IfNotEnvironment]", "environment name")]
+    [Row("[IfEnvironmentValue(\"\")]", "key")]
     public void AConditionThatTestsNothingIsRefused(string attribute, string expectedKind)
     {
         var source = $$"""
@@ -469,19 +470,19 @@ public class EnvironmentConditionTests
 
         var result = GeneratorTestHarness.Run(Preamble + source + Module);
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0012");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0012");
 
-        Assert.Contains(expectedKind, diagnostic.GetMessage());
+        Verify(diagnostic.GetMessage().Contains(expectedKind));
 
         // Reported, not silently dropped: the service still registers rather than vanishing.
-        Assert.Single(
+        Single(
             GeneratedAssembly
                 .Create(Preamble + source + Module, environment: ModuleEnvironment.None)
                 .Descriptors("IThing")
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void AConditionThatTestsNothingOnAConventionClassIsRefused()
     {
         var result = GeneratorTestHarness.Run(
@@ -507,12 +508,12 @@ public class EnvironmentConditionTests
             """
         );
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0012");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0012");
 
-        Assert.Contains("EmptyRule", diagnostic.GetMessage());
+        Verify(diagnostic.GetMessage().Contains("EmptyRule"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AConditionThatTestsNothingOnADecoratorIsRefused()
     {
         var result = GeneratorTestHarness.Run(
@@ -530,16 +531,16 @@ public class EnvironmentConditionTests
                 + Module
         );
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0012");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0012");
 
-        Assert.Contains("LoggingThing", diagnostic.GetMessage());
+        Verify(diagnostic.GetMessage().Contains("LoggingThing"));
     }
 
     /// <summary>
     /// A const rather than a literal has to read as the string it evaluates to, or a codebase that
     /// keeps its environment names in one place would silently never match.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ConditionArgumentsMayBeConstants()
     {
         const string source = """
@@ -554,8 +555,8 @@ public class EnvironmentConditionTests
             public class Thing : IThing { }
             """;
 
-        Assert.Single(Compile(source + Module, Env("Development")).Descriptors("IThing"));
-        Assert.Empty(Compile(source + Module, Env("Production")).Descriptors("IThing"));
+        Single(Compile(source + Module, Env("Development")).Descriptors("IThing"));
+        Verify(Compile(source + Module, Env("Production")).Descriptors("IThing").Count == 0);
     }
 
     /// <summary>
@@ -563,7 +564,7 @@ public class EnvironmentConditionTests
     /// A namespace-qualified usage silently matching nothing is a bug this generator has had once
     /// already, and here it would register a development service in production.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ANamespaceQualifiedConditionStillApplies()
     {
         const string source = """
@@ -574,7 +575,7 @@ public class EnvironmentConditionTests
             public class Thing : IThing { }
             """;
 
-        Assert.Single(Compile(source + Module, Env("Development")).Descriptors("IThing"));
-        Assert.Empty(Compile(source + Module, Env("Production")).Descriptors("IThing"));
+        Single(Compile(source + Module, Env("Development")).Descriptors("IThing"));
+        Verify(Compile(source + Module, Env("Production")).Descriptors("IThing").Count == 0);
     }
 }

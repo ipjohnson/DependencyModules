@@ -1,7 +1,6 @@
 using DependencyModules.Tests.Infrastructure;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// Snapshots of the generator's full output. These exist to make any change to generated code
@@ -9,12 +8,12 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// lands in every consumer's build.
 ///
 /// To accept intentional changes:
-///     UPDATE_SNAPSHOTS=1 dotnet test tests/DependencyModules.Tests
-/// then review the diff under tests/DependencyModules.Tests/Snapshots.
+///     UPDATE_SNAPSHOTS=1 scripts/test-verificationglue.sh
+/// then review the diff under tests/DependencyModules.Specs/Snapshots.
 /// </summary>
-public class ModuleGenerationSnapshotTests
+public partial class ModuleGenerationSnapshotTests
 {
-    [Fact]
+    [VerifyTest]
     public void SimpleModule()
     {
         var result = GeneratorTestHarness.Run(
@@ -46,7 +45,7 @@ public class ModuleGenerationSnapshotTests
     /// emitted after it, because the container resolves a single service from the last matching
     /// descriptor and the conditional registration is the override.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ModuleWithEnvironmentConditions()
     {
         var result = GeneratorTestHarness.Run(
@@ -83,7 +82,7 @@ public class ModuleGenerationSnapshotTests
         Snapshot.Match(result.ToSnapshot());
     }
 
-    [Fact]
+    [VerifyTest]
     public void ModuleWithAllServiceLifetimes()
     {
         var result = GeneratorTestHarness.Run(
@@ -114,7 +113,7 @@ public class ModuleGenerationSnapshotTests
         Snapshot.Match(result.ToSnapshot());
     }
 
-    [Fact]
+    [VerifyTest]
     public void ModuleWithConstructorParametersAndProperties()
     {
         var result = GeneratorTestHarness.Run(
@@ -144,7 +143,7 @@ public class ModuleGenerationSnapshotTests
         Snapshot.Match(result.ToSnapshot());
     }
 
-    [Fact]
+    [VerifyTest]
     public void KeyedAndAsRegistrations()
     {
         var result = GeneratorTestHarness.Run(
@@ -171,7 +170,7 @@ public class ModuleGenerationSnapshotTests
         Snapshot.Match(result.ToSnapshot());
     }
 
-    [Fact]
+    [VerifyTest]
     public void RegistrationTypeVariants()
     {
         var result = GeneratorTestHarness.Run(
@@ -202,7 +201,7 @@ public class ModuleGenerationSnapshotTests
         Snapshot.Match(result.ToSnapshot());
     }
 
-    [Fact]
+    [VerifyTest]
     public void RecordModule()
     {
         var result = GeneratorTestHarness.Run(
@@ -225,7 +224,7 @@ public class ModuleGenerationSnapshotTests
         Snapshot.Match(result.ToSnapshot());
     }
 
-    [Fact]
+    [VerifyTest]
     public void GenericServiceRegistrations()
     {
         var result = GeneratorTestHarness.Run(
@@ -251,7 +250,7 @@ public class ModuleGenerationSnapshotTests
         Snapshot.Match(result.ToSnapshot());
     }
 
-    [Fact]
+    [VerifyTest]
     public void ModuleWithCoverageExclusionDisabled()
     {
         var result = GeneratorTestHarness.Run(

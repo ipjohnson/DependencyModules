@@ -2,17 +2,16 @@ using DependencyModules.Runtime;
 using DependencyModules.Tests.Infrastructure;
 using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// Decoration verified by resolving from a real container built from generated code, rather than by
 /// matching the generated text. The registrations are the point; their shape is not.
 /// </summary>
-public class DecoratorGenerationTests
+public partial class DecoratorGenerationTests
 {
-    [Fact]
+    [VerifyTest]
     public void Decorator_WrapsTheRegisteredImplementation()
     {
         var generated = GeneratedAssembly.Create(
@@ -26,10 +25,10 @@ public class DecoratorGenerationTests
             )
         );
 
-        Assert.Equal("HELLO", Greet(generated));
+        Verify(Greet(generated) == "HELLO");
     }
 
-    [Fact]
+    [VerifyTest]
     public void Decorator_PreservesTheServiceLifetime()
     {
         var generated = GeneratedAssembly.Create(
@@ -43,13 +42,13 @@ public class DecoratorGenerationTests
             )
         );
 
-        Assert.Equal(ServiceLifetime.Singleton, generated.Descriptor("IGreeter").Lifetime);
+        Verify(generated.Descriptor("IGreeter").Lifetime == ServiceLifetime.Singleton);
     }
 
     /// <summary>
     /// Lower order sits closer to the implementation, so the higher-order decorator is outermost.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void Decorators_NestByAscendingOrder()
     {
         var generated = GeneratedAssembly.Create(
@@ -68,10 +67,10 @@ public class DecoratorGenerationTests
             )
         );
 
-        Assert.Equal("outer(inner(hello))", Greet(generated));
+        Verify(Greet(generated) == "outer(inner(hello))");
     }
 
-    [Fact]
+    [VerifyTest]
     public void Decorator_ReceivesItsOwnDependencies()
     {
         var generated = GeneratedAssembly.Create(
@@ -90,10 +89,10 @@ public class DecoratorGenerationTests
             )
         );
 
-        Assert.Equal("pre-hello", Greet(generated));
+        Verify(Greet(generated) == "pre-hello");
     }
 
-    [Fact]
+    [VerifyTest]
     public void OpenGenericDecorator_WrapsEveryClosedRegistration()
     {
         var generated = GeneratedAssembly.Create(
@@ -123,13 +122,13 @@ public class DecoratorGenerationTests
         var provider = generated.BuildProvider();
         var handler = generated.Type("IHandler`1");
 
-        Assert.Equal(
-            "validated(string)",
+        Verify(
             Invoke(provider.GetService(handler.MakeGenericType(typeof(string)))!, "Handle")
+                == "validated(string)"
         );
-        Assert.Equal(
-            "validated(int)",
+        Verify(
             Invoke(provider.GetService(handler.MakeGenericType(typeof(int)))!, "Handle")
+                == "validated(int)"
         );
     }
 
@@ -147,7 +146,7 @@ public class DecoratorGenerationTests
     /// as one, so there is nothing to emit and nothing to refuse at composition either.
     /// </para>
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void OpenGenericRegistration_IsNotDecorated()
     {
         var result = GeneratorTestHarness.Run(
@@ -173,18 +172,19 @@ public class DecoratorGenerationTests
 
         // Nothing is emitted for it, so the registration stands undecorated rather than the
         // provider throwing when it is built.
-        Assert.Empty(result.Errors);
+        Verify(!result.Errors.Any());
 
-        Assert.DoesNotContain(
-            result.GeneratedSources,
-            source => source.Key.Contains("Decorators") && source.Value.Contains("LoggingRepo")
+        Verify(
+            !result.GeneratedSources.Any(source =>
+                source.Key.Contains("Decorators") && source.Value.Contains("LoggingRepo")
+            )
         );
     }
 
     /// <summary>
     /// The way through, end to end: a closed construction of the generic service is decorated.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ClosedConstructionOfAGenericService_IsDecorated()
     {
         var generated = GeneratedAssembly.Create(
@@ -215,10 +215,10 @@ public class DecoratorGenerationTests
             generated.Type("IRepo`1").MakeGenericType(typeof(string))
         )!;
 
-        Assert.Equal("logged(repo)", Invoke(resolved, "Name"));
+        Verify(Invoke(resolved, "Name") == "logged(repo)");
     }
 
-    [Fact]
+    [VerifyTest]
     public void ModuleLevelDecorate_WrapsAServiceTheModuleDoesNotDeclare()
     {
         var generated = GeneratedAssembly.Create(
@@ -242,10 +242,10 @@ public class DecoratorGenerationTests
             """
         );
 
-        Assert.Equal("HELLO", Greet(generated));
+        Verify(Greet(generated) == "HELLO");
     }
 
-    [Fact]
+    [VerifyTest]
     public void Decorator_WithExplicitService_UsesIt()
     {
         var generated = GeneratedAssembly.Create(
@@ -259,21 +259,21 @@ public class DecoratorGenerationTests
             )
         );
 
-        Assert.Equal("HELLO", Greet(generated));
+        Verify(Greet(generated) == "HELLO");
     }
 
-    [Fact]
+    [VerifyTest]
     public void NoDecorator_LeavesTheServiceAlone()
     {
         var generated = GeneratedAssembly.Create(Module(""));
 
-        Assert.Equal("hello", Greet(generated));
+        Verify(Greet(generated) == "hello");
     }
 
     /// <summary>
     /// Two decorators of one service with the same order would nest in an order nobody declared.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void DecoratorsSharingAnOrder_ReportDM0007()
     {
         var result = GeneratorTestHarness.Run(
@@ -292,13 +292,13 @@ public class DecoratorGenerationTests
             )
         );
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0007");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0007");
 
-        Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
-        Assert.Contains("IGreeter", diagnostic.GetMessage());
+        Verify(diagnostic.Severity == DiagnosticSeverity.Error);
+        Verify(diagnostic.GetMessage().Contains("IGreeter"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void DecoratorsWithDistinctOrders_ReportNothing()
     {
         var result = GeneratorTestHarness.Run(
@@ -318,7 +318,7 @@ public class DecoratorGenerationTests
         );
 
         result.AssertNoErrors();
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0007");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0007"));
     }
 
     /// <summary>
@@ -328,9 +328,9 @@ public class DecoratorGenerationTests
     /// The attribute compiled and read as intentional while doing nothing at all — decoration never
     /// looked at conditions, so a Development-only decorator wrapped the service in production too.
     /// </remarks>
-    [Theory]
-    [InlineData("Development", "HELLO")]
-    [InlineData("Production", "hello")]
+    [VerifyTest]
+    [Row("Development", "HELLO")]
+    [Row("Production", "hello")]
     public void Decorator_AppliesOnlyWhenItsEnvironmentConditionHolds(
         string environmentName,
         string expected
@@ -349,12 +349,12 @@ public class DecoratorGenerationTests
             environment: new ModuleEnvironment(environmentName)
         );
 
-        Assert.Equal(expected, Greet(generated));
+        Verify(Greet(generated) == expected);
     }
 
-    [Theory]
-    [InlineData("on", "HELLO")]
-    [InlineData("off", "hello")]
+    [VerifyTest]
+    [Row("on", "HELLO")]
+    [Row("off", "hello")]
     public void Decorator_HonoursValueConditions(string flag, string expected)
     {
         var generated = GeneratedAssembly.Create(
@@ -370,13 +370,13 @@ public class DecoratorGenerationTests
             environment: new ModuleEnvironment(false, "Development") { { "LOUD", flag } }
         );
 
-        Assert.Equal(expected, Greet(generated));
+        Verify(Greet(generated) == expected);
     }
 
     /// <summary>
     /// A condition changes whether a decorator applies, never where it sits in the nesting.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void Decorator_ConditionDoesNotDisturbOrdering()
     {
         var generated = GeneratedAssembly.Create(
@@ -397,14 +397,14 @@ public class DecoratorGenerationTests
             environment: new ModuleEnvironment("Development")
         );
 
-        Assert.Equal("outer(inner(hello))", Greet(generated));
+        Verify(Greet(generated) == "outer(inner(hello))");
     }
 
     /// <summary>
     /// The unconditional decorator still applies when the conditional one drops out, rather than
     /// the whole chain going with it.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void Decorator_UnconditionalOneSurvivesWhenAConditionalOneDoesNot()
     {
         var generated = GeneratedAssembly.Create(
@@ -425,7 +425,7 @@ public class DecoratorGenerationTests
             environment: new ModuleEnvironment("Production")
         );
 
-        Assert.Equal("outer(hello)", Greet(generated));
+        Verify(Greet(generated) == "outer(hello)");
     }
 
     private static string Greet(GeneratedAssembly generated) =>
@@ -474,7 +474,7 @@ public class DecoratorGenerationTests
     /// dependency contributes, because a type check would pass either way.
     /// </para>
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void Decorator_ResolvesAKeyedDependencyFromTheKeyItDeclares()
     {
         var assembly = GeneratedAssembly.Create(
@@ -514,13 +514,13 @@ public class DecoratorGenerationTests
         var greeter = assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter"));
 
         // "hello?" is what ignoring the key produces: the right type, the wrong instance, no error.
-        Assert.Equal("hello.", ((dynamic)greeter).Greet());
+        Verify((string)((dynamic)greeter).Greet() == "hello.");
     }
 
     /// <summary>
     /// A nullable dependency the container does not have resolves to null rather than throwing.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void Decorator_ResolvesAnOptionalDependencyToNull()
     {
         var assembly = GeneratedAssembly.Create(
@@ -548,7 +548,7 @@ public class DecoratorGenerationTests
 
         var greeter = assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter"));
 
-        Assert.Equal("hello (unaudited)", ((dynamic)greeter).Greet());
+        Verify((string)((dynamic)greeter).Greet() == "hello (unaudited)");
     }
 
     /// <summary>
@@ -564,7 +564,7 @@ public class DecoratorGenerationTests
     /// generated <c>new</c> proves the constructor was actually read, and only the key proves each
     /// parameter was resolved on the terms it declares.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void ModuleLevelDecorate_ConstructsTheDecoratorFromItsResolvedConstructor()
     {
         var assembly = GeneratedAssembly.Create(
@@ -602,7 +602,7 @@ public class DecoratorGenerationTests
 
         var greeter = assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter"));
 
-        Assert.Equal("hello.", ((dynamic)greeter).Greet());
+        Verify((string)((dynamic)greeter).Greet() == "hello.");
     }
 
     /// <summary>
@@ -613,7 +613,7 @@ public class DecoratorGenerationTests
     /// emit. The alternative was a reflective call that resolved under a JIT and threw in a
     /// published application.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void ModuleLevelDecorate_WithNoPublicConstructor_IsNotDecorated()
     {
         var result = GeneratorTestHarness.Run(
@@ -641,11 +641,12 @@ public class DecoratorGenerationTests
 
         // Generated code constructs the decorator, so a private constructor means there is nothing
         // to emit. The build stays green and the service resolves undecorated.
-        Assert.Empty(result.Errors);
+        Verify(!result.Errors.Any());
 
-        Assert.DoesNotContain(
-            result.GeneratedSources,
-            source => source.Value.Contains("new global::TestNamespace.HiddenGreeter")
+        Verify(
+            !result.GeneratedSources.Any(source =>
+                source.Value.Contains("new global::TestNamespace.HiddenGreeter")
+            )
         );
     }
 
@@ -687,7 +688,7 @@ public class DecoratorGenerationTests
     /// The parameter <i>attributes</i> have to survive that rebuild, and losing them is silent: the
     /// decorator resolves the unkeyed registration, which is the right type and the wrong instance.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void GenericDecorator_KeyedDependencySurvivesTypeSubstitution()
     {
         var assembly = GeneratedAssembly.Create(
@@ -732,13 +733,13 @@ public class DecoratorGenerationTests
         var lines = (System.Collections.Generic.List<string>)
             assembly.Type("Log").GetField("Lines")!.GetValue(null)!;
 
-        Assert.Equal(["."], lines);
+        Verify(lines.SequenceEqual(["."]));
     }
 
     /// <summary>
     /// A generic decorator's optional dependency resolves to null rather than throwing.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void GenericDecorator_OptionalDependencyResolvesToNull()
     {
         var assembly = GeneratedAssembly.Create(
@@ -768,7 +769,7 @@ public class DecoratorGenerationTests
                 handler.MakeGenericType(assembly.Type("Create"), assembly.Type("Id"))
             );
 
-        Assert.False((bool)resolved.GetType().GetProperty("Audited")!.GetValue(resolved)!);
+        Verify(!(bool)resolved.GetType().GetProperty("Audited")!.GetValue(resolved)!);
     }
 
     /// <summary>
@@ -779,7 +780,7 @@ public class DecoratorGenerationTests
     /// only the top-level parameter types and not their arguments produces code that does not
     /// compile, which is the failure this pins.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void GenericDecorator_ClosesADependencyOverItsOwnTypeParameters()
     {
         var assembly = GeneratedAssembly.Create(
@@ -813,7 +814,9 @@ public class DecoratorGenerationTests
                 handler.MakeGenericType(assembly.Type("Create"), assembly.Type("Id"))
             );
 
-        Assert.Equal("create", resolved.GetType().GetProperty("ValidatorName")!.GetValue(resolved));
+        Verify(
+            Equals(resolved.GetType().GetProperty("ValidatorName")!.GetValue(resolved), "create")
+        );
     }
 
     /// <summary>
@@ -824,7 +827,7 @@ public class DecoratorGenerationTests
     /// open-generic runtime call had to go. Under a JIT it passes either way, so this asserts the
     /// shape rather than the outcome: the emitted call must name the closed decorator.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void GenericDecorator_ClosesOverAValueTypeArgument()
     {
         var result = GeneratorTestHarness.Run(
@@ -842,28 +845,29 @@ public class DecoratorGenerationTests
                 """
         );
 
-        Assert.Empty(result.Errors);
+        Verify(!result.Errors.Any());
 
-        var decorators = Assert
-            .Single(result.GeneratedSources, source => source.Key.Contains("Decorators"))
-            .Value;
+        var decorators = Single(
+            result.GeneratedSources,
+            source => source.Key.Contains("Decorators")
+        ).Value;
 
         // One closed call per registration, each naming the decorator closed over the same
         // arguments — including the value-type one, which is the instantiation Native AOT cannot
         // produce at run time and the reason the open-generic call had to go.
-        Assert.True(
+        Verify(
             System.Text.RegularExpressions.Regex.Matches(decorators, "Decorate<").Count == 2,
             "expected one closed Decorate call per registration, got:\n" + decorators
         );
 
         // Nothing is closed at run time any more.
-        Assert.DoesNotContain("IHandler<,>", decorators);
+        Verify(!decorators.Contains("IHandler<,>"));
     }
 
     /// <summary>
     /// Two generic decorators over one service nest in their declared order.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void GenericDecorators_StackInOrder()
     {
         var assembly = GeneratedAssembly.Create(
@@ -902,7 +906,7 @@ public class DecoratorGenerationTests
             assembly.Type("Log").GetField("Lines")!.GetValue(null)!;
 
         // Higher order wraps further out, so it runs first.
-        Assert.Equal(["outer", "inner"], lines);
+        Verify(lines.SequenceEqual(["outer", "inner"]));
     }
 
     /// <summary>
@@ -915,7 +919,7 @@ public class DecoratorGenerationTests
     /// implementation behind it is wrapped twice — two log lines per call, no exception, nothing in
     /// the build.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void GenericDecorator_RegisteredByBothPaths_IsAppliedOnce()
     {
         var assembly = GeneratedAssembly.Create(
@@ -973,7 +977,7 @@ public class DecoratorGenerationTests
             assembly.Type("Log").GetField("Lines")!.GetValue(null)!;
 
         // Two registrations, one decoration each — not two each.
-        Assert.Equal(2, lines.Count);
+        Verify(lines.Count == 2);
     }
 
     // ------------------------------------------------------------------------------------------
@@ -990,7 +994,7 @@ public class DecoratorGenerationTests
     /// well. Picking the greediest instead compiles and resolves — it just builds the decorator a
     /// different way than the author asked for, which nothing would report.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void Decorator_HonoursTheConstructorItMarked()
     {
         var assembly = GeneratedAssembly.Create(
@@ -1026,9 +1030,9 @@ public class DecoratorGenerationTests
             """
         );
 
-        Assert.Equal(
-            "hello:marked",
+        Verify(
             Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet")
+                == "hello:marked"
         );
     }
 
@@ -1039,7 +1043,7 @@ public class DecoratorGenerationTests
     /// An <c>IServiceProvider</c> parameter is the provider, not something to resolve from it.
     /// Resolving it would work by accident on Microsoft's container and is wrong in principle.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void Decorator_TakingTheProviderGetsTheProvider()
     {
         var assembly = GeneratedAssembly.Create(
@@ -1069,9 +1073,9 @@ public class DecoratorGenerationTests
             """
         );
 
-        Assert.Equal(
-            "hello!",
+        Verify(
             Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet")
+                == "hello!"
         );
     }
 
@@ -1083,7 +1087,7 @@ public class DecoratorGenerationTests
     /// unresolvable under the name it was registered with — while an unkeyed resolution starts
     /// working, which looks like the service moved rather than broke.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void Decorator_KeyedRegistrationKeepsItsKey()
     {
         var assembly = GeneratedAssembly.Create(
@@ -1111,11 +1115,8 @@ public class DecoratorGenerationTests
         var provider = assembly.BuildProvider();
         var greeter = assembly.Type("IGreeter");
 
-        Assert.Equal(
-            "GOOD DAY",
-            Invoke(provider.GetRequiredKeyedService(greeter, "formal"), "Greet")
-        );
-        Assert.Null(provider.GetService(greeter));
+        Verify(Invoke(provider.GetRequiredKeyedService(greeter, "formal"), "Greet") == "GOOD DAY");
+        Verify(provider.GetService(greeter) is null);
     }
 
     /// <summary>
@@ -1126,7 +1127,7 @@ public class DecoratorGenerationTests
     /// argument, not over its outer shape. Substituting only the top level emits a type argument
     /// that does not compile, which is the failure mode this pins.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void GenericDecorator_ClosesOverANestedTypeArgument()
     {
         var assembly = GeneratedAssembly.Create(
@@ -1167,7 +1168,7 @@ public class DecoratorGenerationTests
 
         var resolved = assembly.BuildProvider().GetRequiredService(handler);
 
-        Assert.Equal("LoggingHandler`2", resolved.GetType().Name);
+        Verify(resolved.GetType().Name == "LoggingHandler`2");
     }
 
     /// <summary>
@@ -1177,7 +1178,7 @@ public class DecoratorGenerationTests
     /// A generic decorator is not "every possible construction" — it is one decoration per
     /// registration. Emitting for a construction nothing registers would be dead code at best.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void GenericDecorator_DecoratesOnlyTheRegisteredClosings()
     {
         var result = GeneratorTestHarness.Run(
@@ -1206,20 +1207,21 @@ public class DecoratorGenerationTests
             """
         );
 
-        Assert.Empty(result.Errors);
+        Verify(!result.Errors.Any());
 
-        var decorators = Assert
-            .Single(result.GeneratedSources, source => source.Key.Contains("Decorators"))
-            .Value;
+        var decorators = Single(
+            result.GeneratedSources,
+            source => source.Key.Contains("Decorators")
+        ).Value;
 
-        Assert.Contains("Registered", decorators);
-        Assert.DoesNotContain("NeverRegistered", decorators);
+        Verify(decorators.Contains("Registered"));
+        Verify(!decorators.Contains("NeverRegistered"));
     }
 
     /// <summary>
     /// A generic decorator keeps the lifetime each registration declared.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void GenericDecorator_PreservesEachRegistrationsLifetime()
     {
         var assembly = GeneratedAssembly.Create(
@@ -1251,18 +1253,18 @@ public class DecoratorGenerationTests
 
         var handler = assembly.Type("IHandler`1");
 
-        var singleton = Assert.Single(
+        var singleton = Single(
             assembly.Services,
             d => d.ServiceType == handler.MakeGenericType(assembly.Type("A"))
         );
 
-        var transient = Assert.Single(
+        var transient = Single(
             assembly.Services,
             d => d.ServiceType == handler.MakeGenericType(assembly.Type("B"))
         );
 
-        Assert.Equal(ServiceLifetime.Singleton, singleton.Lifetime);
-        Assert.Equal(ServiceLifetime.Transient, transient.Lifetime);
+        Verify(singleton.Lifetime == ServiceLifetime.Singleton);
+        Verify(transient.Lifetime == ServiceLifetime.Transient);
     }
 
     /// <summary>
@@ -1273,7 +1275,7 @@ public class DecoratorGenerationTests
     /// displaced registration is created from a rebuilt model rather than the one the transform
     /// produced.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void GenericDecorator_LeavesTheInnerOwnedByTheContainer()
     {
         var assembly = GeneratedAssembly.Create(
@@ -1310,16 +1312,16 @@ public class DecoratorGenerationTests
 
         using (var scope = provider.CreateScope())
         {
-            Assert.Equal("a", Invoke(scope.ServiceProvider.GetRequiredService(handler), "Handle"));
+            Verify(Invoke(scope.ServiceProvider.GetRequiredService(handler), "Handle") == "a");
         }
 
-        Assert.Equal(1, (int)assembly.Type("Log").GetField("Disposals")!.GetValue(null)!);
+        Verify((int)assembly.Type("Log").GetField("Disposals")!.GetValue(null)! == 1);
     }
 
     /// <summary>
     /// A decorator scoped to a realm decorates only that module's registrations.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void Decorator_ScopedToARealm_DecoratesOnlyThatModule()
     {
         var assembly = GeneratedAssembly.Create(
@@ -1347,9 +1349,9 @@ public class DecoratorGenerationTests
             moduleName: "DecoratedModule"
         );
 
-        Assert.Equal(
-            "HELLO",
+        Verify(
             Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet")
+                == "HELLO"
         );
     }
 
@@ -1361,9 +1363,9 @@ public class DecoratorGenerationTests
     /// never run and the service resolves undecorated — rather than being wrapped by something that
     /// re-tests the environment on every call.
     /// </remarks>
-    [Theory]
-    [InlineData("Development", "HELLO")]
-    [InlineData("Production", "hello")]
+    [VerifyTest]
+    [Row("Development", "HELLO")]
+    [Row("Production", "hello")]
     public void Decorator_WithAnEnvironmentCondition_AppliesOnlyWhenItHolds(
         string environment,
         string expected
@@ -1392,16 +1394,16 @@ public class DecoratorGenerationTests
             environment: new ModuleEnvironment(environment)
         );
 
-        Assert.Equal(
-            expected,
+        Verify(
             Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet")
+                == expected
         );
     }
 
     /// <summary>
     /// Every implementation behind one service is decorated, not just the last registered.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void Decorator_WrapsEveryImplementationOfTheService()
     {
         var assembly = GeneratedAssembly.Create(
@@ -1436,7 +1438,7 @@ public class DecoratorGenerationTests
             .Select(service => Invoke(service, "Greet"))
             .ToArray();
 
-        Assert.Equal(["HELLO", "BONJOUR"], all);
+        Verify(all.SequenceEqual(["HELLO", "BONJOUR"]));
     }
 
     /// <summary>
@@ -1447,7 +1449,7 @@ public class DecoratorGenerationTests
     /// replacing the other. Worth pinning: they are emitted by different writers and nothing else
     /// asserts that the second sees what the first produced.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void Decorator_AndInterceptor_BothWrapTheService()
     {
         var assembly = GeneratedAssembly.Create(
@@ -1491,9 +1493,9 @@ public class DecoratorGenerationTests
         var lines = (System.Collections.Generic.List<string>)
             assembly.Type("Log").GetField("Lines")!.GetValue(null)!;
 
-        Assert.Equal("HELLO", greeted);
-        Assert.Contains("decorated", lines);
-        Assert.Contains("intercepted", lines);
+        Verify(greeted == "HELLO");
+        Verify(lines.Contains("decorated"));
+        Verify(lines.Contains("intercepted"));
     }
 
     /// <summary>
@@ -1504,7 +1506,7 @@ public class DecoratorGenerationTests
     /// name the concrete class rather than an interface. Nothing else covers a decoration whose
     /// service type is the implementation.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void Decorator_OverAConventionRegisteredAsSelf()
     {
         var assembly = GeneratedAssembly.Create(
@@ -1532,9 +1534,9 @@ public class DecoratorGenerationTests
             """
         );
 
-        Assert.Equal(
-            "WORK",
+        Verify(
             Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("Worker")), "Work")
+                == "WORK"
         );
     }
 
@@ -1554,7 +1556,7 @@ public class DecoratorGenerationTests
     /// from the compilation rather than read from a declaration.
     /// </para>
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void ModuleLevelDecorate_CanNameAGenericDecorator()
     {
         var assembly = GeneratedAssembly.Create(
@@ -1588,19 +1590,17 @@ public class DecoratorGenerationTests
         var provider = assembly.BuildProvider();
         var handler = assembly.Type("IHandler`1");
 
-        Assert.Equal(
-            "A",
+        Verify(
             Invoke(
                 provider.GetRequiredService(handler.MakeGenericType(assembly.Type("A"))),
                 "Handle"
-            )
+            ) == "A"
         );
-        Assert.Equal(
-            "B",
+        Verify(
             Invoke(
                 provider.GetRequiredService(handler.MakeGenericType(assembly.Type("B"))),
                 "Handle"
-            )
+            ) == "B"
         );
     }
 
@@ -1609,7 +1609,7 @@ public class DecoratorGenerationTests
     // ------------------------------------------------------------------------------------------
 
     /// <summary>The wrapped service does not have to be the first constructor parameter.</summary>
-    [Fact]
+    [VerifyTest]
     public void Decorator_InnerParameterNeedNotComeFirst()
     {
         var assembly = GeneratedAssembly.Create(
@@ -1636,14 +1636,14 @@ public class DecoratorGenerationTests
             """
         );
 
-        Assert.Equal(
-            "hello!",
+        Verify(
             Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet")
+                == "hello!"
         );
     }
 
     /// <summary>A record decorator is constructed through its primary constructor.</summary>
-    [Fact]
+    [VerifyTest]
     public void Decorator_DeclaredAsARecord()
     {
         var assembly = GeneratedAssembly.Create(
@@ -1667,14 +1667,14 @@ public class DecoratorGenerationTests
             """
         );
 
-        Assert.Equal(
-            "HELLO",
+        Verify(
             Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet")
+                == "HELLO"
         );
     }
 
     /// <summary>A decorator nested inside another type is named correctly in the emitted new.</summary>
-    [Fact]
+    [VerifyTest]
     public void Decorator_NestedInsideAnotherType()
     {
         var assembly = GeneratedAssembly.Create(
@@ -1700,9 +1700,9 @@ public class DecoratorGenerationTests
             """
         );
 
-        Assert.Equal(
-            "HELLO",
+        Verify(
             Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet")
+                == "HELLO"
         );
     }
 
@@ -1712,7 +1712,7 @@ public class DecoratorGenerationTests
     /// does not. Matching them without normalising means no parameter looks like the service, and
     /// the decoration is dropped with nothing said.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void Decorator_WithANullableInnerParameter()
     {
         var assembly = GeneratedAssembly.Create(
@@ -1736,9 +1736,9 @@ public class DecoratorGenerationTests
             """
         );
 
-        Assert.Equal(
-            "HELLO",
+        Verify(
             Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet")
+                == "HELLO"
         );
     }
 
@@ -1751,7 +1751,7 @@ public class DecoratorGenerationTests
     /// that cannot be closed by position. Guessing would emit a <c>new</c> with the arguments the
     /// wrong way round, which compiles whenever the two types happen to be compatible.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void GenericDecorator_WithReorderedTypeParameters_IsNotEmitted()
     {
         var result = GeneratorTestHarness.Run(
@@ -1782,18 +1782,19 @@ public class DecoratorGenerationTests
             """
         );
 
-        Assert.Empty(result.Errors);
+        Verify(!result.Errors.Any());
 
-        Assert.DoesNotContain(
-            result.GeneratedSources,
-            source => source.Value.Contains("new global::TestNamespace.Swapped")
+        Verify(
+            !result.GeneratedSources.Any(source =>
+                source.Value.Contains("new global::TestNamespace.Swapped")
+            )
         );
     }
 
     /// <summary>
     /// A generic decorator with fewer type parameters than the service has arguments is not emitted.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void GenericDecorator_WithMismatchedArity_IsNotEmitted()
     {
         var result = GeneratorTestHarness.Run(
@@ -1821,11 +1822,11 @@ public class DecoratorGenerationTests
             """
         );
 
-        Assert.Empty(result.Errors);
+        Verify(!result.Errors.Any());
     }
 
     /// <summary>A cross-wired registration is a factory descriptor, and decorates like one.</summary>
-    [Fact]
+    [VerifyTest]
     public void Decorator_OverACrossWiredRegistration()
     {
         var assembly = GeneratedAssembly.Create(
@@ -1851,23 +1852,17 @@ public class DecoratorGenerationTests
 
         var provider = assembly.BuildProvider();
 
-        Assert.Equal(
-            "HELLO",
-            Invoke(provider.GetRequiredService(assembly.Type("IGreeter")), "Greet")
-        );
+        Verify(Invoke(provider.GetRequiredService(assembly.Type("IGreeter")), "Greet") == "HELLO");
 
         // The implementation stays resolvable as itself, undecorated — that is what cross-wiring is.
-        Assert.Equal(
-            "hello",
-            Invoke(provider.GetRequiredService(assembly.Type("Greeter")), "Greet")
-        );
+        Verify(Invoke(provider.GetRequiredService(assembly.Type("Greeter")), "Greet") == "hello");
     }
 
     /// <summary>
     /// A decorator whose own dependency is generic in the service's arguments and comes from a
     /// convention.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void GenericDecorator_OverConventionRegistrations_WithAGenericDependency()
     {
         var assembly = GeneratedAssembly.Create(
@@ -1904,10 +1899,7 @@ public class DecoratorGenerationTests
 
         var handler = assembly.Type("IHandler`1").MakeGenericType(assembly.Type("A"));
 
-        Assert.Equal(
-            "[A]a",
-            Invoke(assembly.BuildProvider().GetRequiredService(handler), "Handle")
-        );
+        Verify(Invoke(assembly.BuildProvider().GetRequiredService(handler), "Handle") == "[A]a");
     }
 
     /// <summary>
@@ -1919,7 +1911,7 @@ public class DecoratorGenerationTests
     /// same one — so without the guard the implementation is wrapped twice, which shows up as a
     /// decorator's side effects happening twice per call and nothing else.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void Decorator_WithTwoModulesInTheCompilation_IsAppliedOnce()
     {
         var assembly = GeneratedAssembly.Create(
@@ -1950,7 +1942,7 @@ public class DecoratorGenerationTests
 
         Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet");
 
-        Assert.Equal(1, (int)assembly.Type("Log").GetField("Applied")!.GetValue(null)!);
+        Verify((int)assembly.Type("Log").GetField("Applied")!.GetValue(null)! == 1);
     }
 
     /// <summary>Two decorators of one service sharing an order are still refused.</summary>
@@ -1958,7 +1950,7 @@ public class DecoratorGenerationTests
     /// The check moved when decoration collapsed into one stage. It is the only thing standing
     /// between two decorators and a nesting order nobody declared.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void Decorators_SharingAnOrder_AreReported()
     {
         var result = GeneratorTestHarness.Run(
@@ -1983,10 +1975,10 @@ public class DecoratorGenerationTests
             """
         );
 
-        var reported = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0007");
+        var reported = Single(result.GeneratorDiagnostics, d => d.Id == "DM0007");
 
-        Assert.Contains("First", reported.GetMessage());
-        Assert.Contains("Second", reported.GetMessage());
+        Verify(reported.GetMessage().Contains("First"));
+        Verify(reported.GetMessage().Contains("Second"));
     }
 
     /// <summary>
@@ -1996,7 +1988,7 @@ public class DecoratorGenerationTests
     /// They arrive at the writer from different routes — one expanded per registration, one passed
     /// through — so this pins that the ordering applies across both rather than within each.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void GenericAndNonGenericDecorators_NestByOrder()
     {
         var assembly = GeneratedAssembly.Create(
@@ -2036,11 +2028,11 @@ public class DecoratorGenerationTests
         var lines = (System.Collections.Generic.List<string>)
             assembly.Type("Log").GetField("Lines")!.GetValue(null)!;
 
-        Assert.Equal(["specific", "generic"], lines);
+        Verify(lines.SequenceEqual(["specific", "generic"]));
     }
 
     /// <summary>An unscoped decorator does not reach a realm-only module.</summary>
-    [Fact]
+    [VerifyTest]
     public void Decorator_Unscoped_DoesNotReachARealmOnlyModule()
     {
         var assembly = GeneratedAssembly.Create(
@@ -2065,14 +2057,14 @@ public class DecoratorGenerationTests
             moduleName: "RealmModule"
         );
 
-        Assert.Equal(
-            "hello",
+        Verify(
             Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet")
+                == "hello"
         );
     }
 
     /// <summary>A convention registering matches under a key is decorated under that key.</summary>
-    [Fact]
+    [VerifyTest]
     public void Decorator_OverAKeyedConventionRegistration()
     {
         var assembly = GeneratedAssembly.Create(
@@ -2104,8 +2096,8 @@ public class DecoratorGenerationTests
         var provider = assembly.BuildProvider();
         var greeter = assembly.Type("IGreeter");
 
-        Assert.Equal("HELLO", Invoke(provider.GetRequiredKeyedService(greeter, "loud"), "Greet"));
-        Assert.Null(provider.GetService(greeter));
+        Verify(Invoke(provider.GetRequiredKeyedService(greeter, "loud"), "Greet") == "HELLO");
+        Verify(provider.GetService(greeter) is null);
     }
 
     /// <summary>
@@ -2116,7 +2108,7 @@ public class DecoratorGenerationTests
     /// implementation, so the decorated descriptor is a factory and the shared instance the contract
     /// promises has to survive the rewrite.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void Decorator_OverAConventionRegisteredAsSelfWithInterfaces()
     {
         var assembly = GeneratedAssembly.Create(
@@ -2146,20 +2138,14 @@ public class DecoratorGenerationTests
 
         var provider = assembly.BuildProvider();
 
-        Assert.Equal(
-            "HELLO",
-            Invoke(provider.GetRequiredService(assembly.Type("IGreeter")), "Greet")
-        );
+        Verify(Invoke(provider.GetRequiredService(assembly.Type("IGreeter")), "Greet") == "HELLO");
 
         // The implementation itself stays undecorated, which is what cross-wiring means.
-        Assert.Equal(
-            "hello",
-            Invoke(provider.GetRequiredService(assembly.Type("Greeter")), "Greet")
-        );
+        Verify(Invoke(provider.GetRequiredService(assembly.Type("Greeter")), "Greet") == "hello");
     }
 
     /// <summary>A decorator with no matching registration emits nothing and breaks nothing.</summary>
-    [Fact]
+    [VerifyTest]
     public void Decorator_WithNothingToDecorate_EmitsNothing()
     {
         var result = GeneratorTestHarness.Run(
@@ -2180,7 +2166,7 @@ public class DecoratorGenerationTests
             """
         );
 
-        Assert.Empty(result.Errors);
+        Verify(!result.Errors.Any());
     }
 
     /// <summary>
@@ -2192,7 +2178,7 @@ public class DecoratorGenerationTests
     /// <c>new Logging&lt;int&gt;(…)</c>, which violates the constraint — CS0453, in generated code,
     /// for two declarations that are each perfectly legal.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void GenericDecorator_ConstrainedToReferenceTypes_SkipsValueTypeClosings()
     {
         var result = GeneratorTestHarness.Run(
@@ -2221,13 +2207,13 @@ public class DecoratorGenerationTests
             """
         );
 
-        Assert.Empty(result.Errors);
+        Verify(!result.Errors.Any());
     }
 
     /// <summary>
     /// A constraint the closing does satisfy still emits.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void GenericDecorator_ConstrainedToAnInterface_EmitsForSatisfyingClosings()
     {
         var assembly = GeneratedAssembly.Create(
@@ -2257,10 +2243,7 @@ public class DecoratorGenerationTests
 
         var handler = assembly.Type("IHandler`1").MakeGenericType(assembly.Type("Thing"));
 
-        Assert.Equal(
-            "THING",
-            Invoke(assembly.BuildProvider().GetRequiredService(handler), "Handle")
-        );
+        Verify(Invoke(assembly.BuildProvider().GetRequiredService(handler), "Handle") == "THING");
     }
 
     /// <summary>
@@ -2271,7 +2254,7 @@ public class DecoratorGenerationTests
     /// is arbitrary when there are two. <c>Service =</c> is the way to say which, and this pins that
     /// it wins over inference rather than being one more candidate.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void Decorator_WithAnExplicitService_DecoratesThatOne()
     {
         var assembly = GeneratedAssembly.Create(
@@ -2302,17 +2285,14 @@ public class DecoratorGenerationTests
 
         var provider = assembly.BuildProvider();
 
-        Assert.Equal("BYE", Invoke(provider.GetRequiredService(assembly.Type("IFarewell")), "Bye"));
+        Verify(Invoke(provider.GetRequiredService(assembly.Type("IFarewell")), "Bye") == "BYE");
 
         // The other interface it implements is not decorated.
-        Assert.Equal(
-            "hello",
-            Invoke(provider.GetRequiredService(assembly.Type("IGreeter")), "Greet")
-        );
+        Verify(Invoke(provider.GetRequiredService(assembly.Type("IGreeter")), "Greet") == "hello");
     }
 
     /// <summary>A registration declared with Try is still decorated.</summary>
-    [Fact]
+    [VerifyTest]
     public void Decorator_OverATryRegistration()
     {
         var assembly = GeneratedAssembly.Create(
@@ -2336,9 +2316,9 @@ public class DecoratorGenerationTests
             """
         );
 
-        Assert.Equal(
-            "HELLO",
+        Verify(
             Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet")
+                == "HELLO"
         );
     }
 
@@ -2347,7 +2327,7 @@ public class DecoratorGenerationTests
     /// Inference reads the base list, which here names a class rather than the interface. If only
     /// directly-written interfaces count, this stops being recognised and is silently not applied.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void Decorator_ImplementingTheServiceThroughABaseClass()
     {
         var result = GeneratorTestHarness.Run(
@@ -2373,13 +2353,13 @@ public class DecoratorGenerationTests
             """
         );
 
-        Assert.Empty(result.Errors);
+        Verify(!result.Errors.Any());
     }
 
     /// <summary>An environment condition guards every closed call a generic decorator produces.</summary>
-    [Theory]
-    [InlineData("Development", "A")]
-    [InlineData("Production", "a")]
+    [VerifyTest]
+    [Row("Development", "A")]
+    [Row("Production", "a")]
     public void GenericDecorator_WithAnEnvironmentCondition_GuardsEachClosing(
         string environment,
         string expected
@@ -2416,10 +2396,7 @@ public class DecoratorGenerationTests
 
         var handler = assembly.Type("IHandler`1").MakeGenericType(assembly.Type("A"));
 
-        Assert.Equal(
-            expected,
-            Invoke(assembly.BuildProvider().GetRequiredService(handler), "Handle")
-        );
+        Verify(Invoke(assembly.BuildProvider().GetRequiredService(handler), "Handle") == expected);
     }
 
     /// <summary>Two closings of one generic service each get their own decoration.</summary>
@@ -2427,7 +2404,7 @@ public class DecoratorGenerationTests
     /// The decorator must close over each construction separately rather than over whichever was
     /// seen first.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void GenericDecorator_OverTwoClosingsOfOneService()
     {
         var assembly = GeneratedAssembly.Create(
@@ -2460,24 +2437,22 @@ public class DecoratorGenerationTests
         var provider = assembly.BuildProvider();
         var handler = assembly.Type("IHandler`1");
 
-        Assert.Equal(
-            "MULTI",
+        Verify(
             Invoke(
                 provider.GetRequiredService(handler.MakeGenericType(assembly.Type("A"))),
                 "Handle"
-            )
+            ) == "MULTI"
         );
-        Assert.Equal(
-            "MULTI",
+        Verify(
             Invoke(
                 provider.GetRequiredService(handler.MakeGenericType(assembly.Type("B"))),
                 "Handle"
-            )
+            ) == "MULTI"
         );
     }
 
     /// <summary>A deeply nested type argument is substituted at every level.</summary>
-    [Fact]
+    [VerifyTest]
     public void GenericDecorator_ClosesOverADeeplyNestedTypeArgument()
     {
         var assembly = GeneratedAssembly.Create(
@@ -2514,14 +2489,11 @@ public class DecoratorGenerationTests
                 )
             );
 
-        Assert.Equal(
-            "DEEP",
-            Invoke(assembly.BuildProvider().GetRequiredService(handler), "Handle")
-        );
+        Verify(Invoke(assembly.BuildProvider().GetRequiredService(handler), "Handle") == "DEEP");
     }
 
     /// <summary>Three type parameters are substituted in order.</summary>
-    [Fact]
+    [VerifyTest]
     public void GenericDecorator_WithThreeTypeParameters()
     {
         var assembly = GeneratedAssembly.Create(
@@ -2553,11 +2525,11 @@ public class DecoratorGenerationTests
             .Type("IPipe`3")
             .MakeGenericType(assembly.Type("In"), assembly.Type("Via"), assembly.Type("Out"));
 
-        Assert.Equal("PIPE", Invoke(assembly.BuildProvider().GetRequiredService(pipe), "Run"));
+        Verify(Invoke(assembly.BuildProvider().GetRequiredService(pipe), "Run") == "PIPE");
     }
 
     /// <summary>A keyed registration with a keyed dependency on the decorator.</summary>
-    [Fact]
+    [VerifyTest]
     public void Decorator_KeyedRegistrationAndKeyedDependency()
     {
         var assembly = GeneratedAssembly.Create(
@@ -2592,19 +2564,18 @@ public class DecoratorGenerationTests
             """
         );
 
-        Assert.Equal(
-            "good day.",
+        Verify(
             Invoke(
                 assembly
                     .BuildProvider()
                     .GetRequiredKeyedService(assembly.Type("IGreeter"), "formal"),
                 "Greet"
-            )
+            ) == "good day."
         );
     }
 
     /// <summary>A decorator can depend on the module environment.</summary>
-    [Fact]
+    [VerifyTest]
     public void Decorator_DependingOnTheModuleEnvironment()
     {
         var assembly = GeneratedAssembly.Create(
@@ -2631,14 +2602,14 @@ public class DecoratorGenerationTests
             environment: new ModuleEnvironment("Staging")
         );
 
-        Assert.Equal(
-            "hello:env",
+        Verify(
             Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet")
+                == "hello:env"
         );
     }
 
     /// <summary>A TryEnumerable registration is decorated.</summary>
-    [Fact]
+    [VerifyTest]
     public void Decorator_OverATryEnumerableRegistration()
     {
         var assembly = GeneratedAssembly.Create(
@@ -2662,14 +2633,14 @@ public class DecoratorGenerationTests
             """
         );
 
-        Assert.Equal(
-            "HELLO",
+        Verify(
             Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet")
+                == "HELLO"
         );
     }
 
     /// <summary>A convention reaching the interface through a base class is decorated.</summary>
-    [Fact]
+    [VerifyTest]
     public void Decorator_OverAConventionUsingIncludeBaseClasses()
     {
         var assembly = GeneratedAssembly.Create(
@@ -2699,14 +2670,14 @@ public class DecoratorGenerationTests
             """
         );
 
-        Assert.Equal(
-            "HELLO",
+        Verify(
             Invoke(assembly.BuildProvider().GetRequiredService(assembly.Type("IGreeter")), "Greet")
+                == "HELLO"
         );
     }
 
     /// <summary>Interception over a closed construction of a generic service.</summary>
-    [Fact]
+    [VerifyTest]
     public void Interceptor_OverAClosedGenericService()
     {
         var assembly = GeneratedAssembly.Create(
@@ -2741,7 +2712,7 @@ public class DecoratorGenerationTests
 
         var handler = assembly.Type("IHandler`1").MakeGenericType(assembly.Type("A"));
 
-        Assert.Equal("a", Invoke(assembly.BuildProvider().GetRequiredService(handler), "Handle"));
-        Assert.Equal(1, (int)assembly.Type("Log").GetField("Calls")!.GetValue(null)!);
+        Verify(Invoke(assembly.BuildProvider().GetRequiredService(handler), "Handle") == "a");
+        Verify((int)assembly.Type("Log").GetField("Calls")!.GetValue(null)! == 1);
     }
 }

@@ -1,14 +1,13 @@
 using DependencyModules.Tests.Infrastructure;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// Whether generated code can use a type, a method or a constructor comes from its symbol. The
 /// written keywords do not say it: a nested type or a member with no access modifier is private,
 /// and a public member of a private type is out of reach too.
 /// </summary>
-public class GeneratedCodeAccessTests
+public partial class GeneratedCodeAccessTests
 {
     private const string Preamble = """
         using DependencyModules.Runtime.Attributes;
@@ -33,7 +32,7 @@ public class GeneratedCodeAccessTests
             }
             """;
 
-    [Fact]
+    [VerifyTest]
     public void AConvention_SkipsANestedClassThatGeneratedCodeCannotUse()
     {
         var result = Run(
@@ -63,14 +62,14 @@ public class GeneratedCodeAccessTests
 
         var registrations = result.SourceContaining("ConventionDependencies");
 
-        Assert.DoesNotContain("ImplicitlyPrivateRule", registrations);
-        Assert.DoesNotContain("ProtectedRule)", registrations);
-        Assert.DoesNotContain("PublicInPrivateRule", registrations);
-        Assert.Contains("RuleSet.ProtectedInternalRule", registrations);
-        Assert.Contains("RuleSet.OpenRule", registrations);
+        Verify(!registrations.Contains("ImplicitlyPrivateRule"));
+        Verify(!registrations.Contains("ProtectedRule)"));
+        Verify(!registrations.Contains("PublicInPrivateRule"));
+        Verify(registrations.Contains("RuleSet.ProtectedInternalRule"));
+        Verify(registrations.Contains("RuleSet.OpenRule"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AConventionBySelf_SkipsANestedClassWithNoAccessModifier()
     {
         var result = Run(
@@ -92,11 +91,11 @@ public class GeneratedCodeAccessTests
 
         var registrations = result.SourceContaining("ConventionDependencies");
 
-        Assert.DoesNotContain("HiddenWorker", registrations);
-        Assert.Contains("Workers.OpenWorker", registrations);
+        Verify(!registrations.Contains("HiddenWorker"));
+        Verify(registrations.Contains("Workers.OpenWorker"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AConvention_SkipsAFileLocalClass()
     {
         var result = Run(
@@ -114,11 +113,11 @@ public class GeneratedCodeAccessTests
 
         var registrations = result.SourceContaining("ConventionDependencies");
 
-        Assert.DoesNotContain("FileRule", registrations);
-        Assert.Contains("OpenRule", registrations);
+        Verify(!registrations.Contains("FileRule"));
+        Verify(registrations.Contains("OpenRule"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AFactoryMethodWithNoAccessModifier_IsReported_AndNotCalled()
     {
         var result = Run(
@@ -140,16 +139,16 @@ public class GeneratedCodeAccessTests
 
         result.AssertNoErrors();
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0023");
-        Assert.Contains("'ClockFactories.CreateClock'", diagnostic.GetMessage());
-        Assert.DoesNotContain(result.GeneratedSources.Values, s => s.Contains("CreateClock"));
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0023");
+        Verify(diagnostic.GetMessage().Contains("'ClockFactories.CreateClock'"));
+        Verify(!result.GeneratedSources.Values.Any(s => s.Contains("CreateClock")));
     }
 
-    [Theory]
-    [InlineData("private static", "private or protected")]
-    [InlineData("protected static", "private or protected")]
-    [InlineData("private protected static", "private or protected")]
-    [InlineData("public", "not static")]
+    [VerifyTest]
+    [Row("private static", "private or protected")]
+    [Row("protected static", "private or protected")]
+    [Row("private protected static", "private or protected")]
+    [Row("public", "not static")]
     public void AFactoryMethodTheModuleCannotCall_IsReported(string modifiers, string reason)
     {
         var result = Run(
@@ -171,12 +170,12 @@ public class GeneratedCodeAccessTests
 
         result.AssertNoErrors();
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0023");
-        Assert.Contains(reason, diagnostic.GetMessage());
-        Assert.DoesNotContain(result.GeneratedSources.Values, s => s.Contains("CreateTimer"));
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0023");
+        Verify(diagnostic.GetMessage().Contains(reason));
+        Verify(!result.GeneratedSources.Values.Any(s => s.Contains("CreateTimer")));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AFactoryMethodInAPrivateClass_IsReported()
     {
         var result = Run(
@@ -201,11 +200,11 @@ public class GeneratedCodeAccessTests
 
         result.AssertNoErrors();
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0023");
-        Assert.Contains("'Outer.Factories.CreateTimer'", diagnostic.GetMessage());
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0023");
+        Verify(diagnostic.GetMessage().Contains("'Outer.Factories.CreateTimer'"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AnInternalFactoryMethodInAnInternalClass_IsCalled()
     {
         var assembly = GeneratedAssembly.Create(
@@ -226,12 +225,12 @@ public class GeneratedCodeAccessTests
                 """
         );
 
-        Assert.Equal("Timer", assembly.ResolveRequired("ITimer").GetType().Name);
+        Verify(assembly.ResolveRequired("ITimer").GetType().Name == "Timer");
     }
 
-    [Theory]
-    [InlineData("internal")]
-    [InlineData("protected internal")]
+    [VerifyTest]
+    [Row("internal")]
+    [Row("protected internal")]
     public void AConventionClassWithOnlyAnInternalConstructor_IsReported(string access)
     {
         var result = Run(
@@ -248,11 +247,12 @@ public class GeneratedCodeAccessTests
 
         result.AssertNoErrors();
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0006");
-        Assert.Contains("no public constructor", diagnostic.GetMessage());
-        Assert.DoesNotContain(
-            result.GeneratedSources.Values,
-            s => s.Contains("typeof(global::TestNamespace.Handler)")
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0006");
+        Verify(diagnostic.GetMessage().Contains("no public constructor"));
+        Verify(
+            !result.GeneratedSources.Values.Any(s =>
+                s.Contains("typeof(global::TestNamespace.Handler)")
+            )
         );
     }
 
@@ -260,7 +260,7 @@ public class GeneratedCodeAccessTests
     /// The first declaration has no constructor, so its syntax alone says the compiler adds a
     /// public one.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AnInternalConstructorOnAnotherPartialDeclaration_IsReported()
     {
         var result = Run(
@@ -278,11 +278,11 @@ public class GeneratedCodeAccessTests
                 )
         );
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0006");
-        Assert.Contains("'Worker'", diagnostic.GetMessage());
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0006");
+        Verify(diagnostic.GetMessage().Contains("'Worker'"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AModuleThatGeneratesFactories_RegistersAClassWithAnInternalConstructor()
     {
         var assembly = GeneratedAssembly.Create(
@@ -306,10 +306,10 @@ public class GeneratedCodeAccessTests
                 """
         );
 
-        Assert.Equal("Handler", assembly.ResolveRequired("IHandler").GetType().Name);
+        Verify(assembly.ResolveRequired("IHandler").GetType().Name == "Handler");
     }
 
-    [Fact]
+    [VerifyTest]
     public void AModuleThatGeneratesFactories_StillReportsAPrivateConstructor()
     {
         var result = Run(
@@ -332,7 +332,7 @@ public class GeneratedCodeAccessTests
             """
         );
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0006");
-        Assert.Contains("no public or internal constructor", diagnostic.GetMessage());
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0006");
+        Verify(diagnostic.GetMessage().Contains("no public or internal constructor"));
     }
 }

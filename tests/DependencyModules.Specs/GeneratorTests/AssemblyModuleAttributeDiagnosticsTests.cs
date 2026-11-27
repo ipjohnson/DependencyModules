@@ -1,7 +1,6 @@
 using DependencyModules.Tests.Infrastructure;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// DM0016. A module generates its attribute in the module's own namespace, and an assembly-level
@@ -12,7 +11,7 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// running, so it does not exist in the compilation being examined and nothing about it resolves.
 /// That makes the false positives the interesting cases, and most of these tests are one.
 /// </summary>
-public class AssemblyModuleAttributeDiagnosticsTests
+public partial class AssemblyModuleAttributeDiagnosticsTests
 {
     private const string ModuleInNamespace = """
         namespace MyApp.Composition;
@@ -21,27 +20,27 @@ public class AssemblyModuleAttributeDiagnosticsTests
         public partial class ApplicationModule;
         """;
 
-    [Fact]
+    [VerifyTest]
     public void MissingUsing_IsReported()
     {
         var result = Run("[assembly: ApplicationModule]");
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0016");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0016");
 
-        Assert.Contains("MyApp.Composition", diagnostic.GetMessage());
-        Assert.Contains("using MyApp.Composition;", diagnostic.GetMessage());
+        Verify(diagnostic.GetMessage().Contains("MyApp.Composition"));
+        Verify(diagnostic.GetMessage().Contains("using MyApp.Composition;"));
     }
 
     /// <summary>The suffixed spelling names the same module.</summary>
-    [Fact]
+    [VerifyTest]
     public void MissingUsing_IsReported_ForTheAttributeSuffixedSpelling()
     {
         var result = Run("[assembly: ApplicationModuleAttribute]");
 
-        Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0016");
+        Single(result.GeneratorDiagnostics, d => d.Id == "DM0016");
     }
 
-    [Fact]
+    [VerifyTest]
     public void TheUsingBeingPresent_IsSilent()
     {
         var result = Run(
@@ -52,14 +51,14 @@ public class AssemblyModuleAttributeDiagnosticsTests
             """
         );
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0016");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0016"));
     }
 
     /// <summary>
     /// A global using in any file supplies the namespace everywhere, so reading only the file the
     /// attribute sits in would report a build that is already correct.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AGlobalUsingInAnotherFile_IsSilent()
     {
         var result = GeneratorTestHarness.Run(
@@ -71,28 +70,28 @@ public class AssemblyModuleAttributeDiagnosticsTests
             }
         );
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0016");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0016"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AQualifiedUsage_IsSilent()
     {
         var result = Run("[assembly: MyApp.Composition.ApplicationModule]");
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0016");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0016"));
     }
 
     /// <summary>An attribute this compilation declares no module for belongs to somebody else.</summary>
-    [Fact]
+    [VerifyTest]
     public void AnUnrelatedAssemblyAttribute_IsSilent()
     {
         var result = Run("[assembly: System.Reflection.AssemblyMetadata(\"key\", \"value\")]");
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0016");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0016"));
     }
 
     /// <summary>A module in the global namespace has no namespace to import.</summary>
-    [Fact]
+    [VerifyTest]
     public void AModuleInTheGlobalNamespace_IsSilent()
     {
         var result = GeneratorTestHarness.Run(
@@ -106,14 +105,14 @@ public class AssemblyModuleAttributeDiagnosticsTests
             }
         );
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0016");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0016"));
     }
 
     /// <summary>
     /// A using alias imports one name rather than a namespace, so it does not bring the attribute
     /// into scope under the name written here and the report still stands.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AUsingAlias_DoesNotCountAsTheImport()
     {
         var result = Run(
@@ -124,7 +123,7 @@ public class AssemblyModuleAttributeDiagnosticsTests
             """
         );
 
-        Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0016");
+        Single(result.GeneratorDiagnostics, d => d.Id == "DM0016");
     }
 
     /// <summary>
@@ -133,7 +132,7 @@ public class AssemblyModuleAttributeDiagnosticsTests
     /// they were read by nobody: a clean build, and an <c>InvalidOperationException</c> at the first
     /// resolve.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AnAssemblyAttributeOutsideTheEntryPointFile_IsReported()
     {
         var result = RunWithEntryPoint(
@@ -145,34 +144,32 @@ public class AssemblyModuleAttributeDiagnosticsTests
             program: "System.Console.WriteLine();"
         );
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0019");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0019");
 
-        Assert.Contains("ApplicationModule", diagnostic.GetMessage());
-        Assert.Contains("Program.cs", diagnostic.GetMessage());
+        Verify(diagnostic.GetMessage().Contains("ApplicationModule"));
+        Verify(diagnostic.GetMessage().Contains("Program.cs"));
     }
 
     /// <summary>
     /// A qualified name needs no import, so DM0016 cannot apply. The attribute is still read by
     /// nobody outside the entry point file.
     /// </summary>
-    [Theory]
-    [InlineData("[assembly: MyApp.Composition.ApplicationModule]")]
-    [InlineData("[assembly: MyApp.Composition.ApplicationModuleAttribute]")]
-    [InlineData("[assembly: global::MyApp.Composition.ApplicationModule]")]
-    [InlineData(
-        "using Composition = MyApp.Composition;\n[assembly: Composition.ApplicationModule]"
-    )]
+    [VerifyTest]
+    [Row("[assembly: MyApp.Composition.ApplicationModule]")]
+    [Row("[assembly: MyApp.Composition.ApplicationModuleAttribute]")]
+    [Row("[assembly: global::MyApp.Composition.ApplicationModule]")]
+    [Row("using Composition = MyApp.Composition;\n[assembly: Composition.ApplicationModule]")]
     public void AQualifiedAssemblyAttributeOutsideTheEntryPointFile_IsReported(string bootstrap)
     {
         var result = RunWithEntryPoint(bootstrap, program: "System.Console.WriteLine();");
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0019");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0019");
 
-        Assert.Contains("ApplicationModule", diagnostic.GetMessage());
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0016");
+        Verify(diagnostic.GetMessage().Contains("ApplicationModule"));
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0016"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AQualifiedAssemblyAttributeInTheEntryPointFile_IsSilent()
     {
         var result = RunWithEntryPoint(
@@ -184,11 +181,11 @@ public class AssemblyModuleAttributeDiagnosticsTests
             """
         );
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0019");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0019"));
     }
 
     /// <summary>A qualified attribute that names no module is somebody else's.</summary>
-    [Fact]
+    [VerifyTest]
     public void AQualifiedAttributeThatNamesNoModule_IsSilent()
     {
         var result = RunWithEntryPoint(
@@ -196,10 +193,10 @@ public class AssemblyModuleAttributeDiagnosticsTests
             program: "System.Console.WriteLine();"
         );
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0019");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0019"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AnAssemblyAttributeInTheEntryPointFile_IsSilent()
     {
         var result = RunWithEntryPoint(
@@ -213,7 +210,7 @@ public class AssemblyModuleAttributeDiagnosticsTests
             """
         );
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0019");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0019"));
     }
 
     /// <summary>
@@ -222,7 +219,7 @@ public class AssemblyModuleAttributeDiagnosticsTests
     /// relative to — and the test integration reads assembly attributes at run time anyway, which is
     /// what the testing guide shows.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void WithNoGeneratedApplicationModule_IsSilent()
     {
         var result = Run(
@@ -233,7 +230,7 @@ public class AssemblyModuleAttributeDiagnosticsTests
             """
         );
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0019");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0019"));
     }
 
     private static GeneratorResult Run(string bootstrap) =>

@@ -4,16 +4,15 @@ using DependencyModules.SourceGenerator.Impl;
 using DependencyModules.SourceGenerator.Impl.Utilities;
 using DependencyModules.Tests.Infrastructure;
 using Microsoft.CodeAnalysis;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// An exception inside the generator is reported as DM0001. An exception that escapes an output
 /// gives CS8785, which is only a warning, and Roslyn then drops every file the generator wrote in
 /// that run.
 /// </summary>
-public class GeneratorFailureTests : IDisposable
+public partial class GeneratorFailureTests : IDisposable
 {
     private readonly string _logFolder = Path.Combine(
         Path.GetTempPath(),
@@ -21,7 +20,7 @@ public class GeneratorFailureTests : IDisposable
         Guid.NewGuid().ToString("n")
     );
 
-    [Fact]
+    [VerifyTest]
     public void AModuleThatCannotBeWritten_IsReported_AndTheOtherModulesAreWritten()
     {
         var result = GeneratorTestHarness.Run(
@@ -29,18 +28,18 @@ public class GeneratorFailureTests : IDisposable
             generators: new[] { new ModuleWriterGenerator(_logFolder).AsSourceGenerator() }
         );
 
-        Assert.Empty(result.GeneratorExceptions);
+        Verify(result.GeneratorExceptions.Count == 0);
 
-        var failure = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0001");
-        Assert.Contains("hintName", failure.GetMessage());
+        var failure = Single(result.GeneratorDiagnostics, d => d.Id == "DM0001");
+        Verify(failure.GetMessage().Contains("hintName"));
 
-        Assert.Contains("GoodModule.Module.g.cs", result.GeneratedSources.Keys);
+        Verify(result.GeneratedSources.ContainsKey("GoodModule.Module.g.cs"));
 
         var log = Directory.GetFiles(_logFolder, "DependencyModuleWriter.*.txt");
-        Assert.Contains(log, file => File.ReadAllText(file).Contains("Bad\"Module"));
+        Verify(log.Any(file => File.ReadAllText(file).Contains("Bad\"Module")));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AnOutputThatOnlyReports_IsReported_AndTheGeneratedFilesAreKept()
     {
         var result = GeneratorTestHarness.Run(
@@ -48,12 +47,13 @@ public class GeneratorFailureTests : IDisposable
             generators: new[] { new ThrowingReportGenerator().AsSourceGenerator() }
         );
 
-        Assert.Empty(result.GeneratorExceptions);
-        Assert.Contains(
-            result.GeneratorDiagnostics,
-            d => d.Id == "DM0001" && d.GetMessage().Contains("the report failed")
+        Verify(result.GeneratorExceptions.Count == 0);
+        Verify(
+            result.GeneratorDiagnostics.Any(d =>
+                d.Id == "DM0001" && d.GetMessage().Contains("the report failed")
+            )
         );
-        Assert.Contains("Kept.g.cs", result.GeneratedSources.Keys);
+        Verify(result.GeneratedSources.ContainsKey("Kept.g.cs"));
     }
 
     /// <summary>
@@ -61,7 +61,7 @@ public class GeneratorFailureTests : IDisposable
     /// configuration and the services are in the log of the code output, and no other log replaces
     /// it.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void TheServiceLogKeepsTheConfigurationAndTheServices()
     {
         GeneratorTestHarness.Run(
@@ -86,7 +86,7 @@ public class GeneratorFailureTests : IDisposable
         var log = File.ReadAllText(
             Path.Combine(
                 _logFolder,
-                Assert.Single(
+                Single(
                     names,
                     name =>
                         name!.StartsWith("ServiceSourceGenerator.")
@@ -95,9 +95,9 @@ public class GeneratorFailureTests : IDisposable
             )
         );
 
-        Assert.Contains("Configuration:", log);
-        Assert.Contains("Clock -> IClock", log);
-        Assert.Single(names, name => name!.StartsWith("ServiceSourceGenerator.Diagnostics."));
+        Verify(log.Contains("Configuration:"));
+        Verify(log.Contains("Clock -> IClock"));
+        Single(names, name => name!.StartsWith("ServiceSourceGenerator.Diagnostics."));
     }
 
     /// <summary>

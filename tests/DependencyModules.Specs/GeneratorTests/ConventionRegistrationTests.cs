@@ -2,9 +2,8 @@ using DependencyModules.Runtime;
 using DependencyModules.Tests.Infrastructure;
 using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// Behavioural tests for convention registration.
@@ -14,7 +13,7 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// source passes happily while the wrong service type is registered, which is exactly the class of
 /// mistake convention matching is most likely to make.
 /// </remarks>
-public class ConventionRegistrationTests
+public partial class ConventionRegistrationTests
 {
     private const string Preamble = """
         using System;
@@ -40,9 +39,9 @@ public class ConventionRegistrationTests
     /// convention-matched class has no other route. Ignoring it would put a development-only
     /// service into production with nothing at the declaration saying why.
     /// </remarks>
-    [Theory]
-    [InlineData("Development", 2)]
-    [InlineData("Production", 1)]
+    [VerifyTest]
+    [Row("Development", 2)]
+    [Row("Production", 1)]
     public void ConventionsHonourEnvironmentConditions(string environmentName, int expected)
     {
         const string source = """
@@ -66,16 +65,16 @@ public class ConventionRegistrationTests
             environment: new ModuleEnvironment(environmentName)
         );
 
-        Assert.Equal(expected, assembly.Descriptors("IFoo").Count);
+        Verify(assembly.Descriptors("IFoo").Count == expected);
     }
 
     /// <summary>
     /// A condition declared on the convention itself, gating every match rather than being repeated
     /// on each class.
     /// </summary>
-    [Theory]
-    [InlineData("Development", 2)]
-    [InlineData("Production", 0)]
+    [VerifyTest]
+    [Row("Development", 2)]
+    [Row("Production", 0)]
     public void ConventionsCarryTheirOwnEnvironmentCondition(string environmentName, int expected)
     {
         const string source = """
@@ -97,7 +96,7 @@ public class ConventionRegistrationTests
             environment: new ModuleEnvironment(environmentName)
         );
 
-        Assert.Equal(expected, assembly.Descriptors("IFoo").Count);
+        Verify(assembly.Descriptors("IFoo").Count == expected);
     }
 
     /// <summary>
@@ -108,10 +107,10 @@ public class ConventionRegistrationTests
     /// the other. The environment pins its values, so a variable on the machine running this cannot
     /// reach REGION.
     /// </remarks>
-    [Theory]
-    [InlineData("Development", "eu", 2)]
-    [InlineData("Development", "us", 1)]
-    [InlineData("Production", "eu", 0)]
+    [VerifyTest]
+    [Row("Development", "eu", 2)]
+    [Row("Development", "us", 1)]
+    [Row("Production", "eu", 0)]
     public void ConventionAndClassConditionsCombineWithAnd(
         string environmentName,
         string region,
@@ -139,12 +138,12 @@ public class ConventionRegistrationTests
             environment: new ModuleEnvironment(false, environmentName) { { "REGION", region } }
         );
 
-        Assert.Equal(expected, assembly.Descriptors("IFoo").Count);
+        Verify(assembly.Descriptors("IFoo").Count == expected);
     }
 
-    [Theory]
-    [InlineData("on", 1)]
-    [InlineData("off", 0)]
+    [VerifyTest]
+    [Row("on", 1)]
+    [Row("off", 0)]
     public void ConventionsCarryValueConditions(string flag, int expected)
     {
         const string source = """
@@ -165,12 +164,12 @@ public class ConventionRegistrationTests
             environment: new ModuleEnvironment(false, "Development") { { "FLAG", flag } }
         );
 
-        Assert.Equal(expected, assembly.Descriptors("IFoo").Count);
+        Verify(assembly.Descriptors("IFoo").Count == expected);
     }
 
-    [Theory]
-    [InlineData("Development", 0)]
-    [InlineData("Production", 1)]
+    [VerifyTest]
+    [Row("Development", 0)]
+    [Row("Production", 1)]
     public void ConventionsCarryNegatedConditions(string environmentName, int expected)
     {
         const string source = """
@@ -191,7 +190,7 @@ public class ConventionRegistrationTests
             environment: new ModuleEnvironment(environmentName)
         );
 
-        Assert.Equal(expected, assembly.Descriptors("IFoo").Count);
+        Verify(assembly.Descriptors("IFoo").Count == expected);
     }
 
     /// <summary>
@@ -202,9 +201,9 @@ public class ConventionRegistrationTests
     /// won would gate the other convention's registrations too — so IBar would vanish outside
     /// Development despite its convention saying nothing about the environment.
     /// </remarks>
-    [Theory]
-    [InlineData("Development", 1, 1)]
-    [InlineData("Production", 0, 1)]
+    [VerifyTest]
+    [Row("Development", 1, 1)]
+    [Row("Production", 0, 1)]
     public void ConventionsWithDifferentConditionsDoNotShareAGuard(
         string environmentName,
         int expectedFoo,
@@ -231,8 +230,8 @@ public class ConventionRegistrationTests
             environment: new ModuleEnvironment(environmentName)
         );
 
-        Assert.Equal(expectedFoo, assembly.Descriptors("IFoo").Count);
-        Assert.Equal(expectedBar, assembly.Descriptors("IBar").Count);
+        Verify(assembly.Descriptors("IFoo").Count == expectedFoo);
+        Verify(assembly.Descriptors("IBar").Count == expectedBar);
     }
 
     /// <summary>
@@ -244,7 +243,7 @@ public class ConventionRegistrationTests
     /// implementation type — read that as one class matched by two conventions. It reported DM0004
     /// and registered nothing. One convention, named twice.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void APartialClassReachingTheServiceFromTwoPartsIsNotAmbiguous()
     {
         const string source = """
@@ -263,17 +262,17 @@ public class ConventionRegistrationTests
             }
             """;
 
-        Assert.DoesNotContain(Run(source).GeneratorDiagnostics, d => d.Id == "DM0004");
+        Verify(!Run(source).GeneratorDiagnostics.Any(d => d.Id == "DM0004"));
 
         var assembly = Compile(source);
 
-        Assert.Equal(assembly.Type("Foo"), assembly.Descriptor("IFoo").ImplementationType);
+        Verify(assembly.Descriptor("IFoo").ImplementationType == assembly.Type("Foo"));
     }
 
     /// <summary>
     /// Two parts declaring different interfaces that both reach the scanned one is still one class.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void APartialClassDeclaringTheServiceTwiceIsNotAmbiguous()
     {
         const string source = """
@@ -291,16 +290,16 @@ public class ConventionRegistrationTests
             }
             """;
 
-        Assert.DoesNotContain(Run(source).GeneratorDiagnostics, d => d.Id == "DM0004");
+        Verify(!Run(source).GeneratorDiagnostics.Any(d => d.Id == "DM0004"));
 
-        Assert.Single(Compile(source).Descriptors("IFoo"));
+        Single(Compile(source).Descriptors("IFoo"));
     }
 
     /// <summary>
     /// Declaring the interface in any part is a declared match, so the base-class opt-in is not
     /// needed even when another part reaches the same interface through a base class.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void APartDeclaringTheServiceMakesItADeclaredMatch()
     {
         const string source = """
@@ -319,7 +318,7 @@ public class ConventionRegistrationTests
             }
             """;
 
-        Assert.Single(Compile(source).Descriptors("IFoo"));
+        Single(Compile(source).Descriptors("IFoo"));
     }
 
     /// <summary>
@@ -330,7 +329,7 @@ public class ConventionRegistrationTests
     /// parameter list. Taking the first part's would emit a call to a constructor the type does not
     /// have, which is a CS error inside generated code.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void TheConstructorMayBeDeclaredInAnotherPart()
     {
         const string source = """
@@ -360,14 +359,14 @@ public class ConventionRegistrationTests
 
         var assembly = Compile(source);
 
-        Assert.IsType(assembly.Type("Foo"), assembly.ResolveRequired("IFoo"));
+        Verify(assembly.ResolveRequired("IFoo").GetType() == assembly.Type("Foo"));
     }
 
     /// <summary>
     /// A type filling two roles registers as both. This is the ordinary shape of a MediatR handler,
     /// and the two registrations are independently predictable from reading the module.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ATypeMatchedThroughDifferentInterfacesRegistersAsBoth()
     {
         const string source = """
@@ -386,12 +385,12 @@ public class ConventionRegistrationTests
             }
             """;
 
-        Assert.DoesNotContain(Run(source).GeneratorDiagnostics, d => d.Id == "DM0004");
+        Verify(!Run(source).GeneratorDiagnostics.Any(d => d.Id == "DM0004"));
 
         var assembly = Compile(source);
 
-        Assert.Equal(assembly.Type("Thing"), assembly.Descriptor("IFoo").ImplementationType);
-        Assert.Equal(assembly.Type("Thing"), assembly.Descriptor("IBar").ImplementationType);
+        Verify(assembly.Descriptor("IFoo").ImplementationType == assembly.Type("Thing"));
+        Verify(assembly.Descriptor("IBar").ImplementationType == assembly.Type("Thing"));
     }
 
     /// <summary>
@@ -399,7 +398,7 @@ public class ConventionRegistrationTests
     /// different service types are two instances — which is what Scrutor and MediatR both produce.
     /// Sharing one instance is <c>AsSelfWithInterfaces</c>, and it is opt-in.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void EachRoleKeepsItsOwnLifetimeAndItsOwnInstance()
     {
         var assembly = Compile(
@@ -419,14 +418,16 @@ public class ConventionRegistrationTests
             """
         );
 
-        Assert.Equal(ServiceLifetime.Singleton, assembly.Descriptor("IFoo").Lifetime);
-        Assert.Equal(ServiceLifetime.Scoped, assembly.Descriptor("IBar").Lifetime);
+        Verify(assembly.Descriptor("IFoo").Lifetime == ServiceLifetime.Singleton);
+        Verify(assembly.Descriptor("IBar").Lifetime == ServiceLifetime.Scoped);
 
         var provider = assembly.BuildProvider();
 
-        Assert.NotSame(
-            provider.GetService(assembly.Type("IFoo")),
-            provider.GetService(assembly.Type("IBar"))
+        Verify(
+            !ReferenceEquals(
+                provider.GetService(assembly.Type("IFoo")),
+                provider.GetService(assembly.Type("IBar"))
+            )
         );
     }
 
@@ -437,7 +438,7 @@ public class ConventionRegistrationTests
     /// The MediatR shape. Registering only the first closing left the second silently unregistered:
     /// green build, no diagnostic, and an event that never fires.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void OneConventionRegistersEveryClosingACandidateImplements()
     {
         var assembly = Compile(
@@ -465,15 +466,15 @@ public class ConventionRegistrationTests
 
         var provider = assembly.BuildProvider();
 
-        Assert.IsType(assembly.Type("OrderEvents"), provider.GetService(placed));
-        Assert.IsType(assembly.Type("OrderEvents"), provider.GetService(shipped));
+        Verify(provider.GetService(placed)?.GetType() == assembly.Type("OrderEvents"));
+        Verify(provider.GetService(shipped)?.GetType() == assembly.Type("OrderEvents"));
     }
 
     /// <summary>
     /// Several closings on one type are one implementation with several registrations, not several
     /// implementations — the shape the attribute path produces and the writer relies on.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void SeveralClosingsProduceOneImplementationWithSeveralRegistrations()
     {
         var assembly = Compile(
@@ -498,7 +499,7 @@ public class ConventionRegistrationTests
             .Services.Where(d => d.ImplementationType == assembly.Type("Both"))
             .ToArray();
 
-        Assert.Equal(2, registered.Length);
+        Verify(registered.Length == 2);
     }
 
     private const string Marker = """
@@ -517,7 +518,7 @@ public class ConventionRegistrationTests
         public class MarkedLegacy : IFoo { }
         """;
 
-    [Fact]
+    [VerifyTest]
     public void WithAttributeLimitsMatchesToTypesCarryingIt()
     {
         var assembly = Compile(
@@ -538,13 +539,13 @@ public class ConventionRegistrationTests
             .Select(d => d.ImplementationType)
             .ToArray();
 
-        Assert.Equal(2, implementations.Length);
-        Assert.Contains(assembly.Type("Marked"), implementations);
-        Assert.Contains(assembly.Type("MarkedLegacy"), implementations);
-        Assert.DoesNotContain(assembly.Type("Unmarked"), implementations);
+        Verify(implementations.Length == 2);
+        Verify(implementations.Contains(assembly.Type("Marked")));
+        Verify(implementations.Contains(assembly.Type("MarkedLegacy")));
+        Verify(!implementations.Contains(assembly.Type("Unmarked")));
     }
 
-    [Fact]
+    [VerifyTest]
     public void WithoutAttributeExcludesTypesCarryingIt()
     {
         var assembly = Compile(
@@ -565,11 +566,11 @@ public class ConventionRegistrationTests
             .Select(d => d.ImplementationType)
             .ToArray();
 
-        Assert.Equal(2, implementations.Length);
-        Assert.DoesNotContain(assembly.Type("MarkedLegacy"), implementations);
+        Verify(implementations.Length == 2);
+        Verify(!implementations.Contains(assembly.Type("MarkedLegacy")));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AttributeFiltersCombineWithAnd()
     {
         var assembly = Compile(
@@ -588,13 +589,13 @@ public class ConventionRegistrationTests
                 """
         );
 
-        Assert.Equal(assembly.Type("Marked"), assembly.Descriptor("IFoo").ImplementationType);
+        Verify(assembly.Descriptor("IFoo").ImplementationType == assembly.Type("Marked"));
     }
 
     /// <summary>
     /// Resolved rather than matched on how it was written, so the qualified form counts.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ANamespaceQualifiedAttributeStillMatches()
     {
         var assembly = Compile(
@@ -612,15 +613,15 @@ public class ConventionRegistrationTests
                 """
         );
 
-        Assert.Equal(2, assembly.Descriptors("IFoo").Count);
+        Verify(assembly.Descriptors("IFoo").Count == 2);
     }
 
-    [Theory]
-    [InlineData("*Repository", 2)]
-    [InlineData("Order*", 2)]
-    [InlineData("Order?epository", 1)]
-    [InlineData("TestNamespace.*Repository", 2)]
-    [InlineData("*repository", 0)]
+    [VerifyTest]
+    [Row("*Repository", 2)]
+    [Row("Order*", 2)]
+    [Row("Order?epository", 1)]
+    [Row("TestNamespace.*Repository", 2)]
+    [Row("*repository", 0)]
     public void WithNameMatchesTheGlob(string pattern, int expected)
     {
         var result = Run(
@@ -641,7 +642,7 @@ public class ConventionRegistrationTests
         // A pattern matching nothing is DM0005 rather than silence.
         if (expected == 0)
         {
-            Assert.Contains(result.GeneratorDiagnostics, d => d.Id == "DM0005");
+            Verify(result.GeneratorDiagnostics.Any(d => d.Id == "DM0005"));
 
             return;
         }
@@ -662,13 +663,13 @@ public class ConventionRegistrationTests
                 """
         );
 
-        Assert.Equal(
-            expected,
+        Verify(
             assembly.Services.Count(d => d.ImplementationType?.Namespace == "TestNamespace")
+                == expected
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void AsRegistersEveryMatchAsOneNamedService()
     {
         var assembly = Compile(
@@ -687,11 +688,11 @@ public class ConventionRegistrationTests
             """
         );
 
-        Assert.Empty(assembly.Descriptors("IFoo"));
-        Assert.Equal(assembly.Type("Foo"), assembly.Descriptor("IMarker").ImplementationType);
+        Verify(assembly.Descriptors("IFoo").Count == 0);
+        Verify(assembly.Descriptor("IMarker").ImplementationType == assembly.Type("Foo"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AsMatchingInterfaceRegistersFooAsIFoo()
     {
         var assembly = Compile(
@@ -712,9 +713,9 @@ public class ConventionRegistrationTests
             """
         );
 
-        Assert.Equal(assembly.Type("Foo"), assembly.Descriptor("IFoo").ImplementationType);
-        Assert.Equal(assembly.Type("Bar"), assembly.Descriptor("IBar").ImplementationType);
-        Assert.Empty(assembly.Descriptors("IMarker"));
+        Verify(assembly.Descriptor("IFoo").ImplementationType == assembly.Type("Foo"));
+        Verify(assembly.Descriptor("IBar").ImplementationType == assembly.Type("Bar"));
+        Verify(assembly.Descriptors("IMarker").Count == 0);
     }
 
     /// <summary>
@@ -724,7 +725,7 @@ public class ConventionRegistrationTests
     /// Any type whose base implements IDisposable would otherwise become resolvable as IDisposable,
     /// which is never what "register this as its interfaces" means.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public void AsSelfWithInterfacesSkipsSystemInterfaces()
     {
         var assembly = Compile(
@@ -746,12 +747,12 @@ public class ConventionRegistrationTests
             """
         );
 
-        Assert.Single(assembly.Descriptors("IMarker"));
+        Single(assembly.Descriptors("IMarker"));
 
-        Assert.DoesNotContain(assembly.Services, d => d.ServiceType == typeof(IDisposable));
+        Verify(!assembly.Services.Any(d => d.ServiceType == typeof(IDisposable)));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AsSelfWithInterfacesSkipsGenericSystemInterfaces()
     {
         var assembly = Compile(
@@ -778,19 +779,16 @@ public class ConventionRegistrationTests
         );
 
         // The validator interface survives; the enumerable ones do not.
-        Assert.Single(assembly.Services, d => d.ServiceType.Name == "IValidator`1");
+        Single(assembly.Services, d => d.ServiceType.Name == "IValidator`1");
 
-        Assert.DoesNotContain(
-            assembly.Services,
-            d => d.ServiceType.Namespace?.StartsWith("System") == true
-        );
+        Verify(!assembly.Services.Any(d => d.ServiceType.Namespace?.StartsWith("System") == true));
     }
 
     /// <summary>
     /// The filter is scoped to the expansion. A service type the developer named is honoured
     /// whatever namespace it lives in — refusing that is a different kind of wrong.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ANamedSystemServiceTypeIsStillRegistered()
     {
         var assembly = Compile(
@@ -808,13 +806,13 @@ public class ConventionRegistrationTests
             """
         );
 
-        Assert.Single(assembly.Services, d => d.ServiceType == typeof(IDisposable));
+        Single(assembly.Services, d => d.ServiceType == typeof(IDisposable));
     }
 
     /// <summary>
     /// Filtering everything away degrades to AsSelf rather than to nothing.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ATypeReachingOnlySystemInterfacesRegistersItself()
     {
         var assembly = Compile(
@@ -836,7 +834,7 @@ public class ConventionRegistrationTests
 
         // Nothing to assert beyond the module compiling and registering something; the shape that
         // matters is covered by AsSelfWithInterfacesSkipsSystemInterfaces.
-        Assert.NotEmpty(assembly.Services);
+        Verify(assembly.Services.Any());
     }
 
     private const string Validators = """
@@ -857,7 +855,7 @@ public class ConventionRegistrationTests
     /// <summary>
     /// The FluentValidation shape: registered as the matched interface and as the concrete type.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AlsoAsSelfRegistersTheInterfaceAndTheType()
     {
         var assembly = Compile(
@@ -873,15 +871,15 @@ public class ConventionRegistrationTests
                 """
         );
 
-        Assert.Contains(assembly.Services, d => d.ServiceType.Name == "IValidator`1");
-        Assert.Contains(assembly.Services, d => d.ServiceType == assembly.Type("FooValidator"));
+        Verify(assembly.Services.Any(d => d.ServiceType.Name == "IValidator`1"));
+        Verify(assembly.Services.Any(d => d.ServiceType == assembly.Type("FooValidator")));
     }
 
     /// <summary>
     /// Cross-wired, so both routes give one instance per scope. FluentValidation registers the pair
     /// independently and hands you two; this is a deliberate difference.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AlsoAsSelfSharesOneInstance()
     {
         var assembly = Compile(
@@ -904,16 +902,18 @@ public class ConventionRegistrationTests
             .Services.First(d => d.ServiceType.Name == "IValidator`1")
             .ServiceType;
 
-        Assert.Same(
-            scope.ServiceProvider.GetService(validatorInterface),
-            scope.ServiceProvider.GetService(assembly.Type("FooValidator"))
+        Verify(
+            ReferenceEquals(
+                scope.ServiceProvider.GetService(validatorInterface),
+                scope.ServiceProvider.GetService(assembly.Type("FooValidator"))
+            )
         );
     }
 
     /// <summary>
     /// Only the interfaces the convention matched, not everything the type can reach.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AlsoAsSelfDoesNotPullInUnmatchedInterfaces()
     {
         var assembly = Compile(
@@ -930,14 +930,11 @@ public class ConventionRegistrationTests
         );
 
         // IValidator and the enumerable interfaces are reachable but were not matched.
-        Assert.DoesNotContain(assembly.Services, d => d.ServiceType == assembly.Type("IValidator"));
-        Assert.DoesNotContain(
-            assembly.Services,
-            d => d.ServiceType.Namespace?.StartsWith("System") == true
-        );
+        Verify(!assembly.Services.Any(d => d.ServiceType == assembly.Type("IValidator")));
+        Verify(!assembly.Services.Any(d => d.ServiceType.Namespace?.StartsWith("System") == true));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AsSelfAndAlsoAsSelfTogetherIsRefused()
     {
         var result = Run(
@@ -954,14 +951,14 @@ public class ConventionRegistrationTests
             """
         );
 
-        Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0009");
+        Single(result.GeneratorDiagnostics, d => d.Id == "DM0009");
     }
 
     /// <summary>
     /// A handler closing two messages asks for the self registration twice and means it once. One
     /// convention repeating itself is not an ambiguity.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AlsoAsSelfRegistersTheTypeOnceAcrossSeveralClosings()
     {
         var result = Run(
@@ -982,7 +979,7 @@ public class ConventionRegistrationTests
             """
         );
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0004");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0004"));
 
         var assembly = Compile(
             """
@@ -1002,11 +999,11 @@ public class ConventionRegistrationTests
             """
         );
 
-        Assert.Single(assembly.Services, d => d.ServiceType == assembly.Type("Both"));
-        Assert.Equal(2, assembly.Services.Count(d => d.ServiceType.Name == "IHandler`1"));
+        Single(assembly.Services, d => d.ServiceType == assembly.Type("Both"));
+        Verify(assembly.Services.Count(d => d.ServiceType.Name == "IHandler`1") == 2);
     }
 
-    [Fact]
+    [VerifyTest]
     public void UsingChoosesHowTheRegistrationIsAdded()
     {
         var assembly = Compile(
@@ -1025,10 +1022,10 @@ public class ConventionRegistrationTests
         );
 
         // Try registers the service type once and skips the second match.
-        Assert.Single(assembly.Descriptors("IFoo"));
+        Single(assembly.Descriptors("IFoo"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void WithKeyRegistersUnderAServiceKey()
     {
         var assembly = Compile(
@@ -1047,12 +1044,14 @@ public class ConventionRegistrationTests
 
         var descriptor = assembly.Descriptor("IFoo");
 
-        Assert.True(descriptor.IsKeyedService);
-        Assert.Equal("primary", descriptor.ServiceKey);
+        Verify(descriptor.IsKeyedService);
+        Verify(Equals(descriptor.ServiceKey, "primary"));
 
-        Assert.IsType(
-            assembly.Type("Foo"),
-            assembly.BuildProvider().GetRequiredKeyedService(assembly.Type("IFoo"), "primary")
+        Verify(
+            assembly
+                .BuildProvider()
+                .GetRequiredKeyedService(assembly.Type("IFoo"), "primary")
+                .GetType() == assembly.Type("Foo")
         );
     }
 
@@ -1060,7 +1059,7 @@ public class ConventionRegistrationTests
     /// The case DM0004 exists for: one service type claimed twice, so one lifetime has to win and
     /// the source does not say which.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void TwoConventionsRegisteringOneServiceTypeIsAmbiguous()
     {
         var result = Run(
@@ -1080,17 +1079,17 @@ public class ConventionRegistrationTests
             """
         );
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0004");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0004");
 
-        Assert.Contains("different lifetimes", diagnostic.GetMessage());
-        Assert.Contains("IFoo", diagnostic.GetMessage());
+        Verify(diagnostic.GetMessage().Contains("different lifetimes"));
+        Verify(diagnostic.GetMessage().Contains("IFoo"));
     }
 
     /// <summary>
     /// Equal lifetimes are still an error. The outcome is predictable, but the declaration is
     /// redundant and collapsing it silently is the failure mode this codebase avoids.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ADuplicatedConventionIsAmbiguousEvenWithEqualLifetimes()
     {
         var result = Run(
@@ -1109,12 +1108,12 @@ public class ConventionRegistrationTests
             """
         );
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0004");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0004");
 
-        Assert.Contains("duplicated", diagnostic.GetMessage());
+        Verify(diagnostic.GetMessage().Contains("duplicated"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AsSelfRegistersTheConcreteTypeRatherThanTheService()
     {
         var assembly = Compile(
@@ -1131,15 +1130,15 @@ public class ConventionRegistrationTests
             """
         );
 
-        Assert.Empty(assembly.Descriptors("IFoo"));
-        Assert.Single(assembly.Descriptors("Foo"));
+        Verify(assembly.Descriptors("IFoo").Count == 0);
+        Single(assembly.Descriptors("Foo"));
     }
 
     /// <summary>
     /// AsSelfWithInterfaces promises one instance reachable through the type and every interface,
     /// which is why it emits the cross-wire shape rather than two independent registrations.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AsSelfWithInterfacesSharesOneInstance()
     {
         var assembly = Compile(
@@ -1163,15 +1162,15 @@ public class ConventionRegistrationTests
         var asIFoo = provider.GetService(assembly.Type("IFoo"));
         var asIBar = provider.GetService(assembly.Type("IBar"));
 
-        Assert.NotNull(asFoo);
-        Assert.Same(asFoo, asIFoo);
-        Assert.Same(asFoo, asIBar);
+        Verify(asFoo is not null);
+        Verify(ReferenceEquals(asFoo, asIFoo));
+        Verify(ReferenceEquals(asFoo, asIBar));
     }
 
     /// <summary>
     /// The hole this closes: a concrete class implementing nothing, selected by namespace.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AConcreteTypeWithNoInterfaceRegistersByNamespace()
     {
         var assembly = Compile(
@@ -1188,11 +1187,11 @@ public class ConventionRegistrationTests
             """
         );
 
-        Assert.Single(assembly.Descriptors("OrderCalculator"));
-        Assert.Single(assembly.Descriptors("OrderValidator"));
+        Single(assembly.Descriptors("OrderCalculator"));
+        Single(assembly.Descriptors("OrderValidator"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void NamespaceFiltersNarrowAnAssignabilityConvention()
     {
         var result = Run(
@@ -1210,10 +1209,10 @@ public class ConventionRegistrationTests
         );
 
         // Filtered out entirely, which is DM0005 rather than silence.
-        Assert.Contains(result.GeneratorDiagnostics, d => d.Id == "DM0005");
+        Verify(result.GeneratorDiagnostics.Any(d => d.Id == "DM0005"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void NotInNamespacesExcludesAfterInclusions()
     {
         var assembly = Compile(
@@ -1230,10 +1229,10 @@ public class ConventionRegistrationTests
             """
         );
 
-        Assert.Empty(assembly.Descriptors("IFoo"));
+        Verify(assembly.Descriptors("IFoo").Count == 0);
     }
 
-    [Fact]
+    [VerifyTest]
     public void RegisterAllWithNoServiceTypeNeedsAShape()
     {
         var result = Run(
@@ -1249,15 +1248,15 @@ public class ConventionRegistrationTests
             """
         );
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0009");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0009");
 
-        Assert.Contains("AsSelf", diagnostic.GetMessage());
+        Verify(diagnostic.GetMessage().Contains("AsSelf"));
     }
 
     /// <summary>
     /// Without a filter it would match every class in the compilation, so it is refused.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void RegisterAllWithNoServiceTypeAndNoFilterIsRefused()
     {
         var result = Run(
@@ -1273,12 +1272,12 @@ public class ConventionRegistrationTests
             """
         );
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0009");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0009");
 
-        Assert.Contains("every class", diagnostic.GetMessage());
+        Verify(diagnostic.GetMessage().Contains("every class"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void RegistersEveryTypeDeclaringTheServiceInterface()
     {
         var assembly = Compile(
@@ -1300,13 +1299,16 @@ public class ConventionRegistrationTests
 
         var descriptors = assembly.Descriptors("IFoo");
 
-        Assert.Equal(2, descriptors.Count);
-        Assert.All(descriptors, d => Assert.Equal(ServiceLifetime.Singleton, d.Lifetime));
-        Assert.Contains(descriptors, d => d.ImplementationType == assembly.Type("FooOne"));
-        Assert.Contains(descriptors, d => d.ImplementationType == assembly.Type("FooTwo"));
+        Verify(descriptors.Count == 2);
+        foreach (var d in descriptors)
+        {
+            Verify(d.Lifetime == ServiceLifetime.Singleton);
+        }
+        Verify(descriptors.Any(d => d.ImplementationType == assembly.Type("FooOne")));
+        Verify(descriptors.Any(d => d.ImplementationType == assembly.Type("FooTwo")));
     }
 
-    [Fact]
+    [VerifyTest]
     public void RegisteredServiceResolves()
     {
         var assembly = Compile(
@@ -1323,15 +1325,15 @@ public class ConventionRegistrationTests
             """
         );
 
-        Assert.IsType(assembly.Type("Foo"), assembly.ResolveRequired("IFoo"));
-        Assert.Equal(ServiceLifetime.Scoped, assembly.Descriptor("IFoo").Lifetime);
+        Verify(assembly.ResolveRequired("IFoo").GetType() == assembly.Type("Foo"));
+        Verify(assembly.Descriptor("IFoo").Lifetime == ServiceLifetime.Scoped);
     }
 
     /// <summary>
     /// An interface declaring that it extends another is a deliberate statement of substitutability,
     /// so a convention naming the base interface matches by declaration.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void MatchesThroughInterfaceInheritance()
     {
         var assembly = Compile(
@@ -1350,7 +1352,7 @@ public class ConventionRegistrationTests
             """
         );
 
-        Assert.Equal(assembly.Type("Thing"), assembly.Descriptor("IFoo").ImplementationType);
+        Verify(assembly.Descriptor("IFoo").ImplementationType == assembly.Type("Thing"));
     }
 
     /// <summary>
@@ -1358,7 +1360,7 @@ public class ConventionRegistrationTests
     /// and every subclass added later would join the convention with nobody revisiting it. So it
     /// takes an explicit opt-in.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void DoesNotMatchThroughABaseClassByDefault()
     {
         var result = Run(
@@ -1377,10 +1379,10 @@ public class ConventionRegistrationTests
         );
 
         // Nothing matched, which is DM0005 rather than silence.
-        Assert.Contains(result.GeneratorDiagnostics, d => d.Id == "DM0005");
+        Verify(result.GeneratorDiagnostics.Any(d => d.Id == "DM0005"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void MatchesThroughABaseClassWhenAskedTo()
     {
         var assembly = Compile(
@@ -1398,14 +1400,14 @@ public class ConventionRegistrationTests
             """
         );
 
-        Assert.Equal(assembly.Type("Thing"), assembly.Descriptor("IFoo").ImplementationType);
+        Verify(assembly.Descriptor("IFoo").ImplementationType == assembly.Type("Thing"));
     }
 
     /// <summary>
     /// The make-or-break behaviour for open generics: the match registers the closed construction it
     /// actually implements, not the open definition.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ClosesAnOpenGenericAgainstEachImplementation()
     {
         var assembly = Compile(
@@ -1438,15 +1440,15 @@ public class ConventionRegistrationTests
 
         var provider = assembly.BuildProvider();
 
-        Assert.IsType(assembly.Type("CreateOrderHandler"), provider.GetService(createOrder));
-        Assert.IsType(assembly.Type("RenameHandler"), provider.GetService(rename));
+        Verify(provider.GetService(createOrder)?.GetType() == assembly.Type("CreateOrderHandler"));
+        Verify(provider.GetService(rename)?.GetType() == assembly.Type("RenameHandler"));
     }
 
     /// <summary>
     /// A closed convention registers only that construction. Without this,
     /// RegisterAll&lt;IHandler&lt;A,B&gt;&gt;() would pick up every other closing too.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AClosedGenericConventionMatchesOnlyThatConstruction()
     {
         var assembly = Compile(
@@ -1467,15 +1469,15 @@ public class ConventionRegistrationTests
         var repo = assembly.Type("IRepo`1");
         var provider = assembly.BuildProvider();
 
-        Assert.IsType(
-            assembly.Type("IntRepo"),
-            provider.GetService(repo.MakeGenericType(typeof(int)))
+        Verify(
+            provider.GetService(repo.MakeGenericType(typeof(int)))?.GetType()
+                == assembly.Type("IntRepo")
         );
 
-        Assert.Null(provider.GetService(repo.MakeGenericType(typeof(string))));
+        Verify(provider.GetService(repo.MakeGenericType(typeof(string))) is null);
     }
 
-    [Fact]
+    [VerifyTest]
     public void AnExplicitServiceAttributeBeatsTheConvention()
     {
         var assembly = Compile(
@@ -1504,18 +1506,18 @@ public class ConventionRegistrationTests
             .Where(d => d.ImplementationType == assembly.Type("Attributed"))
             .ToArray();
 
-        Assert.Single(attributed);
-        Assert.Equal(ServiceLifetime.Singleton, attributed[0].Lifetime);
+        Single(attributed);
+        Verify(attributed[0].Lifetime == ServiceLifetime.Singleton);
 
         var byConvention = descriptors
             .Where(d => d.ImplementationType == assembly.Type("ByConvention"))
             .ToArray();
 
-        Assert.Single(byConvention);
-        Assert.Equal(ServiceLifetime.Transient, byConvention[0].Lifetime);
+        Single(byConvention);
+        Verify(byConvention[0].Lifetime == ServiceLifetime.Transient);
     }
 
-    [Fact]
+    [VerifyTest]
     public void OmittingTheLifetimeIsRefused()
     {
         var result = Run(
@@ -1532,9 +1534,9 @@ public class ConventionRegistrationTests
             """
         );
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0009");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0009");
 
-        Assert.Contains("lifetime", diagnostic.GetMessage());
+        Verify(diagnostic.GetMessage().Contains("lifetime"));
     }
 
     /// <summary>
@@ -1542,14 +1544,12 @@ public class ConventionRegistrationTests
     /// has no meaning. Refused rather than skipped: dropping it would lose registrations while the
     /// build stayed green.
     /// </summary>
-    [Theory]
-    [InlineData(
-        "foreach (var t in new Type[0]) { conventions.RegisterAll<IFoo>().AsSingleton(); }"
-    )]
-    [InlineData("if (DateTime.Now.Day > 1) { conventions.RegisterAll<IFoo>().AsSingleton(); }")]
-    [InlineData("var x = 5;")]
-    [InlineData("Helper(conventions);")]
-    [InlineData("conventions.RegisterAll<IFoo>().AsSingleton().AsScoped();")]
+    [VerifyTest]
+    [Row("foreach (var t in new Type[0]) { conventions.RegisterAll<IFoo>().AsSingleton(); }")]
+    [Row("if (DateTime.Now.Day > 1) { conventions.RegisterAll<IFoo>().AsSingleton(); }")]
+    [Row("var x = 5;")]
+    [Row("Helper(conventions);")]
+    [Row("conventions.RegisterAll<IFoo>().AsSingleton().AsScoped();")]
     public void UnreadableStatementsAreRefused(string statement)
     {
         var result = Run(
@@ -1568,7 +1568,7 @@ public class ConventionRegistrationTests
             """
         );
 
-        Assert.Contains(result.GeneratorDiagnostics, d => d.Id == "DM0009");
+        Verify(result.GeneratorDiagnostics.Any(d => d.Id == "DM0009"));
     }
 
     // TwoConventionsMatchingOneTypeIsAmbiguous lived here. It asserted DM0004 for a type matched
@@ -1577,7 +1577,7 @@ public class ConventionRegistrationTests
     // registers rather than that it refuses. TwoConventionsRegisteringOneServiceTypeIsAmbiguous
     // keeps DM0004 honest for the case it exists for.
 
-    [Fact]
+    [VerifyTest]
     public void AConcreteTypeWithNoAccessibleConstructorIsReported()
     {
         var result = Run(
@@ -1597,16 +1597,16 @@ public class ConventionRegistrationTests
             """
         );
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0006");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0006");
 
-        Assert.Contains("Hidden", diagnostic.GetMessage());
+        Verify(diagnostic.GetMessage().Contains("Hidden"));
     }
 
     /// <summary>
     /// The class carries no attribute saying it is registered, so this is the only thing at the
     /// declaration that explains why it is in the container.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ReportsWhatEachClassIsExposedAs()
     {
         var result = Run(
@@ -1628,14 +1628,16 @@ public class ConventionRegistrationTests
 
         var exposures = result.GeneratorDiagnostics.Where(d => d.Id == "DM0010").ToArray();
 
-        Assert.Equal(2, exposures.Length);
-        Assert.All(exposures, d => Assert.Equal(DiagnosticSeverity.Info, d.Severity));
+        Verify(exposures.Length == 2);
+        foreach (var d in exposures)
+        {
+            Verify(d.Severity == DiagnosticSeverity.Info);
+        }
 
         // The indirect match names the hop, which is what keeps it from reading as luck.
-        Assert.Contains(exposures, d => d.GetMessage() == "Exposed as IFoo in TestModule");
-        Assert.Contains(
-            exposures,
-            d => d.GetMessage() == "Exposed as IFoo in TestModule (via IFooPrime)"
+        Verify(exposures.Any(d => d.GetMessage() == "Exposed as IFoo in TestModule"));
+        Verify(
+            exposures.Any(d => d.GetMessage() == "Exposed as IFoo in TestModule (via IFooPrime)")
         );
     }
 
@@ -1644,7 +1646,7 @@ public class ConventionRegistrationTests
     /// directly in an incremental model — a Location pins its SyntaxTree — so it is rebuilt from
     /// primitives at output. This asserts the rebuild lands on the right line.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ExposureIsReportedOnTheClassItself()
     {
         const string body = """
@@ -1662,21 +1664,21 @@ public class ConventionRegistrationTests
 
         var result = Run(body);
 
-        var exposure = Assert.Single(result.GeneratorDiagnostics.Where(d => d.Id == "DM0010"));
+        var exposure = Single(result.GeneratorDiagnostics.Where(d => d.Id == "DM0010"));
         var span = exposure.Location.GetLineSpan();
 
-        Assert.EndsWith("Test.cs", span.Path);
+        Verify(span.Path.EndsWith("Test.cs"));
 
         var lines = (Preamble + body).Replace("\r\n", "\n").Split('\n');
 
-        Assert.Contains("class Foo", lines[span.StartLinePosition.Line]);
+        Verify(lines[span.StartLinePosition.Line].Contains("class Foo"));
     }
 
     /// <summary>
     /// A type implementing IConventionModule that is not a module registers nothing at all, so it is
     /// reported rather than left to fail silently.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ConventionsOnANonModuleAreReported()
     {
         var result = Run(
@@ -1695,12 +1697,12 @@ public class ConventionRegistrationTests
             """
         );
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0009");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0009");
 
-        Assert.Contains("NotAModule", diagnostic.GetMessage());
+        Verify(diagnostic.GetMessage().Contains("NotAModule"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void EditingAnUnrelatedMethodBodyReusesTheCachedOutput()
     {
         const string template = """
@@ -1728,8 +1730,12 @@ public class ConventionRegistrationTests
             new Dictionary<string, string> { ["Test.cs"] = template.Replace("VALUE", "2") }
         );
 
-        Assert.Equal(result.FirstRun, result.SecondRun);
-        Assert.True(
+        Verify(result.SecondRun.Count == result.FirstRun.Count);
+        foreach (var (hintName, source) in result.FirstRun)
+        {
+            Verify(result.SecondRun.TryGetValue(hintName, out var second) && second == source);
+        }
+        Verify(
             result.AllOutputsCached,
             "editing a method body cannot change any registration, so every output should be cached"
         );

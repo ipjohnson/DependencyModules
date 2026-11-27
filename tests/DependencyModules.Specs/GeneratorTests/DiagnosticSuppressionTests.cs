@@ -2,9 +2,8 @@ using System.Collections.Generic;
 using System.Linq;
 using DependencyModules.Tests.Infrastructure;
 using Microsoft.CodeAnalysis;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// Whether a DM diagnostic can be silenced where it is written.
@@ -28,17 +27,17 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// because a generator that failed has nothing to point at. Adding a code without adding it here
 /// means shipping one more diagnostic nobody can turn off where they wrote it.
 /// </summary>
-public class DiagnosticSuppressionTests
+public partial class DiagnosticSuppressionTests
 {
-    [Theory]
-    [MemberData(nameof(Triggers))]
+    [VerifyTest]
+    [RowSource(nameof(Triggers))]
     public void ADiagnostic_IsReportedAgainstASyntaxTree(string code, string source)
     {
         var result = GeneratorTestHarness.Run(source);
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == code);
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == code);
 
-        Assert.True(
+        Verify(
             diagnostic.Location.SourceTree != null,
             $"{code} was reported at {diagnostic.Location.Kind} with no syntax tree, so neither "
                 + ".editorconfig nor #pragma can silence it. Location: "
@@ -46,15 +45,15 @@ public class DiagnosticSuppressionTests
         );
     }
 
-    [Theory]
-    [MemberData(nameof(Triggers))]
+    [VerifyTest]
+    [RowSource(nameof(Triggers))]
     public void ADiagnostic_IsReportedInTheFileThatCausedIt(string code, string source)
     {
         var result = GeneratorTestHarness.Run(source);
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == code);
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == code);
 
-        Assert.Equal("Test.cs", System.IO.Path.GetFileName(diagnostic.Location.GetLineSpan().Path));
+        Verify(System.IO.Path.GetFileName(diagnostic.Location.GetLineSpan().Path) == "Test.cs");
     }
 
     /// <summary>
@@ -63,10 +62,9 @@ public class DiagnosticSuppressionTests
     /// because they are the two that were never moved and already carry a real location — they are
     /// covered by AssemblyModuleAttributeDiagnosticsTests.
     /// </summary>
-    public static IEnumerable<object[]> Triggers()
+    public static IEnumerable<(string Code, string Source)> Triggers()
     {
-        yield return
-        [
+        yield return (
             "DM0002",
             Module(
                 """
@@ -74,22 +72,20 @@ public class DiagnosticSuppressionTests
                 [SingletonService]
                 public abstract class Thing : IThing;
                 """
-            ),
-        ];
+            )
+        );
 
-        yield return
-        [
+        yield return (
             "DM0003",
             """
-                using DependencyModules.Runtime.Attributes;
-                namespace TestNamespace;
-                [DependencyModule]
-                public class NotPartialModule;
-                """,
-        ];
+            using DependencyModules.Runtime.Attributes;
+            namespace TestNamespace;
+            [DependencyModule]
+            public class NotPartialModule;
+            """
+        );
 
-        yield return
-        [
+        yield return (
             "DM0012",
             Module(
                 """
@@ -98,11 +94,10 @@ public class DiagnosticSuppressionTests
                 [IfEnvironment]
                 public class Thing : IThing;
                 """
-            ),
-        ];
+            )
+        );
 
-        yield return
-        [
+        yield return (
             "DM0014",
             Module(
                 """
@@ -110,24 +105,22 @@ public class DiagnosticSuppressionTests
                 [CrossWireService]
                 public class Thing<T> : IThing<T>;
                 """
-            ),
-        ];
+            )
+        );
 
-        yield return
-        [
+        yield return (
             "DM0017",
             """
-                using DependencyModules.Runtime.Attributes;
-                namespace TestNamespace;
-                public static class Outer {
-                    [DependencyModule]
-                    public partial class NestedModule;
-                }
-                """,
-        ];
+            using DependencyModules.Runtime.Attributes;
+            namespace TestNamespace;
+            public static class Outer {
+                [DependencyModule]
+                public partial class NestedModule;
+            }
+            """
+        );
 
-        yield return
-        [
+        yield return (
             "DM0004",
             Convention(
                 """
@@ -142,11 +135,10 @@ public class DiagnosticSuppressionTests
                     }
                 }
                 """
-            ),
-        ];
+            )
+        );
 
-        yield return
-        [
+        yield return (
             "DM0005",
             Convention(
                 """
@@ -157,11 +149,10 @@ public class DiagnosticSuppressionTests
                     }
                 }
                 """
-            ),
-        ];
+            )
+        );
 
-        yield return
-        [
+        yield return (
             "DM0006",
             Convention(
                 """
@@ -175,11 +166,10 @@ public class DiagnosticSuppressionTests
                     }
                 }
                 """
-            ),
-        ];
+            )
+        );
 
-        yield return
-        [
+        yield return (
             "DM0009",
             Convention(
                 """
@@ -193,31 +183,29 @@ public class DiagnosticSuppressionTests
                     }
                 }
                 """
-            ),
-        ];
+            )
+        );
 
-        yield return
-        [
+        yield return (
             "DM0021",
             """
-                using DependencyModules.Runtime.Attributes;
-                using DependencyModules.Testing.Attributes;
+            using DependencyModules.Runtime.Attributes;
+            using DependencyModules.Testing.Attributes;
 
-                namespace TestNamespace;
+            namespace TestNamespace;
 
-                public interface IThing;
+            public interface IThing;
 
-                public class RealThing : IThing;
+            public class RealThing : IThing;
 
-                public class Fixture {
-                    [TestExport(typeof(IThing), Implementation = typeof(RealThing))]
-                    public void Conflicting([Mock] IThing thing) { }
-                }
-                """,
-        ];
+            public class Fixture {
+                [TestExport(typeof(IThing), Implementation = typeof(RealThing))]
+                public void Conflicting([Mock] IThing thing) { }
+            }
+            """
+        );
 
-        yield return
-        [
+        yield return (
             "DM0020",
             Convention(
                 """
@@ -239,11 +227,10 @@ public class DiagnosticSuppressionTests
                     }
                 }
                 """
-            ),
-        ];
+            )
+        );
 
-        yield return
-        [
+        yield return (
             "DM0010",
             Convention(
                 """
@@ -257,11 +244,10 @@ public class DiagnosticSuppressionTests
                     }
                 }
                 """
-            ),
-        ];
+            )
+        );
 
-        yield return
-        [
+        yield return (
             "DM0011",
             Module(
                 """
@@ -270,66 +256,63 @@ public class DiagnosticSuppressionTests
                 [IfEnvironment("Development")]
                 public class Thing : IThing;
                 """
-            ),
-        ];
+            )
+        );
 
-        yield return
-        [
+        yield return (
             "DM0007",
             """
-                using DependencyModules.Runtime.Attributes;
+            using DependencyModules.Runtime.Attributes;
 
-                namespace TestNamespace;
+            namespace TestNamespace;
 
-                public interface IThing { string Read(); }
+            public interface IThing { string Read(); }
 
-                [SingletonService]
-                public class Thing : IThing {
-                    public string Read() => "";
-                }
+            [SingletonService]
+            public class Thing : IThing {
+                public string Read() => "";
+            }
 
-                [Decorator(Order = 1)]
-                public class FirstDecorator(IThing inner) : IThing {
-                    public string Read() => inner.Read();
-                }
+            [Decorator(Order = 1)]
+            public class FirstDecorator(IThing inner) : IThing {
+                public string Read() => inner.Read();
+            }
 
-                [Decorator(Order = 1)]
-                public class SecondDecorator(IThing inner) : IThing {
-                    public string Read() => inner.Read();
-                }
+            [Decorator(Order = 1)]
+            public class SecondDecorator(IThing inner) : IThing {
+                public string Read() => inner.Read();
+            }
 
-                [DependencyModule]
-                public partial class TestModule;
-                """,
-        ];
+            [DependencyModule]
+            public partial class TestModule;
+            """
+        );
 
-        yield return
-        [
+        yield return (
             "DM0013",
             """
-                using DependencyModules.Runtime.Attributes;
+            using DependencyModules.Runtime.Attributes;
 
-                namespace TestNamespace;
+            namespace TestNamespace;
 
-                public interface IStore<T> { string Read(T key); }
+            public interface IStore<T> { string Read(T key); }
 
-                [SingletonService]
-                public class Store<T> : IStore<T> {
-                    public string Read(T key) => "";
-                }
+            [SingletonService]
+            public class Store<T> : IStore<T> {
+                public string Read(T key) => "";
+            }
 
-                [Decorator]
-                public class LoggingStore<T>(IStore<T> inner) : IStore<T> {
-                    public string Read(T key) => inner.Read(key);
-                }
+            [Decorator]
+            public class LoggingStore<T>(IStore<T> inner) : IStore<T> {
+                public string Read(T key) => inner.Read(key);
+            }
 
-                [DependencyModule]
-                public partial class TestModule;
-                """,
-        ];
+            [DependencyModule]
+            public partial class TestModule;
+            """
+        );
 
-        yield return
-        [
+        yield return (
             "DM0008",
             Intercepted(
                 """
@@ -343,11 +326,10 @@ public class DiagnosticSuppressionTests
                     public bool TryGet(string key, out string value) { value = key; return true; }
                 }
                 """
-            ),
-        ];
+            )
+        );
 
-        yield return
-        [
+        yield return (
             "DM0015",
             Intercepted(
                 """
@@ -361,21 +343,20 @@ public class DiagnosticSuppressionTests
                     public Task<string> GetAsync(string key) => Task.FromResult(key);
                 }
                 """
-            ),
-        ];
+            )
+        );
 
-        yield return
-        [
+        yield return (
             "DM0018",
             """
-                using DependencyModules.Runtime.Attributes;
-                namespace TestNamespace;
-                [DependencyModule]
-                public partial class TestModule {
-                    public int SizeLimit { get; set; }
-                }
-                """,
-        ];
+            using DependencyModules.Runtime.Attributes;
+            namespace TestNamespace;
+            [DependencyModule]
+            public partial class TestModule {
+                public int SizeLimit { get; set; }
+            }
+            """
+        );
     }
 
     private static string Convention(string body) =>

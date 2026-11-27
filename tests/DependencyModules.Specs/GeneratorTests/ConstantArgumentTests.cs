@@ -1,15 +1,14 @@
 using DependencyModules.Tests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// An attribute or convention argument is read as the value it evaluates to. A constant declared
 /// elsewhere, a digit separator and a fully qualified enum member all have to give the same result
 /// as the literal.
 /// </summary>
-public class ConstantArgumentTests
+public partial class ConstantArgumentTests
 {
     private const string Preamble = """
         using DependencyModules.Runtime.Attributes;
@@ -40,7 +39,7 @@ public class ConstantArgumentTests
     private static GeneratedAssembly Compile(string source) =>
         GeneratedAssembly.Create(Preamble + source);
 
-    [Fact]
+    [VerifyTest]
     public void ServiceOrder_IsReadAsItsValue()
     {
         var assembly = Compile(
@@ -61,15 +60,19 @@ public class ConstantArgumentTests
             """
         );
 
-        Assert.Equal(
-            new[] { "LiteralOrderRule", "SeparatorOrderRule", "ConstantOrderRule" },
-            assembly.Descriptors("IRule").Select(d => d.ImplementationType!.Name)
+        Verify(
+            assembly
+                .Descriptors("IRule")
+                .Select(d => d.ImplementationType!.Name)
+                .SequenceEqual(
+                    new[] { "LiteralOrderRule", "SeparatorOrderRule", "ConstantOrderRule" }
+                )
         );
     }
 
-    [Theory]
-    [InlineData("DependencyModules.Runtime.Attributes.RegistrationType.Try")]
-    [InlineData("Choices.TryIt")]
+    [VerifyTest]
+    [Row("DependencyModules.Runtime.Attributes.RegistrationType.Try")]
+    [Row("Choices.TryIt")]
     public void ServiceUsing_IsReadAsItsValue(string registrationType)
     {
         var assembly = Compile(
@@ -87,10 +90,10 @@ public class ConstantArgumentTests
             """
         );
 
-        Assert.Single(assembly.Descriptors("IClock"));
+        Single(assembly.Descriptors("IClock"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void ModuleArguments_AreReadAsTheirValues()
     {
         var result = Run(
@@ -112,12 +115,12 @@ public class ConstantArgumentTests
 
         var registrations = result.SourceContaining("Dependencies");
 
-        Assert.Contains("services.TryAddSingleton(", registrations);
-        Assert.DoesNotContain("services.AddSingleton(", registrations);
-        Assert.Contains("new global::TestNamespace.FirstClock()", registrations);
+        Verify(registrations.Contains("services.TryAddSingleton("));
+        Verify(!registrations.Contains("services.AddSingleton("));
+        Verify(registrations.Contains("new global::TestNamespace.FirstClock()"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void CrossWireLifetime_IsReadAsItsValue()
     {
         var assembly = Compile(
@@ -132,11 +135,11 @@ public class ConstantArgumentTests
             """
         );
 
-        Assert.Equal(ServiceLifetime.Scoped, assembly.Descriptor("Store").Lifetime);
-        Assert.Equal(ServiceLifetime.Scoped, assembly.Descriptor("IReader").Lifetime);
+        Verify(assembly.Descriptor("Store").Lifetime == ServiceLifetime.Scoped);
+        Verify(assembly.Descriptor("IReader").Lifetime == ServiceLifetime.Scoped);
     }
 
-    [Fact]
+    [VerifyTest]
     public void DecoratorOrder_IsReadAsItsValue()
     {
         var assembly = Compile(
@@ -171,13 +174,15 @@ public class ConstantArgumentTests
 
         var greeter = assembly.ResolveRequired("IGreeter");
 
-        Assert.Equal(
-            "outer(inner(hello))",
-            greeter.GetType().GetMethod("Greet")!.Invoke(greeter, null)
+        Verify(
+            Equals(
+                greeter.GetType().GetMethod("Greet")!.Invoke(greeter, null),
+                "outer(inner(hello))"
+            )
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void InterceptArguments_AreReadAsTheirValues()
     {
         var assembly = Compile(
@@ -227,22 +232,22 @@ public class ConstantArgumentTests
             """
         );
 
-        Assert.Equal(ServiceLifetime.Scoped, assembly.Descriptor("CountingInterceptor").Lifetime);
+        Verify(assembly.Descriptor("CountingInterceptor").Lifetime == ServiceLifetime.Scoped);
 
         using var scope = assembly.BuildProvider().CreateScope();
         var greeterType = assembly.Type("IGreeter");
         var greeter = scope.ServiceProvider.GetRequiredService(greeterType);
 
         // Order 2000 puts the interception outside the decorator at 1000.
-        Assert.Equal("Greeter_Intercepted", greeter.GetType().Name);
+        Verify(greeter.GetType().Name == "Greeter_Intercepted");
 
         greeterType.GetMethod("Hello")!.Invoke(greeter, null);
         greeterType.GetProperty("Name")!.GetValue(greeter);
 
-        Assert.Equal(1, assembly.Type("CountingInterceptor").GetField("Calls")!.GetValue(null));
+        Verify(Equals(assembly.Type("CountingInterceptor").GetField("Calls")!.GetValue(null), 1));
     }
 
-    [Fact]
+    [VerifyTest]
     public void ConventionUsing_IsReadAsItsValue()
     {
         var result = Run(
@@ -264,16 +269,15 @@ public class ConstantArgumentTests
 
         result.AssertNoErrors();
 
-        Assert.Contains(
-            "services.TryAddSingleton(",
-            result.SourceContaining("ConventionDependencies")
+        Verify(
+            result.SourceContaining("ConventionDependencies").Contains("services.TryAddSingleton(")
         );
     }
 
-    [Theory]
-    [InlineData("IfEnvironmentValue(Keys.Feature, \"on\")", "'Keys.Feature'")]
-    [InlineData("WithName(\"Order*\", Keys.InvoicePattern)", "'Keys.InvoicePattern'")]
-    [InlineData("Using(Keys.Using)", "RegistrationType")]
+    [VerifyTest]
+    [Row("IfEnvironmentValue(Keys.Feature, \"on\")", "'Keys.Feature'")]
+    [Row("WithName(\"Order*\", Keys.InvoicePattern)", "'Keys.InvoicePattern'")]
+    [Row("Using(Keys.Using)", "RegistrationType")]
     public void AConventionArgumentThatIsNotAConstant_IsReported(string call, string named)
     {
         var result = Run(
@@ -300,11 +304,11 @@ public class ConstantArgumentTests
             """
         );
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0009");
-        Assert.Contains(named, diagnostic.GetMessage());
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0009");
+        Verify(diagnostic.GetMessage().Contains(named));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AConstantConventionArgument_IsRead()
     {
         var result = Run(
@@ -331,7 +335,7 @@ public class ConstantArgumentTests
 
         result.AssertNoErrors();
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0009");
-        Assert.Contains("\"FEATURE_X\"", result.SourceContaining("ConventionDependencies"));
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0009"));
+        Verify(result.SourceContaining("ConventionDependencies").Contains("\"FEATURE_X\""));
     }
 }

@@ -2,9 +2,8 @@ using System.Linq;
 using DependencyModules.Runtime;
 using DependencyModules.Tests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// An interceptor's wrapper is generated from one class and forwards that class's members, so it
@@ -16,7 +15,7 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// <c>[Intercept]</c> coming back wrapped in another class's wrapper, and, with two implementations
 /// marked, every interceptor running twice per call. Neither threw.
 /// </summary>
-public class InterceptionScopeTests
+public partial class InterceptionScopeTests
 {
     private const string Interceptor = """
         public sealed class CountingInterceptor : IInterceptor {
@@ -28,7 +27,7 @@ public class InterceptionScopeTests
         }
         """;
 
-    [Fact]
+    [VerifyTest]
     public void AnUnmarkedSiblingImplementation_IsNotWrapped()
     {
         var generated = GeneratedAssembly.Create(
@@ -58,10 +57,10 @@ public class InterceptionScopeTests
             .OrderBy(n => n)
             .ToArray();
 
-        Assert.Equal(new[] { "Loud_Intercepted", "Quiet" }, resolved);
+        Verify(resolved.SequenceEqual(new[] { "Loud_Intercepted", "Quiet" }));
     }
 
-    [Fact]
+    [VerifyTest]
     public void TwoMarkedImplementations_EachGetTheirOwnWrapper()
     {
         var generated = GeneratedAssembly.Create(
@@ -92,7 +91,7 @@ public class InterceptionScopeTests
             .ToArray();
 
         // Each behind its own wrapper, rather than both behind whichever was emitted last.
-        Assert.Equal(new[] { "Loud_Intercepted", "Quiet_Intercepted" }, resolved);
+        Verify(resolved.SequenceEqual(new[] { "Loud_Intercepted", "Quiet_Intercepted" }));
     }
 
     /// <summary>
@@ -101,7 +100,7 @@ public class InterceptionScopeTests
     /// its own registration anyway, or narrowing the rewrite would silently stop intercepting a
     /// service that had asked for it.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AnInterceptorOrderedOutsideADecorator_StillApplies()
     {
         var generated = GeneratedAssembly.Create(
@@ -120,19 +119,19 @@ public class InterceptionScopeTests
 
         var resolved = generated.ResolveRequired("IGreeter");
 
-        Assert.Equal("Core_Intercepted", resolved.GetType().Name);
+        Verify(resolved.GetType().Name == "Core_Intercepted");
 
         // The decorator is still inside the interception wrapper, so both ran.
         var greet = (string)resolved.GetType().GetMethod("Greet")!.Invoke(resolved, null)!;
 
-        Assert.Equal("[core]", greet);
+        Verify(greet == "[core]");
     }
 
     /// <summary>
     /// The repro from issue #80. A registration made from a factory or an instance of another class
     /// is not the one the wrapper was generated from.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AFactoryOrAnInstanceOfAnotherClass_IsNotWrapped()
     {
         var generated = GeneratedAssembly.Create(
@@ -152,7 +151,7 @@ public class InterceptionScopeTests
             )
         );
 
-        Assert.Equal(new[] { "Loud_Intercepted", "Plain", "Quiet" }, Greeters(generated));
+        Verify(Greeters(generated).SequenceEqual(new[] { "Loud_Intercepted", "Plain", "Quiet" }));
     }
 
     /// <summary>
@@ -160,14 +159,14 @@ public class InterceptionScopeTests
     /// as its implementation. A cross-wired interface is a factory that resolves the class, so
     /// that factory is typed to return the class.
     /// </summary>
-    [Theory]
-    [InlineData("[SingletonService]")]
-    [InlineData("[SingletonService(Using = RegistrationType.Try)]")]
-    [InlineData("[SingletonService(Using = RegistrationType.Replace)]")]
-    [InlineData("[SingletonService(Using = RegistrationType.TryEnumerable)]")]
-    [InlineData("[SingletonService] [IfEnvironment(\"Development\")]")]
-    [InlineData("[CrossWireService]")]
-    [InlineData("[CrossWireService(Using = RegistrationType.TryEnumerable)]")]
+    [VerifyTest]
+    [Row("[SingletonService]")]
+    [Row("[SingletonService(Using = RegistrationType.Try)]")]
+    [Row("[SingletonService(Using = RegistrationType.Replace)]")]
+    [Row("[SingletonService(Using = RegistrationType.TryEnumerable)]")]
+    [Row("[SingletonService] [IfEnvironment(\"Development\")]")]
+    [Row("[CrossWireService]")]
+    [Row("[CrossWireService(Using = RegistrationType.TryEnumerable)]")]
     public void OnlyTheRegistrationOfTheInterceptedClass_IsWrapped(string registration)
     {
         var generated = GeneratedAssembly.Create(
@@ -183,10 +182,10 @@ public class InterceptionScopeTests
             environment: new ModuleEnvironment("Development")
         );
 
-        Assert.Equal(new[] { "Loud_Intercepted", "Quiet" }, Greeters(generated));
+        Verify(Greeters(generated).SequenceEqual(new[] { "Loud_Intercepted", "Quiet" }));
     }
 
-    [Fact]
+    [VerifyTest]
     public void OnlyTheKeyedRegistrationOfTheInterceptedClass_IsWrapped()
     {
         var generated = GeneratedAssembly.Create(
@@ -201,10 +200,10 @@ public class InterceptionScopeTests
             )
         );
 
-        Assert.Equal(new[] { "Loud_Intercepted", "Quiet" }, Greeters(generated, "k"));
+        Verify(Greeters(generated, "k").SequenceEqual(new[] { "Loud_Intercepted", "Quiet" }));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AConventionThatCrossWiresTheInterceptedClass_StillWrapsIt()
     {
         var generated = GeneratedAssembly.Create(
@@ -239,13 +238,13 @@ public class InterceptionScopeTests
             """
         );
 
-        Assert.Equal(new[] { "Loud_Intercepted", "Quiet" }, Greeters(generated));
+        Verify(Greeters(generated).SequenceEqual(new[] { "Loud_Intercepted", "Quiet" }));
     }
 
     /// <summary>
     /// The registration of a factory method is typed to the class the method returns.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AFactoryMethodThatReturnsTheInterceptedClass_IsWrapped()
     {
         var generated = GeneratedAssembly.Create(
@@ -268,13 +267,13 @@ public class InterceptionScopeTests
             )
         );
 
-        Assert.Equal(new[] { "Loud_Intercepted", "Quiet" }, Greeters(generated));
+        Verify(Greeters(generated).SequenceEqual(new[] { "Loud_Intercepted", "Quiet" }));
     }
 
     /// <summary>
     /// The container reads an instance's own type as its implementation, and so does interception.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AnInstanceOfTheInterceptedClass_IsWrapped()
     {
         var generated = GeneratedAssembly.Create(
@@ -287,14 +286,14 @@ public class InterceptionScopeTests
             )
         );
 
-        Assert.Equal(new[] { "Loud_Intercepted", "Loud_Intercepted" }, Greeters(generated));
+        Verify(Greeters(generated).SequenceEqual(new[] { "Loud_Intercepted", "Loud_Intercepted" }));
     }
 
     /// <summary>
     /// A factory typed to return the service names no implementation, so it is not wrapped even when
     /// it builds the intercepted class. The container cannot tell what it builds either.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AFactoryThatReturnsTheService_IsNotWrapped()
     {
         var generated = GeneratedAssembly.Create(
@@ -307,7 +306,7 @@ public class InterceptionScopeTests
             )
         );
 
-        Assert.Equal(new[] { "Loud", "Loud_Intercepted" }, Greeters(generated));
+        Verify(Greeters(generated).SequenceEqual(new[] { "Loud", "Loud_Intercepted" }));
     }
 
     /// <summary>

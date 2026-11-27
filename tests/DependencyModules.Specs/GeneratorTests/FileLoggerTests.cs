@@ -1,14 +1,13 @@
 using DependencyModules.SourceGenerator.Impl.Models;
 using DependencyModules.SourceGenerator.Impl.Utilities;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// FileLogger backs the DependencyModules_LogOutputDirectory build property. It runs inside the
 /// compiler, so it must be inert unless explicitly switched on and must never fail a build.
 /// </summary>
-public class FileLoggerTests : IDisposable
+public partial class FileLoggerTests : IDisposable
 {
     private readonly string _outputFolder = Path.Combine(
         Path.GetTempPath(),
@@ -16,7 +15,7 @@ public class FileLoggerTests : IDisposable
         Guid.NewGuid().ToString("n")
     );
 
-    [Fact]
+    [VerifyTest]
     public void WithNoOutputFolder_WritesNothing()
     {
         var before = Directory.GetCurrentDirectory();
@@ -28,14 +27,14 @@ public class FileLoggerTests : IDisposable
             logger.Error("a problem");
         }
 
-        Assert.Equal(filesBefore.Length, Directory.GetFiles(before).Length);
+        Verify(Directory.GetFiles(before).Length == filesBefore.Length);
     }
 
     /// <summary>
     /// Regression test: logs used to land in the compiler's working directory, ignoring the
     /// configured folder entirely.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void WithAnOutputFolder_WritesIntoThatFolder()
     {
         using (var logger = new FileLogger(Configuration(_outputFolder), "generator"))
@@ -45,25 +44,25 @@ public class FileLoggerTests : IDisposable
 
         var written = Directory.GetFiles(_outputFolder);
 
-        var file = Assert.Single(written);
-        Assert.StartsWith("generator.", Path.GetFileName(file));
-        Assert.EndsWith(".txt", file);
+        var file = Single(written);
+        Verify(Path.GetFileName(file).StartsWith("generator."));
+        Verify(file.EndsWith(".txt"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void WithAnOutputFolder_CreatesTheFolderIfMissing()
     {
-        Assert.False(Directory.Exists(_outputFolder));
+        Verify(!Directory.Exists(_outputFolder));
 
         using (var logger = new FileLogger(Configuration(_outputFolder), "generator"))
         {
             logger.Info("a message");
         }
 
-        Assert.True(Directory.Exists(_outputFolder));
+        Verify(Directory.Exists(_outputFolder));
     }
 
-    [Fact]
+    [VerifyTest]
     public void RecordsLevelsAndMessages()
     {
         using (var logger = new FileLogger(Configuration(_outputFolder), "generator"))
@@ -75,19 +74,19 @@ public class FileLoggerTests : IDisposable
 
         var content = File.ReadAllText(Directory.GetFiles(_outputFolder).Single());
 
-        Assert.Contains("INFO: an info message", content);
-        Assert.Contains("ERROR: an error message", content);
-        Assert.Contains("the data", content);
+        Verify(content.Contains("INFO: an info message"));
+        Verify(content.Contains("ERROR: an error message"));
+        Verify(content.Contains("the data"));
     }
 
     /// <summary>
     /// With no reporter the exception must escape, so Roslyn reports its own generator failure.
     /// Swallowing it produced a successful build with no registrations and no message at all.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void Wrap_WithoutAReporter_RethrowsSoTheFailureIsVisible()
     {
-        var exception = Assert.Throws<InvalidOperationException>(() =>
+        var exception = ThrowsExactly<InvalidOperationException>(() =>
             FileLogger.Wrap(
                 "generator",
                 Configuration(_outputFolder),
@@ -95,10 +94,10 @@ public class FileLoggerTests : IDisposable
             )
         );
 
-        Assert.Equal("generator blew up", exception.Message);
+        Verify(exception.Message == "generator blew up");
     }
 
-    [Fact]
+    [VerifyTest]
     public void Wrap_WithAReporter_HandsItTheExceptionInsteadOfPropagating()
     {
         Exception? reported = null;
@@ -110,11 +109,10 @@ public class FileLoggerTests : IDisposable
             exception => reported = exception
         );
 
-        Assert.NotNull(reported);
-        Assert.Equal("generator blew up", reported!.Message);
+        Verify(NotNull(reported).Message == "generator blew up");
     }
 
-    [Fact]
+    [VerifyTest]
     public void Wrap_RecordsTheExceptionInTheLog()
     {
         FileLogger.Wrap(
@@ -126,16 +124,16 @@ public class FileLoggerTests : IDisposable
 
         var content = File.ReadAllText(Directory.GetFiles(_outputFolder).Single());
 
-        Assert.Contains("ERROR", content);
-        Assert.Contains("generator blew up", content);
+        Verify(content.Contains("ERROR"));
+        Verify(content.Contains("generator blew up"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void Wrap_LetsCancellationThrough()
     {
         var reported = false;
 
-        Assert.Throws<OperationCanceledException>(() =>
+        ThrowsExactly<OperationCanceledException>(() =>
             FileLogger.Wrap(
                 "generator",
                 Configuration(_outputFolder),
@@ -144,13 +142,13 @@ public class FileLoggerTests : IDisposable
             )
         );
 
-        Assert.False(reported);
+        Verify(!reported);
     }
 
     /// <summary>
     /// Loggers with one name, disposed together, usually get the same millisecond.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void LoggersWithOneName_EachWriteTheirOwnFile()
     {
         for (var i = 0; i < 10; i++)
@@ -164,10 +162,10 @@ public class FileLoggerTests : IDisposable
             .Select(file => File.ReadAllText(file).Trim())
             .OrderBy(content => content, StringComparer.Ordinal);
 
-        Assert.Equal(Enumerable.Range(0, 10).Select(i => $"INFO: logger {i}"), contents);
+        Verify(contents.SequenceEqual(Enumerable.Range(0, 10).Select(i => $"INFO: logger {i}")));
     }
 
-    [Fact]
+    [VerifyTest]
     public void Wrap_RunsTheCallbackAndDisposesTheLogger()
     {
         var ran = false;
@@ -182,11 +180,11 @@ public class FileLoggerTests : IDisposable
             }
         );
 
-        Assert.True(ran);
-        Assert.Contains("inside", File.ReadAllText(Directory.GetFiles(_outputFolder).Single()));
+        Verify(ran);
+        Verify(File.ReadAllText(Directory.GetFiles(_outputFolder).Single()).Contains("inside"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AnUnwritableOutputFolder_DoesNotThrow()
     {
         // A path whose parent is a file cannot be created; logging must still not fail the build.
@@ -198,9 +196,18 @@ public class FileLoggerTests : IDisposable
             var logger = new FileLogger(Configuration(Path.Combine(file, "nested")), "generator");
             logger.Info("a message");
 
-            var exception = Record.Exception(() => logger.Dispose());
+            Exception? exception = null;
 
-            Assert.Null(exception);
+            try
+            {
+                logger.Dispose();
+            }
+            catch (Exception caught)
+            {
+                exception = caught;
+            }
+
+            Verify(exception is null);
         }
         finally
         {

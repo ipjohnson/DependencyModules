@@ -1,7 +1,6 @@
 using DependencyModules.Tests.Infrastructure;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// The generator is an IIncrementalGenerator, so its model comparers decide how much work the
@@ -9,21 +8,21 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// and a real change serves stale output. These tests pin that behaviour from the outside, which
 /// is more durable than asserting on the comparers directly.
 /// </summary>
-public class IncrementalGenerationTests
+public partial class IncrementalGenerationTests
 {
-    [Fact]
+    [VerifyTest]
     public void RerunningOnUnchangedSource_ReusesCachedOutput()
     {
         var result = GeneratorTestHarness.RunIncremental(Sources(Service), Sources(Service));
 
-        Assert.True(
+        Verify(
             result.AllOutputsCached,
             "Re-running on identical source recomputed output: "
                 + string.Join(", ", result.OutputReasons)
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void EditingAnUnrelatedMethodBody_ReusesCachedOutput()
     {
         var before = Sources(
@@ -48,15 +47,19 @@ public class IncrementalGenerationTests
 
         var result = GeneratorTestHarness.RunIncremental(before, after);
 
-        Assert.Equal(result.FirstRun.Keys.OrderBy(k => k), result.SecondRun.Keys.OrderBy(k => k));
-        Assert.True(
+        Verify(
+            result
+                .SecondRun.Keys.OrderBy(k => k)
+                .SequenceEqual(result.FirstRun.Keys.OrderBy(k => k))
+        );
+        Verify(
             result.AllOutputsCached,
             "Editing an unrelated method body regenerated output: "
                 + string.Join(", ", result.OutputReasons)
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void AddingAComment_ReusesCachedOutput()
     {
         var result = GeneratorTestHarness.RunIncremental(
@@ -64,13 +67,13 @@ public class IncrementalGenerationTests
             Sources("// a new comment\n" + Service)
         );
 
-        Assert.True(
+        Verify(
             result.AllOutputsCached,
             "Adding a comment regenerated output: " + string.Join(", ", result.OutputReasons)
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void AddingAService_RegeneratesAndIncludesIt()
     {
         var after = Sources(
@@ -88,14 +91,15 @@ public class IncrementalGenerationTests
 
         var dependencies = result.SecondRun.Single(pair => pair.Key.Contains("Dependencies")).Value;
 
-        Assert.Contains("SecondThing", dependencies);
-        Assert.DoesNotContain(
-            "SecondThing",
-            result.FirstRun.Single(pair => pair.Key.Contains("Dependencies")).Value
+        Verify(dependencies.Contains("SecondThing"));
+        Verify(
+            !result
+                .FirstRun.Single(pair => pair.Key.Contains("Dependencies"))
+                .Value.Contains("SecondThing")
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void ChangingAServiceLifetime_RegeneratesWithTheNewLifetime()
     {
         var before = Sources("[SingletonService]\npublic class Thing : IThing;");
@@ -106,12 +110,12 @@ public class IncrementalGenerationTests
         var first = result.FirstRun.Single(pair => pair.Key.Contains("Dependencies")).Value;
         var second = result.SecondRun.Single(pair => pair.Key.Contains("Dependencies")).Value;
 
-        Assert.Contains("AddSingleton", first);
-        Assert.Contains("AddScoped", second);
-        Assert.DoesNotContain("AddSingleton", second);
+        Verify(first.Contains("AddSingleton"));
+        Verify(second.Contains("AddScoped"));
+        Verify(!second.Contains("AddSingleton"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void RemovingAService_RegeneratesWithoutIt()
     {
         var before = Sources(
@@ -129,7 +133,7 @@ public class IncrementalGenerationTests
 
         var second = result.SecondRun.Single(pair => pair.Key.Contains("Dependencies")).Value;
 
-        Assert.DoesNotContain("SecondThing", second);
+        Verify(!second.Contains("SecondThing"));
     }
 
     private const string Service = """

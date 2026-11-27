@@ -1,46 +1,45 @@
 using DependencyModules.Tests.Infrastructure;
 using Microsoft.CodeAnalysis;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// The generator's job is to move failures from run time to build time. Each of these covers a
 /// mistake that previously produced either a crash when the container was built or, worse, a
 /// successful build that quietly registered nothing.
 /// </summary>
-public class DiagnosticsTests
+public partial class DiagnosticsTests
 {
     /// <summary>
     /// An abstract implementation used to be registered anyway, and the resulting
     /// AddSingleton(typeof(IThing), typeof(AbstractThing)) threw when the provider was built,
     /// a long way from the declaration responsible.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AbstractService_ReportsDM0002()
     {
         var result = GeneratorTestHarness.Run(
             Module("[SingletonService] public abstract class Thing : IThing;")
         );
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0002");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0002");
 
-        Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
-        Assert.Contains("Thing", diagnostic.GetMessage());
-        Assert.Contains("abstract", diagnostic.GetMessage());
+        Verify(diagnostic.Severity == DiagnosticSeverity.Warning);
+        Verify(diagnostic.GetMessage().Contains("Thing"));
+        Verify(diagnostic.GetMessage().Contains("abstract"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AbstractService_IsNotRegistered()
     {
         var result = GeneratorTestHarness.Run(
             Module("[SingletonService] public abstract class Thing : IThing;")
         );
 
-        Assert.DoesNotContain(result.GeneratedSources.Keys, key => key.Contains("Dependencies"));
+        Verify(!result.GeneratedSources.Keys.Any(key => key.Contains("Dependencies")));
     }
 
-    [Fact]
+    [VerifyTest]
     public void StaticService_ReportsDM0002()
     {
         var result = GeneratorTestHarness.Run(
@@ -57,16 +56,16 @@ public class DiagnosticsTests
             """
         );
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0002");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0002");
 
-        Assert.Contains("static", diagnostic.GetMessage());
+        Verify(diagnostic.GetMessage().Contains("static"));
     }
 
     /// <summary>
     /// A concrete service alongside an unconstructable one must still be registered; reporting the
     /// bad one should not discard the good ones.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ConcreteServices_AreStillRegisteredAlongsideARejectedOne()
     {
         var generated = GeneratedAssembly.Create(
@@ -89,15 +88,15 @@ public class DiagnosticsTests
 
         var provider = generated.BuildProvider();
 
-        Assert.NotNull(provider.GetService(generated.Type("IThing")));
-        Assert.Null(provider.GetService(generated.Type("IAbstract")));
+        Verify(provider.GetService(generated.Type("IThing")) is not null);
+        Verify(provider.GetService(generated.Type("IAbstract")) is null);
     }
 
     /// <summary>
     /// The compiler reports CS0260 once the generated half arrives, but that describes the symptom.
     /// DM0003 names the fix, and generation is skipped so it is the only error shown.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void NonPartialModule_ReportsDM0003()
     {
         var result = GeneratorTestHarness.Run(
@@ -115,14 +114,14 @@ public class DiagnosticsTests
             """
         );
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0003");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0003");
 
-        Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
-        Assert.Contains("NotPartialModule", diagnostic.GetMessage());
-        Assert.Contains("partial", diagnostic.GetMessage());
+        Verify(diagnostic.Severity == DiagnosticSeverity.Error);
+        Verify(diagnostic.GetMessage().Contains("NotPartialModule"));
+        Verify(diagnostic.GetMessage().Contains("partial"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void NonPartialModule_DoesNotGenerateAConflictingDeclaration()
     {
         var result = GeneratorTestHarness.Run(
@@ -137,14 +136,11 @@ public class DiagnosticsTests
         );
 
         // Emitting the module half would add CS0260 on top of DM0003 and point at the wrong thing.
-        Assert.DoesNotContain(
-            result.GeneratedSources.Keys,
-            key => key.Contains("NotPartialModule.Module")
-        );
-        Assert.DoesNotContain(result.CompilationDiagnostics, d => d.Id == "CS0260");
+        Verify(!result.GeneratedSources.Keys.Any(key => key.Contains("NotPartialModule.Module")));
+        Verify(!result.CompilationDiagnostics.Any(d => d.Id == "CS0260"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void PartialModule_ReportsNothing()
     {
         var result = GeneratorTestHarness.Run(
@@ -152,10 +148,10 @@ public class DiagnosticsTests
         );
 
         result.AssertNoErrors();
-        Assert.Empty(result.GeneratorDiagnostics);
+        Verify(!result.GeneratorDiagnostics.Any());
     }
 
-    [Fact]
+    [VerifyTest]
     public void AbstractFactoryHost_IsAllowedBecauseTheFactorySuppliesTheInstance()
     {
         // The declaring type is never constructed, so an abstract host is legitimate here.
@@ -177,7 +173,7 @@ public class DiagnosticsTests
             """
         );
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0002");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0002"));
     }
 
     /// <summary>
@@ -185,7 +181,7 @@ public class DiagnosticsTests
     /// expansion has no closed construction to close over, so the declaration used to disappear with
     /// a green build — a decorator in the source that never ran.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void GenericDecoratorOverOpenGenericRegistration_ReportsDM0013()
     {
         var result = GeneratorTestHarness.Run(
@@ -199,18 +195,18 @@ public class DiagnosticsTests
             )
         );
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0013");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0013");
 
-        Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
-        Assert.Contains("IStore", diagnostic.GetMessage());
-        Assert.Contains("LoggingStore", diagnostic.GetMessage());
+        Verify(diagnostic.Severity == DiagnosticSeverity.Warning);
+        Verify(diagnostic.GetMessage().Contains("IStore"));
+        Verify(diagnostic.GetMessage().Contains("LoggingStore"));
     }
 
     /// <summary>
     /// The same service, decorated from the module instead. Both declaration forms reach the same
     /// expansion, so both have to report.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ModuleDeclaredDecoratorOverOpenGenericRegistration_ReportsDM0013()
     {
         var result = GeneratorTestHarness.Run(
@@ -224,7 +220,7 @@ public class DiagnosticsTests
             )
         );
 
-        Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0013");
+        Single(result.GeneratorDiagnostics, d => d.Id == "DM0013");
     }
 
     /// <summary>
@@ -232,7 +228,7 @@ public class DiagnosticsTests
     /// expansion, so nothing caught it and it reached emission still carrying <c>IStore&lt;&gt;</c> —
     /// which is CS7003 in generated code.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void NonGenericDecoratorOverOpenGenericRegistration_ReportsDM0013()
     {
         var result = GeneratorTestHarness.Run(
@@ -246,14 +242,14 @@ public class DiagnosticsTests
             )
         );
 
-        Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0013");
+        Single(result.GeneratorDiagnostics, d => d.Id == "DM0013");
     }
 
     /// <summary>
     /// And the generated code compiles, which it did not before: <c>GeneratedAssembly.Create</c>
     /// asserts the compilation is clean and emits.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void NonGenericDecoratorOverOpenGenericRegistration_StillCompiles()
     {
         var generated = GeneratedAssembly.Create(
@@ -267,14 +263,14 @@ public class DiagnosticsTests
             )
         );
 
-        Assert.Contains(generated.Services, d => d.ServiceType == generated.Type("IStore`1"));
+        Verify(generated.Services.Any(d => d.ServiceType == generated.Type("IStore`1")));
     }
 
     /// <summary>
     /// The case that must keep working: closed registrations, which a generic decorator is expanded
     /// across. This is the shape a MediatR-style pipeline is built from.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void GenericDecoratorOverClosedRegistrations_DoesNotReportDM0013()
     {
         var result = GeneratorTestHarness.Run(
@@ -298,7 +294,7 @@ public class DiagnosticsTests
             """
         );
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0013");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0013"));
     }
 
     /// <summary>
@@ -306,7 +302,7 @@ public class DiagnosticsTests
     /// service someone else registers is what <c>[Decorate]</c> is for, so reporting here would fire
     /// on the feature's primary use.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void DecoratorForAServiceThisCompilationDoesNotRegister_DoesNotReportDM0013()
     {
         var result = GeneratorTestHarness.Run(
@@ -327,7 +323,7 @@ public class DiagnosticsTests
             """
         );
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0013");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0013"));
     }
 
     /// <summary>
@@ -336,34 +332,34 @@ public class DiagnosticsTests
     /// parameter leaked into <c>typeof(ILedger&lt;T&gt;)</c> beside
     /// <c>GetRequiredService&lt;Ledger&lt;&gt;&gt;()</c>.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void CrossWiredGenericType_ReportsDM0014()
     {
         var result = GeneratorTestHarness.Run(
             CrossWiredLedger("public class Ledger<T> : ILedger<T>, IAudit<T>;")
         );
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0014");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0014");
 
-        Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
-        Assert.Contains("Ledger", diagnostic.GetMessage());
+        Verify(diagnostic.Severity == DiagnosticSeverity.Warning);
+        Verify(diagnostic.GetMessage().Contains("Ledger"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void CrossWiredGenericType_IsNotRegistered()
     {
         var result = GeneratorTestHarness.Run(
             CrossWiredLedger("public class Ledger<T> : ILedger<T>, IAudit<T>;")
         );
 
-        Assert.DoesNotContain(result.GeneratedSources.Keys, key => key.Contains("Dependencies"));
+        Verify(!result.GeneratedSources.Keys.Any(key => key.Contains("Dependencies")));
     }
 
     /// <summary>
     /// Cross-wiring a non-generic type is untouched, and still shares one instance across both
     /// interfaces.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void CrossWiredNonGenericType_StillRegisters()
     {
         var generated = GeneratedAssembly.Create(
@@ -373,9 +369,11 @@ public class DiagnosticsTests
         var provider = generated.BuildProvider();
 
         // The point of cross-wiring: both interfaces answer with the one instance.
-        Assert.Same(
-            provider.GetService(generated.Type("ILedger`1").MakeGenericType(typeof(int))),
-            provider.GetService(generated.Type("IAudit`1").MakeGenericType(typeof(int)))
+        Verify(
+            ReferenceEquals(
+                provider.GetService(generated.Type("ILedger`1").MakeGenericType(typeof(int))),
+                provider.GetService(generated.Type("IAudit`1").MakeGenericType(typeof(int)))
+            )
         );
     }
 
@@ -384,7 +382,7 @@ public class DiagnosticsTests
     /// all async. It never runs, and the build used to be green — the model was ignored before
     /// anything could report on it.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void InterceptorThatServesNoMember_ReportsDM0015()
     {
         var result = GeneratorTestHarness.Run(
@@ -403,19 +401,19 @@ public class DiagnosticsTests
             )
         );
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0015");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0015");
 
-        Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
-        Assert.Contains("SyncOnlyInterceptor", diagnostic.GetMessage());
-        Assert.Contains("IAsyncInterceptor", diagnostic.GetMessage());
-        Assert.Contains("GetAsync", diagnostic.GetMessage());
+        Verify(diagnostic.Severity == DiagnosticSeverity.Warning);
+        Verify(diagnostic.GetMessage().Contains("SyncOnlyInterceptor"));
+        Verify(diagnostic.GetMessage().Contains("IAsyncInterceptor"));
+        Verify(diagnostic.GetMessage().Contains("GetAsync"));
     }
 
     /// <summary>
     /// The partial case: the interceptor serves the sync members and is quietly absent from the async
     /// one, which is how an argument-rewriting interceptor stops rewriting halfway through a service.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void InterceptorThatServesSomeMembers_ReportsDM0015ForTheRest()
     {
         var result = GeneratorTestHarness.Run(
@@ -436,16 +434,16 @@ public class DiagnosticsTests
             )
         );
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0015");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0015");
 
-        Assert.Contains("CountAsync", diagnostic.GetMessage());
-        Assert.DoesNotContain("'Count'", diagnostic.GetMessage());
+        Verify(diagnostic.GetMessage().Contains("CountAsync"));
+        Verify(!diagnostic.GetMessage().Contains("'Count'"));
     }
 
     /// <summary>
     /// An interceptor covering every shape the service uses says nothing.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void InterceptorThatServesEveryMember_DoesNotReportDM0015()
     {
         var result = GeneratorTestHarness.Run(
@@ -464,14 +462,14 @@ public class DiagnosticsTests
             )
         );
 
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0015");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0015"));
     }
 
     /// <summary>
     /// DM0008 drops the whole wrapper, not only the member it names, and the message has to say so —
     /// the guide read as though the other members were still intercepted.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void UnsupportedMember_ReportsThatNoMemberIsIntercepted()
     {
         var result = GeneratorTestHarness.Run(
@@ -492,10 +490,10 @@ public class DiagnosticsTests
             )
         );
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0008");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0008");
 
-        Assert.Contains("none of its members are intercepted", diagnostic.GetMessage());
-        Assert.Contains("TryGet", diagnostic.GetMessage());
+        Verify(diagnostic.GetMessage().Contains("none of its members are intercepted"));
+        Verify(diagnostic.GetMessage().Contains("TryGet"));
     }
 
     private static string Intercepted(string body) =>

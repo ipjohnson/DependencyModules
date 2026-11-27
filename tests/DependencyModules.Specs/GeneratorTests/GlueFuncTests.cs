@@ -1,15 +1,14 @@
 using DependencyModules.Tests.Infrastructure;
 using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// The registrations that the generator writes for <c>Func</c> constructor parameters, and the
 /// rules that give a constructor parameter of an object that the generated code builds.
 /// </summary>
-public class GlueFuncTests
+public partial class GlueFuncTests
 {
     private const string Preamble = """
         using System;
@@ -39,7 +38,7 @@ public class GlueFuncTests
 
     private static string Glue(GeneratorResult result) => result.SourceContaining("Glue");
 
-    [Fact]
+    [VerifyTest]
     public void AFuncWithACallerArgument_BuildsTheClass_FromTheArgumentAndTheProvider()
     {
         var assembly = Compile(
@@ -68,16 +67,21 @@ public class GlueFuncTests
         dynamic first = checkout.Create(7);
         dynamic second = checkout.Create(8);
 
-        Assert.Equal(7, (int)first.Id.Value);
-        Assert.Equal(8, (int)second.Id.Value);
-        Assert.NotSame((object)first, (object)second);
-        Assert.Same(provider.GetRequiredService(assembly.Type("IClock")), (object)first.Clock);
+        Verify((int)first.Id.Value == 7);
+        Verify((int)second.Id.Value == 8);
+        Verify(!ReferenceEquals((object)first, (object)second));
+        Verify(
+            ReferenceEquals(
+                provider.GetRequiredService(assembly.Type("IClock")),
+                (object)first.Clock
+            )
+        );
 
         // The class that the delegate builds has no registration.
-        Assert.Null(provider.GetService(assembly.Type("OrderProcessor")));
+        Verify(provider.GetService(assembly.Type("OrderProcessor")) is null);
     }
 
-    [Fact]
+    [VerifyTest]
     public void AFuncWithTwoCallerArguments_MatchesThemByType_InAnyOrder()
     {
         var assembly = Compile(
@@ -101,10 +105,10 @@ public class GlueFuncTests
         using var provider = assembly.BuildProvider();
         dynamic printer = provider.GetRequiredService(assembly.Type("Printer"));
 
-        Assert.Equal("sales:3:True", (string)printer.Print());
+        Verify((string)printer.Print() == "sales:3:True");
     }
 
-    [Fact]
+    [VerifyTest]
     public void AFuncWithCallerArguments_UsesTheConstructorThatTakesThem()
     {
         var assembly = Compile(
@@ -138,10 +142,10 @@ public class GlueFuncTests
         using var provider = assembly.BuildProvider();
         dynamic printer = provider.GetRequiredService(assembly.Type("Printer"));
 
-        Assert.Equal("sales", (string)printer.Print());
+        Verify((string)printer.Print() == "sales");
     }
 
-    [Fact]
+    [VerifyTest]
     public void AFuncWithNoArguments_OverAnInterface_GetsTheServiceFromTheProvider()
     {
         var assembly = Compile(
@@ -160,10 +164,15 @@ public class GlueFuncTests
         using var provider = assembly.BuildProvider();
         dynamic consumer = provider.GetRequiredService(assembly.Type("Consumer"));
 
-        Assert.Same(provider.GetRequiredService(assembly.Type("IClock")), (object)consumer.Clock);
+        Verify(
+            ReferenceEquals(
+                provider.GetRequiredService(assembly.Type("IClock")),
+                (object)consumer.Clock
+            )
+        );
     }
 
-    [Fact]
+    [VerifyTest]
     public void AFuncWithNoArguments_OverAConcreteClass_BuildsANewInstanceForEachCall()
     {
         var assembly = Compile(
@@ -189,11 +198,16 @@ public class GlueFuncTests
 
         dynamic first = consumer.Create();
 
-        Assert.NotSame((object)first, (object)consumer.Create());
-        Assert.Same(provider.GetRequiredService(assembly.Type("IClock")), (object)first.Clock);
+        Verify(!ReferenceEquals((object)first, (object)consumer.Create()));
+        Verify(
+            ReferenceEquals(
+                provider.GetRequiredService(assembly.Type("IClock")),
+                (object)first.Clock
+            )
+        );
     }
 
-    [Fact]
+    [VerifyTest]
     public void AConcreteClassThatTheApplicationRegisters_ComesFromTheProvider()
     {
         var assembly = Compile(
@@ -225,8 +239,8 @@ public class GlueFuncTests
         {
             dynamic consumer = provider.GetRequiredService(assembly.Type("Consumer"));
 
-            Assert.Equal("new", (string)consumer.WorkerName);
-            Assert.Equal("new", (string)consumer.SettingsName);
+            Verify((string)consumer.WorkerName == "new");
+            Verify((string)consumer.SettingsName == "new");
         }
 
         // Added after the modules loaded, as code after AddModule in Program.cs does.
@@ -238,12 +252,12 @@ public class GlueFuncTests
         {
             dynamic consumer = provider.GetRequiredService(assembly.Type("Consumer"));
 
-            Assert.Equal("registered", (string)consumer.WorkerName);
-            Assert.Equal("registered", (string)consumer.SettingsName);
+            Verify((string)consumer.WorkerName == "registered");
+            Verify((string)consumer.SettingsName == "registered");
         }
     }
 
-    [Fact]
+    [VerifyTest]
     public void AClassWithAServiceAttribute_IsNotBuiltWithNew()
     {
         var result = Run(
@@ -267,12 +281,12 @@ public class GlueFuncTests
 
         var glue = Glue(result);
 
-        Assert.DoesNotContain("new global::TestNamespace.Store", glue);
-        Assert.Contains("provider.GetRequiredService<global::TestNamespace.Store>()", glue);
-        Assert.Contains("provider.GetRequiredService<global::TestNamespace.IStore>()", glue);
+        Verify(!glue.Contains("new global::TestNamespace.Store"));
+        Verify(glue.Contains("provider.GetRequiredService<global::TestNamespace.Store>()"));
+        Verify(glue.Contains("provider.GetRequiredService<global::TestNamespace.IStore>()"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AFrameworkClassAndAClassWithAValueParameter_ComeFromTheProvider()
     {
         var result = Run(
@@ -293,14 +307,14 @@ public class GlueFuncTests
 
         var glue = Glue(result);
 
-        Assert.Contains("provider.GetRequiredService<global::System.Text.StringBuilder>()", glue);
-        Assert.Contains("provider.GetRequiredService<global::TestNamespace.Rates>()", glue);
-        Assert.Contains("provider.GetService<global::TestNamespace.IClock>()", glue);
-        Assert.DoesNotContain("new global::System.Text.StringBuilder", glue);
-        Assert.DoesNotContain("new global::TestNamespace.Rates", glue);
+        Verify(glue.Contains("provider.GetRequiredService<global::System.Text.StringBuilder>()"));
+        Verify(glue.Contains("provider.GetRequiredService<global::TestNamespace.Rates>()"));
+        Verify(glue.Contains("provider.GetService<global::TestNamespace.IClock>()"));
+        Verify(!glue.Contains("new global::System.Text.StringBuilder"));
+        Verify(!glue.Contains("new global::TestNamespace.Rates"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AKeyedParameterAndTheProvider_AreGivenToAnObjectThatTheGlueBuilds()
     {
         var assembly = Compile(
@@ -330,14 +344,16 @@ public class GlueFuncTests
         dynamic consumer = provider.GetRequiredService(assembly.Type("Consumer"));
         dynamic worker = consumer.Create();
 
-        Assert.Same(
-            provider.GetRequiredKeyedService(assembly.Type("IClock"), "utc"),
-            (object)worker.Clock
+        Verify(
+            ReferenceEquals(
+                provider.GetRequiredKeyedService(assembly.Type("IClock"), "utc"),
+                (object)worker.Clock
+            )
         );
-        Assert.NotNull((object)worker.Provider);
+        Verify((object)worker.Provider is not null);
     }
 
-    [Fact]
+    [VerifyTest]
     public void FromConstructor_BuildsTheParameter_AlsoWhenTheProviderHasARegistration()
     {
         var assembly = Compile(
@@ -370,12 +386,12 @@ public class GlueFuncTests
         dynamic worker = consumer.Create();
         var registered = provider.GetRequiredService(assembly.Type("Store"));
 
-        Assert.Same(registered, (object)worker.Resolved);
-        Assert.NotSame(registered, (object)worker.Built);
-        Assert.NotNull((object)worker.Built);
+        Verify(ReferenceEquals(registered, (object)worker.Resolved));
+        Verify(!ReferenceEquals(registered, (object)worker.Built));
+        Verify((object)worker.Built is not null);
     }
 
-    [Fact]
+    [VerifyTest]
     public void FromServiceProvider_GetsTheParameterFromTheProvider_AndNotFromNewOrACaller()
     {
         var result = Run(
@@ -398,19 +414,21 @@ public class GlueFuncTests
         );
 
         result.AssertNoErrors();
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id is "DM0030" or "DM0031");
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id is "DM0030" or "DM0031"));
 
-        Assert.Contains(
-            "(arg0) => new global::TestNamespace.Worker("
-                + "provider.GetRequiredService<global::TestNamespace.Helper>(), "
-                + "(provider.GetService<global::TestNamespace.Helper>() ?? new global::TestNamespace.Helper()), "
-                + "provider.GetRequiredService<string>(), "
-                + "arg0)",
+        Verify(
             Glue(result)
+                .Contains(
+                    "(arg0) => new global::TestNamespace.Worker("
+                        + "provider.GetRequiredService<global::TestNamespace.Helper>(), "
+                        + "(provider.GetService<global::TestNamespace.Helper>() ?? new global::TestNamespace.Helper()), "
+                        + "provider.GetRequiredService<string>(), "
+                        + "arg0)"
+                )
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void FromServiceProvider_OnAStringParameter_LetsTheGlueBuildTheClass()
     {
         var assembly = Compile(
@@ -440,14 +458,14 @@ public class GlueFuncTests
         using var provider = assembly.BuildProvider();
         dynamic consumer = provider.GetRequiredService(assembly.Type("Consumer"));
 
-        Assert.Equal("registered", (string)consumer.Name);
+        Verify((string)consumer.Name == "registered");
     }
 
-    [Theory]
-    [InlineData("IClock", "it is not a class")]
-    [InlineData("string", "it is not a class")]
-    [InlineData("AbstractHelper", "it is abstract")]
-    [InlineData("PrivateHelper", "it has no constructor that the generated module can call")]
+    [VerifyTest]
+    [Row("IClock", "it is not a class")]
+    [Row("string", "it is not a class")]
+    [Row("AbstractHelper", "it is abstract")]
+    [Row("PrivateHelper", "it has no constructor that the generated module can call")]
     public void FromConstructor_OnAParameterThatCannotBeBuilt_IsDM0031(
         string parameterType,
         string reason
@@ -476,18 +494,19 @@ public class GlueFuncTests
         result.AssertNoErrors();
 
         // The set item and the Func build the same class. The parameter is reported one time.
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0031");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0031");
 
-        Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
-        Assert.Contains(
-            "The parameter 'helper' of 'Worker' has [FromConstructor]",
-            diagnostic.GetMessage()
+        Verify(diagnostic.Severity == DiagnosticSeverity.Warning);
+        Verify(
+            diagnostic
+                .GetMessage()
+                .Contains("The parameter 'helper' of 'Worker' has [FromConstructor]")
         );
-        Assert.Contains(reason, diagnostic.GetMessage());
-        Assert.Contains("provider.GetRequiredService<", Glue(result));
+        Verify(diagnostic.GetMessage().Contains(reason));
+        Verify(Glue(result).Contains("provider.GetRequiredService<"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AFuncThatTheApplicationRegisters_IsKept()
     {
         var assembly = Compile(
@@ -517,8 +536,8 @@ public class GlueFuncTests
         using var provider = assembly.BuildProvider();
         dynamic consumer = provider.GetRequiredService(assembly.Type("Consumer"));
 
-        Assert.Equal("manual x", (string)consumer.Name);
-        Assert.Single(
+        Verify((string)consumer.Name == "manual x");
+        Single(
             assembly.Services,
             descriptor =>
                 descriptor.ServiceType
@@ -526,7 +545,7 @@ public class GlueFuncTests
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void AFuncParameterOfACollectionItem_AndOfAnObjectThatTheGlueBuilds_IsRegistered()
     {
         var assembly = Compile(
@@ -562,14 +581,16 @@ public class GlueFuncTests
         using var provider = assembly.BuildProvider();
         dynamic forest = ActivatorUtilities.CreateInstance(provider, assembly.Type("Forest"));
 
-        Assert.Equal(4, (int)forest.Tree.Depth);
-        Assert.Same(
-            provider.GetRequiredService(assembly.Type("IClock")),
-            (object)forest.Tree.Clock
+        Verify((int)forest.Tree.Depth == 4);
+        Verify(
+            ReferenceEquals(
+                provider.GetRequiredService(assembly.Type("IClock")),
+                (object)forest.Tree.Clock
+            )
         );
     }
 
-    [Fact]
+    [VerifyTest]
     public void AFuncParameterOfAFactoryMethod_IsRegistered()
     {
         var assembly = Compile(
@@ -599,17 +620,17 @@ public class GlueFuncTests
         using var provider = assembly.BuildProvider();
         dynamic consumer = provider.GetRequiredService(assembly.Type("Consumer"));
 
-        Assert.Equal("made", (string)consumer.Name);
+        Verify((string)consumer.Name == "made");
     }
 
-    [Theory]
-    [InlineData("Func<Task>")]
-    [InlineData("Func<int>")]
-    [InlineData("Func<string, bool>")]
-    [InlineData("Func<string, IClock>")]
-    [InlineData("Func<string, System.Text.StringBuilder>")]
-    [InlineData("Func<IServiceProvider, IClock>")]
-    [InlineData("Action<string>")]
+    [VerifyTest]
+    [Row("Func<Task>")]
+    [Row("Func<int>")]
+    [Row("Func<string, bool>")]
+    [Row("Func<string, IClock>")]
+    [Row("Func<string, System.Text.StringBuilder>")]
+    [Row("Func<IServiceProvider, IClock>")]
+    [Row("Action<string>")]
     public void ADelegateThatIsNotARequestForAService_GetsNoRegistration(string parameterType)
     {
         var result = Run(
@@ -624,17 +645,17 @@ public class GlueFuncTests
 
         result.AssertNoErrors();
 
-        Assert.DoesNotContain(result.GeneratedSources.Keys, name => name.Contains("Glue"));
-        Assert.DoesNotContain(result.GeneratorDiagnostics, d => d.Id == "DM0030");
+        Verify(!result.GeneratedSources.Keys.Any(name => name.Contains("Glue")));
+        Verify(!result.GeneratorDiagnostics.Any(d => d.Id == "DM0030"));
     }
 
-    [Theory]
-    [InlineData(
+    [VerifyTest]
+    [Row(
         "Func<string, int, Worker>",
         "its constructor has no parameter of the type 'int' for the caller argument"
     )]
-    [InlineData("Func<string, string, Worker>", "two caller arguments have the type 'string'")]
-    [InlineData("Func<IClock, Worker>", "its constructor parameter 'name' has the type 'string'")]
+    [Row("Func<string, string, Worker>", "two caller arguments have the type 'string'")]
+    [Row("Func<IClock, Worker>", "its constructor parameter 'name' has the type 'string'")]
     public void AFuncWhoseArgumentsDoNotMatchTheConstructor_IsDM0030(
         string parameterType,
         string reason
@@ -654,15 +675,15 @@ public class GlueFuncTests
 
         result.AssertNoErrors();
 
-        var diagnostic = Assert.Single(result.GeneratorDiagnostics, d => d.Id == "DM0030");
+        var diagnostic = Single(result.GeneratorDiagnostics, d => d.Id == "DM0030");
 
-        Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
-        Assert.Contains("'Consumer' takes a", diagnostic.GetMessage());
-        Assert.Contains(reason, diagnostic.GetMessage());
-        Assert.DoesNotContain(result.GeneratedSources.Keys, name => name.Contains("Glue"));
+        Verify(diagnostic.Severity == DiagnosticSeverity.Warning);
+        Verify(diagnostic.GetMessage().Contains("'Consumer' takes a"));
+        Verify(diagnostic.GetMessage().Contains(reason));
+        Verify(!result.GeneratedSources.Keys.Any(name => name.Contains("Glue")));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AFuncOfAServiceWithARealm_IsRegisteredByTheModuleOfThatRealm()
     {
         var result = Run(
@@ -682,12 +703,12 @@ public class GlueFuncTests
 
         result.AssertNoErrors();
 
-        var glueFile = Assert.Single(result.GeneratedSources.Keys, name => name.Contains("Glue"));
+        var glueFile = Single(result.GeneratedSources.Keys, name => name.Contains("Glue"));
 
-        Assert.Contains("OtherModule", glueFile);
+        Verify(glueFile.Contains("OtherModule"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void ObjectsThatNeedEachOther_DoNotStopTheGenerator()
     {
         var result = Run(
@@ -707,10 +728,10 @@ public class GlueFuncTests
         result.AssertNoErrors();
 
         // The second use of First comes from the provider, which gives the error for the cycle.
-        Assert.Contains("provider.GetRequiredService<global::TestNamespace.First>()", Glue(result));
+        Verify(Glue(result).Contains("provider.GetRequiredService<global::TestNamespace.First>()"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void TheGlueFile_IsTheSameForTheSameSource()
     {
         const string source = """
@@ -736,7 +757,7 @@ public class GlueFuncTests
         var result = Run(source);
 
         result.AssertNoErrors();
-        Assert.Equal(Glue(result), Glue(Run(source)));
+        Verify(Glue(result) == Glue(Run(source)));
 
         Snapshot.Match(Glue(result));
     }

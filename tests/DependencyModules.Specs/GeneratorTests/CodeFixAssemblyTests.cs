@@ -2,17 +2,16 @@ using System.Reflection;
 using System.Runtime.Loader;
 using DependencyModules.CodeFixes;
 using Microsoft.CodeAnalysis.CodeFixes;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// The code fix assembly loads the way an IDE loads it from analyzers/dotnet/cs: Roslyn and the
 /// framework come from the host, and nothing else is there to resolve.
 /// </summary>
-public class CodeFixAssemblyTests
+public partial class CodeFixAssemblyTests
 {
-    [Fact]
+    [VerifyTest]
     public void TheCodeFixAssembly_LoadsWithOnlyHostAssemblies()
     {
         var context = new HostOnlyLoadContext();
@@ -29,10 +28,10 @@ public class CodeFixAssemblyTests
                 .Select(type => (CodeFixProvider)Activator.CreateInstance(type)!)
                 .ToArray();
 
-            var provider = Assert.Single(providers);
-            Assert.Equal(new[] { "DM0026" }, provider.FixableDiagnosticIds);
-            Assert.NotNull(provider.GetFixAllProvider());
-            Assert.Empty(context.Refused);
+            var provider = Single(providers);
+            Verify(provider.FixableDiagnosticIds.SequenceEqual(new[] { "DM0026" }));
+            Verify(provider.GetFixAllProvider() is not null);
+            Verify(context.Refused.Count == 0);
         }
         finally
         {

@@ -4,9 +4,8 @@ using DependencyModules.Runtime.Interfaces;
 using DependencyModules.Tests.Infrastructure;
 using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
-namespace DependencyModules.Tests.GeneratorTests;
+namespace DependencyModules.Specs.GeneratorTests;
 
 /// <summary>
 /// <c>Program.cs</c> names modules with assembly attributes and with calls to their static methods.
@@ -14,7 +13,7 @@ namespace DependencyModules.Tests.GeneratorTests;
 /// <c>ApplicationModule</c> in the root namespace, the declared module takes the place of the
 /// generated one, so it has to load them too.
 /// </summary>
-public class DeclaredApplicationModuleTests
+public partial class DeclaredApplicationModuleTests
 {
     private const string LibrarySource = """
         using DependencyModules.Runtime.Attributes;
@@ -58,16 +57,16 @@ public class DeclaredApplicationModuleTests
         public partial class ApplicationModule;
         """;
 
-    [Fact]
+    [VerifyTest]
     public void TheGeneratedModule_LoadsTheModulesThatProgramNames()
     {
         var services = Apply(new Dictionary<string, string> { ["Program.cs"] = Program });
 
-        Assert.True(Registered(services, "Catalog.ICatalog"));
-        Assert.True(Registered(services, "Catalog.IPricing"));
+        Verify(Registered(services, "Catalog.ICatalog"));
+        Verify(Registered(services, "Catalog.IPricing"));
     }
 
-    [Fact]
+    [VerifyTest]
     public void ADeclaredModule_LoadsTheModulesThatProgramNames()
     {
         var services = Apply(
@@ -78,15 +77,15 @@ public class DeclaredApplicationModuleTests
             }
         );
 
-        Assert.True(Registered(services, "Catalog.ICatalog"));
-        Assert.True(Registered(services, "Catalog.IPricing"));
+        Verify(Registered(services, "Catalog.ICatalog"));
+        Verify(Registered(services, "Catalog.IPricing"));
     }
 
     /// <summary>
     /// A module that the project declares itself. Its attribute is written by the same run of the
     /// generator.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void ADeclaredModule_LoadsALocalModuleThatProgramNames()
     {
         var services = Apply(
@@ -116,7 +115,7 @@ public class DeclaredApplicationModuleTests
             }
         );
 
-        Assert.True(Registered(services, "WebShop.Parts.IStock"));
+        Verify(Registered(services, "WebShop.Parts.IStock"));
     }
 
     private static int _counter;
@@ -144,7 +143,7 @@ public class DeclaredApplicationModuleTests
         using var stream = new MemoryStream();
         var emitted = result.Compilation.Emit(stream);
 
-        Assert.True(
+        Verify(
             emitted.Success,
             string.Join(
                 Environment.NewLine,
