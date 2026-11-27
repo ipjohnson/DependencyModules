@@ -3,9 +3,8 @@ using DependencyModules.Testing.Attributes;
 using DependencyModules.Testing.Attributes.Interfaces;
 using DependencyModules.Testing.Impl;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
-namespace DependencyModules.Tests.TestingTests;
+namespace DependencyModules.Specs.TestingTests;
 
 /// <summary>
 /// Which services a test pins, decided without a container or a test framework in the way.
@@ -14,7 +13,7 @@ namespace DependencyModules.Tests.TestingTests;
 /// One test per row of the rule, because the rule has been wrong once already and the way it was
 /// wrong was a case nobody had written down.
 /// </remarks>
-public class SharedRegistrationsTests
+public partial class SharedRegistrationsTests
 {
     private interface IThing;
 
@@ -75,36 +74,36 @@ public class SharedRegistrationsTests
     /// The row the first version of this rule got wrong, and the one a scaffolded project hits
     /// first: a plain application service the handler writes to and the test reads.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AnUnmarkedParameterIsPinned()
     {
-        Assert.Equal([typeof(IThing)], Collect(nameof(Plain)));
+        Verify(Collect(nameof(Plain)).SequenceEqual([typeof(IThing)]));
     }
 
-    [Fact]
+    [VerifyTest]
     public void EveryParameterIsPinned()
     {
-        Assert.Equal([typeof(IThing), typeof(IOther)], Collect(nameof(Bare)));
+        Verify(Collect(nameof(Bare)).SequenceEqual([typeof(IThing), typeof(IOther)]));
     }
 
     /// <summary>A mock needs no attribute to be pinned, which is what makes the rule general.</summary>
-    [Fact]
+    [VerifyTest]
     public void AMockIsPinnedLikeAnythingElse()
     {
-        Assert.Equal([typeof(IThing)], Collect(nameof(Mocked)));
+        Verify(Collect(nameof(Mocked)).SequenceEqual([typeof(IThing)]));
     }
 
     /// <summary>Redundant now, and still allowed: it is how a driving parameter asks for reuse.</summary>
-    [Fact]
+    [VerifyTest]
     public void SharedOnAValueParameterChangesNothing()
     {
-        Assert.Equal(Collect(nameof(Plain)), Collect(nameof(Marked)));
+        Verify(Collect(nameof(Marked)).SequenceEqual(Collect(nameof(Plain))));
     }
 
-    [Fact]
+    [VerifyTest]
     public void ATestWithNoParametersPinsNothing()
     {
-        Assert.Empty(Collect(nameof(None)));
+        Verify(Collect(nameof(None)).Count == 0);
     }
 
     // ---------------------------------------------------------------- the exceptions
@@ -112,35 +111,35 @@ public class SharedRegistrationsTests
     /// <summary>
     /// The parameter that drives the application is not pinned, because it builds the containers.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AParameterTheHarnessDrivesWithIsNotPinned()
     {
         var pinned = Collect(nameof(Driving), new DrivenByAttribute());
 
-        Assert.Equal([typeof(IThing)], pinned);
+        Verify(pinned.SequenceEqual([typeof(IThing)]));
     }
 
     /// <summary>
     /// And it stays unpinned even asked to be. Pinning a driver is not a preference that could go
     /// either way; it turns the isolation off while the test believes it is on.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void IsolatedWinsOverAnExplicitShared()
     {
-        Assert.Empty(Collect(nameof(DrivingAndMarked), new DrivenByAttribute()));
+        Verify(Collect(nameof(DrivingAndMarked), new DrivenByAttribute()).Count == 0);
     }
 
-    [Fact]
+    [VerifyTest]
     public void AnAttributeDecliningUnpinsItsParameter()
     {
-        Assert.Empty(Collect(nameof(Declined)));
+        Verify(Collect(nameof(Declined)).Count == 0);
     }
 
     /// <summary>The container itself is the one question pinning cannot answer.</summary>
-    [Fact]
+    [VerifyTest]
     public void TheServiceProviderIsNeverPinned()
     {
-        Assert.Equal([typeof(IThing)], Collect(nameof(Container)));
+        Verify(Collect(nameof(Container)).SequenceEqual([typeof(IThing)]));
     }
 
     // ---------------------------------------------------------------- what no parameter holds
@@ -148,7 +147,7 @@ public class SharedRegistrationsTests
     /// <summary>
     /// A harness keeps its own per-test services by naming them, since no parameter holds them.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AnAttributeCanPinWhatNoParameterHolds()
     {
         var shared = new TestExportAttribute(typeof(IOther))
@@ -157,27 +156,27 @@ public class SharedRegistrationsTests
             Shared = true,
         };
 
-        Assert.Equal([typeof(IThing), typeof(IOther)], Collect(nameof(Plain), shared));
+        Verify(Collect(nameof(Plain), shared).SequenceEqual([typeof(IThing), typeof(IOther)]));
     }
 
     /// <summary>An export nothing holds stays per container until it asks.</summary>
-    [Fact]
+    [VerifyTest]
     public void AnExportIsNotPinnedUnlessItAsks()
     {
         var isolated = new TestExportAttribute(typeof(IOther)) { Implementation = typeof(Thing) };
 
-        Assert.Equal([typeof(IThing)], Collect(nameof(Plain), isolated));
+        Verify(Collect(nameof(Plain), isolated).SequenceEqual([typeof(IThing)]));
     }
 
     /// <summary>
     /// The parameter is the narrower statement and wins, which is how every other precedence in the
     /// harness resolves. Isolating it would recreate the bug the rule exists to fix.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AnExportTheTestHoldsIsPinnedEvenWhenItDeclined()
     {
         var isolated = new TestExportAttribute(typeof(IThing)) { Implementation = typeof(Thing) };
 
-        Assert.Equal([typeof(IThing)], Collect(nameof(Plain), isolated));
+        Verify(Collect(nameof(Plain), isolated).SequenceEqual([typeof(IThing)]));
     }
 }

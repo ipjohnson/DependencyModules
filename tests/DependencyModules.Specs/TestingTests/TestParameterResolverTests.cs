@@ -3,9 +3,8 @@ using DependencyModules.Testing.Attributes;
 using DependencyModules.Testing.Attributes.Interfaces;
 using DependencyModules.Testing.Impl;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
-namespace DependencyModules.Tests.TestingTests;
+namespace DependencyModules.Specs.TestingTests;
 
 /// <summary>
 /// Drives TestParameterResolver directly, without a test framework around it.
@@ -15,7 +14,7 @@ namespace DependencyModules.Tests.TestingTests;
 /// unrelated integration test failing, if at all. The resolver is the piece an NUnit integration
 /// would share, which makes its behaviour a contract rather than an implementation detail.
 /// </summary>
-public class TestParameterResolverTests
+public partial class TestParameterResolverTests
 {
     private interface IThing;
 
@@ -36,7 +35,7 @@ public class TestParameterResolverTests
         public string Text { get; } = text;
     }
 
-    [Fact]
+    [VerifyTest]
     public async Task ResolvesAServiceFromTheContainer()
     {
         var arguments = await Resolve(
@@ -44,27 +43,27 @@ public class TestParameterResolverTests
             services => services.AddSingleton<IThing, Thing>()
         );
 
-        Assert.IsType<Thing>(Assert.Single(arguments));
+        Verify(Single(arguments)?.GetType() == typeof(Thing));
     }
 
     /// <summary>
     /// A test asking for the container itself cannot have it resolved from the container.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public async Task ServiceProviderParameterGetsTheContainerItself()
     {
         var (resolver, provider) = Build(nameof(Samples.WantsTheProvider), _ => { });
 
         var arguments = await resolver.ResolveArgumentsAsync(provider, []);
 
-        Assert.Same(provider, Assert.Single(arguments));
+        Verify(ReferenceEquals(provider, Single(arguments)));
     }
 
     /// <summary>
     /// A data row owns the parameters it covers, so its arguments are passed through untouched even
     /// when the container could have supplied that type.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public async Task DataTakesTheLeadingParametersAndTheContainerTakesTheRest()
     {
         var (resolver, provider) = Build(
@@ -74,9 +73,9 @@ public class TestParameterResolverTests
 
         var arguments = await resolver.ResolveArgumentsAsync(provider, [42]);
 
-        Assert.Equal(2, arguments.Length);
-        Assert.Equal(42, arguments[0]);
-        Assert.IsType<Thing>(arguments[1]);
+        Verify(arguments.Length == 2);
+        Verify(Equals(arguments[0], 42));
+        Verify(arguments[1]?.GetType() == typeof(Thing));
     }
 
     /// <summary>
@@ -84,7 +83,7 @@ public class TestParameterResolverTests
     /// afterwards — the property that lets [Mock] replace a service for the whole test rather than
     /// only for the parameter holding it.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public async Task ParameterAttributeRegistrationBeatsTheModuleRegistration()
     {
         var arguments = await Resolve(
@@ -92,14 +91,14 @@ public class TestParameterResolverTests
             services => services.AddSingleton<IThing, Thing>()
         );
 
-        Assert.IsType<Other>(Assert.Single(arguments));
+        Verify(Single(arguments)?.GetType() == typeof(Other));
     }
 
     /// <summary>
     /// A provider that returns null stands aside rather than forcing a null argument, so several
     /// attributes can sit on one parameter with the first that answers winning.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public async Task AProviderReturningNullDefersToTheNextOne()
     {
         var arguments = await Resolve(
@@ -107,10 +106,10 @@ public class TestParameterResolverTests
             services => services.AddSingleton<IThing, Thing>()
         );
 
-        Assert.IsType<Other>(Assert.Single(arguments));
+        Verify(Single(arguments)?.GetType() == typeof(Other));
     }
 
-    [Fact]
+    [VerifyTest]
     public async Task ResolvesKeyedServices()
     {
         var arguments = await Resolve(
@@ -122,14 +121,14 @@ public class TestParameterResolverTests
             }
         );
 
-        Assert.IsType<Other>(Assert.Single(arguments));
+        Verify(Single(arguments)?.GetType() == typeof(Other));
     }
 
     /// <summary>
     /// An unregistered concrete type is constructed from the container, so a test can name the class
     /// under test without registering it.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public async Task ConstructsAnUnregisteredConcreteType()
     {
         var arguments = await Resolve(
@@ -137,27 +136,27 @@ public class TestParameterResolverTests
             services => services.AddSingleton<IThing, Thing>()
         );
 
-        var value = Assert.IsType<NeedsAValue>(Assert.Single(arguments));
+        var value = Is<NeedsAValue>(Single(arguments));
 
-        Assert.IsType<Thing>(value.Thing);
-        Assert.Equal("supplied", value.Text);
+        Verify(value.Thing.GetType() == typeof(Thing));
+        Verify(value.Text == "supplied");
     }
 
     /// <summary>
     /// Resolving without the setup phase would skip every parameter attribute silently, so a [Mock]
     /// parameter would hand back the real service. It fails loudly instead.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public async Task ResolvingBeforeSetupThrows()
     {
         var resolver = new TestParameterResolver(ContextFor(nameof(Samples.OneService)));
         var provider = new ServiceCollection().BuildServiceProvider();
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var exception = await ThrowsExactlyAsync<InvalidOperationException>(() =>
             resolver.ResolveArgumentsAsync(provider, [])
         );
 
-        Assert.Contains(nameof(TestParameterResolver.SetupServiceCollection), exception.Message);
+        Verify(exception.Message.Contains(nameof(TestParameterResolver.SetupServiceCollection)));
     }
 
     /// <summary>
@@ -166,7 +165,7 @@ public class TestParameterResolverTests
     /// the service under test kept the real implementation while the test held a double it believed
     /// was wired in.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public async Task KeyedMockReplacesTheKeyedRegistration()
     {
         var (resolver, provider) = Build(
@@ -176,14 +175,14 @@ public class TestParameterResolverTests
 
         var arguments = await resolver.ResolveArgumentsAsync(provider, []);
 
-        Assert.IsType<Other>(Assert.Single(arguments));
-        Assert.IsType<Other>(provider.GetRequiredKeyedService<IThing>("primary"));
+        Verify(Single(arguments)?.GetType() == typeof(Other));
+        Verify(provider.GetRequiredKeyedService<IThing>("primary").GetType() == typeof(Other));
     }
 
     /// <summary>
     /// And it does not spill into the unkeyed slot, where nothing asked for it.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void KeyedMockRegistersNothingUnkeyed()
     {
         var (_, provider) = Build(
@@ -191,14 +190,14 @@ public class TestParameterResolverTests
             services => services.AddKeyedSingleton<IThing, Thing>("primary")
         );
 
-        Assert.Null(provider.GetService<IThing>());
+        Verify(provider.GetService<IThing>() is null);
     }
 
     /// <summary>
     /// A key the mock did not name is left alone, so mocking one keyed implementation leaves its
     /// siblings real.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void KeyedMockLeavesOtherKeysAlone()
     {
         var (_, provider) = Build(
@@ -210,11 +209,11 @@ public class TestParameterResolverTests
             }
         );
 
-        Assert.IsType<Thing>(provider.GetRequiredKeyedService<IThing>("secondary"));
+        Verify(provider.GetRequiredKeyedService<IThing>("secondary").GetType() == typeof(Thing));
     }
 
     /// <summary>Control: an unkeyed mock still replaces the unkeyed registration.</summary>
-    [Fact]
+    [VerifyTest]
     public async Task UnkeyedMockReplacesTheUnkeyedRegistration()
     {
         var arguments = await Resolve(
@@ -222,7 +221,7 @@ public class TestParameterResolverTests
             services => services.AddSingleton<IThing, Thing>()
         );
 
-        Assert.IsType<Other>(Assert.Single(arguments));
+        Verify(Single(arguments)?.GetType() == typeof(Other));
     }
 
     /// <summary>
@@ -234,7 +233,7 @@ public class TestParameterResolverTests
     /// half of it the resolver owns: whatever was registered before it, the double registered here
     /// is the one the container ends up with.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public async Task AMockOnAParameter_BeatsARegistrationMadeBeforeIt()
     {
         var services = new ServiceCollection();
@@ -249,14 +248,14 @@ public class TestParameterResolverTests
 
         var arguments = await resolver.ResolveArgumentsAsync(services.BuildServiceProvider(), []);
 
-        Assert.IsType<Other>(Assert.Single(arguments));
+        Verify(Single(arguments)?.GetType() == typeof(Other));
     }
 
     /// <summary>
     /// And the service under test sees the same double, which is why [Mock] registers at all rather
     /// than merely supplying an argument.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AMockOnAParameter_IsWhatTheContainerHandsOut()
     {
         var services = new ServiceCollection();
@@ -265,10 +264,12 @@ public class TestParameterResolverTests
         services.AddSingleton<IThing, Other2>();
         resolver.SetupServiceCollection(services);
 
-        Assert.IsType<Other>(services.BuildServiceProvider().GetRequiredService<IThing>());
+        Verify(
+            services.BuildServiceProvider().GetRequiredService<IThing>().GetType() == typeof(Other)
+        );
     }
 
-    [Fact]
+    [VerifyTest]
     public void SetupIsOfferedEveryParameter()
     {
         var services = new ServiceCollection();
@@ -277,7 +278,7 @@ public class TestParameterResolverTests
             ContextFor(nameof(Samples.TwoRegisteringAttributes))
         ).SetupServiceCollection(services);
 
-        Assert.Equal(2, services.Count);
+        Verify(services.Count == 2);
     }
 
     // ---- harness -------------------------------------------------------------------------------

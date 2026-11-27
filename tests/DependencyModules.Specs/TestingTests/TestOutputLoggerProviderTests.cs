@@ -2,9 +2,8 @@ using System.Reflection;
 using DependencyModules.Testing.Attributes.Interfaces;
 using DependencyModules.Testing.Impl;
 using Microsoft.Extensions.Logging;
-using Xunit;
 
-namespace DependencyModules.Tests.TestingTests;
+namespace DependencyModules.Specs.TestingTests;
 
 /// <summary>
 /// What the logger writes, read from a provider of the test's own rather than from a framework's
@@ -12,11 +11,11 @@ namespace DependencyModules.Tests.TestingTests;
 /// </summary>
 /// <remarks>
 /// Through the constructor that takes a provider, because <c>CurrentTest.Provider</c> is one static
-/// for the whole assembly, and this assembly runs its test classes in parallel. The path through
+/// for the whole assembly, and this assembly runs its tests in parallel. The path through
 /// <c>CurrentTest</c> is asserted under each framework, in SutProject.Tests and
 /// SutProject.NUnitTests.
 /// </remarks>
-public class TestOutputLoggerProviderTests
+public partial class TestOutputLoggerProviderTests
 {
     private sealed class RecordingTest(bool running = true) : ICurrentTestProvider
     {
@@ -41,7 +40,7 @@ public class TestOutputLoggerProviderTests
         }
     }
 
-    [Fact]
+    [VerifyTest]
     public void AnEntryIsOneLineInTheConsoleLoggersSingleLineFormat()
     {
         var test = new RecordingTest();
@@ -50,26 +49,26 @@ public class TestOutputLoggerProviderTests
             .CreateLogger("Shop.OrderService")
             .LogInformation(new EventId(7), "Order {Id} accepted", 42);
 
-        Assert.Equal(["info: Shop.OrderService[7] Order 42 accepted"], test.Lines);
+        Verify(test.Lines.SequenceEqual(["info: Shop.OrderService[7] Order 42 accepted"]));
     }
 
-    [Theory]
-    [InlineData(LogLevel.Trace, "trce")]
-    [InlineData(LogLevel.Debug, "dbug")]
-    [InlineData(LogLevel.Information, "info")]
-    [InlineData(LogLevel.Warning, "warn")]
-    [InlineData(LogLevel.Error, "fail")]
-    [InlineData(LogLevel.Critical, "crit")]
+    [VerifyTest]
+    [Row(LogLevel.Trace, "trce")]
+    [Row(LogLevel.Debug, "dbug")]
+    [Row(LogLevel.Information, "info")]
+    [Row(LogLevel.Warning, "warn")]
+    [Row(LogLevel.Error, "fail")]
+    [Row(LogLevel.Critical, "crit")]
     public void EachLevelHasTheConsoleLoggersName(LogLevel level, string name)
     {
         var test = new RecordingTest();
 
         new TestOutputLoggerProvider(test).CreateLogger("Category").Log(level, "message");
 
-        Assert.Equal([$"{name}: Category[0] message"], test.Lines);
+        Verify(test.Lines.SequenceEqual([$"{name}: Category[0] message"]));
     }
 
-    [Fact]
+    [VerifyTest]
     public void AnExceptionIsOnTheLinesAfterTheEntry()
     {
         var test = new RecordingTest();
@@ -77,10 +76,12 @@ public class TestOutputLoggerProviderTests
 
         new TestOutputLoggerProvider(test).CreateLogger("Category").LogError(exception, "failed");
 
-        Assert.Equal(["fail: Category[0] failed" + Environment.NewLine + exception], test.Lines);
+        Verify(
+            test.Lines.SequenceEqual(["fail: Category[0] failed" + Environment.NewLine + exception])
+        );
     }
 
-    [Fact]
+    [VerifyTest]
     public void NoneIsNotEnabled()
     {
         var test = new RecordingTest();
@@ -88,35 +89,35 @@ public class TestOutputLoggerProviderTests
 
         logger.Log(LogLevel.None, "message");
 
-        Assert.False(logger.IsEnabled(LogLevel.None));
-        Assert.Empty(test.Lines);
+        Verify(!logger.IsEnabled(LogLevel.None));
+        Verify(test.Lines.Count == 0);
     }
 
-    [Fact]
+    [VerifyTest]
     public void AnEntryWithNothingToShowIsDropped()
     {
         var test = new RecordingTest();
 
         new TestOutputLoggerProvider(test).CreateLogger("Category").LogInformation("");
 
-        Assert.Empty(test.Lines);
+        Verify(test.Lines.Count == 0);
     }
 
     /// <summary>
     /// The case a logger meets on a background thread after its test has finished. A logger that
     /// threw here would fail the application under test instead of the test.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void AnEntryLoggedWhileNoTestIsRunningIsDropped()
     {
         var test = new RecordingTest(running: false);
 
         new TestOutputLoggerProvider(test).CreateLogger("Category").LogInformation("message");
 
-        Assert.Empty(test.Lines);
+        Verify(test.Lines.Count == 0);
     }
 
-    [Fact]
+    [VerifyTest]
     public void AScopeChangesNothing()
     {
         var test = new RecordingTest();
@@ -127,6 +128,6 @@ public class TestOutputLoggerProviderTests
             logger.LogInformation("message");
         }
 
-        Assert.Equal(["info: Category[0] message"], test.Lines);
+        Verify(test.Lines.SequenceEqual(["info: Category[0] message"]));
     }
 }
