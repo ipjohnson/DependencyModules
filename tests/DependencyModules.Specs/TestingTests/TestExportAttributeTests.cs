@@ -1,15 +1,14 @@
 using DependencyModules.Testing.Attributes;
 using DependencyModules.Testing.Attributes.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
-namespace DependencyModules.Tests.TestingTests;
+namespace DependencyModules.Specs.TestingTests;
 
 /// <summary>
 /// [TestExport] lets a test override a registration for the duration of that test, so the lifetime
 /// and implementation it produces have to match what was asked for.
 /// </summary>
-public class TestExportAttributeTests
+public partial class TestExportAttributeTests
 {
     private interface IThing;
 
@@ -17,28 +16,28 @@ public class TestExportAttributeTests
 
     private class OtherThing : IThing;
 
-    [Fact]
+    [VerifyTest]
     public void DefaultsToTransient()
     {
-        Assert.Equal(ServiceLifetime.Transient, new TestExportAttribute(typeof(IThing)).Lifetime);
+        Verify(new TestExportAttribute(typeof(IThing)).Lifetime == ServiceLifetime.Transient);
     }
 
-    [Fact]
+    [VerifyTest]
     public void DefaultsToNoSeparateImplementation()
     {
-        Assert.Null(new TestExportAttribute(typeof(IThing)).Implementation);
+        Verify(new TestExportAttribute(typeof(IThing)).Implementation is null);
     }
 
-    [Fact]
+    [VerifyTest]
     public void ExposesTheServiceItWasGiven()
     {
-        Assert.Equal(typeof(IThing), new TestExportAttribute(typeof(IThing)).Service);
+        Verify(new TestExportAttribute(typeof(IThing)).Service == typeof(IThing));
     }
 
-    [Theory]
-    [InlineData(ServiceLifetime.Singleton)]
-    [InlineData(ServiceLifetime.Scoped)]
-    [InlineData(ServiceLifetime.Transient)]
+    [VerifyTest]
+    [Row(ServiceLifetime.Singleton)]
+    [Row(ServiceLifetime.Scoped)]
+    [Row(ServiceLifetime.Transient)]
     public void RegistersWithTheRequestedLifetime(ServiceLifetime lifetime)
     {
         var attribute = new TestExportAttribute(typeof(IThing))
@@ -49,23 +48,23 @@ public class TestExportAttributeTests
 
         var collection = Setup(attribute);
 
-        var descriptor = Assert.Single(collection);
-        Assert.Equal(lifetime, descriptor.Lifetime);
-        Assert.Equal(typeof(IThing), descriptor.ServiceType);
-        Assert.Equal(typeof(Thing), descriptor.ImplementationType);
+        var descriptor = Single(collection);
+        Verify(descriptor.Lifetime == lifetime);
+        Verify(descriptor.ServiceType == typeof(IThing));
+        Verify(descriptor.ImplementationType == typeof(Thing));
     }
 
-    [Fact]
+    [VerifyTest]
     public void WithoutAnImplementation_RegistersTheServiceAsItsOwnImplementation()
     {
         var collection = Setup(new TestExportAttribute(typeof(Thing)));
 
-        var descriptor = Assert.Single(collection);
-        Assert.Equal(typeof(Thing), descriptor.ServiceType);
-        Assert.Equal(typeof(Thing), descriptor.ImplementationType);
+        var descriptor = Single(collection);
+        Verify(descriptor.ServiceType == typeof(Thing));
+        Verify(descriptor.ImplementationType == typeof(Thing));
     }
 
-    [Fact]
+    [VerifyTest]
     public void RegisteredServiceResolvesFromTheProvider()
     {
         var collection = Setup(
@@ -78,7 +77,7 @@ public class TestExportAttributeTests
 
         var provider = collection.BuildServiceProvider();
 
-        Assert.IsType<OtherThing>(provider.GetService<IThing>());
+        Verify(provider.GetService<IThing>()?.GetType() == typeof(OtherThing));
     }
 
     /// <summary>
@@ -86,16 +85,16 @@ public class TestExportAttributeTests
     /// It used to carry a no-op StartupAsync purely because the two lived on one interface; pinning
     /// the split here means re-adding a lifecycle hook has to be a decision rather than an accident.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void RegistersServicesWithoutTakingPartInTestStartup()
     {
-        Assert.IsAssignableFrom<ITestServiceSetupAttribute>(
-            new TestExportAttribute(typeof(IThing))
-        );
-        Assert.False(new TestExportAttribute(typeof(IThing)) is ITestStartupAttribute);
+        object attribute = new TestExportAttribute(typeof(IThing));
+
+        Verify(attribute is ITestServiceSetupAttribute);
+        Verify(attribute is not ITestStartupAttribute);
     }
 
-    [Fact]
+    [VerifyTest]
     public void AppliesToAssembliesClassesAndMethods()
     {
         var usage = typeof(TestExportAttribute)
@@ -103,10 +102,10 @@ public class TestExportAttributeTests
             .Cast<AttributeUsageAttribute>()
             .Single();
 
-        Assert.True(usage.ValidOn.HasFlag(AttributeTargets.Assembly));
-        Assert.True(usage.ValidOn.HasFlag(AttributeTargets.Class));
-        Assert.True(usage.ValidOn.HasFlag(AttributeTargets.Method));
-        Assert.True(usage.AllowMultiple);
+        Verify(usage.ValidOn.HasFlag(AttributeTargets.Assembly));
+        Verify(usage.ValidOn.HasFlag(AttributeTargets.Class));
+        Verify(usage.ValidOn.HasFlag(AttributeTargets.Method));
+        Verify(usage.AllowMultiple);
     }
 
     /// <summary>

@@ -1,14 +1,13 @@
 using DependencyModules.Testing.Attributes.Interfaces;
 using DependencyModules.Testing.Impl;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
 
-namespace DependencyModules.Tests.TestingTests;
+namespace DependencyModules.Specs.TestingTests;
 
 /// <summary>
 /// The source driven directly, for the parts a test running through a framework cannot observe.
 /// </summary>
-public class TestContainerSourceUnitTests
+public partial class TestContainerSourceUnitTests
 {
     private interface IThing;
 
@@ -65,7 +64,7 @@ public class TestContainerSourceUnitTests
     /// Every container goes to the runner, which is what makes destroying them the runner's business
     /// rather than the caller's.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public async Task EveryContainerBuiltIsHandedToTheRunner()
     {
         var harness = new Harness(services => services.AddSingleton<IThing, Thing>());
@@ -73,13 +72,13 @@ public class TestContainerSourceUnitTests
         var first = await harness.Source.CreateAsync();
         var second = await harness.Source.CreateAsync();
 
-        Assert.Equal([first, second], harness.Tracked);
+        Verify(harness.Tracked.SequenceEqual([first, second]));
     }
 
     /// <summary>
     /// Startup runs against each one. A container that skipped it is not the one the test composed.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public async Task StartupRunsForEveryContainer()
     {
         var harness = new Harness(services => services.AddSingleton<IThing, Thing>());
@@ -87,14 +86,14 @@ public class TestContainerSourceUnitTests
         var first = await harness.Source.CreateAsync();
         var second = await harness.Source.CreateAsync();
 
-        Assert.Equal([first, second], harness.Started);
+        Verify(harness.Started.SequenceEqual([first, second]));
     }
 
     /// <summary>
     /// A pinned service survives its container being disposed, which is the whole reason the template
     /// uses an instance registration rather than a factory returning the same object.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public async Task APinnedDisposableIsNotDisposedByTheContainersItIsHandedTo()
     {
         var tracked = new Tracked();
@@ -104,20 +103,20 @@ public class TestContainerSourceUnitTests
         var first = await harness.Source.CreateAsync();
         var second = await harness.Source.CreateAsync();
 
-        Assert.Same(tracked, first.GetRequiredService<Tracked>());
-        Assert.Same(tracked, second.GetRequiredService<Tracked>());
+        Verify(ReferenceEquals(tracked, first.GetRequiredService<Tracked>()));
+        Verify(ReferenceEquals(tracked, second.GetRequiredService<Tracked>()));
 
         ((IDisposable)first).Dispose();
         ((IDisposable)second).Dispose();
 
-        Assert.Equal(0, tracked.Disposals);
+        Verify(tracked.Disposals == 0);
     }
 
     /// <summary>
     /// A type registered more than once keeps every registration, because collapsing the set to its
     /// last member would leave anything injecting the sequence one element long.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public async Task PinningKeepsEveryRegistrationOfAService()
     {
         var harness = new Harness(
@@ -131,15 +130,15 @@ public class TestContainerSourceUnitTests
 
         var built = await harness.Source.CreateAsync();
 
-        Assert.Equal(2, built.GetServices<IThing>().Count());
-        Assert.Equal(harness.Pin.GetServices<IThing>(), built.GetServices<IThing>());
+        Verify(built.GetServices<IThing>().Count() == 2);
+        Verify(built.GetServices<IThing>().SequenceEqual(harness.Pin.GetServices<IThing>()));
     }
 
     /// <summary>
     /// Pinning takes the instances from <c>IEnumerable&lt;T&gt;</c>, which holds no keyed
     /// registration. The keyed registrations of a pinned service stay as they were written.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public async Task PinningKeepsTheKeyedRegistrationsOfAService()
     {
         var harness = new Harness(
@@ -154,16 +153,21 @@ public class TestContainerSourceUnitTests
 
         var built = await harness.Source.CreateAsync();
 
-        Assert.Same(harness.Pin.GetRequiredService<IThing>(), built.GetRequiredService<IThing>());
-        Assert.NotNull(built.GetRequiredKeyedService<IThing>("before"));
-        Assert.NotNull(built.GetRequiredKeyedService<IThing>("after"));
+        Verify(
+            ReferenceEquals(
+                harness.Pin.GetRequiredService<IThing>(),
+                built.GetRequiredService<IThing>()
+            )
+        );
+        Verify(built.GetRequiredKeyedService<IThing>("before") is not null);
+        Verify(built.GetRequiredKeyedService<IThing>("after") is not null);
     }
 
     /// <summary>
     /// A service an attribute names is one the test asked to share. When the test's container cannot
     /// produce it, every container built after it would get its own instance with no message.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public async Task ANamedServiceThatCannotBeBuiltIsReported()
     {
         var harness = new Harness(
@@ -175,41 +179,41 @@ public class TestContainerSourceUnitTests
             named: [typeof(IThing)]
         );
 
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        var refused = await ThrowsExactlyAsync<InvalidOperationException>(async () =>
             await harness.Source.CreateAsync()
         );
 
-        Assert.Contains(typeof(IThing).FullName!, refused.Message);
-        Assert.Contains("cannot build it", refused.Message);
-        Assert.Equal("cannot build it", refused.InnerException?.Message);
+        Verify(refused.Message.Contains(typeof(IThing).FullName!));
+        Verify(refused.Message.Contains("cannot build it"));
+        Verify(refused.InnerException?.Message == "cannot build it");
     }
 
     /// <summary>
     /// Nothing is built until something asks, so a test that never rebuilds pays for none of this.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public void NothingIsBuiltUntilAsked()
     {
         var harness = new Harness(services => services.AddSingleton<IThing, Thing>());
 
-        Assert.Empty(harness.Tracked);
-        Assert.Empty(harness.Started);
+        Verify(harness.Tracked.Count == 0);
+        Verify(harness.Started.Count == 0);
     }
 
     /// <summary>
     /// A source nobody initialized says so, rather than answering with a container built from
     /// nothing.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public async Task AnUninitializedSourceRefuses()
     {
         var source = new TestContainerSource();
 
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        var refused = await ThrowsExactlyAsync<InvalidOperationException>(async () =>
             await source.CreateAsync()
         );
 
-        Assert.Contains("never initialized", refused.Message);
+        Verify(refused.Message.Contains("never initialized"));
     }
 
     /// <summary>
@@ -222,7 +226,7 @@ public class TestContainerSourceUnitTests
     /// eagerly here turned that message into a failure at container build for every test that took
     /// such a parameter and never resolved it.
     /// </remarks>
-    [Fact]
+    [VerifyTest]
     public async Task APinnedServiceThatCannotBeBuiltIsLeftAlone()
     {
         var harness = new Harness(
@@ -239,20 +243,20 @@ public class TestContainerSourceUnitTests
 
         var built = await harness.Source.CreateAsync();
 
-        Assert.NotNull(built.GetRequiredService<IThing>());
+        Verify(built.GetRequiredService<IThing>() is not null);
 
-        var refused = Assert.Throws<InvalidOperationException>(() =>
+        var refused = ThrowsExactly<InvalidOperationException>(() =>
             built.GetRequiredService<string>()
         );
 
-        Assert.Equal("name the fix", refused.Message);
+        Verify(refused.Message == "name the fix");
     }
 
     /// <summary>
     /// A pinned type nothing registered is inert, which is what lets the set be drawn from a
     /// signature without filtering it first.
     /// </summary>
-    [Fact]
+    [VerifyTest]
     public async Task APinnedTypeNothingRegisteredIsInert()
     {
         var harness = new Harness(
@@ -264,7 +268,7 @@ public class TestContainerSourceUnitTests
 
         var built = await harness.Source.CreateAsync();
 
-        Assert.NotNull(built.GetRequiredService<IThing>());
-        Assert.Null(built.GetService<Uri>());
+        Verify(built.GetRequiredService<IThing>() is not null);
+        Verify(built.GetService<Uri>() is null);
     }
 }
