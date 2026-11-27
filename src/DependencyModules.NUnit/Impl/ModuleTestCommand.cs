@@ -1,6 +1,5 @@
 using System.Reflection;
 using DependencyModules.NUnit.Attributes;
-using DependencyModules.Runtime.Helpers;
 using DependencyModules.Runtime.Interfaces;
 using DependencyModules.Testing.Attributes.Interfaces;
 using DependencyModules.Testing.Impl;
@@ -51,98 +50,36 @@ public class ModuleTestCommand(TestCommand innerCommand) : DelegatingTestCommand
 
         var serviceCollection = new ServiceCollection();
 
-        // One resolver per container. A repeated test builds both again for every iteration.
-        var resolver = new TestParameterResolver(moduleContext);
-
         SetupTestCaseInfo(serviceCollection, testMethod, knownAttributes);
 
-        // Before the modules, so anything driving the application can take one through ordinary
-        // constructor injection. It answers nothing until the container below exists to take pinned
-        // instances from, which is why it is handed its composition rather than given it here.
-        var containerSource = new TestContainerSource();
-
-        serviceCollection.AddSingleton<ITestContainerSource>(containerSource);
-
-        SeedEnvironment(serviceCollection, method, knownAttributes);
-
-        SetupModules(serviceCollection, method, knownAttributes);
-
-        SetupServiceSetupAttributes(moduleContext, serviceCollection, knownAttributes);
-
-        // Last, for the reason the xUnit host records at the same point: a [Mock] on a parameter
-        // beats a [TestExport] naming the same service.
-        resolver.SetupServiceCollection(serviceCollection);
-
-        var serviceProvider = BuildServiceProvider(
-            moduleContext,
-            serviceCollection,
-            knownAttributes
-        );
-
-        // Every container the case built, the first and any the source was asked for, disposed
-        // together in the finally below.
-        var providers = new List<IServiceProvider> { serviceProvider };
+        // NUnit's command chain is synchronous. TestCommand.Execute has no async form.
+        var container = ModuleTestComposition
+            .BuildAsync(
+                services: serviceCollection,
+                modules: CollectModules(method, knownAttributes),
+                testMethod: moduleContext,
+                overrides: [],
+                currentTest: null,
+                parent: null
+            )
+            .AsTask()
+            .GetAwaiter()
+            .GetResult();
 
         try
         {
-            Start(moduleContext, knownAttributes, serviceProvider);
-
-            // Named throughout: three of these are delegates of shapes that would happily bind to
-            // one another.
-            containerSource.Initialize(
-                services: serviceCollection,
-                pinned: serviceProvider,
-                pinnedServices: SharedRegistrations.Collect(method, knownAttributes),
-                namedServices: SharedRegistrations.CollectNamed(method, knownAttributes),
-                build: services => BuildServiceProvider(moduleContext, services, knownAttributes),
-                start: built =>
-                {
-                    Start(moduleContext, knownAttributes, built);
-
-                    return ValueTask.CompletedTask;
-                },
-                track: providers.Add
-            );
-
-            var arguments = resolver
-                .ResolveArgumentsAsync(serviceProvider, RowArguments(testMethod))
+            var arguments = container
+                .ResolveArgumentsAsync(RowArguments(testMethod))
                 .GetAwaiter()
                 .GetResult();
 
-            PublishArguments(testMethod, serviceProvider, arguments);
+            PublishArguments(testMethod, container.Services, arguments);
 
             return innerCommand.Execute(context);
         }
         finally
         {
-            // Backwards, so a container the source built goes before the one holding the instances
-            // it was handed.
-            for (var i = providers.Count - 1; i >= 0; i--)
-            {
-                DisposeProvider(providers[i]);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Runs the test's startup attributes against one container.
-    /// </summary>
-    /// <remarks>
-    /// Every container, not only the first. A framework whose startup installs middleware or a filter
-    /// provider would otherwise answer through a chain that was never assembled.
-    ///
-    /// NUnit's command chain is synchronous - TestCommand.Execute has no async form - so an async
-    /// hook is awaited here rather than up the stack.
-    /// </remarks>
-    private static void Start(
-        ITestMethodContext context,
-        Attribute[] knownAttributes,
-        IServiceProvider provider
-    )
-    {
-        foreach (var startupAttribute in knownAttributes.OfType<ITestStartupAttribute>())
-        {
-            startupAttribute.StartupAsync(context, provider).GetAwaiter().GetResult();
+            container.DisposeAsync().AsTask().GetAwaiter().GetResult();
         }
     }
 
@@ -191,135 +128,35 @@ public class ModuleTestCommand(TestCommand innerCommand) : DelegatingTestCommand
         ));
     }
 
-    /// <remarks>
-    /// Last rather than first: <paramref name="knownAttributes"/> is widest scope first — assembly,
-    /// then declaring type, then the method — so the last one is the narrowest, and a builder on the
-    /// method beats one on the class beats one on the assembly. Taking the first would have let an
-    /// assembly-level builder silently win over the method that asked for a different container,
-    /// which is the reverse of how every other attribute here resolves.
-    /// </remarks>
-    private static IServiceProvider BuildServiceProvider(
-        ITestMethodContext context,
-        IServiceCollection serviceCollection,
-        Attribute[] knownAttributes
-    )
-    {
-        var serviceProviderBuilderAttribute = knownAttributes
-            .OfType<IServiceProviderBuilderAttribute>()
-            .LastOrDefault();
-
-        if (serviceProviderBuilderAttribute != null)
-        {
-            return serviceProviderBuilderAttribute.BuildServiceProvider(context, serviceCollection);
-        }
-
-        return serviceCollection.BuildServiceProvider();
-    }
-
-    /// <remarks>
-    /// The whole pass runs after the parameter value providers, so a <c>[TestExport]</c> overrides a
-    /// <c>[Mock]</c> of the same service rather than the other way round.
-    ///
-    /// Mock support goes first within the pass, everything else keeping its declared order behind it.
-    /// A mock is the stand-in a test falls back to, so naming a real implementation has to beat it —
-    /// and has to beat it whether <c>[MoqSupport]</c> sits on the assembly, the class or the method,
-    /// which relying on attribute order alone would not guarantee.
-    /// </remarks>
-    private static void SetupServiceSetupAttributes(
-        ITestMethodContext context,
-        IServiceCollection serviceCollection,
-        Attribute[] knownAttributes
-    )
-    {
-        var setupAttributes = knownAttributes
-            .OfType<ITestServiceSetupAttribute>()
-            .OrderBy(attribute => attribute is IMockSupportAttribute ? 0 : 1);
-
-        foreach (var setupAttribute in setupAttributes)
-        {
-            setupAttribute.SetupServiceCollection(context, serviceCollection);
-        }
-    }
-
     /// <summary>
-    /// Registers the environment the test's attributes declare, ahead of the modules - the same
-    /// seeding the xUnit integration does, for the reason recorded there: conditions are answered
-    /// from the environment already in the collection as each module is applied, and the
-    /// service-setup pass runs too late to supply it.
+    /// The modules in declaration order: those of <c>[ModuleTest]</c> first, then the module
+    /// attributes, widest scope first. <see cref="ModuleTestComposition.BuildAsync"/> reverses them.
     /// </summary>
-    private static void SeedEnvironment(
-        IServiceCollection serviceCollection,
+    private static IReadOnlyList<IDependencyModule> CollectModules(
         MethodInfo method,
         Attribute[] knownAttributes
-    )
-    {
-        IModuleEnvironment? environment = null;
-
-        foreach (var provider in knownAttributes.OfType<IModuleEnvironmentProvider>())
-        {
-            environment = provider.ProvideEnvironment(method) ?? environment;
-        }
-
-        if (environment != null)
-        {
-            serviceCollection.Add(new ServiceDescriptor(typeof(IModuleEnvironment), environment));
-        }
-    }
-
-    /// <remarks>
-    /// The same loading the xUnit integration does, reading <see cref="IModuleTestAttribute"/> so
-    /// neither names the other's attribute. It is not shared code because it needs both
-    /// <c>DependencyModules.Runtime</c> and <c>DependencyModules.Testing</c>, and the only assembly
-    /// both integrations share is Testing — which the three mocking packages reference precisely
-    /// because it does not drag the runtime in behind it.
-    /// </remarks>
-    private static void SetupModules(
-        IServiceCollection serviceCollection,
-        MethodInfo method,
-        IEnumerable<Attribute> knownAttributes
     )
     {
         var modules = new List<IDependencyModule>();
+
+        var testAttribute = method.GetTestAttribute<IModuleTestAttribute>();
+
+        if (testAttribute != null)
+        {
+            foreach (var moduleType in testAttribute.ModuleTypes)
+            {
+                if (Activator.CreateInstance(moduleType, []) is IDependencyModule moduleInstance)
+                {
+                    modules.Add(moduleInstance);
+                }
+            }
+        }
 
         foreach (var loadModuleAttribute in knownAttributes.OfType<IDependencyModuleProvider>())
         {
             modules.Add(loadModuleAttribute.GetModule());
         }
 
-        var testAttribute = method.GetTestAttribute<IModuleTestAttribute>();
-
-        if (testAttribute != null)
-        {
-            var count = 0;
-            foreach (var moduleType in testAttribute.ModuleTypes)
-            {
-                if (Activator.CreateInstance(moduleType, []) is IDependencyModule moduleInstance)
-                {
-                    modules.Insert(count++, moduleInstance);
-                }
-            }
-        }
-
-        modules.Reverse();
-
-        DependencyRegistry<object>.LoadModules(serviceCollection, modules.ToArray());
-    }
-
-    /// <remarks>
-    /// Asynchronous disposal is preferred where the provider offers it, because a service that only
-    /// implements <see cref="IAsyncDisposable"/> makes <c>ServiceProvider.Dispose</c> throw rather
-    /// than fall back.
-    /// </remarks>
-    private static void DisposeProvider(IServiceProvider serviceProvider)
-    {
-        switch (serviceProvider)
-        {
-            case IAsyncDisposable asyncDisposable:
-                asyncDisposable.DisposeAsync().AsTask().GetAwaiter().GetResult();
-                break;
-            case IDisposable disposable:
-                disposable.Dispose();
-                break;
-        }
+        return modules;
     }
 }

@@ -49,7 +49,7 @@ public partial class ModuleTestCase
         }
         finally
         {
-            await DisposeProviders();
+            await DisposeContainers();
         }
     }
 #else
@@ -86,7 +86,7 @@ public partial class ModuleTestCase
         }
         finally
         {
-            await DisposeProviders();
+            await DisposeContainers();
         }
     }
 #endif
