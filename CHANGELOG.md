@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-11-28
+
+This release adds collections and `Func` registrations to the generated code. It also adds
+`ModuleTestComposition`, which builds the container of a test for any test runner.
+
 ### Added
 
 - `[IntoMap<TKey, TValue>]`, `[IntoSet<T>]`, `[IntoList<T>]`, and `[IntoList<T, TOrder>]`. They add
@@ -34,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as DependencyModules.xUnit and DependencyModules.NUnit. An override replaces a `[TestExport]` for
   the same service. `BuildScopeAsync` builds a shared parent for a class or an assembly.
   `ModuleTestContainer` holds the result and disposes each service provider that it built.
-  `TestMethodContext` is a plain `ITestMethodContext`.
+  `TestMethodContext` is a plain `ITestMethodContext`. (#141)
 
 ### Changed
 
@@ -46,16 +51,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   load of the modules has a last step that adds the collections and the `Func` registrations.
   (#132)
 - DM0021 also reads `[Mock]` from `VerificationGlue.Mocks`. A VerificationGlue test with that
-  `[Mock]` and a `[TestExport]` for the same service on one method now gets DM0021.
+  `[Mock]` and a `[TestExport]` for the same service on one method now gets DM0021. (#143)
 - `DependencyModules.Testing` depends on `DependencyModules.Runtime` and on
   `Microsoft.Extensions.DependencyInjection`: version 8.0.1 for `net8.0` and version 10.0.0 for
   `net10.0`. Before, it depended on `Microsoft.Extensions.DependencyInjection.Abstractions` only.
+  (#141)
+- DependencyModules.xUnit, DependencyModules.xUnit4 and DependencyModules.NUnit build the
+  container of a test through `ModuleTestComposition`. Their behaviour does not change. (#142)
 - The unit tests are in two projects. `tests/DependencyModules.Specs` runs on VerificationGlue.Tests
   and has the tests of the runtime, the source generator, the code fixes, the public API, and
   `DependencyModules.Testing`. `scripts/test-verificationglue.sh` runs it. The tests of the xUnit
   and NUnit integrations stay on xUnit, in `tests/DependencyModules.xUnit.Tests`, which was
   `tests/DependencyModules.Tests`. `scripts/test-xunit.sh` runs them on each `xunit.v3` major. No
-  package changes. (#136, #137, #138, #139, #140)
+  package changes. (#136, #137, #138, #139, #140, #144)
 
 ## [1.7.0] - 2026-09-25
 
