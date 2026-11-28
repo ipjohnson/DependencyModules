@@ -3,8 +3,9 @@ name: release
 # Cutting a release:
 #   git tag v1.0.0 && git push origin v1.0.0
 #
-# The tag is the single source of truth for the published version. Requires a NUGET_API_KEY
-# repository secret with push rights for the DependencyModules.* package IDs on nuget.org.
+# The tag is the single source of truth for the published version. The push to nuget.org uses
+# trusted publishing: a policy on nuget.org names this repository and release.yaml, and the
+# NUGET_USER repository secret holds the nuget.org account that owns the policy.
 
 on:
   push:
@@ -18,6 +19,8 @@ on:
 permissions:
   contents: write
   packages: write
+  # nuget.org trusted publishing exchanges the workflow's OIDC token for a push key.
+  id-token: write
 
 jobs:
   release:
@@ -104,10 +107,19 @@ jobs:
           name: packages
           path: ./artifacts/*
 
+      # The key lasts one hour.
+      - name: Get a nuget.org push key
+        id: nuget
+        uses: NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
       - name: Push to nuget.org
+        env:
+          NUGET_API_KEY: ${{ steps.nuget.outputs.NUGET_API_KEY }}
         run: |
           dotnet nuget push "./artifacts/*.nupkg" \
-            --api-key "${{ secrets.NUGET_API_KEY }}" \
+            --api-key "$NUGET_API_KEY" \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate
 
